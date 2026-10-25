@@ -22,6 +22,7 @@ open EvalValue
 let create values = {
 	avalues = values;
 	alength = Array.length values;
+	amark = 0;
 }
 
 let array_join a f sep =
@@ -34,7 +35,11 @@ let to_list a = Array.to_list (Array.sub a.avalues 0 a.alength)
 let make len =
 	try Array.make len vnull with _ -> EvalContext.error_message "Array allocation is too large"
 
+(* before changing [a] (see [EvalValue.freeze_persistent]) *)
+let barrier a = if a.amark <> 0 then frozen_write a.amark
+
 let set_length a l =
+	barrier a;
 	a.alength <- l;
 	if a.alength > Array.length a.avalues then begin
 		let values' = make (a.alength * 2) in
@@ -43,7 +48,7 @@ let set_length a l =
 	end
 
 let unsafe_get a i = a.avalues.(i)
-let unsafe_set a i v = a.avalues.(i) <- v
+let unsafe_set a i v = barrier a; a.avalues.(i) <- v
 
 let concat a a2 =
 	let values' = make (a.alength + a2.alength) in
@@ -68,6 +73,7 @@ let rec indexOf a equals x fromIndex =
 	else indexOf a equals x (fromIndex + 1)
 
 let insert a pos x =
+	barrier a;
 	if a.alength + 1 >= Array.length a.avalues then begin
 		let values' = make (Array.length a.avalues * 2 + 5) in
 		Array.blit a.avalues 0 values' 0 a.alength;
@@ -119,6 +125,7 @@ let pop a =
 	end
 
 let push a v =
+	barrier a;
 	if a.alength + 1 >= Array.length a.avalues then begin
 		let values' = make (Array.length a.avalues * 2 + 5) in
 		Array.blit a.avalues 0 values' 0 a.alength;
@@ -135,6 +142,7 @@ let remove a equals x =
 	if i < 0 then
 		false
 	else begin
+		barrier a;
 		Array.blit a.avalues (i + 1) a.avalues i (a.alength - i - 1);
 		a.alength <- a.alength - 1;
 		true
@@ -145,9 +153,11 @@ let contains a equals x =
 	i >= 0
 
 let reverse a =
+	barrier a;
 	a.avalues <- ExtArray.Array.rev (Array.sub a.avalues 0 a.alength)
 
 let set a i v =
+	barrier a;
 	if i >= a.alength then begin
 		if i >= Array.length a.avalues then begin
 			let values' = make (max (i + 5) (Array.length a.avalues * 2 + 5)) in
@@ -163,6 +173,7 @@ let shift a =
 		vnull
 	else begin
 		let v = get a 0 in
+		barrier a;
 		a.alength <- a.alength - 1;
 		Array.blit a.avalues 1 a.avalues 0 a.alength;
 		v
@@ -175,16 +186,19 @@ let slice a pos end' =
 		create (Array.sub a.avalues pos (end' - pos))
 
 let sort a f =
+	barrier a;
 	a.avalues <- Array.sub a.avalues 0 a.alength;
 	Array.sort f a.avalues
 
 let splice a pos len end' =
+	barrier a;
 	let values' = Array.init len (fun i -> Array.get a.avalues (pos + i)) in
 	Array.blit a.avalues (pos + len) a.avalues pos (a.alength - end');
 	a.alength <- a.alength - len;
 	create values'
 
 let unshift a v =
+	barrier a;
 	if a.alength + 1 >= Array.length a.avalues then begin
 		let values' = make (Array.length a.avalues * 2 + 5) in
 		Array.blit a.avalues 0 values' 1 a.alength;
@@ -196,6 +210,7 @@ let unshift a v =
 	a.alength <- a.alength + 1
 
 let resize a l =
+	barrier a;
 	if a.alength < l then begin
 		set a (l - 1) vnull;
 		()

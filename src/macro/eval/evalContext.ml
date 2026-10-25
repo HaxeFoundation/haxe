@@ -236,6 +236,9 @@ class static_prototypes = object(self)
 
 	method get path =
 		IntMap.find path prototypes
+
+	method iter f =
+		IntMap.iter (fun _ proto -> f proto) prototypes
 end
 
 type exception_mode =

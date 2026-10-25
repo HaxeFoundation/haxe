@@ -261,7 +261,11 @@ let run_parallel_tasks com n stage tasks =
 	let held0 = ReentrantLock.held lock and claim_held0 = Claims.held () in
 	let spec0 = Atomic.get Claims.speculations and spec_done0 = Atomic.get Claims.speculations_done in
 	let claims0 = Array.copy Claims.waited and nclaims0 = Array.copy Claims.waits and breaks0 = Array.copy Claims.breaks in
+	(* no macro runs between the batches *)
+	MacroContext.Interp.freeze_persistent ();
+	let frozen0 = Atomic.get Claims.frozen_reads and reruns0 = Atomic.get Claims.reruns in
 	Claims.start_tasks (Array.length tasks);
+	TypingTrace.event (fun () -> Printf.sprintf "batch %s %d" (ProgramStage.stage_name stage) (Array.length tasks));
 	let stage_name = ProgramStage.stage_name stage ^ ": " in
 	Timer.time timer_ctx ["typing";"parallel";ProgramStage.stage_name stage] (fun () ->
 		Parallel.run_with_pool com.sctx.pool (fun pool ->
@@ -272,7 +276,9 @@ let run_parallel_tasks com n stage tasks =
 					| None ->
 						()
 					| Some i ->
+						TypingTrace.event (fun () -> "task " ^ string_of_int i);
 						(try tasks.(i) () with exc -> results.(i) <- Some (exc,Printexc.get_raw_backtrace ()));
+						TypingTrace.event (fun () -> "task done " ^ string_of_int i);
 						loop ()
 				in
 				if Atomic.fetch_and_add started 1 < n then loop ()
@@ -303,6 +309,10 @@ let run_parallel_tasks com n stage tasks =
 		(try snd (List.assoc r claim_held) with Not_found -> 0) - (try snd (List.assoc r claim_held0) with Not_found -> 0));
 	Timer.add_extra timer_ctx (stage_name ^ "macros speculating") 0. (Atomic.get Claims.speculations - spec0);
 	Timer.add_extra timer_ctx (stage_name ^ "macros speculating, done so") 0. (Atomic.get Claims.speculations_done - spec_done0);
+	Timer.add_extra timer_ctx (stage_name ^ "macros speculating, frozen variables read") 0. (Atomic.get Claims.frozen_reads - frozen0);
+	Timer.add_extra timer_ctx (stage_name ^ "macros run again") 0. (Atomic.get Claims.reruns - reruns0);
+	TypingTrace.event (fun () -> "batch done");
+	TypingTrace.flush ();
 	Array.iter (function
 		| Some (exc,bt) -> Printexc.raise_with_backtrace exc bt
 		| None -> ()
@@ -335,27 +345,38 @@ let create com macros =
 			t_dynamic_def = t_dynamic;
 			continuation_api = None;
 			do_macro = (fun ctx mode cpath f el p ->
-				(* an expression or build macro runs without the claim of the
-				   macros until its first access to what the macros share
-				   (Claims.speculating) *)
+				(* a macro runs without the claim of the macros until its first
+				   access to what the macros share (Claims.speculating) *)
 				(* expansions are not fingerprinted yet (phase 7): a node that expands a macro depends on it *)
 				if !DepRecord.enabled then DepRecord.record ("macro " ^ s_type_path cpath ^ "." ^ f) "expansion";
-				let speculate = (mode = MExpr || mode = MBuild) && !TypingLock.active in
-				(* its first call loads it with the claim: loading types its module
-				   and initializes its classes, which the macros share *)
-				if speculate && not (MacroContext.is_macro_loaded ctx cpath f) then
-					Claims.with_macro_claim ~reason:"macro load" (fun () -> TypingLock.protect ~site:"macro load" (fun () ->
-						MacroContext.Interp.ensure_thread_eval ();
-						ignore (MacroContext.load_macro' ctx false cpath f p)
-					));
-				let run () = TypingLock.protect ~site:"macro" (fun () ->
-					if !TypingLock.active then MacroContext.Interp.ensure_thread_eval ();
-					Claims.speculate speculate (fun () -> MacroContext.type_macro ctx mode cpath f el p)
-				) in
-				(* a speculating macro touches nothing the macros share until it takes
-				   the claim of the macros: it runs on several domains at once
-				   (docs/incremental-compilation.md, §4b) *)
-				if speculate then run () else Claims.with_macro_claim run
+				TypingTrace.event (fun () -> "macro " ^ s_type_path cpath ^ "." ^ f);
+				Std.finally (fun () -> TypingTrace.event (fun () -> "macro done")) (fun () ->
+				(* a generic build macro too: one that defines the type it gives
+				   after not finding it, as another one may have meanwhile, runs
+				   again with the claim (see [Claims.speculate]), unless it is
+				   nested in a speculating macro (forced by its typing), which
+				   does not run again: it takes the claim *)
+				let speculate = mode <> MDisplay && !TypingLock.active && not (mode = MMacroType && Claims.in_speculation ()) in
+				if speculate then begin
+					(* without the typing lock: what the call types in the macro
+					   context is typed with the claim of the macros (loading the
+					   macro, which its first call does, and typing arguments that
+					   are not only expressions, see [MacroContext.type_macro]), and
+					   a speculating macro touches nothing the macros share until
+					   it takes the claim: it runs on several domains at once
+					   (docs/incremental-compilation.md, §4b) *)
+					MacroContext.Interp.ensure_thread_eval ();
+					(* its first call loads it with the claim, before speculating *)
+					if not (MacroContext.is_macro_loaded ctx cpath f) then
+						Claims.with_macro_claim ~reason:"macro load" (fun () -> ignore (MacroContext.load_macro' ctx false cpath f p));
+					Claims.speculate true (fun () -> MacroContext.type_macro ctx mode cpath f el p)
+				end else
+					(* nested in a speculation if any *)
+					Claims.speculate false (fun () -> Claims.with_macro_claim (fun () -> TypingLock.protect ~site:"macro" (fun () ->
+						if !TypingLock.active then MacroContext.Interp.ensure_thread_eval ();
+						MacroContext.type_macro ctx mode cpath f el p
+					)))
+				) ()
 			);
 			do_load_macro = MacroContext.load_macro';
 			do_load_module = TypeloadModule.load_module;

@@ -705,8 +705,12 @@ let rec run_stages_upto g (p : stage) =
 		| `Done ->
 			()
 	in
-	(* units can run from a domain typing bodies in parallel *)
-	TypingLock.protect ~site:"stages" loop
+	(* units can run from a domain typing bodies in parallel; those of the
+	   macro context (which does not type in parallel) are run with the claim
+	   of the macros, which its typing is done with *)
+	match g.run_parallel with
+	| None -> loop ()
+	| Some _ -> TypingLock.protect ~site:"stages" loop
 
 (* Runs the parallel units of a stage: the units of each module in order, the
    modules on several domains when bodies are typed in parallel and no domain

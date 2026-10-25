@@ -61,9 +61,11 @@ let wait ?(kind=WaitValue) ?(seq=0) ?(safe=(fun () -> false)) ~owner cond =
 	let block () =
 		waiting := (me,(owner,kind,seq,cond,safe)) :: !waiting;
 		if not (cond () || through ()) then begin
+			TypingTrace.event (fun () -> Printf.sprintf "wait %s for %d" kind_names.(rank kind) (owner :> int));
 			let t = Unix.gettimeofday () in
 			while not (cond () || through ()) do Condition.wait done_ mutex done;
 			let k = rank kind in
+			TypingTrace.event (fun () -> "waited " ^ kind_names.(k));
 			waited.(k) <- waited.(k) +. (Unix.gettimeofday () -. t);
 			waits.(k) <- waits.(k) + 1
 		end;
@@ -110,7 +112,14 @@ type macro_owner = {
 	(* what the claim was taken for, and when *)
 	mo_reason : string;
 	mo_since : float;
+	(* whether the claim is taken to change what the macros share *)
+	mo_effects : bool;
 }
+
+(* how many times a claim taken to change what the macros share was released,
+   by any domain and by the current one (see [speculate]) *)
+let effects_epoch = Atomic.make 0
+let own_effects : int Domain.DLS.key = Domain.DLS.new_key (fun () -> 0)
 
 (* the time the claim of the macros was held, by what it was taken for, and
    how many times (with [mutex]) *)
@@ -126,11 +135,12 @@ let claim_seq = ref 0
 let held () = Mutex.protect mutex (fun () -> Hashtbl.fold (fun r v acc -> (r,v) :: acc) claim_held [])
 
 (* Takes the claim of the macros (see [macro_owner]), giving what to release. *)
-let take_macro_claim ?(reason="macro") () =
+let take_macro_claim ?(reason="macro") ?(effects=true) () =
 	let me = Domain.self () in
 	let take () =
 		incr claim_seq;
-		let o = { mo_domain = me; mo_count = 1; mo_seq = !claim_seq; mo_reason = reason; mo_since = Unix.gettimeofday () } in
+		let o = { mo_domain = me; mo_count = 1; mo_seq = !claim_seq; mo_reason = reason; mo_since = Unix.gettimeofday (); mo_effects = effects } in
+		TypingTrace.event (fun () -> "claim " ^ reason);
 		macro_owners := o :: !macro_owners;
 		(* the domains waiting for the claim wait for its owner to change: a
 		   domain let through to break a cycle that takes it over must wake
@@ -166,14 +176,19 @@ let release_macro_claim o =
 		o.mo_count <- o.mo_count - 1;
 		if o.mo_count = 0 then begin
 			add_held claim_held o.mo_reason (Unix.gettimeofday () -. o.mo_since);
+			if o.mo_effects then begin
+				Atomic.incr effects_epoch;
+				Domain.DLS.set own_effects (Domain.DLS.get own_effects + 1)
+			end;
+			TypingTrace.event (fun () -> "release " ^ o.mo_reason);
 			macro_owners := List.filter (fun o' -> o' != o) !macro_owners;
 			Condition.broadcast done_
 		end
 	)
 
-let with_macro_claim ?reason f =
+let with_macro_claim ?reason ?effects f =
 	if not !TypingLock.active then f () else begin
-		let o = take_macro_claim ?reason () in
+		let o = take_macro_claim ?reason ?effects () in
 		match f () with
 		| v -> release_macro_claim o; v
 		| exception e -> release_macro_claim o; raise e
@@ -215,27 +230,157 @@ let is_speculating () = Domain.DLS.get speculating
 let speculations = Atomic.make 0
 let speculations_done = Atomic.make 0
 
+(* Frozen persistent state (docs/incremental-compilation.md, §3.5, step 13):
+   the @:persistent static variables of the macros are frozen at the start of
+   a parallel batch, when no macro runs (see [EvalValue.freeze_persistent]). A
+   speculating macro reading a frozen variable goes on speculating, as a
+   reader of its group (what the variable holds). A macro changing a frozen
+   group (writing the variable, or changing an object it holds) ends its own
+   speculation first, then thaws the group, which invalidates the speculating
+   readers of the group: such a macro has no effect yet, it is stopped at its
+   next access to what the macros share (or when it is done) and runs again
+   with the claim of the macros. A writer never waits for the readers. *)
+exception Invalidated
+
+type reader = {
+	r_invalid : bool Atomic.t;
+	(* the groups read, by their root *)
+	mutable r_groups : int list;
+}
+
+(* the speculating domains that read frozen groups (with [mutex]) *)
+let readers : (Domain.id * reader) list ref = ref []
+(* the reader of the speculation of the current domain *)
+let current_reader : reader option Domain.DLS.key = Domain.DLS.new_key (fun () -> None)
+(* how deep the current macro is nested in the macro that started the
+   speculation: only that one can read a frozen group, the effects of the
+   nested ones (the classes built by a macro typing something...) stay *)
+let speculation_depth : int Domain.DLS.key = Domain.DLS.new_key (fun () -> 0)
+(* whether the speculation of the current domain was invalidated (once it is
+   not a reader any more) *)
+let invalidated : bool Domain.DLS.key = Domain.DLS.new_key (fun () -> false)
+(* the effects (see [effects_epoch]) when the speculation of the current
+   domain started: one that ends after other domains changed what the macros
+   share may have read what they changed (a type not defined yet...) *)
+let speculation_epoch : (int * int) Domain.DLS.key = Domain.DLS.new_key (fun () -> (0,0))
+
+(* how many frozen variables were read speculating, and how many macros ran
+   again *)
+let frozen_reads = Atomic.make 0
+let reruns = Atomic.make 0
+
+(* Stops the current macro if its speculation was invalidated. A macro
+   nested in it is not stopped: what stops it would go through the typing
+   that runs it, which is not undone; the macro that started the speculation
+   runs again once it is done. *)
+let check_valid () =
+	if Domain.DLS.get speculation_depth = 0 then match Domain.DLS.get current_reader with
+	| Some r when Atomic.get r.r_invalid -> raise Invalidated
+	| _ -> if Domain.DLS.get invalidated then raise Invalidated
+
+(* Whether the current domain runs a speculation (or the macro that started it
+   ended it). *)
+let in_speculation () = Domain.DLS.get speculating || Domain.DLS.get speculation_claim <> None
+
+(* Tells whether the speculating macro of the current domain may read group
+   [g] without the claim of the macros ([frozen ()]: whether the group is
+   frozen, checked with [mutex], which thawing it holds). *)
+let read_frozen g frozen =
+	Domain.DLS.get speculating && Domain.DLS.get speculation_depth = 0 && !TypingLock.active &&
+	Mutex.protect mutex (fun () ->
+		frozen () && begin
+			let r = match Domain.DLS.get current_reader with
+				| Some r ->
+					r
+				| None ->
+					let r = { r_invalid = Atomic.make false; r_groups = [] } in
+					Domain.DLS.set current_reader (Some r);
+					readers := (Domain.self (),r) :: !readers;
+					r
+			in
+			if not (List.mem g r.r_groups) then r.r_groups <- g :: r.r_groups;
+			Atomic.incr frozen_reads;
+			true
+		end
+	)
+
+(* Thaws group [g] ([thaw ()] does it, if it is still frozen), invalidating
+   its other readers. *)
+let thaw g frozen thaw =
+	Mutex.protect mutex (fun () ->
+		if frozen () then begin
+			thaw ();
+			let me = Domain.self () in
+			List.iter (fun (d,r) -> if d <> me && List.mem g r.r_groups then Atomic.set r.r_invalid true) !readers
+		end
+	)
+
+(* The current domain is not a reader any more (keeping whether it was
+   invalidated). *)
+let stop_reading () =
+	match Domain.DLS.get current_reader with
+	| None ->
+		()
+	| Some r ->
+		Mutex.protect mutex (fun () ->
+			readers := List.filter (fun (_,r') -> r' != r) !readers;
+			if Atomic.get r.r_invalid then Domain.DLS.set invalidated true
+		);
+		Domain.DLS.set current_reader None
+
 (* Ends the speculation of the current domain: takes the claim of the macros.
-   [reason]: what the macro accesses, reported by --times. *)
+   [reason]: what the macro accesses, reported by --times. Stops the macro if
+   its speculation was invalidated (it runs again, see [speculate]). *)
 let end_speculation ?(reason=(fun () -> "other")) () =
 	if Domain.DLS.get speculating then begin
 		Domain.DLS.set speculating false;
-		if !TypingLock.active then Domain.DLS.set speculation_claim (Some (take_macro_claim ~reason:("speculation ended: " ^ reason ()) ()))
-	end
+		if !TypingLock.active then begin
+			Domain.DLS.set speculation_claim (Some (take_macro_claim ~reason:("speculation ended: " ^ reason ()) ()));
+			(* the groups it read cannot change while it holds the claim *)
+			stop_reading ();
+			let (e0,o0) = Domain.DLS.get speculation_epoch in
+			if Atomic.get effects_epoch - e0 > Domain.DLS.get own_effects - o0 then Domain.DLS.set invalidated true;
+			check_valid ()
+		end
+	end else if Domain.DLS.get speculation_claim <> None then
+		(* ended by a nested macro: the macro that started it is stopped
+		   before it changes anything *)
+		check_valid ()
 
 (* Runs [f] speculating if [b] (see [speculating]), within the speculation
-   of the current domain if any. *)
+   of the current domain if any. A speculation invalidated by a writer of a
+   frozen group it read runs [f] again with the claim of the macros. *)
 let speculate b f =
-	if not b || Domain.DLS.get speculating then f () else begin
+	if in_speculation () then begin
+		(* nested in the macro that started the speculation *)
+		let depth = Domain.DLS.get speculation_depth in
+		Domain.DLS.set speculation_depth (depth + 1);
+		Std.finally (fun () -> Domain.DLS.set speculation_depth depth) f ()
+	end else if not b then
+		f ()
+	else begin
 		let old_claim = Domain.DLS.get speculation_claim in
 		Atomic.incr speculations;
 		Domain.DLS.set speculating true;
 		Domain.DLS.set speculation_claim None;
-		Std.finally (fun () ->
+		Domain.DLS.set invalidated false;
+		Domain.DLS.set speculation_epoch (Atomic.get effects_epoch,Domain.DLS.get own_effects);
+		let finish () =
+			stop_reading ();
+			let invalid = Domain.DLS.get invalidated in
+			Domain.DLS.set invalidated false;
 			(match Domain.DLS.get speculation_claim with
 			| Some o -> release_macro_claim o
-			| None -> Atomic.incr speculations_done);
+			| None -> if not invalid then Atomic.incr speculations_done);
 			Domain.DLS.set speculating false;
-			Domain.DLS.set speculation_claim old_claim
-		) f ()
+			Domain.DLS.set speculation_claim old_claim;
+			invalid
+		in
+		let rerun () =
+			Atomic.incr reruns;
+			with_macro_claim ~reason:"macro run again" f
+		in
+		match f () with
+		| v -> if finish () then rerun () else v
+		| exception e -> if finish () then rerun () else raise e
 	end

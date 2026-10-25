@@ -55,9 +55,11 @@ let set_proto_field proto name v2 =
 	set_static proto (get_proto_field_index_raise proto name) v2
 
 let set_instance_field vi name v2 =
+	instance_barrier vi;
 	vi.ifields.(get_instance_field_index_raise vi.iproto name) <- v2
 
 let set_object_field o name v2 =
+	object_barrier o;
 	match o.oproto with
 	| OProto proto ->
 		begin try
@@ -72,6 +74,7 @@ let set_object_field o name v2 =
 
 (* Turns prototypes into dictionaries if the field doesn't exist. *)
 let set_object_field_runtime o name v2 =
+	object_barrier o;
 	let update_dictionary d =
 		IntMap.add name v2 d
 	in
@@ -102,7 +105,7 @@ let set_bytes_length_field v1 v2 =
 
 let set_field v1 name v2 = match vresolve v1 with
 	| VObject o -> set_object_field o name v2
-	| VPrototype proto -> if is_shared_static_name proto name then !on_shared_state (fun () -> EvalHash.rev_hash proto.ppath ^ "." ^ EvalHash.rev_hash name); fresh_statics proto; set_proto_field proto name v2
+	| VPrototype proto -> if is_shared_static_name proto name then shared_static_name_write proto name; fresh_statics proto; set_proto_field proto name v2
 	| VArray va ->
 		(* Vector.new does this *)
 		if name = key_length then begin

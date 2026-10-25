@@ -124,6 +124,7 @@ let create com api is_macro args =
 		toplevel = 	vobject {
 			ofields = [||];
 			oproto = OProto (fake_proto fake_proto_cache key_eval_toplevel);
+			omark = 0;
 		};
 		eval = Thread_local_storage.create ();
 		evals = evals;
@@ -415,12 +416,17 @@ let speculative_api = [
 ]
 
 (* The functions of the API that read nothing of the compilation (their
-   arguments, the position of the running expansion, a flag): they run
-   without the typing lock. They are called very often (SpaceCraft: 150000
-   calls), and taking the lock for each made the macros, which are the
-   critical path of typing, wait for the domains typing bodies. *)
+   arguments, the position of the running expansion, a flag), or only read it
+   as the domains typing bodies do without the typing lock (parsing, following
+   and printing types, the defines, the typing state of the expansion's own
+   context): they run without the typing lock. They are called very often
+   (SpaceCraft: 150000 calls), and taking the lock for each made the macros,
+   which are the critical path of typing, wait for the domains typing bodies. *)
 let lock_free_api = [
 	"init_macros_done"; "make_expr"; "current_pos"; "get_pos_infos"; "make_position";
+	"do_parse"; "signature"; "to_complex_type"; "s_type"; "s_expr"; "follow"; "follow_with_abstracts";
+	"defined"; "defined_value"; "get_local_type"; "get_local_module"; "get_local_method";
+	"get_expected_type"; "get_call_arguments"; "get_local_using"; "get_local_imports"; "local_vars";
 ]
 
 (* The functions of the API, except [lock_free_api], run under the typing
@@ -433,7 +439,9 @@ let shared_state_api n v =
 	| VFunction (f,static) ->
 		let site = "api " ^ n in
 		let locked vl = TypingLock.protect ~site (fun () -> f vl) in
-		if List.mem n speculative_api then VFunction (locked,static)
+		(* a speculating macro whose reads were invalidated does nothing more
+		   (see [Claims.Invalidated]) *)
+		if List.mem n speculative_api then VFunction ((fun vl -> Claims.check_valid (); locked vl),static)
 		else VFunction ((fun vl -> !on_shared_state (fun () -> site); locked vl),static)
 	| _ -> v
 
@@ -705,6 +713,14 @@ let get_api_call_pos () =
 let () = EvalContext.create_thread_eval := (fun ctx ->
 	EvalThread.create_eval (EvalThread.create_thread_info ctx.next_thread_id (Thread (Thread.self())))
 )
+
+(* Freezes the @:persistent static variables of the macros (see
+   [EvalValue.freeze_persistent]), while no macro runs. *)
+let freeze_persistent () =
+	if !GlobalState.initialized then begin
+		let ctx = get_ctx () in
+		if ctx.is_macro then freeze_persistent ctx.static_prototypes#iter
+	end
 
 let ensure_thread_eval () =
 	if !GlobalState.initialized then begin

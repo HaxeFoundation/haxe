@@ -75,9 +75,15 @@ let shared_state exec env =
 	!on_shared_state (fun () -> "static");
 	exec env
 
-(* [exec] reading or changing the static variable at slot [i] of [proto] *)
-let static_state proto i exec env =
-	if is_shared_static proto i then !on_shared_state (fun () -> static_name proto i);
+(* [exec] reading the static variable at slot [i] of [proto] *)
+let static_read_state proto i exec env =
+	if is_shared_static proto i then shared_static_read proto i;
+	fresh_statics proto;
+	exec env
+
+(* [exec] changing it *)
+let static_write_state proto i exec env =
+	if is_shared_static proto i then shared_static_write proto i;
 	fresh_statics proto;
 	exec env
 
@@ -96,7 +102,7 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 			| FStatic({cl_path=path},_) | FEnum({e_path=path},_) ->
 				let proto = get_static_prototype jit.ctx (path_hash path) ef.epos in
 				let i = get_proto_field_index proto name in
-				static_state proto i (emit_proto_field_write proto i exec2)
+				static_write_state proto i (emit_proto_field_write proto i exec2)
 			| FInstance(c,_,_) when not (has_class_flag c CInterface) ->
 				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) ef.epos in
 				let i = get_instance_field_index proto name ef.epos in
@@ -157,7 +163,7 @@ and op_assign_op ?binop jit op e1 e2 prefix = match e1.eexpr with
 			| FStatic({cl_path=path},_) ->
 				let proto = get_static_prototype jit.ctx (path_hash path) ef.epos in
 				let i = get_proto_field_index proto name in
-				static_state proto i (emit_proto_field_read_write proto i exec2 op prefix)
+				static_write_state proto i (emit_proto_field_read_write proto i exec2 op prefix)
 			| FInstance(c,_,_) when not (has_class_flag c CInterface) ->
 				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) ef.epos in
 				let i = get_instance_field_index proto name ef.epos in
@@ -667,7 +673,7 @@ and jit_expr jit return e =
 				let exec = emit_proto_field_read proto i in
 				begin match cf.cf_kind with
 					| Method (MethNormal | MethInline | MethMacro) -> exec
-					| _ -> static_state proto i exec
+					| _ -> static_read_state proto i exec
 				end
 			| FEnum({e_path=path},_)
 			| FInstance({cl_path=path},_,{cf_kind = Method (MethNormal | MethInline)}) ->

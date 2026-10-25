@@ -180,6 +180,7 @@ let emit_object_declaration proto fa =
 		vobject {
 			ofields = a;
 			oproto = OProto proto;
+			omark = 0;
 		}
 	)
 
@@ -619,6 +620,7 @@ let emit_proto_field_write proto i exec2 = fun env ->
 let emit_instance_field_write exec1 p i exec2 = fun env -> match exec1 env with
 	| VInstance vi ->
 		let v = exec2 env in
+		instance_barrier vi;
 		vi.ifields.(i) <- v;
 		v
 	| v -> unexpected_value_p v "instance" p
@@ -626,6 +628,7 @@ let emit_instance_field_write exec1 p i exec2 = fun env -> match exec1 env with
 let emit_local_instance_field_write slot p i exec2 = fun env -> match env.env_locals.(slot) with
 	| VInstance vi ->
 		let v = exec2 env in
+		instance_barrier vi;
 		vi.ifields.(i) <- v;
 		v
 	| v -> unexpected_value_p v "instance" p
@@ -635,6 +638,7 @@ let emit_anon_field_write exec1 p proto i name exec2 = fun env ->
 	let v2 = exec2 env in
 	begin match vresolve v1 with
 		| VObject o ->
+			object_barrier o;
 			begin match o.oproto with
 			| OProto proto' when proto' == proto ->
 				o.ofields.(i) <- v2;
@@ -718,6 +722,7 @@ let instance_field_read_write vi i exec2 fop prefix env =
 	let vf = vi.ifields.(i) in
 	let v2 = exec2 env in
 	let v = fop vf v2 in
+	instance_barrier vi;
 	vi.ifields.(i) <- v;
 	if prefix then v else vf
 
@@ -739,7 +744,7 @@ let emit_field_read_write exec1 p1 name exec2 fop prefix = fun env ->
 		instance_field_read_write vi i exec2 fop prefix env
 	| VPrototype proto ->
 		let i = get_proto_field_index proto name in
-		if is_shared_static proto i then !on_shared_state (fun () -> static_name proto i);
+		if is_shared_static proto i then shared_static_write proto i;
 		fresh_statics proto;
 		proto_field_read_write proto i exec2 fop prefix env
 	| _ ->

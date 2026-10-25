@@ -1556,6 +1556,82 @@ flag of structures (`Fields.remove_constant_flag`), and the units run by a
 nested stage run (`Typecore.run_stages_upto` from a domain typing in
 parallel).
 
+**Status: step 13, less serialized by the typing lock and the claim of the
+macros.** Measured on SpaceCraft (4 domains), the typing lock was held 1.0 s
+and the claim 1.6 s of the 2.4 s of the class builds stage: typing was
+serialized by one or the other. `--times` now reports, per parallel stage,
+how long each was held and for what (`held: typing lock: <site>`, `held:
+macros: <reason>`, including the access that ended a speculation), and
+`HAXE_TYPING_TRACE=<file>` writes the waits, claims and builds of every
+domain with their time (`TypingTrace`), from which a timeline of a stage
+shows what serializes it.
+- **Macro calls without the typing lock.** `MacroContext.type_macro` no
+  longer runs under the typing lock. What it types in the macro context (whose
+  typer is not domain-safe) is typed with the claim of the macros: loading a
+  macro (typing its module, flushing the macro context, initializing its
+  classes; the stage runs of the macro context take no typing lock either), and
+  what a macro needs besides its arguments, computed once per macro and mode
+  (`macro_info`: its signature checked against the mode, how each argument is
+  passed, the type of `Field`). Arguments passed as expressions, constants of
+  a basic type and omitted optional arguments are encoded without typing them
+  (`untyped_args`, what typing them gives); other arguments are typed with the
+  claim. The table of loaded macros has a mutex.
+- **More of the macro API without the typing lock.** The functions that only
+  read the compilation as body typing does (parsing, following and printing
+  types, `toComplexType`, the defines, the local type, method, imports and
+  variables of the expansion) join `EvalMain.lock_free_api`.
+- **A module not found while speculating** is looked up again once the macro
+  holding the claim is done (a temporary claim), and the speculation goes on:
+  most of these are lookups relative to the package (`ent.Array`).
+- **Frozen persistent state.** At the start of each parallel batch, when no
+  macro runs, and after each macro load (with the claim), the `@:persistent`
+  static variables are frozen (`EvalValue.freeze_persistent`): each variable,
+  with the arrays, objects, instances and maps it holds, forms a group whose
+  number marks them (`amark`, `omark`, `imark`). A variable holding something
+  whose changes cannot be seen (a function, which may have captured objects, a
+  vector, bytes, a buffer...) is not frozen. A speculating macro reading a
+  frozen variable goes on speculating, registered as a reader of its group
+  (`Claims.read_frozen`). Writing the variable, or changing one of the marked
+  objects (the write barrier of the array operations, of field writes,
+  `Reflect`, and the map operations), ends the speculation of the writer, then
+  thaws the group (until the next freeze), which invalidates its speculating
+  readers (`Claims.thaw`). A writer never waits: an invalidated macro has no
+  effect yet, it is stopped at its next access to what the macros share or API
+  call (`Claims.Invalidated`), or when it is done, and runs again with the
+  claim. Only the macro that started a speculation can read a frozen group or
+  be stopped: a macro nested in it (run by the typing of an API call) has
+  effects that stay (the classes it builds...); it ends the speculation
+  instead, and the outer macro runs again when it is done if it was
+  invalidated.
+- **Speculations are validated.** A speculation that ends after another
+  domain released a claim taken to change what the macros share (a macro, a
+  load) may have read what it changed: a type not defined yet, which it would
+  then define again. It runs again with the claim (counted by `--times`,
+  `macros run again`). Generic build macros now speculate too (a
+  check-then-define macro that loses the race runs again), except when nested
+  in a speculation, where they take the claim.
+Found on the way: an invalidation raised from a macro nested in the typing of
+another (a generic build macro forced by `Context.typeof`) left the lazy type it
+was building unresolved (hxbit schemas with `null` field types): nested macros
+are never stopped.
+Measured (4 domains, median of 10, parallel typing stages before → after):
+a project of 300 hxbit classes (a third `NetworkSerializable`, the pattern of
+SpaceCraft) 1.31 s → 0.67 s (bodies 0.77 s → 0.24 s, the whole build 5.2 s →
+2.7 s): every speculating macro now ends without the claim of the macros
+(1708 of 9705 before), the claim is held 2.0 s → 0 s in the bodies stage, and
+73 to 104 generic build macros run again. Heaps (`-D apicheck`) JS 0.71 s →
+0.68 s, HL 0.71 s → 0.70 s, its samples (one HL build) 1.57 s → 1.48 s: the
+typing lock is held 0.34 s → 0.06 s in the class builds stage, which stays
+bounded by the macro loads (the claim, on the critical path: every class
+needing a macro waits for it). The output stays identical to the sequential
+typing (40 runs out of 40 on Heaps HL and on the hxbit project, `-D
+typer-shuffle` for 4 seeds, 1, 2, 8 and 16 domains).
+What serializes typing now: loading a macro (typing its module in the macro
+context, one domain at a time: 0.7 s of the 1 s class builds stage of the
+Heaps samples is `hxd.res.FileTree.build`), and the macro API functions that
+type (`typeof`, `getType`...) or change the compilation, still under the
+typing lock.
+
 #### 3.6 Parsing shared between contexts
 
 Every context on a server keeps its own query graph: the macro context
@@ -2877,7 +2953,7 @@ single model for the whole compilation.
    | Parsing and `Decls` fingerprints | file | pure function of the content and of the defines read |
    | `declare`, `resolve`, `header`, `members` | module / type | build macros run inside `members` |
    | `sig`, `body`, `checks` | field / type | §3.5 |
-   | Macro expansions | expansion | static isolation (phase 7, item 4) makes expansions independent; the eval interpreter keeps its compiled code shared and read-only, and its mutable state (static layers, call stacks, caches) per domain. Until this is done, macro expansions run on a single lane while other queries keep running |
+   | Macro expansions | expansion | static isolation (phase 7, item 4) makes expansions independent; the eval interpreter keeps its compiled code shared and read-only, and its mutable state (static layers, call stacks, caches) per domain. Until this is done, macro expansions run on a single lane while other queries keep running (since §3.5 step 13, expansions run on several domains, speculating: what they share is ordered by the claim of the macros, the `@:persistent` state being frozen between batches with a write barrier) |
    | Fingerprints | node | computed by the query that produces the node |
    | Post-processing (filters, analyzer) | field | already per type today; becomes per `PostProcessed(cf)` node |
    | Global passes (DCE, initialization order, features, descendants, `RenameVars`, purity) | summary / component | summaries are computed in parallel; reachability by parallel frontier; purity per strongly connected component |
@@ -2907,7 +2983,10 @@ single model for the whole compilation.
    default, fewer on a machine with fewer cores), `0` types
    on a single domain (same results). Beyond a few domains, the macros (one
    at a time, the critical path of typing) wait for the typing lock more than
-   the other domains gain.
+   the other domains gain. (Since §3.5 step 13, most macros run speculating on
+   several domains at once, reading the frozen `@:persistent` state, and their
+   calls take the typing lock only for the API functions that type or change
+   the compilation; loading a macro is still done on one domain at a time.)
 7. **Measurement.** The scheduler reports per compilation the busy time per
    domain, the critical path (longest chain of dependent queries) and the time
    spent waiting, per operation, in `--times` and `server/stats`.

@@ -177,6 +177,7 @@ let encode_obj l =
 		vobject {
 			ofields = a;
 			oproto = OProto e.eo_proto;
+			omark = 0;
 		}
 	| _ ->
 		let proto,sorted = ctx.get_object_prototype ctx l in
@@ -194,6 +195,7 @@ let encode_obj l =
 		vobject {
 			ofields = fields;
 			oproto = OProto proto;
+			omark = 0;
 		}
 
 let encode_obj_s l =
@@ -253,6 +255,7 @@ let create_instance_direct proto kind =
 		ifields = if Array.length proto.pinstance_fields = 0 then proto.pinstance_fields else Array.copy proto.pinstance_fields;
 		iproto = proto;
 		ikind = kind;
+		imark = 0;
 	}
 
 let create_instance ?(kind=INormal) path =
@@ -261,6 +264,7 @@ let create_instance ?(kind=INormal) path =
 		ifields = if Array.length proto.pinstance_fields = 0 then proto.pinstance_fields else Array.copy proto.pinstance_fields;
 		iproto = proto;
 		ikind = kind;
+		imark = 0;
 	}
 
 let encode_instance ?(kind=INormal) path =
@@ -329,6 +333,7 @@ let fake_proto cache path =
 			pshared = [||];
 			pdomain = [||];
 			pdomain_epoch = [||];
+			pfrozen = [||];
 		} in
 		proto.pvalue <- vprototype proto;
 		Hashtbl.replace cache path proto;
@@ -339,6 +344,7 @@ let encode_unsafe o =
 		ifields = [||];
 		iproto = fake_proto (get_ctx()).fake_proto_cache key_haxe_macro_Unsafe;
 		ikind = IRef (Obj.repr o);
+		imark = 0;
 	}
 
 let encode_pos p =
@@ -346,6 +352,7 @@ let encode_pos p =
 		ifields = [||];
 		iproto = fake_proto (get_ctx()).fake_proto_cache key_haxe_macro_Position;
 		ikind = IPos p;
+		imark = 0;
 	}
 
 let encode_lazytype t f =
@@ -353,6 +360,7 @@ let encode_lazytype t f =
 		ifields = [||];
 		iproto = fake_proto (get_ctx()).fake_proto_cache key_haxe_macro_LazyType;
 		ikind = ILazyType(t,f);
+		imark = 0;
 	}
 
 let encode_tdecl t =
@@ -360,6 +368,7 @@ let encode_tdecl t =
 		ifields = [||];
 		iproto = fake_proto (get_ctx()).fake_proto_cache key_haxe_macro_TypeDecl;
 		ikind = ITypeDecl t;
+		imark = 0;
 	}
 
 let ref_proto =
@@ -378,6 +387,7 @@ let ref_proto =
 		pshared = [||];
 		pdomain = [||];
 		pdomain_epoch = [||];
+		pfrozen = [||];
 	} in
 	proto.pvalue <- vprototype proto;
 	proto
@@ -387,6 +397,7 @@ let encode_ref v convert tostr =
 		ifields = [|vifun0 (fun _ -> convert v);vifun0 (fun _ -> encode_string (tostr()))|];
 		iproto = ref_proto;
 		ikind = IRef (Obj.repr v);
+		imark = 0;
 	}
 
 let encode_lazy r =

@@ -172,6 +172,7 @@ module PrototypeBuilder = struct
 			pshared = [||];
 			pdomain = [||];
 			pdomain_epoch = [||];
+			pfrozen = [||];
 		} in
 		proto.pvalue <- vprototype proto;
 		(* Register the prototype. *)

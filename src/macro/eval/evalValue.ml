@@ -215,6 +215,8 @@ and vobject = {
 	mutable ofields : value array;
 	(* The prototype of the object. *)
 	mutable oproto : vobject_proto;
+	(* the frozen group of the object, 0 if none (see [freeze_persistent]) *)
+	mutable omark : int;
 }
 
 and vobject_proto =
@@ -256,6 +258,9 @@ and vprototype = {
 	mutable pshared : bool array;
 	mutable pdomain : value array array;
 	mutable pdomain_epoch : int array;
+	(* the frozen group of each @:persistent slot, 0 if it is not frozen, -1 if
+	   what it holds cannot be frozen (see [freeze_persistent]) *)
+	mutable pfrozen : int array;
 }
 
 and vinstance_kind =
@@ -307,11 +312,15 @@ and vinstance = {
 	iproto : vprototype;
 	(* The [vinstance_kind]. *)
 	mutable ikind : vinstance_kind;
+	(* the frozen group of the instance, 0 if none (see [freeze_persistent]) *)
+	mutable imark : int;
 }
 
 and varray = {
 	mutable avalues : value array;
-	mutable alength : int
+	mutable alength : int;
+	(* the frozen group of the array, 0 if none (see [freeze_persistent]) *)
+	mutable amark : int;
 }
 
 and vvector = value array
@@ -534,6 +543,146 @@ let set_static proto i v =
 		if e <> 0 then Array.unsafe_set (isolated_values proto e) i v else proto.pfields.(i) <- v
 	end else
 		proto.pfields.(i) <- v
+
+(* Frozen persistent state (see [Claims.Invalidated]): at the start of a
+   batch of typing tasks, the values of the @:persistent static variables are
+   frozen, each variable with what it holds (its arrays, objects, instances,
+   maps) forming a group, marked on them. A speculating macro reads a frozen
+   variable without the claim of the macros; writing the variable or changing
+   one of its objects thaws the group (until the next batch). A variable
+   holding something whose changes are not seen (a function, which may have
+   captured objects, a vector, bytes, a buffer...) is not frozen. The
+   variables loaded by a macro are frozen once it is loaded. Freezing only
+   marks what no speculating macro can read (the variables not frozen), with
+   the claim of the macros or while no macro runs; thawing is done with
+   [Claims.mutex]. *)
+let group_parent = ref (Array.make 64 0)
+let group_frozen = ref (Array.make 64 false)
+let group_count = ref 1
+
+let new_group () =
+	let g = !group_count in
+	if g >= Array.length !group_parent then Mutex.protect Claims.mutex (fun () ->
+		let grow a v = let a' = Array.make (2 * Array.length a) v in Array.blit a 0 a' 0 (Array.length a); a' in
+		group_parent := grow !group_parent 0;
+		group_frozen := grow !group_frozen false
+	);
+	incr group_count;
+	(!group_parent).(g) <- g;
+	(!group_frozen).(g) <- false;
+	g
+
+let rec group_root g =
+	let p = (!group_parent).(g) in
+	if p = g then g else group_root p
+
+let is_frozen g = g <> 0 && (!group_frozen).(group_root g)
+
+exception Unfreezable
+
+(* Marks what [v] holds with group [g]; the frozen groups it shares objects
+   with are added to [unions]. *)
+let freeze_value g unions v =
+	let rec loop v = match v with
+		| VNull | VTrue | VFalse | VInt _ | VFloat _ | VString _ | VNativeString _ | VInt64 _ | VUInt64 _ | VPrototype _ ->
+			()
+		| VEnumValue ev ->
+			Array.iter loop ev.eargs
+		| VArray a ->
+			visit a.amark (fun () -> a.amark <- g) (fun () -> for i = 0 to a.alength - 1 do loop a.avalues.(i) done)
+		| VObject o ->
+			visit o.omark (fun () -> o.omark <- g) (fun () ->
+				Array.iter loop o.ofields;
+				match o.oproto with
+				| ODictionary d -> IntMap.iter (fun _ v -> loop v) d
+				| OProto _ -> ()
+			)
+		| VInstance vi ->
+			let fields () = Array.iter loop vi.ifields in
+			let instance f = visit vi.imark (fun () -> vi.imark <- g) (fun () -> fields (); f ()) in
+			begin match vi.ikind with
+			| INormal -> instance (fun () -> ())
+			| IStringMap h -> instance (fun () -> RuntimeStringHashtbl.iter (fun _ (_,v) -> loop v) h)
+			| IIntMap h -> instance (fun () -> RuntimeIntHashtbl.iter (fun _ v -> loop v) h)
+			| IInt64Map h -> instance (fun () -> RuntimeInt64Hashtbl.iter (fun _ v -> loop v) h)
+			| IObjectMap h -> instance (fun () -> Hashtbl.iter (fun k v -> loop k; loop v) h)
+			| IPos _ | IDate _ when Array.length vi.ifields = 0 -> ()
+			| _ -> raise Unfreezable
+			end
+		| VVector _ | VFunction _ | VFieldClosure _ | VLazy _ | VHandle _ ->
+			raise Unfreezable
+	and visit mark set descend =
+		if mark = g then ()
+		else if is_frozen mark then unions := mark :: !unions
+		else begin set (); descend () end
+	in
+	loop v
+
+(* Freezes the @:persistent variables of [protos] (an iterator) that are not. *)
+let freeze_persistent protos =
+	protos (fun proto ->
+		if Array.length proto.pshared > 0 then begin
+			if Array.length proto.pfrozen = 0 then proto.pfrozen <- Array.make (Array.length proto.pshared) 0;
+			Array.iteri (fun i shared ->
+				if shared && proto.pfrozen.(i) >= 0 && not (is_frozen proto.pfrozen.(i)) then begin
+					let g = new_group () in
+					let unions = ref [] in
+					match freeze_value g unions proto.pfields.(i) with
+					| () ->
+						(!group_frozen).(g) <- true;
+						List.iter (fun g' -> let r = group_root g' in if r <> g then (!group_parent).(r) <- g) !unions;
+						proto.pfrozen.(i) <- g
+					| exception Unfreezable ->
+						(* what is marked with [g] is not frozen; the variable is
+						   not walked again until it is written *)
+						proto.pfrozen.(i) <- -1
+				end
+			) proto.pshared
+		end
+	)
+
+(* Before changing something of group [g] (not 0): the speculation of the
+   current domain ends, then the group is thawed if it is frozen. A group
+   already thawed is still shared: a speculating macro that read it while it
+   was frozen (invalidated since) must not change it without the claim. *)
+let frozen_write g =
+	!on_shared_state (fun () -> "a frozen value changed");
+	let r = group_root g in
+	if (!group_frozen).(r) then
+		Claims.thaw r (fun () -> (!group_frozen).(r)) (fun () -> (!group_frozen).(r) <- false)
+
+(* before changing object [o], instance [vi] *)
+let object_barrier o = if o.omark <> 0 then frozen_write o.omark
+let instance_barrier vi = if vi.imark <> 0 then frozen_write vi.imark
+
+let frozen_group proto i = if i < Array.length proto.pfrozen then max 0 proto.pfrozen.(i) else 0
+
+(* Before reading the static variable at shared slot [i] of [proto]. *)
+let shared_static_read proto i =
+	let g = frozen_group proto i in
+	if not (g <> 0 && let r = group_root g in Claims.read_frozen r (fun () -> (!group_frozen).(r))) then
+		!on_shared_state (fun () -> static_name proto i)
+
+(* Before writing (or reading and writing) it. *)
+let shared_static_write proto i =
+	!on_shared_state (fun () -> static_name proto i);
+	let g = frozen_group proto i in
+	if g <> 0 then frozen_write g;
+	if i < Array.length proto.pfrozen then proto.pfrozen.(i) <- 0
+
+(* The same, by name. *)
+let shared_static_index proto name =
+	match IntMap.find_opt name proto.pnames with
+	| Some i -> i
+	| None -> -1
+
+let shared_static_name_read proto name =
+	let i = shared_static_index proto name in
+	if i >= 0 then shared_static_read proto i else !on_shared_state (fun () -> static_name proto i)
+
+let shared_static_name_write proto name =
+	let i = shared_static_index proto name in
+	if i >= 0 then shared_static_write proto i else !on_shared_state (fun () -> static_name proto i)
 
 (* Runs [f] as an expansion of its own. *)
 let with_expansion f =

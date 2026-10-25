@@ -1531,6 +1531,11 @@ let map_key_value_iterator path = vifun0 (fun vthis ->
 	vit
 )
 
+(* before changing map [vthis] (see [EvalValue.freeze_persistent]) *)
+let map_barrier vthis = match vthis with
+	| VInstance vi -> instance_barrier vi
+	| _ -> ()
+
 module StdIntMap = struct
 	let this vthis = match vthis with
 		| VInstance {ikind = IIntMap h} -> h
@@ -1563,6 +1568,7 @@ module StdIntMap = struct
 	let keyValueIterator = map_key_value_iterator key_haxe_iterators_map_key_value_iterator
 
 	let remove = vifun1 (fun vthis vkey ->
+		map_barrier vthis;
 		let this = this vthis in
 		let key = decode_int vkey in
 		let b = RuntimeIntHashtbl.mem this key in
@@ -1571,6 +1577,7 @@ module StdIntMap = struct
 	)
 
 	let set = vifun2 (fun vthis vkey vvalue ->
+		map_barrier vthis;
 		RuntimeIntHashtbl.add (this vthis) (decode_int vkey) vvalue;
 		vnull
 	)
@@ -1585,6 +1592,7 @@ module StdIntMap = struct
 	)
 
 	let clear = vifun0 (fun vthis ->
+		map_barrier vthis;
 		RuntimeIntHashtbl.clear (this vthis);
 		vnull
 	)
@@ -1626,6 +1634,7 @@ module StdInt64Map = struct
 	let keyValueIterator = map_key_value_iterator key_haxe_iterators_map_key_value_iterator
 
 	let remove = vifun1 (fun vthis vkey ->
+		map_barrier vthis;
 		let this = this vthis in
 		let key = EvalIntegers.decode_i64 vkey in
 		let b = RuntimeInt64Hashtbl.mem this key in
@@ -1634,6 +1643,7 @@ module StdInt64Map = struct
 	)
 
 	let set = vifun2 (fun vthis vkey vvalue ->
+		map_barrier vthis;
 		RuntimeInt64Hashtbl.add (this vthis) (EvalIntegers.decode_i64 vkey) vvalue;
 		vnull
 	)
@@ -1648,6 +1658,7 @@ module StdInt64Map = struct
 	)
 
 	let clear = vifun0 (fun vthis ->
+		map_barrier vthis;
 		RuntimeInt64Hashtbl.clear (this vthis);
 		vnull
 	)
@@ -1690,6 +1701,7 @@ module StdStringMap = struct
 	let keyValueIterator = map_key_value_iterator key_haxe_iterators_map_key_value_iterator
 
 	let remove = vifun1 (fun vthis vkey ->
+		map_barrier vthis;
 		let this = this vthis in
 		let key = decode_vstring vkey in
 		let b = RuntimeStringHashtbl.mem this key in
@@ -1698,6 +1710,7 @@ module StdStringMap = struct
 	)
 
 	let set = vifun2 (fun vthis vkey vvalue ->
+		map_barrier vthis;
 		RuntimeStringHashtbl.add (this vthis) (decode_vstring vkey) vvalue;
 		vnull
 	)
@@ -1712,6 +1725,7 @@ module StdStringMap = struct
 	)
 
 	let clear = vifun0 (fun vthis ->
+		map_barrier vthis;
 		RuntimeStringHashtbl.clear (this vthis);
 		vnull
 	)
@@ -1753,6 +1767,7 @@ module StdObjectMap = struct
 	let keyValueIterator = map_key_value_iterator key_haxe_iterators_map_key_value_iterator
 
 	let remove = vifun1 (fun vthis vkey ->
+		map_barrier vthis;
 		let this = this vthis in
 		let b = ValueHashtbl.mem this vkey in
 		ValueHashtbl.remove this vkey;
@@ -1760,6 +1775,7 @@ module StdObjectMap = struct
 	)
 
 	let set = vifun2 (fun vthis vkey vvalue ->
+		map_barrier vthis;
 		ValueHashtbl.replace (this vthis) vkey vvalue;
 		vnull
 	)
@@ -1774,6 +1790,7 @@ module StdObjectMap = struct
 	)
 
 	let clear = vifun0 (fun vthis ->
+		map_barrier vthis;
 		ValueHashtbl.reset (this vthis);
 		vnull
 	)
@@ -2037,14 +2054,16 @@ module StdReflect = struct
 
 	let copy = vfun1 (fun o -> match vresolve o with
 		| VNull -> VNull
-		| VObject o -> VObject { o with ofields = Array.copy o.ofields }
+		| VObject o -> VObject { o with ofields = Array.copy o.ofields; omark = 0 }
 		| VInstance vi -> vinstance {
 			ifields = Array.copy vi.ifields;
 			iproto = vi.iproto;
 			ikind = vi.ikind;
+			(* the copy shares what its kind holds (a map...) *)
+			imark = (match vi.ikind with INormal -> 0 | _ -> vi.imark);
 		}
 		| VString _ -> o
-		| VArray va -> VArray { va with avalues = Array.copy va.avalues }
+		| VArray va -> VArray { va with avalues = Array.copy va.avalues; amark = 0 }
 		| VVector vv -> VVector (Array.copy vv)
 		| _ -> unexpected_value o "object"
 	)
@@ -2053,6 +2072,7 @@ module StdReflect = struct
 		let name = hash (decode_vstring name).sstring in
 		match vresolve o with
 		| VObject o ->
+			object_barrier o;
 			begin match o.oproto with
 			| OProto proto ->
 				let found = ref false in

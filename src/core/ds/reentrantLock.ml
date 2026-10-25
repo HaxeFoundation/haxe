@@ -18,12 +18,14 @@ let create () = { m = Mutex.create (); c = Condition.create (); owner = None; co
 
 (* with [l.m] held *)
 let take l me site =
+	TypingTrace.event (fun () -> "lock " ^ site);
 	l.owner <- Some me;
 	l.site <- site;
 	l.since <- Unix.gettimeofday ()
 
 (* with [l.m] held, the current domain giving the lock up *)
 let account l =
+	TypingTrace.event (fun () -> "unlock " ^ l.site);
 	let d = Unix.gettimeofday () -. l.since in
 	match Hashtbl.find_opt l.held l.site with
 	| Some r -> r := !r +. d
@@ -36,6 +38,7 @@ let lock ?(site="other") l =
 		l.count <- l.count + 1
 	else begin
 		if l.owner <> None then begin
+			TypingTrace.event (fun () -> "wait lock " ^ site);
 			let t = Unix.gettimeofday () in
 			while l.owner <> None do Condition.wait l.c l.m done;
 			l.waited <- l.waited +. (Unix.gettimeofday () -. t);
@@ -118,6 +121,7 @@ let reacquire l (n,site) =
 		let me = Domain.self () in
 		Mutex.lock l.m;
 		if l.owner <> None then begin
+			TypingTrace.event (fun () -> "wait lock " ^ site);
 			let t = Unix.gettimeofday () in
 			while l.owner <> None do Condition.wait l.c l.m done;
 			l.waited <- l.waited +. (Unix.gettimeofday () -. t);

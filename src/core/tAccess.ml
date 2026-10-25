@@ -96,7 +96,8 @@ let with_unlocked_claim ~is_done c f =
 		| `Run ->
 			f ()
 		| `Claimed ->
-			Std.finally (fun () -> build_done c) f ()
+			TypingTrace.event (fun () -> "build " ^ Globals.s_type_path c.cl_path);
+			Std.finally (fun () -> TypingTrace.event (fun () -> "built " ^ Globals.s_type_path c.cl_path); build_done c) f ()
 		| `Wait (owner,seq) ->
 			let built = TypingLock.without (fun () -> Mutex.protect Claims.mutex (fun () ->
 				Claims.wait ~kind:Claims.WaitClass ~seq ~owner (fun () -> builder_of c = None)

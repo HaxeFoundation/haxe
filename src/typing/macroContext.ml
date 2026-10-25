@@ -39,6 +39,29 @@ module HxbWriterConfigWriterEval = HxbWriterConfig.WriterConfigWriter(EvalDataAp
 
 let macro_interp_cache = ref None
 
+type macro_arg_type =
+	| MAExpr
+	| MAFunction
+	| MAOther
+
+(* What [type_macro] needs of a macro besides the arguments of a call, computed
+   once: its signature checked against the mode of the call, how each argument
+   is passed. Computing it types in the macro context, which is done with the
+   claim of the macros; a call that uses it reads it without lock. *)
+type macro_info = {
+	mi_field : tclass_field;
+	mi_margs : (string * bool * t) list;
+	(* whether the last argument is Array<Expr>, which takes the remaining arguments *)
+	mi_rest : bool;
+	mi_eargs : ((string * bool * t) * macro_arg_type) list;
+	(* haxe.macro.Expr.Field, for the result of a build macro *)
+	mi_tfield : t option;
+}
+
+let macro_infos : (path * string * macro_mode,macro_info) Hashtbl.t = Hashtbl.create 0
+let macro_infos_mutex = Mutex.create ()
+
+
 let safe_decode com v expected t p f =
 	let raise_decode_error s =
 		let path = [com.part_scope.dump_config.DumpConfig.dump_path;"decoding_error"] in
@@ -808,6 +831,7 @@ let get_macro_context ctx =
 		select();
 		ctx
 	| None ->
+		Mutex.protect macro_infos_mutex (fun () -> Hashtbl.reset macro_infos);
 		let mctx = create_macro_context ctx.com in
 		let api = make_macro_api ctx mctx null_pos in
 		let init,_ = create_macro_interp api mctx in
@@ -833,18 +857,28 @@ let load_macro_module mctx com cpath display p =
 	}; *)
 	mloaded,(fun () -> mctx.com.display <- old)
 
+(* the cache of the loaded macros is read by the domains typing in parallel *)
+let cached_macros_mutex = Mutex.create ()
+
+let find_cached_macro mctx key = Mutex.protect cached_macros_mutex (fun () -> mctx.com.part_scope.cached_macros#find key)
+
+(* Loading a macro types in the macro context and initializes its classes,
+   which the macros share: it is done with the claim of the macros, not the
+   typing lock (other domains type meanwhile). *)
 let load_macro'' com mctx display cpath fname p =
 	let mint = Interp.get_ctx() in
 	let timer_level = Timer.level_from_define com.defines Define.MacroTimes in
 	try
-		mctx.com.part_scope.cached_macros#find (cpath,fname)
-	with Not_found ->
+		find_cached_macro mctx (cpath,fname)
+	with Not_found -> Claims.with_macro_claim ~reason:"macro load" @@ fun () -> try find_cached_macro mctx (cpath,fname) with Not_found ->
 		let f () =
 			let mpath, sub = (match List.rev (fst cpath) with
 				| name :: pack when name.[0] >= 'A' && name.[0] <= 'Z' -> (List.rev pack,name), Some (snd cpath)
 				| _ -> cpath, None
 			) in
+			TypingTrace.event (fun () -> "load module");
 			let mloaded,restore = load_macro_module mctx com mpath display p in
+			TypingTrace.event (fun () -> "loaded module");
 			let cl, meth =
 				try
 					if sub <> None || mloaded.m_path <> cpath then raise Not_found;
@@ -865,8 +899,14 @@ let load_macro'' com mctx display cpath fname p =
 			in
 			let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> raise_typing_error "Macro call should be a method" p) in
 			restore();
-			if not com.is_macro_context then flush_macro_context mint mctx;
-			mctx.com.part_scope.cached_macros#add (cpath,fname) meth;
+			TypingTrace.event (fun () -> "finalized");
+			if not com.is_macro_context then begin
+				flush_macro_context mint mctx;
+				(* the variables of the macro's classes (see [EvalValue.freeze_persistent]) *)
+				if !TypingLock.active then Interp.freeze_persistent ()
+			end;
+			TypingTrace.event (fun () -> "flushed");
+			Mutex.protect cached_macros_mutex (fun () -> mctx.com.part_scope.cached_macros#add (cpath,fname) meth);
 			meth
 		in
 		macro_timer com.timer_ctx timer_level ["typing";s_type_path cpath ^ "." ^ fname] None f ()
@@ -875,7 +915,7 @@ let load_macro'' com mctx display cpath fname p =
 let is_macro_loaded ctx cpath f =
 	match ctx.g.macros with
 	| None -> false
-	| Some (_,mctx) -> (try ignore (mctx.com.part_scope.cached_macros#find (cpath,f)); true with Not_found -> false)
+	| Some (_,mctx) -> (try ignore (find_cached_macro mctx (cpath,f)); true with Not_found -> false)
 
 let load_macro' ctx display cpath f p =
 	(* TODO: The only reason this nonsense is here is because this is the signature
@@ -885,7 +925,7 @@ let load_macro' ctx display cpath f p =
 
 let do_call_macro com api cpath name args p =
 	if com.verbose then Common.log com ("Calling macro " ^ s_type_path cpath ^ "." ^ name ^ " (" ^ (Pos.file p) ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
-	incr com.request_scope.stats.s_macros_called;
+	TypingLock.protect_leaf (fun () -> incr com.request_scope.stats.s_macros_called);
 	let timer_level = Timer.level_from_define com.defines Define.MacroTimes in
 	let f = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) name args in
 	(* the classes whose build this expansion forces (Context.buildType) *)
@@ -911,57 +951,156 @@ let load_macro ctx com mctx api display cpath f p =
 	in
 	mctx, meth, call
 
-type macro_arg_type =
-	| MAExpr
-	| MAFunction
-	| MAOther
+let macro_info mctx mode cpath f (margs,mret,_,mfield) p =
+	let key = (cpath,f,mode) in
+	match Mutex.protect macro_infos_mutex (fun () -> Hashtbl.find_opt macro_infos key) with
+	| Some mi when mi.mi_field == mfield ->
+		mi
+	| _ -> Claims.with_macro_claim ~reason:"macro signature" ~effects:false (fun () ->
+		let margs =
+			(*
+				Replace "rest:haxe.Rest<Expr>" in macro signatures with "rest:Array<Expr>".
+				This allows to avoid handling special cases for rest args in macros during typing.
+			*)
+			match List.rev margs with
+			| (n,o,t) :: margs_rev ->
+				(match follow t with
+				| TAbstract ({ a_path = ["haxe"],"Rest" }, [t1]) -> List.rev ((n,o,mctx.t.tarray t1) :: margs_rev)
+				| _ -> margs)
+			| _ -> margs
+		in
+		let mpos = mfield.cf_pos in
+		let ctexpr = mk_type_path (["haxe";"macro"],"Expr") in
+		let expr = Typeload.load_instance mctx (make_ptp ctexpr p) ParamNormal LoadNormal in
+		let tfield = ref None in
+		(match mode with
+		| MDisplay ->
+			raise Exit (* We don't have to actually call the macro. *)
+		| MExpr ->
+			unify mctx mret expr mpos;
+		| MBuild ->
+			let params = [TPType (make_ptp_th (mk_type_path ~sub:"Field" (["haxe";"macro"],"Expr")) null_pos)] in
+			let ctfields = mk_type_path ~params ([],"Array") in
+			let tfields = Typeload.load_instance mctx (make_ptp ctfields p) ParamNormal LoadNormal in
+			unify mctx mret tfields mpos;
+			let ct = make_ptp_th (mk_type_path ~sub:"Field" (["haxe";"macro"], "Expr")) null_pos in
+			tfield := Some (Typeload.load_complex_type mctx false LoadNormal ct)
+		| MMacroType ->
+			let cttype = mk_type_path (["haxe";"macro"],"Type") in
+			let ttype = Typeload.load_instance mctx (make_ptp cttype p) ParamNormal LoadNormal in
+			try
+				unify_raise mret ttype mpos;
+				(* TODO: enable this again in the future *)
+				(* warning ctx WDeprecated "Returning Type from @:genericBuild macros is deprecated, consider returning ComplexType instead" p; *)
+			with Error { err_message = Unify _ } ->
+				let cttype = mk_type_path ~sub:"ComplexType" (["haxe";"macro"],"Expr") in
+				let ttype = Typeload.load_instance mctx (make_ptp cttype p) ParamNormal LoadNormal in
+				unify_raise mret ttype mpos;
+		);
+		let rest = match List.rev margs with
+			| (_,_,TInst({cl_path=([], "Array")},[e])) :: _ -> (try Type.type_eq EqStrict e expr; true with Unify_error _ -> false)
+			| _ -> false
+		in
+		(*
+			force default parameter types to haxe.macro.Expr, and if success allow to pass any value type since it will be encoded
+		*)
+		let eargs = List.map (fun (n,o,t) ->
+			try unify_raise t expr p; (n, o, t_dynamic), MAExpr
+			with Error { err_message = Unify _ } -> match follow t with
+				| TFun _ ->
+					(n,o,t), MAFunction
+				| _ ->
+					(n,o,t), MAOther
+			) margs in
+		let mi = { mi_field = mfield; mi_margs = margs; mi_rest = rest; mi_eargs = eargs; mi_tfield = !tfield } in
+		Mutex.protect macro_infos_mutex (fun () -> Hashtbl.replace macro_infos key mi);
+		mi
+	)
+
+let rec is_function e = match fst e with
+	| EFunction _ -> true
+	| EParenthesis e1 | ECast(e1,_) | EMeta(_,e1) -> is_function e1
+	| _ -> false
+
+(* The value of constant [e] passed to an argument of type [t] that is not an
+   expression, when typing it would type a constant that [t] accepts as it is. *)
+let constant_arg basic t e =
+	match fst e with
+	| EConst (Int _ | Float _ | String _ | Ident ("true" | "false") as c) ->
+		(match (try Some (Texpr.type_constant basic c (snd e)) with Error _ -> None) with
+		| None -> None
+		| Some te ->
+			let rec accepts t = match t,te.eexpr with
+				| TAbstract({a_path = [],"Null"},[t]),_ -> accepts (follow t)
+				| TDynamic _,_ -> true
+				| TAbstract({a_path = [],"Int"},[]),TConst (TInt _)
+				| TAbstract({a_path = [],"Float"},[]),TConst (TInt _ | TFloat _)
+				| TAbstract({a_path = [],"Bool"},[]),TConst (TBool _)
+				| TInst({cl_path = [],"String"},[]),TConst (TString _) -> true
+				| _ -> false
+			in
+			(match te.eexpr with
+			| TConst c when accepts (follow t) -> Some (EvalJit.eval_const c)
+			| _ -> None))
+	| _ ->
+		None
+
+(* The values of the arguments [el] of a call at [p], when each is an
+   expression passed as one (the last one possibly taking the remaining
+   arguments [el2]) or a constant (see [constant_arg]), the arguments after them
+   being optional (null): their typing (see [type_macro]) checks nothing then,
+   so that the call types nothing in the macro context. *)
+let untyped_args basic mi el el2 p =
+	let n = List.length mi.mi_eargs in
+	let missing = n - List.length el in
+	if missing < 0 || (missing > 0 && mi.mi_rest) then
+		None
+	else begin
+		(* typed as null, as [CallUnification.unify_call_args] pads them on Eval *)
+		let el = el @ List.init missing (fun _ -> (EConst (Ident "null"),p)) in
+		let is_missing i = i >= n - missing in
+		let arg i ((_,o,t),mct) e =
+			(* the place of the remaining arguments *)
+			if mi.mi_rest && i = n - 1 then Some (Interp.encode_array (List.map Interp.encode_expr el2))
+			else if is_missing i then match mct with
+				| _ when not o || is_pos_infos t -> None
+				| MAExpr -> Some (Interp.encode_expr e)
+				| MAOther -> Some Interp.vnull
+				| MAFunction -> None
+			else match mct with
+			| MAExpr ->
+				(* a constant is typed as it is, the others as null *)
+				(match fst e with
+				| EConst _ -> Some (Interp.encode_expr e)
+				| _ when is_function e || not (Texpr.is_constant_value basic e) -> Some (Interp.encode_expr e)
+				| _ -> None)
+			| MAOther ->
+				constant_arg basic t e
+			| MAFunction ->
+				None
+		in
+		let rec loop i acc eargs el = match eargs,el with
+			| earg :: eargs,e :: el ->
+				(match arg i earg e with
+				| Some v -> loop (i + 1) (v :: acc) eargs el
+				| None -> None)
+			| _ -> Some (List.rev acc)
+		in
+		loop 0 [] mi.mi_eargs el
+	end
 
 let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	let mctx = get_macro_context ctx in
 	let api = make_macro_api ctx mctx p in
-	let mctx, (margs,mret,mclass,mfield), call_macro = load_macro ctx ctx.com mctx api (mode = MDisplay) cpath f p in
-	let margs =
-		(*
-			Replace "rest:haxe.Rest<Expr>" in macro signatures with "rest:Array<Expr>".
-			This allows to avoid handling special cases for rest args in macros during typing.
-		*)
-		match List.rev margs with
-		| (n,o,t) :: margs_rev ->
-			(match follow t with
-			| TAbstract ({ a_path = ["haxe"],"Rest" }, [t1]) -> List.rev ((n,o,mctx.t.tarray t1) :: margs_rev)
-			| _ -> margs)
-		| _ -> margs
-	in
-	let mpos = mfield.cf_pos in
+	let mctx, meth, call_macro = load_macro ctx ctx.com mctx api (mode = MDisplay) cpath f p in
+	let mi = macro_info mctx mode cpath f meth p in
+	let margs = mi.mi_margs in
+	let _,mret,_,_ = meth in
 	let ctexpr = mk_type_path (["haxe";"macro"],"Expr") in
-	let expr = Typeload.load_instance mctx (make_ptp ctexpr p) ParamNormal LoadNormal in
-	(match mode with
-	| MDisplay ->
-		raise Exit (* We don't have to actually call the macro. *)
-	| MExpr ->
-		unify mctx mret expr mpos;
-	| MBuild ->
-		let params = [TPType (make_ptp_th (mk_type_path ~sub:"Field" (["haxe";"macro"],"Expr")) null_pos)] in
-		let ctfields = mk_type_path ~params ([],"Array") in
-		let tfields = Typeload.load_instance mctx (make_ptp ctfields p) ParamNormal LoadNormal in
-		unify mctx mret tfields mpos
-	| MMacroType ->
-		let cttype = mk_type_path (["haxe";"macro"],"Type") in
-		let ttype = Typeload.load_instance mctx (make_ptp cttype p) ParamNormal LoadNormal in
-		try
-			unify_raise mret ttype mpos;
-			(* TODO: enable this again in the future *)
-			(* warning ctx WDeprecated "Returning Type from @:genericBuild macros is deprecated, consider returning ComplexType instead" p; *)
-		with Error { err_message = Unify _ } ->
-			let cttype = mk_type_path ~sub:"ComplexType" (["haxe";"macro"],"Expr") in
-			let ttype = Typeload.load_instance mctx (make_ptp cttype p) ParamNormal LoadNormal in
-			unify_raise mret ttype mpos;
-	);
 	(*
 		if the function's last argument is of Array<Expr>, split the argument list and use [] for unify_call_args
 	*)
-	let el,el2 = match List.rev margs with
-		| (_,_,TInst({cl_path=([], "Array")},[e])) :: rest when (try Type.type_eq EqStrict e expr; true with Unify_error _ -> false) ->
+	let el,el2 = if mi.mi_rest then begin
 			let rec loop (acc1,acc2) el1 el2 = match el1,el2 with
 				| [],[] ->
 					List.rev acc1, List.rev acc2
@@ -978,21 +1117,11 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 					loop (e1 :: acc1, acc2) l1 l2
 			in
 			loop ([],[]) el margs
-		| _ ->
+		end else
 			el,[]
 	in
-	let args =
-		(*
-			force default parameter types to haxe.macro.Expr, and if success allow to pass any value type since it will be encoded
-		*)
-		let eargs = List.map (fun (n,o,t) ->
-			try unify_raise t expr p; (n, o, t_dynamic), MAExpr
-			with Error { err_message = Unify _ } -> match follow t with
-				| TFun _ ->
-					(n,o,t), MAFunction
-				| _ ->
-					(n,o,t), MAOther
-			) margs in
+	let typed_args () =
+		let eargs = mi.mi_eargs in
 		(*
 			this is quite tricky here : we want to use unify_call_args which will type our AST expr
 			but we want to be able to get it back after it's been padded with nulls
@@ -1001,11 +1130,6 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		let constants = List.map (fun e ->
 			let p = snd e in
 			let e =
-				let rec is_function e = match fst e with
-					| EFunction _ -> true
-					| EParenthesis e1 | ECast(e1,_) | EMeta(_,e1) -> is_function e1
-					| _ -> false
-				in
 				if Texpr.is_constant_value ctx.com.basic e then
 					(* temporarily disable format strings processing for macro call argument typing since we want to pass raw constants *)
 					let rec loop e =
@@ -1027,7 +1151,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index), None)),p)),p)
 		) el in
 		let elt = CallUnification.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false false in
-		List.map2 (fun ((n,_,t),mct) e ->
+		let args = List.map2 (fun ((n,_,t),mct) e ->
 			let e, et = (match e.eexpr with
 				(* get back our index and real expression *)
 				| TArray ({ eexpr = TArrayDecl [e] }, { eexpr = TConst (TInt index) }) -> List.nth el (Int32.to_int index), e
@@ -1049,11 +1173,15 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			| MAOther -> match Interp.eval_expr ictx et with
 				| None -> Interp.vnull
 				| Some v -> v
-		) eargs elt
-	in
-	let args = match el2 with
+		) eargs elt in
+		match el2 with
 		| [] -> args
 		| _ -> (match List.rev args with _::args -> List.rev args | [] -> []) @ [Interp.encode_array (List.map Interp.encode_expr el2)]
+	in
+	let args = match untyped_args ctx.com.basic mi el el2 p with
+		| Some args -> args
+		(* typing them types in the macro context *)
+		| None -> Claims.with_macro_claim ~reason:"macro arguments" ~effects:false typed_args
 	in
 	let call() =
 		match call_macro args with
@@ -1070,8 +1198,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 								| None -> die "" __LOC__
 								| Some (_,_,fields) -> fields)
 							else
-								let ct = make_ptp_th (mk_type_path ~sub:"Field" (["haxe";"macro"], "Expr")) null_pos in
-								let t = Typeload.load_complex_type mctx false LoadNormal ct in
+								let t = Option.get mi.mi_tfield in
 								List.map (fun f -> safe_decode ctx.com f "Field" t p (fun () -> Interp.decode_field f)) (Interp.decode_array v)
 						in
 						MSuccess (EVars [mk_evar ~t:(CTAnonymous fields,p) ("fields",null_pos)],p)
