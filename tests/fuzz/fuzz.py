@@ -26,7 +26,8 @@ compilations and the last ones is reported as a LEAK line.
 
 The project directory must be a git checkout (it is reset to HEAD at the start
 and at the end). Differences are printed as DIFF lines, with the warm and cold
-compiler outputs saved next to the project (<dir>.fuzz-warm.txt, <dir>.fuzz-cold.txt).
+compiler messages and output files saved next to the project (<dir>.fuzz-warm.txt,
+<dir>.fuzz-cold.txt, <dir>.fuzz-warm.<ext>, <dir>.fuzz-cold.<ext>).
 """
 import argparse, json, os, random, re, subprocess, sys, time
 
@@ -172,6 +173,9 @@ def compare(label):
 	if not same:
 		open(D + ".fuzz-warm.txt", "w").write(out)
 		open(D + ".fuzz-cold.txt", "w").write(cout)
+		ext = os.path.splitext(args.out)[1]
+		if warm_file is not None: open(D + ".fuzz-warm" + ext, "wb").write(warm_file)
+		if cold_file is not None: open(D + ".fuzz-cold" + ext, "wb").write(cold_file)
 	return same, rc
 
 print("server: -D parallel-typing=%s" % warm_domains, flush=True)
