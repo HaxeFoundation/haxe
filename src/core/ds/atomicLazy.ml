@@ -13,6 +13,11 @@ let from_fun f =
 let from_val v =
 	{ state = Atomic.make (Set v) }
 
+(* Gives [v] as the value if it is not computed nor being computed yet. *)
+let offer lazy_val v = match Atomic.get lazy_val.state with
+	| Unset _ as r -> ignore (Atomic.compare_and_set lazy_val.state r (Set v))
+	| Computing | Set _ -> ()
+
 let is_val lazy_val = match Atomic.get lazy_val.state with
 	| Set _ -> true
 	| _ -> false

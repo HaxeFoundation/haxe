@@ -396,11 +396,13 @@ let handler =
 			let t0 = Extc.time() in
 			let stats_before = Gc.stat() in
 			Gc.compact();
-			let stats = Gc.quick_stat() in
+			let stats = Gc.stat() in
 			Result (jobject [
 				"time", jfloat (Extc.time() -. t0);
 				"before", jint (stats_before.Gc.heap_words * Sys.word_size / 8);
 				"after", jint (stats.Gc.heap_words * Sys.word_size / 8);
+				(* the size of what is alive, the heap also holding free space *)
+				"live", jint (stats.Gc.live_words * Sys.word_size / 8);
 			]);
 		);
 		"server/readClassPaths", (fun hctx ->

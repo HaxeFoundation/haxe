@@ -102,8 +102,7 @@ let create com api is_macro args =
 		debug = debug;
 		detail_times = detail_times;
 		curapi_default = api;
-		curapi_local = DomainLocal.make (fun () -> None);
-		curapi_generation = 0;
+		curapi_generation = new_curapi_generation ();
 		builtins = builtins;
 		type_cache = IntMap.empty;
 		overrides = Hashtbl.create 0;
@@ -177,13 +176,12 @@ let call_path ctx path f vl api =
 	if ctx.had_error then
 		None
 	else begin
-		let old = (EvalContext.curapi ctx) in
-		EvalContext.set_curapi ctx api;
+		let restore_api = EvalContext.push_curapi ctx api in
 		let path = match List.rev path with
 			| [] -> die "" __LOC__
 			| name :: path -> List.rev path,name
 		in
-		catch_exceptions ctx ~final:(fun () -> EvalContext.set_curapi ctx old) (fun () -> (if ctx.is_macro then with_expansion else (fun f -> f ())) @@ fun () ->
+		catch_exceptions ctx ~final:restore_api (fun () -> (if ctx.is_macro then with_expansion else (fun f -> f ())) @@ fun () ->
 			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
 			let vfield = field vtype (hash f) in
 			let p = api.pos in

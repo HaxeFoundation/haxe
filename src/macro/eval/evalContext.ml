@@ -279,10 +279,9 @@ and context = {
 	debug : debug;
 	mutable had_error : bool;
 	(* the API of the expansion running on each domain (macros can run on
-	   several domains), the last one set for a domain that has none, and the
-	   generation of the values (see [clear_curapi]) *)
+	   several domains, see [curapi_local]), the last one set for a domain that
+	   has none, and the generation of the values (see [clear_curapi]) *)
 	mutable curapi_default : value MacroApi.compiler_api;
-	curapi_local : (int * value MacroApi.compiler_api) option DomainLocal.t;
 	mutable curapi_generation : int;
 	(* with the id of the module the type had when added: the compilation server can
 	   reuse the same object for a retyped module (grafting) *)
@@ -336,20 +335,40 @@ let s_debug_state = function
 	| DbgNext _ -> "DbgNext"
 	| DbgFinish _ -> "DbgFinish"
 
+(* The API set by each domain, with its generation. One key for all the
+   contexts, as a domain keeps the value of every key ever created: a key per
+   context would keep the API, and through it the typer, of every compilation
+   alive on the domains of the pool. A generation is unique across contexts. *)
+let curapi_local : (int * value MacroApi.compiler_api) option DomainLocal.t = DomainLocal.make (fun () -> None)
+let curapi_generations = Atomic.make 0
+let new_curapi_generation () = Atomic.fetch_and_add curapi_generations 1 + 1
+
 let curapi ctx =
-	match DomainLocal.get ctx.curapi_local with
+	match DomainLocal.get curapi_local with
 	| Some (g,api) when g = ctx.curapi_generation -> api
 	| _ -> ctx.curapi_default
 
 let set_curapi ctx api =
-	DomainLocal.set ctx.curapi_local (Some (ctx.curapi_generation,api));
+	DomainLocal.set curapi_local (Some (ctx.curapi_generation,api));
 	ctx.curapi_default <- api
+
+(* Sets the API [api] until the returned function is called, which gives the
+   current domain the API it had before, or none: an API left on a domain would
+   keep its compilation alive. *)
+let push_curapi ctx api =
+	let saved = DomainLocal.get curapi_local and old = curapi ctx in
+	set_curapi ctx api;
+	(fun () ->
+		ctx.curapi_default <- old;
+		DomainLocal.set curapi_local saved
+	)
 
 (* The API of every domain becomes [api] (the values of the other domains are
    left as they are, but not used any more). *)
 let clear_curapi ctx api =
-	ctx.curapi_generation <- ctx.curapi_generation + 1;
-	ctx.curapi_default <- api
+	ctx.curapi_generation <- new_curapi_generation ();
+	ctx.curapi_default <- api;
+	DomainLocal.set curapi_local None
 
 (* Misc *)
 

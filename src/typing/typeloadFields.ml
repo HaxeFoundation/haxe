@@ -1484,7 +1484,7 @@ let setup_args_ret ?(from_cast=false) ctx cctx fctx name fd p =
 		| None -> None
 	in
 	(* registers the declared types of the arguments of this method *)
-	if inherits then begin
+	let declared = if not inherits then [||] else begin
 		let declared = Array.init nargs (fun i -> AtomicLazy.from_fun (fun () ->
 			let (_,_,_,cto,eo) = List.nth fd.f_args i in
 			match cto,eo with
@@ -1492,24 +1492,35 @@ let setup_args_ret ?(from_cast=false) ctx cctx fctx name fd p =
 			| None,Some e when TypeBinding.literal_type ctx.t e <> None -> TypeBinding.literal_type ctx.t e
 			| None,_ -> inherited_arg i
 		)) in
-		set_declared_args c name nargs (fun i -> AtomicLazy.force declared.(i))
-	end;
+		set_declared_args c name nargs (fun i -> AtomicLazy.force declared.(i));
+		declared
+	end in
+	(* the declared type of argument [i], known when typing it *)
+	let offer i t = if i < Array.length declared then AtomicLazy.offer declared.(i) t in
 	let type_arg i opt cto p =
 		let def () = match cto,(try let (_,_,_,_,eo) = List.nth fd.f_args i in eo with _ -> None) with
 			| None,Some e when not fctx.is_macro ->
 				(* an argument typed by its literal default value (Haxe 6 rule) *)
 				begin match TypeBinding.literal_type ctx.t e with
-				| Some t -> t
-				| None -> (match inherited_arg i with Some t -> t | None -> type_opt (ctx,cctx,fctx) p LoadNormal cto)
+				| Some t -> offer i (Some t); t
+				| None -> let t = inherited_arg i in offer i t; (match t with Some t -> t | None -> type_opt (ctx,cctx,fctx) p LoadNormal cto)
 				end
 			| None,_ ->
-				(match inherited_arg i with Some t -> t | None -> type_opt (ctx,cctx,fctx) p LoadNormal cto)
+				let t = inherited_arg i in
+				offer i t;
+				(match t with Some t -> t | None -> type_opt (ctx,cctx,fctx) p LoadNormal cto)
 			| _ ->
-				type_opt (ctx,cctx,fctx) p LoadNormal cto
+				let t = type_opt (ctx,cctx,fctx) p LoadNormal cto in
+				offer i (Some t);
+				t
 		in
 		if i = 0 then maybe_use_property_type cto (fun () -> match AtomicLazy.force mk with MKSetter -> true | _ -> false) def else def()
 	in
 	let args = new FunctionArguments.function_arguments ctx.com type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
+	(* the declared types are all known once the arguments are typed: known,
+	   they no longer keep the typing context, which would keep the compilation
+	   alive as long as the class (see [Typecore.declared_args]) *)
+	Array.iter (fun l -> ignore (AtomicLazy.force l)) declared;
 	args,ret
 
 let create_method (ctx,cctx,fctx) c f cf fd p =
