@@ -125,7 +125,12 @@ let record_type path node = if !enabled && DomainLocal.get current <> None then 
 		add (DKey(String.sub name (i + 1) (String.length name - i - 2),if kind = "Class" then "header" else "members"))
 	| _ ->
 		add (DType(path,node))
-let record_field c cf node = if !enabled && DomainLocal.get current <> None then add (DField(c,cf,node))
+(* A @:generic instance is not a module of the graph (phase 6): a computation
+   reading it depends on its whole module. *)
+let record_generic_instance c = add (DKey(s_type_path c.cl_module.m_path,"generic"))
+let record_field c cf node = if !enabled && DomainLocal.get current <> None then match c.cl_kind with
+	| KGenericInstance _ -> record_generic_instance c
+	| _ -> add (DField(c,cf,node))
 let record_lookup path = if !enabled && DomainLocal.get current <> None then add (DType(path,"lookup"))
 let record_absent path name static = if !enabled && DomainLocal.get current <> None then add (DAbsent(path,name,static))
 
