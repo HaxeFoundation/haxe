@@ -29,11 +29,13 @@ end
    on several domains (typing, filters, the analyzer) otherwise spends its time
    in the minor collections, which stop every domain. A new domain gets the
    default size whatever the domain that creates it uses, so each worker sets
-   its own. HAXE_WORKER_MINOR_MB overrides it (0 keeps the default). *)
+   its own. 16MB: as fast as 32MB on SpaceCraft, and each domain of the pool
+   (one per hardware thread) pays it in memory (about 0.5GB less on 22 threads).
+   HAXE_WORKER_MINOR_MB overrides it (0 keeps the default). *)
 let worker_minor_heap_mb () =
 	match Sys.getenv_opt "HAXE_WORKER_MINOR_MB" with
-	| None | Some "" -> 32
-	| Some s -> (try int_of_string s with _ -> 32)
+	| None | Some "" -> 16
+	| Some s -> (try int_of_string s with _ -> 16)
 
 let set_worker_minor_heap pool =
 	let mb = worker_minor_heap_mb () in
