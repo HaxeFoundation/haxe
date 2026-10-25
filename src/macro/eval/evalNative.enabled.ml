@@ -51,6 +51,8 @@ open Cmm
 
 exception Unsupported of string
 
+module IntSet = Set.Make(Int)
+
 let dbg = Debuginfo.none
 
 (* Layout of the values the native code reads *)
@@ -133,6 +135,9 @@ type t = {
 	return_label : int;
 	(* Exits of the enclosing loops: break, continue *)
 	mutable loops : (int * int) list;
+	(* Locals of type Int kept unboxed in Cmm variables (see [int_locals]) *)
+	int_vars : IntSet.t;
+	int_cvars : (int,Backend_var.t) Hashtbl.t;
 }
 
 let const t (v : Obj.t) =
@@ -144,8 +149,15 @@ let value_const t (v : value) = match v with
 	| VNull | VTrue | VFalse -> int (raw_immediate v)
 	| _ -> const t (Obj.repr v)
 
+(* The kind of the expression being translated, for the statistics of the
+   calls generated (HAXE_JIT_STATS) *)
+let current_kind = ref ""
+let call_sites = Hashtbl.create 0
+
 (* Call of the OCaml function [f] *)
 let call t (f : Obj.t) args =
+	if Jit.Jit_backend.stats_enabled then
+		Hashtbl.replace call_sites !current_kind (1 + try Hashtbl.find call_sites !current_kind with Not_found -> 0);
 	Cmm_helpers.generic_apply Asttypes.Mutable (const t f) args dbg
 
 let env t = Cvar t.env
@@ -250,6 +262,143 @@ and loop_needs_fallback ctx body =
 
 (* Translation *)
 
+(* Specialization of Int
+
+   A value of type Int is a [VInt32] in most cases, but not always (a Dynamic
+   assigned to an Int, a field written by another tier): only the values whose
+   representation is known are kept unboxed, as native integers holding the
+   32-bit value sign-extended. They are: Int constants, the results of the
+   operations of eval that give a [VInt32] for two [VInt32] (+ - * & | ^ <<
+   >> >>>, negations, increments), and the locals all of whose assignments
+   are such values ([int_locals]). They are boxed where they meet the rest of
+   the code. *)
+
+let tag_int32 = tag_of (VInt32 0l)
+
+let is_int_type t = match follow t with
+	| TAbstract({a_path=[],"Int"},_) -> true
+	| _ -> false
+
+let rec skip e = match e.eexpr with
+	| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) -> skip e1
+	| _ -> e
+
+let is_int_binop = function
+	| OpAdd | OpSub | OpMult | OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr -> true
+	| _ -> false
+
+let is_comparison = function
+	| OpEq | OpNotEq | OpGt | OpGte | OpLt | OpLte -> true
+	| _ -> false
+
+(* Whether the value of [e] is known to be a [VInt32], [vars] being the
+   unboxed locals *)
+let rec is_known_int vars e = match e.eexpr with
+	| TConst (TInt _) -> true
+	| TLocal v -> IntSet.mem v.v_id vars
+	| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) -> is_known_int vars e1
+	| TBinop(op,e1,e2) when is_int_binop op -> is_known_int vars e1 && is_known_int vars e2
+	| TBinop(OpAssign,{eexpr = TLocal v},e2) -> IntSet.mem v.v_id vars && is_known_int vars e2
+	| TBinop(OpAssignOp op,{eexpr = TLocal v},e2) when is_int_binop op -> IntSet.mem v.v_id vars && is_known_int vars e2
+	| TUnop((Neg | NegBits),_,e1) -> is_known_int vars e1
+	| TUnop((Increment | Decrement),_,e1) ->
+		begin match (skip e1).eexpr with
+			| TLocal v -> IntSet.mem v.v_id vars
+			| _ -> false
+		end
+	| _ -> false
+
+(* The locals of [body] that can be kept unboxed: declared with a value in a
+   block, of type Int, not captured, never read by an expression compiled by
+   EvalJit (which reads [env.env_locals]), and only assigned known integers *)
+let int_locals ctx body =
+	let candidates = ref IntSet.empty in
+	let excluded = ref IntSet.empty in
+	let assigned = Hashtbl.create 0 in
+	let exclude_all e =
+		let rec loop e = match e.eexpr with
+			| TLocal v | TVar(v,_) -> excluded := IntSet.add v.v_id !excluded; Type.iter loop e
+			| _ -> Type.iter loop e
+		in
+		loop e
+	in
+	let rec walk e =
+		if not (is_native ctx e) then exclude_all e
+		else match e.eexpr with
+		| TBlock el ->
+			List.iter (fun e -> match e.eexpr with
+				| TVar(v,Some init) when not (has_var_flag v VCaptured) && is_int_type v.v_type ->
+					candidates := IntSet.add v.v_id !candidates;
+					Hashtbl.add assigned v.v_id init;
+					walk init
+				| _ ->
+					walk e
+			) el
+		| TVar(v,eo) ->
+			excluded := IntSet.add v.v_id !excluded;
+			(match eo with Some e -> walk e | None -> ())
+		| TBinop(OpAssign,{eexpr = TLocal v},e2) ->
+			Hashtbl.add assigned v.v_id e2;
+			walk e2
+		| TBinop(OpAssignOp op,{eexpr = TLocal v},e2) ->
+			if is_int_binop op then Hashtbl.add assigned v.v_id e2
+			else excluded := IntSet.add v.v_id !excluded;
+			walk e2
+		| TBinop(OpAssignOp _,{eexpr = TField(_,FInstance(c,_,_))},e2) when has_class_flag c CInterface ->
+			(* compiled by EvalJit (see assign_op) *)
+			exclude_all e;
+		| TBinop(OpAssignOp _,{eexpr = TField(_,fa)},e2) when (match fa with FStatic _ | FInstance _ -> false | _ -> true) ->
+			exclude_all e;
+		| _ ->
+			Type.iter walk e
+	in
+	walk body;
+	let vars = ref (IntSet.diff !candidates !excluded) in
+	let changed = ref true in
+	while !changed do
+		changed := false;
+		IntSet.iter (fun id ->
+			if List.exists (fun e -> not (is_known_int !vars e)) (Hashtbl.find_all assigned id) then begin
+				vars := IntSet.remove id !vars;
+				changed := true
+			end
+		) !vars
+	done;
+	!vars
+
+(* Native integers *)
+
+let sign_extend c = Cmm_helpers.sign_extend_32 dbg c
+
+let int_op op a b = match op with
+	| OpAdd -> sign_extend (Cop(Caddi,[a;b],dbg))
+	| OpSub -> sign_extend (Cop(Csubi,[a;b],dbg))
+	| OpMult -> sign_extend (Cop(Cmuli,[a;b],dbg))
+	| OpAnd -> Cop(Cand,[a;b],dbg)
+	| OpOr -> Cop(Cor,[a;b],dbg)
+	| OpXor -> Cop(Cxor,[a;b],dbg)
+	| OpShl -> sign_extend (Cop(Clsl,[a;Cop(Cand,[b;int 31],dbg)],dbg))
+	| OpShr -> Cop(Casr,[a;Cop(Cand,[b;int 31],dbg)],dbg)
+	| OpUShr -> sign_extend (Cop(Clsr,[Cop(Cand,[a;Cconst_natint(0xFFFFFFFFn,dbg)],dbg);Cop(Cand,[b;int 31],dbg)],dbg))
+	| _ -> die "" __LOC__
+
+let int_cmp = function
+	| OpEq -> Ceq | OpNotEq -> Cne | OpGt -> Cgt | OpGte -> Cge | OpLt -> Clt | OpLte -> Cle
+	| _ -> die "" __LOC__
+
+(* The [VInt32] of a native integer *)
+let box_int c =
+	Cmm_helpers.make_alloc dbg tag_int32 [Cmm_helpers.box_int_gen dbg Primitive.Pint32 c]
+
+(* The native integer of a [VInt32] *)
+let unbox_int v = Cmm_helpers.unbox_int dbg Primitive.Pint32 (load v 0)
+
+(* [k] applied to a variable holding the value of [e], always bound: [e] may
+   be a mutable variable *)
+let bind_copy name e k =
+	let v,vp = var name in
+	Clet(vp,e,k (Cvar v))
+
 (* [fast v] if [v] is an instance, [slow v] otherwise *)
 let if_instance v fast slow =
 	let lbl = Lambda.next_raise_count () in
@@ -259,11 +408,33 @@ let if_instance v fast slow =
 
 let dummy_env : env = Obj.magic 0
 
+(* Whether the value [v] is a block of tag [tag] *)
+let op_tag_is v tag =
+	ifte (op Cand [v;int 1]) (int 0) (eq (Cmm_helpers.get_tag v dbg) (int tag))
+
 (* The fields of the instance [v] (the [ifields] of its [vinstance]) *)
 let instance_fields v = load (load v 0) 0
 
 let rec expr t return e =
+	if Jit.Jit_backend.stats_enabled then begin
+		let saved = !current_kind in
+		current_kind := (match e.eexpr with
+			| TField(_,fa) -> "TField " ^ (match fa with FInstance _ -> "instance" | FStatic _ -> "static" | FAnon _ -> "anon" | FDynamic _ -> "dynamic" | FClosure _ -> "closure" | FEnum _ -> "enum")
+			| TBinop(op,_,_) -> "TBinop " ^ s_binop op
+			| TUnop(op,_,_) -> "TUnop " ^ s_unop op
+			| TCall({eexpr = TField(_,fa)},_) -> "TCall " ^ (match fa with FInstance _ -> "instance" | FStatic _ -> "static" | FAnon _ -> "anon" | FDynamic _ -> "dynamic" | FClosure _ -> "closure" | FEnum _ -> "enum")
+			| TCall _ -> "TCall other"
+			| _ -> s_expr_kind e);
+		let r = expr_kind t return e in
+		current_kind := saved;
+		r
+	end else
+		expr_kind t return e
+
+and expr_kind t return e =
 	if not (is_native t.jit.ctx e) then fallback t return e
+	else if is_known_int t.int_vars e && (match (skip e).eexpr with TConst _ -> false | _ -> true) then
+		box_int (int_expr t e)
 	else match e.eexpr with
 	| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 		expr t return e1
@@ -277,9 +448,16 @@ let rec expr t return e =
 	| TBlock el ->
 		push_scope t.jit e.epos;
 		let rec loop el = match el with
+			| {eexpr = TVar(v,Some init)} :: el when IntSet.mem v.v_id t.int_vars ->
+				(* an unboxed local: a Cmm variable for the rest of the block *)
+				ignore (declare_local t.jit v);
+				let c = int_expr t init in
+				let cv,cvp = var v.v_name in
+				Hashtbl.replace t.int_cvars v.v_id cv;
+				Clet_mut(cvp,typ_int,c,if el = [] then int raw_null else loop el)
 			| [e] -> expr t return e
 			| e :: el ->
-				let c = expr t false e in
+				let c = statement t e in
 				Csequence(c,loop el)
 			| [] -> die "" __LOC__
 		in
@@ -307,27 +485,27 @@ let rec expr t return e =
 		let key = path_hash (t_infos mt).mt_path in
 		value_const t (get_static_prototype_as_value t.jit.ctx key e.epos)
 	| TIf(e1,e2,eo) ->
-		let c1 = expr t false e1 in
+		let c1 = cond t e1 in
 		let c2 = expr t return e2 in
 		let c3 = match eo with
 			| None -> int raw_null
 			| Some e -> expr t return e
 		in
-		ifte (is_true c1) c2 c3
+		ifte c1 c2 c3
 	| TWhile(e1,e2,flag) ->
 		let e1 = strip_parenthesis e1 in
 		let lbl_break = Lambda.next_raise_count () in
 		let lbl_continue = Lambda.next_raise_count () in
 		let lbl_loop = Lambda.next_raise_count () in
-		let c1 = expr t false e1 in
+		let c1 = cond t e1 in
 		t.loops <- (lbl_break,lbl_continue) :: t.loops;
 		let c2 = expr t false e2 in
 		t.loops <- List.tl t.loops;
 		let body = Ccatch(Nonrecursive,[lbl_continue,[],int raw_null,dbg],c2) in
 		let next = Csequence(body,Cexit(lbl_loop,[])) in
 		let handler = match flag with
-			| NormalWhile -> ifte (is_true c1) next (Cexit(lbl_break,[]))
-			| DoWhile -> Csequence(body,ifte (is_true c1) (Cexit(lbl_loop,[])) (Cexit(lbl_break,[])))
+			| NormalWhile -> ifte c1 next (Cexit(lbl_break,[]))
+			| DoWhile -> Csequence(body,ifte c1 (Cexit(lbl_loop,[])) (Cexit(lbl_break,[])))
 		in
 		Ccatch(Nonrecursive,[lbl_break,[],int raw_null,dbg],
 			Ccatch(Recursive,[lbl_loop,[],handler,dbg],Cexit(lbl_loop,[])))
@@ -409,6 +587,8 @@ let rec expr t return e =
 		let c1 = expr t false e1 in
 		let c2 = expr t false e2 in
 		ifte (is_true c1) (int raw_true) c2
+	| TBinop(op,e1,e2) when is_comparison op && (is_known_int t.int_vars e1 || is_known_int t.int_vars e2) ->
+		ifte (cond t e) (int raw_true) (int raw_false)
 	| TBinop(op,e1,e2) ->
 		let f = get_binop_fun op e.epos in
 		let c1 = expr t false e1 in
@@ -444,6 +624,91 @@ let rec expr t return e =
 		call_expr t e e1 el
 	| _ ->
 		die "" __LOC__
+
+(* A statement: an expression whose value is not used *)
+and statement t e =
+	if is_native t.jit.ctx e && is_known_int t.int_vars e then Csequence(int_expr t e,int raw_null)
+	else expr t false e
+
+(* The native integer of [e], a known integer (see [is_known_int]) *)
+and int_expr t e = match e.eexpr with
+	| TConst (TInt i) ->
+		Cconst_natint(Nativeint.of_int32 i,dbg)
+	| TLocal v ->
+		Cvar (Hashtbl.find t.int_cvars v.v_id)
+	| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
+		int_expr t e1
+	| TBinop(op,e1,e2) when is_int_binop op ->
+		let c1 = int_expr t e1 in
+		let c2 = int_expr t e2 in
+		bind_copy "a" c1 (fun a -> bind "b" c2 (fun b -> int_op op a b))
+	| TBinop(OpAssign,{eexpr = TLocal v},e2) ->
+		let cv = Hashtbl.find t.int_cvars v.v_id in
+		bind "v" (int_expr t e2) (fun x -> Csequence(Cassign(cv,x),x))
+	| TBinop(OpAssignOp op,{eexpr = TLocal v},e2) ->
+		(* emit_local_read_write: the local is read before [e2] is evaluated *)
+		let cv = Hashtbl.find t.int_cvars v.v_id in
+		bind_copy "v1" (Cvar cv) (fun v1 -> bind "v2" (int_expr t e2) (fun v2 ->
+			bind "v" (int_op op v1 v2) (fun x -> Csequence(Cassign(cv,x),x))))
+	| TUnop(Neg,_,e1) ->
+		sign_extend (Cop(Csubi,[int 0;int_expr t e1],dbg))
+	| TUnop(NegBits,_,e1) ->
+		sign_extend (Cop(Csubi,[int (-1);int_expr t e1],dbg))
+	| TUnop((Increment | Decrement) as op,flag,e1) ->
+		let v = match (skip e1).eexpr with TLocal v -> v | _ -> die "" __LOC__ in
+		let cv = Hashtbl.find t.int_cvars v.v_id in
+		bind_copy "v0" (Cvar cv) (fun v0 ->
+			bind "v" (sign_extend (Cop((if op = Increment then Caddi else Csubi),[v0;int 1],dbg))) (fun x ->
+				Csequence(Cassign(cv,x),if flag = Prefix then x else v0)))
+	| _ ->
+		die "" __LOC__
+
+(* [e] as a condition: a Cmm integer, non-zero if the value of [e] is [true]
+   (as EvalMisc.is_true) *)
+and cond t e = match e.eexpr with
+	| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
+		cond t e1
+	| TConst (TBool b) ->
+		int (if b then 1 else 0)
+	| TBinop(op,e1,e2) when is_comparison op && is_native t.jit.ctx e ->
+		let k1 = is_known_int t.int_vars e1 and k2 = is_known_int t.int_vars e2 in
+		let p = e.epos in
+		let cmp = int_cmp op in
+		(* a known integer against any value: compared as integers if it is a
+		   [VInt32], by the operator of eval otherwise *)
+		let mixed a v ~int_first =
+			let generic = is_true (call t (Obj.repr (get_binop_fun op p))
+				(if int_first then [box_int a;v] else [v;box_int a])) in
+			let lbl = Lambda.next_raise_count () in
+			Ccatch(Nonrecursive,[lbl,[],generic,dbg],
+				ifte (op_tag_is v tag_int32)
+					(bind "b" (unbox_int v) (fun b -> Cop(Ccmpi cmp,(if int_first then [a;b] else [b;a]),dbg)))
+					(Cexit(lbl,[])))
+		in
+		if k1 && k2 then begin
+			let c1 = int_expr t e1 in
+			let c2 = int_expr t e2 in
+			bind_copy "a" c1 (fun a -> bind "b" c2 (fun b -> Cop(Ccmpi cmp,[a;b],dbg)))
+		end else if k1 then begin
+			let c1 = int_expr t e1 in
+			let c2 = expr t false e2 in
+			bind_copy "a" c1 (fun a -> bind "v" c2 (fun v -> mixed a v ~int_first:true))
+		end else if k2 then begin
+			let c1 = expr t false e1 in
+			let c2 = int_expr t e2 in
+			bind "v" c1 (fun v -> bind_copy "b" c2 (fun b -> mixed b v ~int_first:false))
+		end else
+			is_true (expr t false e)
+	| TBinop(OpBoolAnd,e1,e2) when is_native t.jit.ctx e ->
+		let c1 = cond t e1 in
+		let c2 = cond t e2 in
+		ifte c1 c2 (int 0)
+	| TBinop(OpBoolOr,e1,e2) when is_native t.jit.ctx e ->
+		let c1 = cond t e1 in
+		let c2 = cond t e2 in
+		ifte c1 (int 1) c2
+	| _ ->
+		is_true (expr t false e)
 
 (* Reads of fields, as in EvalJit *)
 and field_expr t e e1 fa =
@@ -680,8 +945,44 @@ and call_expr t e e1 el =
 		let i = get_proto_field_index proto name in
 		AtomicLazy.from_fun (fun () -> match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v p)
 	in
+	(* When the object and the arguments are simple (see [is_simple]), the
+	   whole sequence of a call is one OCaml function: the order of evaluation
+	   does not matter for them. [body env this args] for an object. *)
+	let simple_args = List.for_all is_simple el in
+	let merged this (body : env -> value -> value list -> value) =
+		let n = List.length el in
+		let f : Obj.t option = match n with
+			| 0 -> Some (Obj.repr (fun env vthis -> body env vthis []))
+			| 1 -> Some (Obj.repr (fun env vthis a -> body env vthis [a]))
+			| 2 -> Some (Obj.repr (fun env vthis a b -> body env vthis [a;b]))
+			| 3 -> Some (Obj.repr (fun env vthis a b c -> body env vthis [a;b;c]))
+			| 4 -> Some (Obj.repr (fun env vthis a b c d -> body env vthis [a;b;c;d]))
+			| _ -> None
+		in
+		match f with
+		| Some f when simple_args && (match this with Some e -> is_simple e | None -> true) ->
+			let cthis = match this with Some e -> expr t false e | None -> int raw_null in
+			let cl = List.map (expr t false) el in
+			Some (call t f (env t :: cthis :: cl))
+		| _ ->
+			None
+	in
+	let leave env =
+		env.env_leave_pmin <- Pos.min p;
+		env.env_leave_pmax <- Pos.max p
+	in
+	let null_access ef vthis = if vthis == VNull then throw_string "Null Access" ef.epos in
 	(* emit_proto_field_call *)
 	let proto_field_call v this =
+		match merged this (fun env vthis vl ->
+			check_stack_depth env;
+			let f = AtomicLazy.force v in
+			match this with
+			| None -> leave env; f vl
+			| Some ef -> null_access ef vthis; leave env; f (vthis :: vl)
+		) with
+		| Some c -> c
+		| None ->
 		let force = call t (Obj.repr (fun () -> AtomicLazy.force v)) [unit_value] in
 		Csequence(check_stack,
 			bind "f" force (fun f ->
@@ -763,6 +1064,19 @@ and call_expr t e e1 el =
 				let proto = get_prototype vthis p in
 				try proto_field_raise proto name with Not_found -> throw_string (Printf.sprintf "Field %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p
 			in
+			match merged (Some ef) (fun env vthis vl ->
+				check_stack_depth env;
+				null_access ef vthis;
+				let vf = lookup vthis in
+				leave env;
+				call_value_on vthis vf vl
+			) with
+			| Some c -> c
+			| None ->
+			let lookup vthis =
+				let proto = get_prototype vthis p in
+				try proto_field_raise proto name with Not_found -> throw_string (Printf.sprintf "Field %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p
+			in
 			Csequence(check_stack,
 				bind "this" (null_check ef) (fun vthis ->
 					bind "f" (call t (Obj.repr lookup) [vthis]) (fun vf ->
@@ -787,6 +1101,15 @@ and call_expr t e e1 el =
 					default()
 			| _ ->
 				(* emit_field_call *)
+				match merged (Some ef) (fun env vthis vl ->
+					check_stack_depth env;
+					null_access ef vthis;
+					let vf = field vthis name in
+					leave env;
+					call_value_on vthis vf vl
+				) with
+				| Some c -> c
+				| None ->
 				Csequence(check_stack,
 					bind "this" (null_check ef) (fun vthis ->
 						bind "f" (call t (Obj.repr (fun v -> field v name)) [vthis]) (fun vf ->
@@ -795,6 +1118,13 @@ and call_expr t e e1 el =
 		end
 	| _ ->
 		(* emit_call *)
+		match merged (Some e1) (fun env v1 vl ->
+			check_stack_depth env;
+			leave env;
+			call_value v1 vl
+		) with
+		| Some c -> c
+		| None ->
 		Csequence(check_stack,
 			bind "f" (expr t false e1) (fun v1 ->
 				Csequence(set_pos,
@@ -831,6 +1161,8 @@ let translate_function ctx consts symbol n item =
 		env = env_var;
 		return_label = Lambda.next_raise_count ();
 		loops = [];
+		int_vars = int_locals ctx item.i_tf.tf_expr;
+		int_cvars = Hashtbl.create 0;
 	} in
 	let tf = item.i_tf and static = item.i_static in
 	push_scope jit item.i_pos;
@@ -939,6 +1271,8 @@ let () =
 			in
 			count ("fallback " ^ kind) 1);
 		at_exit (fun () ->
+			let l = Hashtbl.fold (fun r n acc -> (n,"calls from " ^ r) :: acc) call_sites [] in
+			List.iter (fun (n,r) -> Printf.eprintf "native %-40s %d\n" r n) (List.sort Stdlib.compare l);
 			let l = Hashtbl.fold (fun r n acc -> (n,r) :: acc) counters [] in
 			List.iter (fun (n,r) -> Printf.eprintf "native %-40s %d\n" r n) (List.sort Stdlib.compare l))
 	end
