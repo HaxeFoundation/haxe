@@ -257,7 +257,8 @@ let check_module sctx com m_path m_extra p =
 	let unknown_state_modules = ref [] in
 	(* the query graph of this context (phase 6), for the modules it traces *)
 	let own_sign = CommonCache.get_cache_sign com in
-	let graph = if NodeGraph.disabled then None else NodeGraph.find_opt own_sign in
+	let graph = if NodeGraph.disabled || !NodeGraph.modules_only then None else NodeGraph.find_opt own_sign in
+	if graph <> None then NodeGraph.graph_used := true;
 	let module_valid = ref (fun _ -> true) in
 	let macro_module_valid = ref (fun _ _ -> true) in
 	let validation = Option.map (fun g ->
@@ -281,7 +282,7 @@ let check_module sctx com m_path m_extra p =
 			v_macro_module_valid = (fun sign path -> !macro_module_valid sign path);
 			v_provisional = [];
 			v_failed = None;
-			v_assume = not !NodeGraph.no_assumptions && !NodeGraph.attempts < 3 && com.display.dms_kind = DMNone;
+			v_assume = !NodeGraph.attempts < 3 && com.display.dms_kind = DMNone;
 		}
 	) graph in
 	(* for the bodies kept while typing (phase 6): a module is valid when this
@@ -783,12 +784,14 @@ let assumed_graphs com =
 		(CommonCache.get_cache_sign com :: (match com.get_macros () with Some mcom -> [CommonCache.get_cache_sign mcom] | None -> [])))
 
 (* Typing stopped on an error: it can come from a false assumption, which one
-   is not known. *)
+   is not known, or from a computation the graph found valid (see
+   [NodeGraph.modules_only]). The compilation is done again with the modules
+   checked through their module dependencies only, without assumptions. *)
 let retry_if_assumed com =
-	let assumed = assumed_graphs com in
-	if assumed <> [] then begin
-		List.iter (fun g -> g.NodeGraph.assumptions <- []) assumed;
-		NodeGraph.no_assumptions := true;
+	if !NodeGraph.graph_used && not !NodeGraph.modules_only && not !NodeGraph.display_request && com.display.dms_kind = DMNone then begin
+		List.iter (fun g -> g.NodeGraph.assumptions <- []) (assumed_graphs com);
+		NodeGraph.modules_only := true;
+		NodeGraph.graph_used := false;
 		raise NodeGraph.Retry
 	end
 

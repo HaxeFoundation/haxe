@@ -129,10 +129,18 @@ let known_changed : (string,TFingerprint.t option) Hashtbl.t = Hashtbl.create 0
 let absent_key n name static = n.n_key ^ "\t" ^ DepRecord.absent_node name static
 
 (* The number of attempts of the current compilation that failed an
-   assumption, and whether the next one makes none (a compilation that stopped
-   on an error, which a false assumption may have caused). *)
+   assumption. *)
 let attempts = ref 0
-let no_assumptions = ref false
+(* Whether the current attempt checked modules through the graph, and whether
+   the next one checks them through their module dependencies only: a
+   computation that the graph finds valid can fail when typed again, through
+   what it does not record (a build macro failing on a body of the class it
+   builds), and the cold compilation reports the errors of what reads it. *)
+let graph_used = ref false
+let modules_only = ref false
+(* A display request (--display) can send its result before typing is done:
+   it is not done again for its errors. *)
+let display_request = ref false
 
 let clear_current = ref (fun () -> ())
 
@@ -146,7 +154,8 @@ let end_compilation () =
 	Hashtbl.reset lexer_files;
 	ignore (ThreadSafeHashtbl.fold (fun file lf () -> Hashtbl.replace lexer_files file lf) Lexer.all_files ());
 	attempts := 0;
-	no_assumptions := false;
+	graph_used := false;
+	modules_only := false;
 	Hashtbl.reset known_changed
 
 let graphs : (string,graph) Hashtbl.t = Hashtbl.create 0

@@ -80,6 +80,7 @@ let create_context_from_part (sctx : ServerCompilationContext.t) (request_scope 
 let entry sctx request_scope (request_args : Args.request_args) =
 	let curdir = Vfs.getcwd () in
 	let has_display = request_args.display_arg <> None in
+	NodeGraph.display_request := has_display;
 	let rec loop = function
 		| [] ->
 			0
