@@ -442,7 +442,16 @@ before the recursive call): what is bound does not change, the reader sees the
 final type (test `tests/incremental/cases/haxe6/recursion-type-already-known.hxtest`;
 castle: `Sheet.objToString` / `colToString`, `Database.valToString`). A variable initialized with a
 `Dynamic` expression is not given the type `Dynamic`: it is an unresolved
-type like the others (a first version of this branch made it `Dynamic`). The unit tests (js, macro, hl),
+type like the others (a first version of this branch made it `Dynamic`). In
+`+`, an operand of unknown type next to a `Float` or `Dynamic` operand is an
+`Int`, as it already was for `-`, `*`, `/` and `%` (`Float + unknown` and
+`Dynamic + unknown` left it unbound, which Haxe 6 reports as a field type not
+fully inferred); `String + unknown` stays open. An argument without hint only
+used as `x + Math.cos(a) * r` is then an `Int` (Heaps: the local function
+`corner` of `h2d.Graphics`, annotated). The result of a recursive call of a
+method whose return type is inferred is unknown in its own body: added to a
+`String`, it is converted with `Std.string`, which the inferred `String`
+does not remove afterwards (`hxsl.Tools.toString` keeps its annotation). The unit tests (js, macro, hl),
 the server and misc tests, the incremental suite and Heaps compile
 unchanged; the only visible difference is a more precise error message
 (`() -> Void` instead of `() -> Unknown<0>`, `Issue6796`). Macro functions are
@@ -1639,6 +1648,14 @@ bounded by the macro loads (the claim, on the critical path: every class
 needing a macro waits for it). The output stays identical to the sequential
 typing (40 runs out of 40 on Heaps HL and on the hxbit project, `-D
 typer-shuffle` for 4 seeds, 1, 2, 8 and 16 domains).
+Also fixed since: a `@:genericBuild` or `MacroType` expansion changed the
+class and expression states of the context it ran on, and another expansion
+running meanwhile on the same context read its local type or returned its
+result (hxbit's `Proxy<T>` of different fields swapped on SpaceCraft): each
+expansion runs on a copy of the context with its own states. A cycle of value
+waits between domains where one of them waits for the final type of a field
+whose body it is typing itself (what a single domain reads in the same
+cycle) is broken by letting that wait through first (`Claims.wait ~safe`).
 What serializes typing now: loading a macro (typing its module in the macro
 context, one domain at a time: 0.7 s of the 1 s class builds stage of the
 Heaps samples is `hxd.res.FileTree.build`), and the macro API functions that
@@ -2089,6 +2106,14 @@ Leads, by expected gain:
 **Status: fuzzing (warm/cold, errors, memory).** What the fuzzer of phase 0
 found on Heaps, fixed:
 
+- *`@:generic` instances* are not modules of the graph: a body reading an
+  instance, also through the body of an inline function it inlines, depends
+  on the module of the generic (a `generic` node), so that an edit of the
+  generic types it again.
+- *Bodies reused for inlining.* A body reused from the previous compilation
+  keeps its unoptimized typed expression (`cf_expr_unoptimized`), which the
+  inlining of the next compilations reads.
+
 - *Inline constructors.* `InlineConstructors` inlines the instance variables
   of the class and of its parents, with their initial values, where the
   constructor is inlined; only the constructor's body was a dependency, so
@@ -2185,8 +2210,13 @@ Second round:
   (`cases/vfs/no-fs-calls.hxtest`, across edits, a new directory shadowing a
   library type, and deletions).
 
-Not done yet: content hashes (a file system with a one second modification
-time precision still misses two edits within the same second), a resolution
+A module whose file has a new modification time is checked against the digest
+of the content it was typed from (the digests of the last contents read are
+kept with the time of the file): a checkout, a copy or a save without change
+no longer types it again (SpaceCraft, the whole sources copied again: 25.7 s
+→ 3.1 s). Not done yet: content hashes for the detection itself (a file
+system with a one second modification time precision still misses two edits
+within the same second), a resolution
 index kept across compilations (class path lookup caches are rebuilt per
 compilation, on top of VFS listings, without system calls), the eval read API
 (`exists`, `readDirectory`…) which stays on the disk by design (explicit file
@@ -3028,8 +3058,8 @@ Parallelism is not limited to typing: every operation of a compilation runs on
 the same scheduler. Today, typing runs on several domains (§3.5), and the
 other operations are parallel in their own places (filters and analyzer per
 type, DCE marking, `genjs` types, `genhl` function compilation and
-optimization, `hl2c` modules, `genjvm` classes, the fingerprints of the node
-graph), all on the pool of the compilation (`ServerCompilationContext`, one
+optimization and writing, `hl2c` modules, `genjvm` classes, the XML output,
+the fingerprints of the node graph), all on the pool of the compilation (`ServerCompilationContext`, one
 domain per hardware thread, kept by the server across compilations); the pool
 is only released to run `--interp` (`MacroContext.interpret`). The target is a
 single model for the whole compilation.
@@ -3170,9 +3200,11 @@ phase 4 `Decls` fingerprints and happens in phase 6.
   built when they run, or that rely on cycles currently resolved by retries,
   will break with demand-driven typing. To be measured on the corpus early in
   phase 3 with the cycle instrumentation described in phase 3.3.
-- **Parallel macro execution.** The eval interpreter must become safe to run
-  on several domains (§4b, item 3); until then macro expansions run on a
-  single lane, which limits speedups on macro-heavy code.
+- **Parallel macro execution.** Expansions run on several domains, speculating
+  (§3.5, steps 10 and 13); what still serializes is the loading of a macro and
+  the API functions that type or change the compilation. The speed of the
+  interpreter itself is the subject of `docs/macro-jit.md` (closure compiler
+  improvements: macro execution of Heaps 0.57 s → 0.39 s).
 - **Parallel speedup.** Dependencies between queries bound the achievable
   parallelism (critical path); to be measured per phase with the scheduler
   statistics.
