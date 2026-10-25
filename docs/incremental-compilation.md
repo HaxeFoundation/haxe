@@ -2787,7 +2787,9 @@ equal types with a hash table instead of a map (its types 0.044 s -> 0.03 s on
 Heaps; writing the functions is already parallel). Reusing the bytes of the
 functions of a previous write was not done: after an edit that adds a
 constant, the numbers by first use move for every function that comes after,
-so few functions keep their bytes.
+so few functions keep their bytes. Heaps: a leaf edit takes 0.20–0.37 s of HL
+generation in the server, a cold build 1.15–1.23 s (1.23–1.36 s before this
+work).
 
 ---
 
