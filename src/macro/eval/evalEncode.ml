@@ -144,8 +144,59 @@ let encode_obj l =
 		oproto = OProto proto;
 	}
 
+(*
+	The objects encoded by the macro API have a few shapes, given by the names of
+	their fields in a fixed order: the prototype of a shape and the place of each
+	field in it are kept per domain, so that encoding an object only allocates it.
+*)
+type object_shape = {
+	shape_ctx : context;
+	shape_names : string list;
+	shape_proto : vprototype;
+	(* [shape_slots.(i)]: the index in [ofields] of the [i]-th field given *)
+	shape_slots : int array;
+}
+
+let object_shapes : (int,object_shape) Hashtbl.t Domain.DLS.key = Domain.DLS.new_key (fun () -> Hashtbl.create 64)
+
+let rec same_names l1 l2 = match l1,l2 with
+	| [],[] -> true
+	| s1 :: l1,s2 :: l2 -> (s1 == s2 || String.equal s1 s2) && same_names l1 l2
+	| _ -> false
+
 let encode_obj_s l =
-	encode_obj (List.map (fun (s,v) -> (hash s),v) l)
+	let ctx = get_ctx() in
+	let names = List.map fst l in
+	let shapes = Domain.DLS.get object_shapes in
+	let key = Hashtbl.hash names in
+	let shape = match List.find_opt (fun s -> s.shape_ctx == ctx && same_names s.shape_names names) (Hashtbl.find_all shapes key) with
+		| Some shape ->
+			shape
+		| None ->
+			let hashed = List.map (fun (s,v) -> (hash s),v) l in
+			let proto,sorted = ctx.get_object_prototype ctx hashed in
+			let sorted = Array.of_list (List.map fst sorted) in
+			let slot h =
+				let rec loop i = if sorted.(i) = h then i else loop (i + 1) in
+				loop 0
+			in
+			let shape = {
+				shape_ctx = ctx;
+				shape_names = names;
+				shape_proto = proto;
+				shape_slots = Array.of_list (List.map (fun (h,_) -> slot h) hashed);
+			} in
+			(* the contexts of past compilations are not kept alive forever *)
+			if Hashtbl.length shapes > 4096 then Hashtbl.reset shapes;
+			Hashtbl.add shapes key shape;
+			shape
+	in
+	let a = Array.make (Array.length shape.shape_slots) vnull in
+	List.iteri (fun i (_,v) -> a.(shape.shape_slots.(i)) <- v) l;
+	vobject {
+		ofields = a;
+		oproto = OProto shape.shape_proto;
+	}
 
 (* Enum values *)
 
