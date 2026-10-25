@@ -535,6 +535,11 @@ let preparse com m p =
 			()
 	end
 
+(* What a compilation parsed and did not load (it stopped on an error) keeps
+   its context alive: forgotten when it is done. *)
+let reset_preparsed () =
+	TypingLock.protect_leaf (fun () -> Hashtbl.reset preparsed)
+
 let take_preparsed com m =
 	TypingLock.protect_leaf (fun () ->
 		match Hashtbl.find_opt preparsed m with

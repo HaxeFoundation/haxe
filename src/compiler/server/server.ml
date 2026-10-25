@@ -180,7 +180,7 @@ let process sctx request_scope request_args =
 	Vfs.begin_compilation ();
 	Graft.reset ();
 	Option.may (fun dir -> try Vfs.chdir dir with _ -> ()) sctx.persistent_cwd;
-	ignore (Std.finally (fun () -> Vfs.chdir curdir) (HighLevel.entry sctx request_scope) request_args);
+	ignore (Std.finally (fun () -> Vfs.chdir curdir; TypeloadParse.reset_preparsed ()) (HighLevel.entry sctx request_scope) request_args);
 	Vfs.end_compilation ();
 	ServerCompilationContext.run_delays sctx;
 	ServerMessage.stats request_scope.stats (Extc.time() -. t0)
