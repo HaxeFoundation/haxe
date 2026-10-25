@@ -276,6 +276,10 @@ and build_generic_class' ctx c p tl =
 	end else begin
 	let gctx = make_generic ctx c.cl_params tl (Meta.has (Meta.Custom ":debug.generic") c.cl_meta) p in
 	let name = (snd c.cl_path) ^ "_" ^ gctx.name in
+	(* the instance is not a module of the graph (phase 6): a body reading it
+	   depends on its whole module, and is typed again rather than reused, so
+	   that the instance is loaded (and restored) in the compilation *)
+	if !DepRecord.enabled then DepRecord.record (s_type_path (pack,name)) "generic";
 	try
 		let t = Typeload.load_instance ctx (make_ptp (mk_type_path (pack,name)) p) ParamNormal LoadNormal in
 		match t with
