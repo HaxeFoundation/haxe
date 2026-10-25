@@ -422,7 +422,7 @@ and jit_expr jit return e =
 			let i = get_proto_field_index proto name in
 			let slot = get_slot jit 0 pv in
 			let execs = List.map (jit_expr jit false) el in
-			emit_super_field_call slot proto i execs e.epos
+			emit_super_field_call ctx.max_stack_depth slot proto i execs e.epos
 		| TField(ef,fa) ->
 			let name = hash (field_name fa) in
 			let execs = List.map (jit_expr jit false) el in
@@ -450,11 +450,11 @@ and jit_expr jit return e =
 				let exec = jit_with_null_check ef in
 				let proto = get_instance_prototype ctx (path_hash c.cl_path) ef.epos in
 				let v = lazy_proto_field proto in
-				emit_proto_field_call v (exec :: execs) e.epos
+				emit_proto_field_call ctx.max_stack_depth v (exec :: execs) e.epos
 			in
 			let default () =
 				let exec = jit_with_null_check ef in
-				emit_method_call exec name execs e.epos
+				emit_method_call ctx.max_stack_depth exec name execs e.epos
 			in
 			begin match fa with
 				| FStatic({cl_path=[],"StringTools"},{cf_name="fastCodeAt"}) ->
@@ -474,7 +474,7 @@ and jit_expr jit return e =
 				| FStatic({cl_path=path},cf) when is_proper_method cf ->
 					let proto = get_static_prototype ctx (path_hash path) ef.epos in
 					let v = lazy_proto_field proto in
-					emit_proto_field_call v execs e.epos
+					emit_proto_field_call ctx.max_stack_depth v execs e.epos
 				| FInstance(c,_,cf) when is_proper_method cf ->
 					if not (is_final c cf) then
 						default()
@@ -490,7 +490,7 @@ and jit_expr jit return e =
 						default()
 				| _ ->
 					let exec = jit_with_null_check ef in
-					emit_field_call exec name execs e.epos
+					emit_field_call ctx.max_stack_depth exec name execs e.epos
 			end
 		| TConst TSuper ->
 			begin match follow e1.etype with
@@ -499,18 +499,18 @@ and jit_expr jit return e =
 				let execs = List.map (jit_expr jit false) el in
 				begin try
 					let f = get_special_instance_constructor_raise ctx key in
-					emit_special_super_call f execs
+					emit_special_super_call ctx.max_stack_depth f execs
 				with Not_found ->
 					let fnew = get_instance_constructor jit.ctx key e1.epos in
 					let v = AtomicLazy.from_fun (fun () -> match AtomicLazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
-					emit_super_call v execs e.epos
+					emit_super_call ctx.max_stack_depth v execs e.epos
 				end
 			| _ -> die "" __LOC__
 			end
 		| _ ->
 			let exec = jit_expr jit false e1 in
 			let execs = List.map (jit_expr jit false) el in
-			emit_call exec execs e.epos
+			emit_call ctx.max_stack_depth exec execs e.epos
 		end
 	| TNew({cl_path=[],"Array"},_,_) ->
 		emit_new_array
@@ -532,7 +532,7 @@ and jit_expr jit return e =
 			let fnew = get_instance_constructor jit.ctx key e.epos in
 			let proto = get_instance_prototype jit.ctx key e.epos in
 			let v = AtomicLazy.from_fun (fun () -> match AtomicLazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
-			emit_constructor_call proto v execs e.epos
+			emit_constructor_call ctx.max_stack_depth proto v execs e.epos
 		end
 	(* read *)
 	| TLocal var ->

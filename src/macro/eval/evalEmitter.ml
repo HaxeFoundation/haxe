@@ -66,8 +66,8 @@ let decode_int_p v p = match v with
 	| VFloat f -> int_of_float f
 	| _ -> unexpected_value_p v "int" p
 
-let check_stack_depth env =
-	if env.env_stack_depth > (get_ctx()).max_stack_depth then
+let check_stack_depth max_depth env =
+	if env.env_stack_depth > max_depth then
 		exc_string "Stack overflow"
 
 (* Emitter *)
@@ -75,28 +75,76 @@ let check_stack_depth env =
 let apply env exec =
 	exec env
 
+(* The arguments of a call, evaluated from left to right. *)
+let emit_args execs = match execs with
+	| [] ->
+		(fun _ -> [])
+	| [exec1] ->
+		(fun env -> [exec1 env])
+	| [exec1;exec2] ->
+		(fun env ->
+			let v1 = exec1 env in
+			let v2 = exec2 env in
+			[v1;v2]
+		)
+	| [exec1;exec2;exec3] ->
+		(fun env ->
+			let v1 = exec1 env in
+			let v2 = exec2 env in
+			let v3 = exec3 env in
+			[v1;v2;v3]
+		)
+	| [exec1;exec2;exec3;exec4] ->
+		(fun env ->
+			let v1 = exec1 env in
+			let v2 = exec2 env in
+			let v3 = exec3 env in
+			let v4 = exec4 env in
+			[v1;v2;v3;v4]
+		)
+	| _ ->
+		let rec loop env execs = match execs with
+			| [] -> []
+			| exec :: execs ->
+				let v = exec env in
+				v :: loop env execs
+		in
+		(fun env -> loop env execs)
+
+(* The values of [execs], evaluated in order. *)
+let eval_array execs env =
+	let n = Array.length execs in
+	if n = 0 then [||]
+	else begin
+		let a = Array.make n vnull in
+		for i = 0 to n - 1 do
+			Array.unsafe_set a i ((Array.unsafe_get execs i) env)
+		done;
+		a
+	end
+
 (* Objects and values *)
 
 let emit_null _ = vnull
 
-let emit_local_declaration i exec env =
+let emit_local_declaration i exec = fun env ->
 	env.env_locals.(i) <- exec env;
 	vnull
 
-let emit_capture_declaration i exec env =
+let emit_capture_declaration i exec = fun env ->
 	env.env_captures.(i) <- exec env;
 	vnull
 
-let emit_const v _ = v
+let emit_const v = fun _ -> v
 
-let emit_null_check exec p env = match exec env with
+let emit_null_check exec p = fun env -> match exec env with
 	| VNull -> throw_string "Null Access" p
 	| v -> v
 
 let emit_new_array env =
 	encode_array_instance (EvalArray.create [||])
 
-let emit_new_vector_int i p env =
+let new_vector i p =
 	if i < 0 then exc_string_p "Vector size must be >= 0" p;
 	let a = try
 		Array.make i vnull
@@ -105,42 +153,51 @@ let emit_new_vector_int i p env =
 	in
 	encode_vector_instance a
 
-let emit_new_vector exec p env =
+let emit_new_vector_int i p = fun env ->
+	new_vector i p
+
+let emit_new_vector exec p = fun env ->
 	let i = decode_int_p (exec env) p in
-	emit_new_vector_int i p env
+	new_vector i p
 
-let emit_special_instance f execs env =
-	let vl = List.map (apply env) execs in
-	f vl
+let emit_special_instance f execs =
+	let args = emit_args execs in
+	(fun env -> f (args env))
 
-let emit_object_declaration proto fa env =
-	let a = Array.make (Array.length fa) vnull in
-	Array.iter (fun (i,exec) -> a.(i) <- exec env) fa;
-	vobject {
-		ofields = a;
-		oproto = OProto proto;
-	}
+let emit_object_declaration proto fa =
+	let n = Array.length fa in
+	let slots = Array.map fst fa in
+	let execs = Array.map snd fa in
+	(fun env ->
+		let a = Array.make n vnull in
+		for k = 0 to n - 1 do
+			a.(Array.unsafe_get slots k) <- (Array.unsafe_get execs k) env
+		done;
+		vobject {
+			ofields = a;
+			oproto = OProto proto;
+		}
+	)
 
-let emit_array_declaration execs env =
-	let vl = Array.map (apply env) execs in
-	encode_array_instance (EvalArray.create vl)
+let emit_array_declaration execs = fun env ->
+	encode_array_instance (EvalArray.create (eval_array execs env))
 
-let emit_type_expr proto env = proto
+let emit_type_expr proto = fun env -> proto
 
-let emit_mk_pos p env =
+let emit_mk_pos p = fun env ->
 	encode_pos p
 
-let emit_enum_construction key i execs p env =
-	encode_enum_value key i (Array.map (apply env) execs) p
+let emit_enum_construction key i execs p = fun env ->
+	encode_enum_value key i (eval_array execs env) p
 
 (* Branching *)
 
-let emit_if exec_cond exec_then exec_else env =
+let emit_if exec_cond exec_then exec_else = fun env ->
 	match exec_cond env with
 	| VTrue -> exec_then env
 	| _ -> exec_else env
 
-let emit_switch exec execs patterns exec_def env =
+let emit_switch exec execs patterns exec_def = fun env ->
 	let v1 = exec env in
 	let rec loop v1 i =
 		if i >= Array.length patterns then exec_def env
@@ -151,7 +208,7 @@ let emit_switch exec execs patterns exec_def env =
 	in
 	loop v1 0
 
-let emit_int_switch_map exec cases exec_def p env = match exec env with
+let emit_int_switch_map exec cases exec_def p = fun env -> match exec env with
 	| VInt32 i32 ->
 		let i = Int32.to_int i32 in
 		begin try
@@ -164,7 +221,7 @@ let emit_int_switch_map exec cases exec_def p env = match exec env with
 	| v ->
 		unexpected_value_p v "int" p
 
-let emit_string_switch_map exec cases exec_def p env = match exec env with
+let emit_string_switch_map exec cases exec_def p = fun env -> match exec env with
 	| VString s ->
 		begin try
 			(PMap.find s.sstring cases) env
@@ -176,7 +233,7 @@ let emit_string_switch_map exec cases exec_def p env = match exec env with
 	| v ->
 		unexpected_value_p v "string" p
 
-let emit_int_switch_array shift exec cases exec_def p env = match exec env with
+let emit_int_switch_array shift exec cases exec_def p = fun env -> match exec env with
 	| VInt32 i32 ->
 		let i = Int32.to_int i32 + shift in
 		if i >= Array.length cases || i < 0 then exec_def env
@@ -195,15 +252,15 @@ let rec run_while_continue exec_cond exec_body env =
 let run_while exec_cond exec_body env =
 	while is_true (exec_cond env) do exec_body env done
 
-let emit_while_break exec_cond exec_body env =
+let emit_while_break exec_cond exec_body = fun env ->
 	(try run_while_continue exec_cond exec_body env with Break -> ());
 	vnull
 
-let emit_while_break_continue exec_cond exec_body env =
+let emit_while_break_continue exec_cond exec_body = fun env ->
 	(try run_while_continue exec_cond exec_body env with Break -> ());
 	vnull
 
-let emit_do_while_break_continue exec_cond exec_body env =
+let emit_do_while_break_continue exec_cond exec_body = fun env ->
 	begin try
 		ignore(exec_body env); run_while_continue exec_cond exec_body env
 	with
@@ -212,7 +269,7 @@ let emit_do_while_break_continue exec_cond exec_body env =
 	end;
 	vnull
 
-let emit_try exec catches env =
+let emit_try exec catches = fun env ->
 	let ctx = get_ctx() in
 	let eval = env.env_eval in
 	if ctx.debug.support_debugger then begin
@@ -250,20 +307,20 @@ let emit_try exec catches env =
 
 (* Control flow *)
 
-let emit_value exec env =
+let emit_value exec = fun env ->
 	exec env
 
-let emit_seq2 exec1 exec2 env =
+let emit_seq2 exec1 exec2 = fun env ->
 	ignore(exec1 env);
 	exec2 env
 
-let emit_seq4 exec1 exec2 exec3 exec4 env =
+let emit_seq4 exec1 exec2 exec3 exec4 = fun env ->
 	ignore (exec1 env);
 	ignore (exec2 env);
 	ignore (exec3 env);
 	exec4 env
 
-let emit_seq8 exec1 exec2 exec3 exec4 exec5 exec6 exec7 exec8 env =
+let emit_seq8 exec1 exec2 exec3 exec4 exec5 exec6 exec7 exec8 = fun env ->
 	ignore (exec1 env);
 	ignore (exec2 env);
 	ignore (exec3 env);
@@ -275,15 +332,15 @@ let emit_seq8 exec1 exec2 exec3 exec4 exec5 exec6 exec7 exec8 env =
 
 let emit_return_null _ = raise_notrace (Return vnull)
 
-let emit_return_value exec env = raise_notrace (Return (exec env))
+let emit_return_value exec = fun env -> raise_notrace (Return (exec env))
 
 let emit_break env = raise_notrace Break
 
 let emit_continue env = raise_notrace Continue
 
-let emit_throw exec p env = throw (exec env) p
+let emit_throw exec p = fun env -> throw (exec env) p
 
-let emit_safe_cast exec t p env =
+let emit_safe_cast exec t p = fun env ->
 	let v1 = exec env in
 	match vresolve v1 with
 	| VNull -> v1
@@ -293,22 +350,29 @@ let emit_safe_cast exec t p env =
 
 (* super.call() - immediate *)
 
-let emit_super_field_call slot proto i execs p env =
-	check_stack_depth env;
-	let vthis = env.env_locals.(slot) in
-	let vf = proto.pfields.(i) in
-	let vl = List.map (apply env) execs in
-	call_value_on vthis vf vl
+let emit_super_field_call max_depth slot proto i execs p =
+	let args = emit_args execs in
+	(fun env ->
+		check_stack_depth max_depth env;
+		let vthis = env.env_locals.(slot) in
+		let vf = proto.pfields.(i) in
+		let vl = args env in
+		call_value_on vthis vf vl
+	)
 
 (* Type.call() - immediate *)
 
-let emit_proto_field_call v execs p env =
-	check_stack_depth env;
-	let f = AtomicLazy.force v in
-	let vl = List.map (apply env) execs in
-	env.env_leave_pmin <- (Pos.min p);
-	env.env_leave_pmax <- (Pos.max p);
-	f vl
+let emit_proto_field_call max_depth v execs p =
+	let args = emit_args execs in
+	let pmin = Pos.min p and pmax = Pos.max p in
+	(fun env ->
+		check_stack_depth max_depth env;
+		let f = AtomicLazy.force v in
+		let vl = args env in
+		env.env_leave_pmin <- pmin;
+		env.env_leave_pmax <- pmax;
+		f vl
+	)
 
 (* instance.call() where call is overridden - dynamic dispatch *)
 
@@ -319,101 +383,149 @@ let get_prototype v p = match vresolve v with
 	| VVector _ -> (get_ctx()).vector_prototype
 	| _ -> unexpected_value_p v "instance" p
 
-let emit_method_call exec name execs p env =
-	check_stack_depth env;
-	let vthis = exec env in
-	let proto = get_prototype vthis p in
-	let vf = try proto_field_raise proto name with Not_found -> throw_string (Printf.sprintf "Field %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p in
-	let vl = List.map (apply env) execs in
-	env.env_leave_pmin <- (Pos.min p);
-	env.env_leave_pmax <- (Pos.max p);
-	call_value_on vthis vf vl
+(* The prototype a call site last saw, with the prototype declaring the method
+   and its slot (a monomorphic inline cache). An entry is immutable: a domain
+   reading the cache while another one changes it sees either entry. *)
+type method_cache = {
+	mc_proto : vprototype;
+	mc_owner : vprototype;
+	mc_slot : int;
+}
+
+let rec find_method proto name =
+	match IntMap.find_opt name proto.pnames with
+	| Some i -> proto,i
+	| None -> match proto.pparent with
+		| Some proto -> find_method proto name
+		| None -> raise Not_found
+
+let emit_method_call max_depth exec name execs p =
+	let args = emit_args execs in
+	let pmin = Pos.min p and pmax = Pos.max p in
+	let cache = ref None in
+	let lookup proto =
+		let owner,i = try find_method proto name with Not_found -> throw_string (Printf.sprintf "Field %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p in
+		cache := Some {mc_proto = proto; mc_owner = owner; mc_slot = i};
+		get_static owner i
+	in
+	(fun env ->
+		check_stack_depth max_depth env;
+		let vthis = exec env in
+		let proto = get_prototype vthis p in
+		let vf = match !cache with
+			| Some c when c.mc_proto == proto -> get_static c.mc_owner c.mc_slot
+			| _ -> lookup proto
+		in
+		let vl = args env in
+		env.env_leave_pmin <- pmin;
+		env.env_leave_pmax <- pmax;
+		call_value_on vthis vf vl
+	)
 
 (* instance.call() where call is not a method - lookup + this-binding *)
 
-let emit_field_call exec name execs p env =
-	check_stack_depth env;
-	let vthis = exec env in
-	let vf = field vthis name in
-	env.env_leave_pmin <- (Pos.min p);
-	env.env_leave_pmax <- (Pos.max p);
-	call_value_on vthis vf (List.map (apply env) execs)
+let emit_field_call max_depth exec name execs p =
+	let args = emit_args execs in
+	let pmin = Pos.min p and pmax = Pos.max p in
+	(fun env ->
+		check_stack_depth max_depth env;
+		let vthis = exec env in
+		let vf = field vthis name in
+		env.env_leave_pmin <- pmin;
+		env.env_leave_pmax <- pmax;
+		call_value_on vthis vf (args env)
+	)
 
 (* new() - immediate + this-binding *)
 
-let emit_constructor_call proto v execs p env =
-	check_stack_depth env;
-	let f = AtomicLazy.force v in
-	let vthis = create_instance_direct proto INormal in
-	let vl = List.map (apply env) execs in
-	env.env_leave_pmin <- (Pos.min p);
-	env.env_leave_pmax <- (Pos.max p);
-	ignore(f (vthis :: vl));
-	vthis
+let emit_constructor_call max_depth proto v execs p =
+	let args = emit_args execs in
+	let pmin = Pos.min p and pmax = Pos.max p in
+	(fun env ->
+		check_stack_depth max_depth env;
+		let f = AtomicLazy.force v in
+		let vthis = create_instance_direct proto INormal in
+		let vl = args env in
+		env.env_leave_pmin <- pmin;
+		env.env_leave_pmax <- pmax;
+		ignore(f (vthis :: vl));
+		vthis
+	)
 
 (* super() - immediate + this-binding *)
 
-let emit_special_super_call fnew execs env =
-	check_stack_depth env;
-	let vl = List.map (apply env) execs in
-	let vi' = fnew vl in
-	let vthis = env.env_locals.(0) in
-	(* This isn't very elegant, but it's probably a rare case to extend these types. *)
-	begin match vthis,vi' with
-		| VInstance vi,VInstance vi' -> vi.ikind <- vi'.ikind
-		| _ -> die "" __LOC__
-	end;
-	vnull
+let emit_special_super_call max_depth fnew execs =
+	let args = emit_args execs in
+	(fun env ->
+		check_stack_depth max_depth env;
+		let vl = args env in
+		let vi' = fnew vl in
+		let vthis = env.env_locals.(0) in
+		(* This isn't very elegant, but it's probably a rare case to extend these types. *)
+		begin match vthis,vi' with
+			| VInstance vi,VInstance vi' -> vi.ikind <- vi'.ikind
+			| _ -> die "" __LOC__
+		end;
+		vnull
+	)
 
-let emit_super_call v execs p env =
-	check_stack_depth env;
-	let f = AtomicLazy.force v in
-	let vthis = env.env_locals.(0) in
-	let vl = List.map (apply env) execs in
-	env.env_leave_pmin <- (Pos.min p);
-	env.env_leave_pmax <- (Pos.max p);
-	ignore(f (vthis :: vl));
-	vthis
+let emit_super_call max_depth v execs p =
+	let args = emit_args execs in
+	let pmin = Pos.min p and pmax = Pos.max p in
+	(fun env ->
+		check_stack_depth max_depth env;
+		let f = AtomicLazy.force v in
+		let vthis = env.env_locals.(0) in
+		let vl = args env in
+		env.env_leave_pmin <- pmin;
+		env.env_leave_pmax <- pmax;
+		ignore(f (vthis :: vl));
+		vthis
+	)
 
 (* unknown call - full lookup *)
 
-let emit_call exec execs p env =
-	check_stack_depth env;
-	let v1 = exec env in
-	env.env_leave_pmin <- (Pos.min p);
-	env.env_leave_pmax <- (Pos.max p);
-	call_value v1 (List.map (apply env) execs)
+let emit_call max_depth exec execs p =
+	let args = emit_args execs in
+	let pmin = Pos.min p and pmax = Pos.max p in
+	(fun env ->
+		check_stack_depth max_depth env;
+		let v1 = exec env in
+		env.env_leave_pmin <- pmin;
+		env.env_leave_pmax <- pmax;
+		call_value v1 (args env)
+	)
 
 (* Read *)
 
-let emit_local_read i env = env.env_locals.(i)
+let emit_local_read i = fun env -> env.env_locals.(i)
 
-let emit_capture_read i env = env.env_captures.(i)
+let emit_capture_read i = fun env -> env.env_captures.(i)
 
-let emit_array_length_read exec p env = vint (as_array p (exec env)).alength
+let emit_array_length_read exec p = fun env -> vint (as_array p (exec env)).alength
 
-let emit_vector_length_read exec p env = vint (Array.length (as_vector p (exec env)))
+let emit_vector_length_read exec p = fun env -> vint (Array.length (as_vector p (exec env)))
 
-let emit_bytes_length_read exec p env = vint (Bytes.length (as_bytes p (exec env)))
+let emit_bytes_length_read exec p = fun env -> vint (Bytes.length (as_bytes p (exec env)))
 
-let emit_proto_field_read proto i env =
+let emit_proto_field_read proto i = fun env ->
 	get_static proto i
 
-let emit_instance_field_read exec p i env = match exec env with
+let emit_instance_field_read exec p i = fun env -> match exec env with
 	| VInstance vi -> vi.ifields.(i)
 	| VString s -> vint (s.slength)
 	| VNull -> throw_string "field access on null" p
 	| v -> unexpected_value_p v "instance" p
 
-let emit_this_field_read iv i env = match env.env_locals.(iv) with
+let emit_this_field_read iv i = fun env -> match env.env_locals.(iv) with
 	| VInstance vi -> vi.ifields.(i)
 	| v -> unexpected_value v "instance"
 
-let emit_field_closure exec name env =
+let emit_field_closure exec name = fun env ->
 	let v = exec env in
 	dynamic_field v name
 
-let emit_anon_field_read exec proto i name p env =
+let emit_anon_field_read exec proto i name p = fun env ->
 	match vresolve (exec env) with
 	| VObject o ->
 		begin match o.oproto with
@@ -425,70 +537,70 @@ let emit_anon_field_read exec proto i name p env =
 	| VNull -> throw_string "field access on null" p
 	| v -> field v name
 
-let emit_field_read exec name p env = match exec env with
+let emit_field_read exec name p = fun env -> match exec env with
 	| VNull -> throw_string "field access on null" p
 	| v -> field v name
 
-let emit_array_read exec1 p1 exec2 p2 env =
+let emit_array_read exec1 p1 exec2 p2 = fun env ->
 	let a = as_array p1 (exec1 env) in
 	let i = as_int p2 (exec2 env) in
 	if i < 0 then vnull
 	else EvalArray.get a i
 
-let emit_vector_read exec1 p1 exec2 p2 env =
+let emit_vector_read exec1 p1 exec2 p2 = fun env ->
 	let v = as_vector p1 (exec1 env) in
 	let i = as_int p2 (exec2 env) in
 	if i < 0 then vnull
 	else Array.unsafe_get v i
 
-let emit_enum_index exec p env = vint (as_enum_value p (exec env)).eindex
+let emit_enum_index exec p = fun env -> vint (as_enum_value p (exec env)).eindex
 
-let emit_enum_parameter_read exec i env = match exec env with
+let emit_enum_parameter_read exec i = fun env -> match exec env with
 	| VEnumValue ev -> (try ev.eargs.(i) with Not_found -> vnull)
 	| v1 -> unexpected_value v1 "enum value"
 
-let emit_string_cca exec1 exec2 p env =
+let emit_string_cca exec1 exec2 p = fun env ->
 	let s = decode_vstring (exec1 env) in
 	let index = decode_int_p (exec2 env) p in
 	if index < 0 || index >= s.slength then vnull
 	else vint (EvalString.char_at s index)
 
-let emit_string_cca_unsafe exec1 exec2 p env =
+let emit_string_cca_unsafe exec1 exec2 p = fun env ->
 	let s = decode_vstring (exec1 env) in
 	let index = decode_int_p (exec2 env) p in
 	vint (EvalString.char_at s index)
 
 (* Write *)
 
-let emit_bytes_length_write exec1 exec2 env =
+let emit_bytes_length_write exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	set_bytes_length_field v1 v2;
 	v2
 
-let emit_local_write slot exec env =
+let emit_local_write slot exec = fun env ->
 	let v = exec env in
 	env.env_locals.(slot) <- v;
 	v
 
-let emit_capture_write slot exec env =
+let emit_capture_write slot exec = fun env ->
 	let v = exec env in
 	env.env_captures.(slot) <- v;
 	v
 
-let emit_proto_field_write proto i exec2 env =
+let emit_proto_field_write proto i exec2 = fun env ->
 	let v = exec2 env in
 	set_static proto i v;
 	v
 
-let emit_instance_field_write exec1 p i exec2 env = match exec1 env with
+let emit_instance_field_write exec1 p i exec2 = fun env -> match exec1 env with
 	| VInstance vi ->
 		let v = exec2 env in
 		vi.ifields.(i) <- v;
 		v
 	| v -> unexpected_value_p v "instance" p
 
-let emit_anon_field_write exec1 p proto i name exec2 env =
+let emit_anon_field_write exec1 p proto i name exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	begin match vresolve v1 with
@@ -506,13 +618,13 @@ let emit_anon_field_write exec1 p proto i name exec2 env =
 	end;
 	v2
 
-let emit_field_write exec1 p1 name exec2 env =
+let emit_field_write exec1 p1 name exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	(try set_field v1 name v2 with RunTimeException(v,stack,_) -> raise_notrace (RunTimeException(v,stack,p1)));
 	v2
 
-let emit_array_write exec1 p1 exec2 p2 exec3 p env =
+let emit_array_write exec1 p1 exec2 p2 exec3 p = fun env ->
 	let a = as_array p1 (exec1 env) in
 	let i = as_int p2 (exec2 env) in
 	let v3 = exec3 env in
@@ -520,7 +632,7 @@ let emit_array_write exec1 p1 exec2 p2 exec3 p env =
 	EvalArray.set a i v3;
 	v3
 
-let emit_vector_write exec1 p1 exec2 p2 exec3 p env =
+let emit_vector_write exec1 p1 exec2 p2 exec3 p = fun env ->
 	let vv = as_vector p1 (exec1 env) in
 	let i = as_int p2 (exec2 env) in
 	let v3 = exec3 env in
@@ -536,38 +648,41 @@ let do_incr v p = match v with
 	| VFloat f -> vfloat (f +. 1.)
 	| v -> unexpected_value_p v "number" p
 
-let emit_local_incr_prefix slot p env =
+let emit_local_incr_prefix slot p = fun env ->
 	let v0 = env.env_locals.(slot) in
 	let v = do_incr v0 p in
 	env.env_locals.(slot) <- v;
 	v
 
-let emit_local_incr_postfix slot p env =
+let emit_local_incr_postfix slot p = fun env ->
 	let v0 = env.env_locals.(slot) in
 	let v = do_incr v0 p in
 	env.env_locals.(slot) <- v;
 	v0
 
-let emit_local_read_write slot exec fop prefix env =
+let emit_local_read_write slot exec fop prefix = fun env ->
 	let v1 = env.env_locals.(slot) in
 	let v2 = exec env in
 	let v = fop v1 v2 in
 	env.env_locals.(slot) <- v;
 	if prefix then v else v1
 
-let emit_capture_read_write slot exec fop prefix env =
+let emit_capture_read_write slot exec fop prefix = fun env ->
 	let v1 = (env.env_captures.(slot)) in
 	let v2 = exec env in
 	let v = fop v1 v2 in
 	env.env_captures.(slot) <- v;
 	if prefix then v else v1
 
-let emit_proto_field_read_write proto i exec2 fop prefix env =
+let proto_field_read_write proto i exec2 fop prefix env =
 	let vf = get_static proto i in
 	let v2 = exec2 env in
 	let v = fop vf v2 in
 	set_static proto i v;
 	if prefix then v else vf
+
+let emit_proto_field_read_write proto i exec2 fop prefix = fun env ->
+	proto_field_read_write proto i exec2 fop prefix env
 
 let instance_field_read_write vi i exec2 fop prefix env =
 	let vf = vi.ifields.(i) in
@@ -576,11 +691,11 @@ let instance_field_read_write vi i exec2 fop prefix env =
 	vi.ifields.(i) <- v;
 	if prefix then v else vf
 
-let emit_instance_field_read_write exec1 p1 i exec2 fop prefix env = match exec1 env with
+let emit_instance_field_read_write exec1 p1 i exec2 fop prefix = fun env -> match exec1 env with
 	| VInstance vi -> instance_field_read_write vi i exec2 fop prefix env
 	| v -> unexpected_value_p v "instance" p1
 
-let emit_field_read_write exec1 p1 name exec2 fop prefix env =
+let emit_field_read_write exec1 p1 name exec2 fop prefix = fun env ->
 	let v1 = exec1 env in
 	match vresolve v1 with
 	| VObject o ->
@@ -596,7 +711,7 @@ let emit_field_read_write exec1 p1 name exec2 fop prefix env =
 		let i = get_proto_field_index proto name in
 		if is_shared_static proto i then !on_shared_state ();
 		fresh_statics proto;
-		emit_proto_field_read_write proto i exec2 fop prefix env
+		proto_field_read_write proto i exec2 fop prefix env
 	| _ ->
 		let vf = field v1 name in
 		let v2 = exec2 env in
@@ -604,7 +719,7 @@ let emit_field_read_write exec1 p1 name exec2 fop prefix env =
 		(try set_field v1 name v with RunTimeException(v,stack,_) -> raise_notrace (RunTimeException(v,stack,p1)));
 		if prefix then v else vf
 
-let emit_array_read_write exec1 p1 exec2 p2 exec3 fop prefix env =
+let emit_array_read_write exec1 p1 exec2 p2 exec3 fop prefix = fun env ->
 	let va = as_array p1 (exec1 env) in
 	let i = as_int p2 (exec2 env) in
 	if i < 0 then throw_string (Printf.sprintf "Negative array index: %i" i) p2;
@@ -614,7 +729,7 @@ let emit_array_read_write exec1 p1 exec2 p2 exec3 fop prefix env =
 	EvalArray.set va i v3;
 	if prefix then v3 else v
 
-let emit_vector_read_write exec1 p1 exec2 p2 exec3 fop prefix env =
+let emit_vector_read_write exec1 p1 exec2 p2 exec3 fop prefix = fun env ->
 	let va = as_vector p1 (exec1 env) in
 	let i = as_int p2 (exec2 env) in
 	if i < 0 then throw_string (Printf.sprintf "Negative vector index: %i" i) p2;
@@ -626,112 +741,112 @@ let emit_vector_read_write exec1 p1 exec2 p2 exec3 fop prefix env =
 
 (* Ops *)
 
-let emit_eq_null exec env = match vresolve (exec env) with
+let emit_eq_null exec = fun env -> match vresolve (exec env) with
 	| VNull -> VTrue
 	| _ -> VFalse
 
-let emit_not_eq_null exec env = match vresolve (exec env) with
+let emit_not_eq_null exec = fun env -> match vresolve (exec env) with
 	| VNull -> VFalse
 	| _ -> VTrue
 
-let emit_op_add p exec1 exec2 env =
+let emit_op_add p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	op_add p v1 v2
 
-let emit_op_mult p exec1 exec2 env =
+let emit_op_mult p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	op_mult p v1 v2
 
-let emit_op_div p exec1 exec2 env =
+let emit_op_div p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	op_div p v1 v2
 
-let emit_op_sub p exec1 exec2 env =
+let emit_op_sub p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	op_sub p v1 v2
 
-let emit_op_eq exec1 exec2 env =
+let emit_op_eq exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	vbool (equals v1 v2)
 
-let emit_op_not_eq exec1 exec2 env =
+let emit_op_not_eq exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	vbool  (not (equals v1 v2))
 
-let emit_op_gt exec1 exec2 env =
+let emit_op_gt exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	vbool (compare v1 v2 = CSup)
 
-let emit_op_gte exec1 exec2 env =
+let emit_op_gte exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	vbool (match compare v1 v2 with CSup | CEq -> true | _ -> false)
 
-let emit_op_lt exec1 exec2 env =
+let emit_op_lt exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	vbool (compare v1 v2 = CInf)
 
-let emit_op_lte exec1 exec2 env =
+let emit_op_lte exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	vbool (match compare v1 v2 with CInf | CEq -> true | _ -> false)
 
-let emit_op_and p exec1 exec2 env =
+let emit_op_and p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	op_and p v1 v2
 
-let emit_op_or p exec1 exec2 env =
+let emit_op_or p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	op_or p v1 v2
 
-let emit_op_xor p exec1 exec2 env =
+let emit_op_xor p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	op_xor p v1 v2
 
-let emit_op_shl p exec1 exec2 env =
+let emit_op_shl p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	op_shl p v1 v2
 
-let emit_op_shr p exec1 exec2 env =
+let emit_op_shr p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	op_shr p v1 v2
 
-let emit_op_ushr p exec1 exec2 env =
+let emit_op_ushr p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	op_ushr p v1 v2
 
-let emit_op_mod p exec1 exec2 env =
+let emit_op_mod p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
 	let v2 = exec2 env in
 	op_mod p v1 v2
 
-let emit_not exec env = match exec env with
+let emit_not exec = fun env -> match exec env with
 	| VNull | VFalse -> VTrue
 	| _ -> VFalse
 
-let emit_bool_and exec1 exec2 env =
+let emit_bool_and exec1 exec2 = fun env ->
 	if is_true (exec1 env) then exec2 env
 	else VFalse
 
-let emit_bool_or exec1 exec2 env =
+let emit_bool_or exec1 exec2 = fun env ->
 	if is_true (exec1 env) then VTrue
 	else exec2 env
 
-let emit_neg exec p env = match exec env with
+let emit_neg exec p = fun env -> match exec env with
 	| VFloat f -> vfloat (-.f)
 	| VInt32 i -> vint32 (Int32.neg i)
 	| VInt64 i -> vint64 (Int64.neg i)
@@ -739,10 +854,10 @@ let emit_neg exec p env = match exec env with
 
 (* Function *)
 
-let execute_set_local i env v =
+let execute_set_local i = fun env v ->
 	env.env_locals.(i) <- v
 
-let execute_set_capture i env v =
+let execute_set_capture i = fun env v ->
 	env.env_captures.(i) <- v
 
 let process_arguments fl vl env =
@@ -761,38 +876,57 @@ let process_arguments fl vl env =
 	loop fl vl
 [@@inline]
 
-let create_function_noret ctx eci exec fl vl =
+(* The functions run their body in an environment of their own, popped however
+   the body ends (without allocating a closure for it, as [Std.finally] does). *)
+
+let create_function_noret ctx eci exec fl = fun vl ->
 	let env = push_environment ctx eci in
-	Std.finally (fun () -> pop_environment ctx env) (fun () ->
+	match
 		process_arguments fl vl env;
 		exec env
-	) ()
+	with
+	| v -> pop_environment ctx env; v
+	| exception exc -> pop_environment ctx env; raise exc
 
-let create_function ctx eci exec fl vl =
+let create_function ctx eci exec fl = fun vl ->
 	let env = push_environment ctx eci in
-	Std.finally (fun () -> pop_environment ctx env) (fun () ->
-		process_arguments fl vl env;
-		try exec env with Return v -> v
-	) ()
-
-let create_closure_noret ctx eci refs exec fl vl =
-	let env = push_environment ctx eci in
-	Std.finally (fun () -> pop_environment ctx env) (fun () ->
-		Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
+	match
 		process_arguments fl vl env;
 		exec env
-	) ()
+	with
+	| v -> pop_environment ctx env; v
+	| exception Return v -> pop_environment ctx env; v
+	| exception exc -> pop_environment ctx env; raise exc
 
-let create_closure refs ctx eci exec fl vl =
+let set_captures env refs =
+	for k = 0 to Array.length refs - 1 do
+		let (i,vr) = Array.unsafe_get refs k in
+		env.env_captures.(i) <- vr
+	done
+
+let create_closure_noret ctx eci refs exec fl = fun vl ->
 	let env = push_environment ctx eci in
-	Std.finally (fun () -> pop_environment ctx env) (fun () ->
-		Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
+	match
+		set_captures env refs;
 		process_arguments fl vl env;
-		try exec env with Return v -> v
-	) ()
+		exec env
+	with
+	| v -> pop_environment ctx env; v
+	| exception exc -> pop_environment ctx env; raise exc
 
-let emit_closure ctx mapping eci hasret exec fl env =
-	let refs = Array.map (fun (i,slot) -> i,emit_capture_read slot env) mapping in
+let create_closure refs ctx eci exec fl = fun vl ->
+	let env = push_environment ctx eci in
+	match
+		set_captures env refs;
+		process_arguments fl vl env;
+		exec env
+	with
+	| v -> pop_environment ctx env; v
+	| exception Return v -> pop_environment ctx env; v
+	| exception exc -> pop_environment ctx env; raise exc
+
+let emit_closure ctx mapping eci hasret exec fl = fun env ->
+	let refs = Array.map (fun (i,slot) -> i,env.env_captures.(slot)) mapping in
 	let create = match hasret,eci.num_captures with
 		| true,0 -> create_function
 		| false,0 -> create_function_noret

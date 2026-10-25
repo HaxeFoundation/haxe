@@ -378,9 +378,10 @@ let clear_curapi ctx api =
 let create_thread_eval : (context -> eval) ref = ref (fun _ -> raise Not_found)
 
 let get_eval ctx =
-	match Thread_local_storage.get_opt ctx.eval with
-	| Some eval -> eval
-	| None ->
+	(* [get_exn], as [get_opt] allocates *)
+	try
+		Thread_local_storage.get_exn ctx.eval
+	with Thread_local_storage.Not_set ->
 		let eval = !create_thread_eval ctx in
 		Thread_local_storage.set ctx.eval eval;
 		eval
@@ -525,7 +526,7 @@ let push_environment ctx info =
 		env_locals = locals;
 		env_captures = captures;
 		env_extra_locals = IntMap.empty;
-		env_parent = if info.kind = EKEntrypoint then None else eval.env;
+		env_parent = (match info.kind with EKEntrypoint -> None | _ -> eval.env);
 		env_eval = eval;
 		env_stack_depth = stack_depth;
 	} in
