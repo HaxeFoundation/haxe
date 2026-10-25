@@ -44,6 +44,30 @@ let calls_program calls sym =
      fun_dbg = dbg;
    }]
 
+(* Same shape without calls: [ops] loads, tests and stores *)
+let ops_program ops sym =
+  let env = Backend_var.create_local "env" and clos = Backend_var.create_local "clos" in
+  let wp = Backend_var.With_provenance.create in
+  let load e i = Cmm_helpers.get_field_gen Asttypes.Mutable e i dbg in
+  let table = Cconst_symbol (sym "consts", dbg) in
+  let body = List.init ops (fun i ->
+      let v = Backend_var.create_local "v" in
+      Clet (wp v, load (load (Cvar env) 4) (i mod 8),
+            Cifthenelse (Cop (Ccmpi Ceq, [Cvar v; load table i], dbg), dbg,
+                         Csequence (Cop (Cstore (Word_int, Lambda.Assignment), [Cop (Cadda, [load (Cvar env) 4; Cconst_int (8 * (i mod 8), dbg)], dbg); Cconst_int (3, dbg)], dbg), Cconst_int (1, dbg)), dbg,
+                         Cconst_int (1, dbg), dbg))) in
+  let body = List.fold_left (fun acc c -> Csequence (acc, c)) (Cconst_int (1, dbg)) body in
+  [Cdata ([Cint (Cmm_helpers.black_block_header 0 ops); Cdefine_symbol (sym "consts")]
+          @ List.init ops (fun _ -> Cint 1n));
+   Cfunction {
+     fun_name = sym "f";
+     fun_args = [wp env, typ_val; wp clos, typ_val];
+     fun_body = body;
+     fun_codegen_options = [];
+     fun_poll = Lambda.Default_poll;
+     fun_dbg = dbg;
+   }]
+
 let measure name n program =
   Gc.full_major ();
   let w0 = Gc.minor_words () and t0 = Unix.gettimeofday () in
@@ -64,4 +88,5 @@ let () =
     exit 0
   end;
   measure "tiny" n program;
-  List.iter (fun k -> measure (Printf.sprintf "%d calls" k) n (calls_program k)) [5; 20; 50; 100]
+  List.iter (fun k -> measure (Printf.sprintf "%d calls" k) n (calls_program k)) [5; 20; 50; 100];
+  List.iter (fun k -> measure (Printf.sprintf "%d ops" k) n (ops_program k)) [20; 50; 100]

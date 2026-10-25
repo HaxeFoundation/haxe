@@ -2,3 +2,5 @@
    docs/macro-jit-native.md): functions are compiled to closures. *)
 
 let jit_tfunction = EvalJit.jit_tfunction
+
+let register _ _ _ _ _ _ = ()

@@ -43,6 +43,7 @@ let create_constructor ctx c =
 	match c.cl_constructor with
 	| Some {cf_expr = Some {eexpr = TFunction tf; epos = pos}} when not (has_class_flag c CExtern) ->
 		let key = path_hash c.cl_path in
+		EvalNative.register ctx key key_new tf false pos;
 		let v = AtomicLazy.from_fun (fun () -> vfunction (EvalNative.jit_tfunction ctx key key_new tf false pos)) in
 		ctx.constructors <- IntMap.add key v ctx.constructors;
 	| _ ->
@@ -214,6 +215,7 @@ let create_static_prototype ctx mt =
 		if not (has_class_flag c CExtern) then List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
 			| Method _,Some {eexpr = TFunction tf; epos = pos} ->
 				let name = hash cf.cf_name in
+				EvalNative.register ctx key name tf true pos;
 				PrototypeBuilder.add_proto_field pctx name (AtomicLazy.from_fun (fun () -> vstatic_function (EvalNative.jit_tfunction ctx key name tf true pos)));
 			| Var _,Some e ->
 				let name = hash cf.cf_name in
@@ -305,6 +307,7 @@ let create_instance_prototype ctx c =
 	else List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
 		| Method meth,Some {eexpr = TFunction tf; epos = pos} ->
 			let name = hash cf.cf_name in
+			EvalNative.register ctx key name tf false pos;
 			let v = AtomicLazy.from_fun (fun () -> vfunction (EvalNative.jit_tfunction ctx key name tf false pos)) in
 			(* an overriding dynamic method only changes the initial value of the parent's field *)
 			if meth = MethDynamic then
