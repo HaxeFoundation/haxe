@@ -261,8 +261,21 @@ let rec gen_type_decl pos t =
 		let this = [node "this" [] [gen_type a.a_this]] in
 		node "abstract" (gen_type_params pos a.a_private (tpath t) a.a_params a.a_pos m) (sub @ this @ super @ doc @ meta @ impl)
 
+(* as [Xml.to_string (Xml.PCData s)], which writes to a buffer shared by the
+   domains (the types are written in parallel) *)
 let escape_entities s =
-	Xml.to_string (Xml.PCData s)
+	let l = String.length s in
+	let b = Buffer.create (l + 8) in
+	for p = 0 to l - 1 do
+		match String.unsafe_get s p with
+		| '>' -> Buffer.add_string b "&gt;"
+		| '<' -> Buffer.add_string b "&lt;"
+		| '&' -> if p < l - 1 && s.[p + 1] = '#' then Buffer.add_char b '&' else Buffer.add_string b "&amp;"
+		| '\'' -> Buffer.add_string b "&apos;"
+		| '"' -> Buffer.add_string b "&quot;"
+		| c -> Buffer.add_char b c
+	done;
+	Buffer.contents b
 
 let att_str att =
 	String.concat "" (List.map (fun (a,v) -> Printf.sprintf " %s=\"%s\"" a (escape_entities v)) att)
@@ -287,19 +300,35 @@ let rec write_xml ch tabs x =
 	| CData s ->
 		IO.printf ch "<![CDATA[%s]]>" s
 
+(* The types are written on the domains of the pool, each to a string, as the
+   children of the root node; the file is only written when its content
+   changed (the server writes the same file again after most changes). *)
 let generate com file =
-	let f () =
-		node "haxe" [] (List.map (gen_type_decl true) (List.filter (fun t -> not (Meta.has Meta.NoDoc (t_infos t).mt_meta)) com.types))
+	let types = Array.of_list (List.filter (fun t -> not (Meta.has Meta.NoDoc (t_infos t).mt_meta)) com.types) in
+	let to_string tabs t =
+		let ch = IO.output_string () in
+		write_xml ch tabs (gen_type_decl true t);
+		IO.close_out ch
 	in
-	let x = Timer.time com.timer_ctx ["generate";"xml"] f () in
-
 	let f () =
-		let ch = IO.output_channel (open_out_bin file) in
-		IO.printf ch "<!-- This file can be parsed by haxe.rtti.XmlParser -->\n";
-		write_xml ch "" x;
-		IO.close_out ch;
+		let b = Buffer.create (1 lsl 20) in
+		Buffer.add_string b "<!-- This file can be parsed by haxe.rtti.XmlParser -->\n";
+		(match types with
+		| [||] ->
+			Buffer.add_string b "<haxe/>"
+		| [|t|] ->
+			Buffer.add_string b "<haxe>";
+			Buffer.add_string b (to_string "" t);
+			Buffer.add_string b "</haxe>"
+		| _ ->
+			let l = Parallel.run_with_pool com.sctx.pool (fun pool -> Parallel.ParallelArray.map pool (to_string "\t") types "") in
+			Buffer.add_string b "<haxe>\n";
+			Array.iter (fun s -> Buffer.add_string b s; Buffer.add_char b '\n') l;
+			Buffer.add_string b "</haxe>");
+		Buffer.contents b
 	in
-	Timer.time com.timer_ctx ["write";"xml"] f ()
+	let content = Timer.time com.timer_ctx ["generate";"xml"] f () in
+	Timer.time com.timer_ctx ["write";"xml"] (fun () -> ignore (Vfs.write_file file content)) ()
 
 let gen_type_string t =
 	let x = gen_type_decl false t in
