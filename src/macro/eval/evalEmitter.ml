@@ -793,35 +793,37 @@ let process_arguments fl vl env =
 	loop fl vl
 [@@inline]
 
+(* The functions below run the body of a function in a new environment, popped
+   whatever happens, as [Std.finally] would without allocating closures *)
+
 let create_function_noret ctx eci exec fl vl =
 	let env = push_environment ctx eci in
-	Std.finally (fun () -> pop_environment ctx env) (fun () ->
-		process_arguments fl vl env;
-		exec env
-	) ()
+	match process_arguments fl vl env; exec env with
+	| v -> pop_environment ctx env; v
+	| exception e -> pop_environment ctx env; raise e
 
 let create_function ctx eci exec fl vl =
 	let env = push_environment ctx eci in
-	Std.finally (fun () -> pop_environment ctx env) (fun () ->
-		process_arguments fl vl env;
-		try exec env with Return v -> v
-	) ()
+	match process_arguments fl vl env; exec env with
+	| v -> pop_environment ctx env; v
+	| exception Return v -> pop_environment ctx env; v
+	| exception e -> pop_environment ctx env; raise e
+
+let set_captures refs env =
+	Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs
 
 let create_closure_noret ctx eci refs exec fl vl =
 	let env = push_environment ctx eci in
-	Std.finally (fun () -> pop_environment ctx env) (fun () ->
-		Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
-		process_arguments fl vl env;
-		exec env
-	) ()
+	match set_captures refs env; process_arguments fl vl env; exec env with
+	| v -> pop_environment ctx env; v
+	| exception e -> pop_environment ctx env; raise e
 
 let create_closure refs ctx eci exec fl vl =
 	let env = push_environment ctx eci in
-	Std.finally (fun () -> pop_environment ctx env) (fun () ->
-		Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
-		process_arguments fl vl env;
-		try exec env with Return v -> v
-	) ()
+	match set_captures refs env; process_arguments fl vl env; exec env with
+	| v -> pop_environment ctx env; v
+	| exception Return v -> pop_environment ctx env; v
+	| exception e -> pop_environment ctx env; raise e
 
 let emit_closure ctx mapping eci hasret exec fl env =
 	let refs = Array.map (fun (i,slot) -> i,emit_capture_read slot env) mapping in
