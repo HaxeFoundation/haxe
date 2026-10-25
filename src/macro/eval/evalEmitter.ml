@@ -141,6 +141,10 @@ let emit_null_check exec p = fun env -> match exec env with
 	| VNull -> throw_string "Null Access" p
 	| v -> v
 
+let emit_local_null_check slot p = fun env -> match env.env_locals.(slot) with
+	| VNull -> throw_string "Null Access" p
+	| v -> v
+
 let emit_new_array env =
 	encode_array_instance (EvalArray.create [||])
 
@@ -192,11 +196,6 @@ let emit_enum_construction key i execs p = fun env ->
 
 (* Branching *)
 
-let emit_if exec_cond exec_then exec_else = fun env ->
-	match exec_cond env with
-	| VTrue -> exec_then env
-	| _ -> exec_else env
-
 let rec switch_case_matches v1 patterns env = match patterns with
 	| [] -> false
 	| exec :: patterns -> equals v1 (exec env) || switch_case_matches v1 patterns env
@@ -245,32 +244,6 @@ let emit_int_switch_array shift exec cases exec_def p = fun env -> match exec en
 		exec_def env
 	| v ->
 		unexpected_value_p v "int" p
-
-let rec run_while_continue exec_cond exec_body env =
-	try
-		while is_true (exec_cond env) do ignore(exec_body env) done;
-	with Continue ->
-		run_while_continue exec_cond exec_body env
-
-let run_while exec_cond exec_body env =
-	while is_true (exec_cond env) do exec_body env done
-
-let emit_while_break exec_cond exec_body = fun env ->
-	(try run_while_continue exec_cond exec_body env with Break -> ());
-	vnull
-
-let emit_while_break_continue exec_cond exec_body = fun env ->
-	(try run_while_continue exec_cond exec_body env with Break -> ());
-	vnull
-
-let emit_do_while_break_continue exec_cond exec_body = fun env ->
-	begin try
-		ignore(exec_body env); run_while_continue exec_cond exec_body env
-	with
-		| Break -> ()
-		| Continue -> try run_while_continue exec_cond exec_body env with Break -> ()
-	end;
-	vnull
 
 let emit_try exec catches = fun env ->
 	let ctx = get_ctx() in
@@ -644,6 +617,13 @@ let emit_proto_field_write proto i exec2 = fun env ->
 	v
 
 let emit_instance_field_write exec1 p i exec2 = fun env -> match exec1 env with
+	| VInstance vi ->
+		let v = exec2 env in
+		vi.ifields.(i) <- v;
+		v
+	| v -> unexpected_value_p v "instance" p
+
+let emit_local_instance_field_write slot p i exec2 = fun env -> match env.env_locals.(slot) with
 	| VInstance vi ->
 		let v = exec2 env in
 		vi.ifields.(i) <- v;

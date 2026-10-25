@@ -135,7 +135,71 @@ Expected overall: the interpreter-bound benchmarks from 20–40× slower than
 node to 5–10×, and macro execution on hide from about 2.2 s to about 1 s on
 one domain.
 
-## 5. Constraints and verification
+## 5. Status (implemented)
+
+Measured on a 4-core cloud VM (noisy: medians of alternating runs), Heaps
+`haxe6-annotations` with hxsl, domkit, hxbit and castle: `-D apicheck` build
+to JS on one domain (`-D parallel-typing=0 --times -D times.macro`), and its
+43 samples compiled one by one (macro execution summed). Generated code is
+identical to the compiler before these changes for all 44 outputs.
+
+| | before | after |
+|---|---|---|
+| Heaps apicheck, macro execution (median of 9) | 0.57 s | 0.39 s |
+| Heaps apicheck, all macro time incl. typing and jit (median of 9) | 1.35 s | 1.08 s |
+| Heaps samples, macro execution summed (2 runs each) | 8.28 s / 7.55 s | 5.63 s / 6.29 s |
+| micro benchmarks, `--interp` total (`tests/benchs/eval`) | 2.97 s | 2.1 s |
+
+What was done, by plan step:
+
+0. `tests/benchs/eval`: calls, loops, floats, objects, arrays, anonymous
+   structures, closures, strings, maps and an hxsl-like workload (build,
+   type check and evaluate enum trees), run with `interp.hxml` or
+   `macro.hxml`; each case prints a checksum.
+1. Calling convention, partly: the emitters return their closure
+   (`fun env ->`) instead of being applied partially (no `caml_curry`
+   between nodes); arguments are evaluated by a closure made for their
+   number and stored by slot (no closure per parameter, none allocated per
+   call); `Std.finally` is replaced by a direct handler; `get_eval` no longer
+   allocates; small arrays of locals are allocated inline; the stack limit is
+   read when jitting; static, constructor and super calls keep their forced
+   target at the call site. Arguments are still a list and the evaluation
+   state is still looked up per call: on Heaps that lookup is about 1% of
+   macro time, which did not justify changing `vfunc`.
+2. Not done: exceptions for `return`/`break` are cheap in OCaml and do not
+   show in the profiles.
+3. Done: `VInt of int`, wrapped to 32 bits (`wrap32`). Neutral on time
+   (OCaml allocates a boxed int32 inline), fewer words allocated.
+4. Done dynamically rather than from the types: comparisons and arithmetic
+   check for two `Int` or two `Float` values in the emitter before the
+   generic operator. Conditions (`if`, `while`, `&&`, `||`, `!`, comparisons,
+   `== null`) are compiled to closures giving an OCaml bool. `for` loops are
+   already lowered to `while` by the typer and are not specialized.
+5. Done for method calls (monomorphic cache on the prototype). Field reads of
+   anonymous structures already compare the prototype computed when jitting.
+   The macro API's `encode_obj` caches, per domain, the prototype and slots
+   for a list of field names, instead of sorting them and taking a lock per
+   encoded object; field names given by the API are hashed through a cache by
+   string identity, and `EvalHash.hash` checks a direct-mapped cache before
+   its table.
+6. Closures allocated per execution were removed from calls, `switch` and
+   `try`.
+7. Operand variants: comparisons, arithmetic, `local op= e`, field, array,
+   `length`, enum index and parameter reads, null checks and field writes
+   read a local (or `this`) or a constant directly instead of calling a
+   closure; `this.f()` has no null check.
+8. Added: the methods of the macro context are jitted on their first call
+   (3367 functions were jitted eagerly when their prototypes were built for
+   the Heaps build, most never called).
+
+Where the rest of the time goes (Heaps, eval part of the profile): the walk
+of the closure tree (about a third), runtime helpers (field lookups by name,
+calls, `StringMap`), the jit, and compiler work done by API calls
+(`Context.typeof`...), which is not interpretation. The next steps would be
+the calling convention (arguments as an array, the evaluation state passed
+along) and fused emitters for whole statements.
+
+## 6. Constraints and verification
 
 - **Semantics.**
   - `Int` keeps 32-bit wrapping semantics, and `haxe.Int64` stays boxed.

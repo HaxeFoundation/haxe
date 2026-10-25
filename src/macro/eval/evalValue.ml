@@ -589,9 +589,14 @@ let vnative_string s = VNativeString s
 
 let s_expr_pretty e = (Type.s_expr_pretty false "" false (Type.s_type (Type.print_context())) e)
 
-let rec vresolve v = match v with
-	| VLazy f -> vresolve (AtomicLazy.force f)
+let rec vresolve_lazy f = match AtomicLazy.force f with
+	| VLazy f -> vresolve_lazy f
+	| v -> v
+
+let vresolve v = match v with
+	| VLazy f -> vresolve_lazy f
 	| _ -> v
+[@@inline]
 
 let associate_enum_value_pos ve p = match ve with
 	| VEnumValue ve ->

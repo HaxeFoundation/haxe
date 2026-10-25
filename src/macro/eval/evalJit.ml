@@ -67,6 +67,7 @@ type operand =
 (* The slot of [e] when it reads a local variable that is not captured. *)
 let local_slot jit e = match e.eexpr with
 	| TLocal var when not (has_var_flag var VCaptured) -> Some (get_slot jit var.v_id e.epos)
+	| TConst TThis -> Some (get_slot jit 0 e.epos)
 	| _ -> None
 
 (* [exec] reading or changing a static variable (see [EvalValue.on_shared_state]) *)
@@ -99,7 +100,10 @@ let rec op_assign ctx jit e1 e2 = match e1.eexpr with
 			| FInstance(c,_,_) when not (has_class_flag c CInterface) ->
 				let proto = get_instance_prototype jit.ctx (path_hash c.cl_path) ef.epos in
 				let i = get_instance_field_index proto name ef.epos in
-				emit_instance_field_write exec1 ef.epos i exec2
+				begin match local_slot jit ef with
+				| Some slot -> emit_local_instance_field_write slot ef.epos i exec2
+				| None -> emit_instance_field_write exec1 ef.epos i exec2
+				end
 			| FAnon cf ->
 				begin match follow ef.etype with
 					| TAnon an ->
@@ -231,6 +235,7 @@ and arith jit ee le lc ll ec p e1 e2 =
 (* An operand: a local that is not captured, a constant or an expression. *)
 and jit_operand jit e = match e.eexpr with
 	| TLocal var when not (has_var_flag var VCaptured) -> OLocal (get_slot jit var.v_id e.epos)
+	| TConst TThis -> OLocal (get_slot jit 0 e.epos)
 	| TConst (TString _ | TInt _ | TFloat _ | TBool _ | TNull as ct) -> OConst (eval_const ct)
 	| _ -> OExec (jit_expr jit false e)
 
@@ -263,7 +268,8 @@ and jit_cond jit e =
 			| OExec exec2 -> ee exec1 exec2
 			end
 	in
-	if jit.ctx.debug.debug_socket <> None then generic () else
+	(* the debugger steps through the expressions jit_expr gives *)
+	if Option.is_some jit.ctx.debug.debug_socket then generic () else
 	match e.eexpr with
 	| TParenthesis e1 | TMeta(_,e1) ->
 		jit_cond jit e1
@@ -424,12 +430,6 @@ and jit_expr jit return e =
 	| TWhile({eexpr = TParenthesis e1},e2,flag) ->
 		loop {e with eexpr = TWhile(e1,e2,flag)}
 	| TWhile(e1,e2,flag) ->
-		let rec has_continue e = match e.eexpr with
-			| TContinue -> true
-			| TWhile _ | TFunction _ -> false
-			| _ -> check_expr has_continue e
-		in
-		ignore(has_continue);
 		let cond = jit_cond jit e1 in
 		let exec_body = jit_expr jit false e2 in
 		begin match flag with
@@ -555,8 +555,9 @@ and jit_expr jit return e =
 					(* [this] is never null *)
 					jit_expr jit false ef
 				| _ ->
-					let exec = jit_expr jit false ef in
-					emit_null_check exec ef.epos
+					match local_slot jit ef with
+					| Some slot -> emit_local_null_check slot ef.epos
+					| None -> emit_null_check (jit_expr jit false ef) ef.epos
 			in
 			let instance_call c =
 				let exec = jit_with_null_check ef in
@@ -862,6 +863,20 @@ let jit_tfunction ctx key_type key_field tf static pos =
 		if hasret then create_function ctx eci exec fl else create_function_noret ctx eci exec fl
 	in
 	jit_timer ctx f
+
+(* The same, jitted on the first call of the function: the prototypes of the
+   macro context hold every method of its types, most of which are never
+   called. The function keeps its identity (the method value). *)
+let jit_tfunction_lazy ctx key_type key_field tf static pos =
+	let jitted = AtomicLazy.from_fun (fun () -> jit_tfunction ctx key_type key_field tf static pos) in
+	let cache = ref None in
+	(fun vl -> match !cache with
+		| Some f -> f vl
+		| None ->
+			let f = AtomicLazy.force jitted in
+			cache := Some f;
+			f vl
+	)
 
 (* JITs expression [e] to a function. This is used for expressions that are not in a method. *)
 let jit_expr ctx e =
