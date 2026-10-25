@@ -2025,6 +2025,52 @@ of their previous version, which `mt_restore` brings back when that version
 is reused. Keeping the modules without errors needs post-processing per node
 (phase 8).
 
+**Next: adding a method to a class used everywhere.** Measured on SpaceCraft
+(server, parallel typing, `8b344d213`): adding `public function
+benchFieldN() {}` to `Game` (used by about 80 files) takes 6.3-8.0 s, against
+2.2 s for a body edit in a leaf file and 3.4 s for a body edit in `Game.hx`.
+`--times`: typing 1.0-2.6 s (3300-5600 events), macros 0.3-0.7 s, HL
+generation 1.8-2.3 s (classes generated again 0.7 s, link 0.2-0.6 s, hlopt
+0.2-0.5 s), server module checks 0.8-0.9 s (40000 events, 0.3 s for a body
+edit), filters 0.7-0.9 s. The graph trace (`HAXE_GRAPH_TRACE`) of the edit:
+
+- *First pass: 38 modules typed again*, 19 of them because a computation read
+  the members of `Game` as a whole (`node Game members`): adding a field
+  changes that node, and the declaration changed, so it is not assumed to keep
+  its fingerprint (`declaration_changed`). The others follow from what these
+  modules produce.
+- *42 assumptions fail after typing*, all on nodes of modules that this
+  compilation did not type (`st.service.MissionManager.eventMission` sig,
+  `ui.comp.ItemInfo` members and absences, `ui.win.menu.MenuWindow` absent
+  `new`): a dependent read them and assumed they keep their fingerprint, but
+  their module was never checked nor typed, and what their computation read
+  did change (it read the members of `Game`), so the check after typing
+  (`same_produced`) rightly refuses them.
+- *The compilation is then done again without assumptions: 216 more modules
+  typed again*, most of the cost (cascades through `ent.ShipStatus` members,
+  `gfx.FxOptions` header, `ent.PersonaLocation` members... whose fingerprints
+  did not change).
+
+Leads, by expected gain:
+
+1. *No redo without assumptions for this case.* When an assumed node belongs to
+   a module that was not typed and its computation is invalid, type that module
+   in the same compilation (a second round keeping the assumptions, with only
+   the failed nodes known changed), instead of typing everything again without
+   assumptions. Expected: about 38 + a few modules instead of 254.
+2. *Read the members of a class at the granularity actually needed.* Find which
+   code paths record `members` of `Game` for these 19 modules (a field access
+   should record the signature of the field, or the absence of a name, not the
+   whole members: candidates are unification with structures, static
+   extensions and `using` lookups, `@:forward`, macros iterating the fields,
+   `Std.isOfType`/casts, completion-like lookups) and record the field or the
+   absence instead. Adding a method then only types again the readers of all
+   the fields (macros iterating them, reflection) and of that name.
+3. *Server module checks* (0.8-0.9 s here, 0.3 s for a body edit): they grow
+   with the number of nodes found changed; cache the validity of nodes across
+   the two rounds of lead 1.
+4. HL generation follows the number of classes typed again (leads 1 and 2).
+
 #### Virtual file system
 
 **Status (first version, `src/core/vfs.ml`).** On macOS, directories are revalidated on every
