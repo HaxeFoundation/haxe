@@ -319,11 +319,44 @@ let get_prototype v p = match vresolve v with
 	| VVector _ -> (get_ctx()).vector_prototype
 	| _ -> unexpected_value_p v "instance" p
 
-let emit_method_call exec name execs p env =
+(*
+	Inline cache of a call site of a method: the last prototype seen, and the
+	prototype and the slot where the method was found for it (the names of a
+	prototype never change). The value is read from the slot at each call. The
+	cache is replaced as a whole: a race between domains only misses it.
+*)
+type method_cache = {
+	mc_proto : vprototype option;
+	mc_owner : vprototype option;
+	mc_slot : int;
+}
+
+let empty_method_cache = { mc_proto = None; mc_owner = None; mc_slot = 0 }
+
+(* As [proto_field_raise proto name], through [cache] *)
+let cached_proto_field cache proto name =
+	let c = !cache in
+	match c.mc_proto,c.mc_owner with
+	| Some proto',Some owner when proto' == proto ->
+		get_static owner c.mc_slot
+	| _ ->
+		let rec find proto' = match IntMap.find_opt name proto'.pnames with
+			| Some i -> proto',i
+			| None -> match proto'.pparent with
+				| Some parent -> find parent
+				| None -> raise Not_found
+		in
+		let owner,i = find proto in
+		cache := { mc_proto = Some proto; mc_owner = Some owner; mc_slot = i };
+		get_static owner i
+
+let emit_method_call exec name execs p =
+	let cache = ref empty_method_cache in
+	fun env ->
 	check_stack_depth env;
 	let vthis = exec env in
 	let proto = get_prototype vthis p in
-	let vf = try proto_field_raise proto name with Not_found -> throw_string (Printf.sprintf "Field %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p in
+	let vf = try cached_proto_field cache proto name with Not_found -> throw_string (Printf.sprintf "Field %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p in
 	let vl = List.map (apply env) execs in
 	env.env_leave_pmin <- (Pos.min p);
 	env.env_leave_pmax <- (Pos.max p);
