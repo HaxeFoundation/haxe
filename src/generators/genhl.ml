@@ -4405,6 +4405,27 @@ let link ctx objects enum_objects entry =
 	code, gnames
 
 let generate_static_content ctx types f =
+	(* the classes implementing each interface (through the interfaces it
+	   extends), the last type first *)
+	let implemented_by = lazy (
+		let h = Hashtbl.create 0 in
+		List.iter (function
+			| TClassDecl c when not (has_class_flag c CInterface) && not (has_class_flag c CExtern) ->
+				let seen = ref [] in
+				let rec loop cv =
+					List.iter (fun (i,_) ->
+						if not (List.memq i !seen) then begin
+							seen := i :: !seen;
+							Hashtbl.replace h i.cl_path (c :: (try Hashtbl.find h i.cl_path with Not_found -> []));
+							loop i
+						end
+					) cv.cl_implements
+				in
+				loop c
+			| _ -> ()
+		) ctx.com.types;
+		h
+	) in
 	let is_init = alloc_tmp ctx HBool in
 	op ctx (OCall0 (is_init, alloc_fun_path ctx ([],"Type") "init"));
 	hold ctx is_init;
@@ -4467,16 +4488,7 @@ let generate_static_content ctx types f =
 			) in
 
 			let gather_implements() =
-				let classes = ref [] in
-				let rec lookup cv =
-					List.exists (fun (i,_) -> i == c || lookup i) cv.cl_implements
-				in
-				let check = function
-					| TClassDecl c when (has_class_flag c CInterface) = false && not (has_class_flag c CExtern) -> if lookup c then classes := c :: !classes
-					| _ -> ()
-				in
-				List.iter check ctx.com.types;
-				!classes
+				try Hashtbl.find (Stdlib.Lazy.force implemented_by) c.cl_path with Not_found -> []
 			in
 			if (has_class_flag c CInterface) then begin
 				let l = gather_implements() in
@@ -4664,8 +4676,16 @@ let write_code ?timer ?pool ch code debug =
 	(* the types of each function on the domains of the pool, then in order *)
 	let functions_types = match pool with
 		| Some pool when Array.length code.functions > 1024 ->
-			let a = LargeArray.make_non_float (Array.length code.functions) in
-			Domainslib.Task.parallel_for pool ~chunk_size:64 ~start:0 ~finish:(Array.length a - 1) ~body:(fun i -> Array.unsafe_set a i (function_types code.functions.(i)));
+			(* by parts of the functions, each listing its types once *)
+			let n = Array.length code.functions and chunk = 128 in
+			let a = LargeArray.make_non_float ((n + chunk - 1) / chunk) in
+			Domainslib.Task.parallel_for pool ~chunk_size:1 ~start:0 ~finish:(Array.length a - 1) ~body:(fun k ->
+				let seen = ShapeTbl.create 256 and out = DynArray.create () in
+				for i = k * chunk to min n ((k + 1) * chunk) - 1 do
+					Array.iter (fun t -> if not (ShapeTbl.mem seen t) then begin ShapeTbl.add seen t (); DynArray.add out t end) (function_types code.functions.(i))
+				done;
+				Array.unsafe_set a k (LargeArray.of_dynarray out)
+			);
 			Some a
 		| _ -> None
 	in

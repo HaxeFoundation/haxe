@@ -2787,9 +2787,15 @@ equal types with a hash table instead of a map (its types 0.044 s -> 0.03 s on
 Heaps; writing the functions is already parallel). Reusing the bytes of the
 functions of a previous write was not done: after an edit that adds a
 constant, the numbers by first use move for every function that comes after,
-so few functions keep their bytes. Heaps: a leaf edit takes 0.20–0.37 s of HL
-generation in the server, a cold build 1.15–1.23 s (1.23–1.36 s before this
-work).
+so few functions keep their bytes. Then: the writer lists the types once per
+part of 128 functions, in parallel, before the merge; the hash of the shapes
+reads only the first arguments and fields (the large virtuals were hashed
+whole at every lookup); the entry point finds the classes implementing an
+interface in a table built once (it walked all the types for each
+interface). Heaps, median of 12 leaf edits in the server: 0.25 s of HL
+generation (write 0.09 s, link 0.075 s, declarations 0.035 s, entry point
+0.025 s, the classes generated again the rest); a cold build 1.15–1.23 s
+(1.23–1.36 s before this work).
 
 ---
 

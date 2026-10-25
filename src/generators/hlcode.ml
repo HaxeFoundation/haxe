@@ -501,22 +501,34 @@ let rec same_shape a b =
 	| HAbstract (n1,s1), HAbstract (n2,s2) -> s1 = s2 && n1 = n2
 	| _ -> false
 
+(* a hash of [same_shape]: the constructors, the records by their name, and
+   only the first arguments and fields *)
 let rec shape_hash depth t =
 	let mix h k = h * 65599 + k in
+	let rec list h n = function
+		| [] -> h
+		| t :: l -> if n = 0 then h else list (mix h (shape_hash (depth - 1) t)) (n - 1) l
+	in
+	let fields h a f =
+		let n = min (Array.length a) 4 in
+		let h = ref (mix h (Array.length a)) in
+		for i = 0 to n - 1 do h := f !h (Array.unsafe_get a i) done;
+		!h
+	in
 	match t with
 	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HType | HDynObj | HGUID -> Hashtbl.hash t
 	| HObj p -> mix 1 p.pid
 	| HStruct p -> mix 2 p.pid
 	| _ when depth = 0 -> Obj.tag (Obj.repr t)
-	| HFun (args,ret) -> List.fold_left (fun h t -> mix h (shape_hash (depth - 1) t)) (mix 3 (shape_hash (depth - 1) ret)) args
-	| HMethod (args,ret) -> List.fold_left (fun h t -> mix h (shape_hash (depth - 1) t)) (mix 4 (shape_hash (depth - 1) ret)) args
+	| HFun (args,ret) -> list (mix (mix 3 (List.length args)) (shape_hash (depth - 1) ret)) 4 args
+	| HMethod (args,ret) -> list (mix (mix 4 (List.length args)) (shape_hash (depth - 1) ret)) 4 args
 	| HArray t -> mix 5 (shape_hash (depth - 1) t)
 	| HRef t -> mix 6 (shape_hash (depth - 1) t)
 	| HNull t -> mix 7 (shape_hash (depth - 1) t)
 	| HPacked t -> mix 8 (shape_hash (depth - 1) t)
 	| HAbstract (_,s) -> mix 9 s
-	| HVirtual v -> Array.fold_left (fun h (_,s,t) -> mix (mix h s) (shape_hash (depth - 1) t)) 10 v.vfields
-	| HEnum e -> if e.eid <> 0 then mix 11 e.eid else Array.fold_left (fun h (_,_,tl) -> Array.fold_left (fun h t -> mix h (shape_hash (depth - 1) t)) h tl) 12 e.efields
+	| HVirtual v -> fields 10 v.vfields (fun h (_,s,t) -> mix (mix h s) (shape_hash (depth - 1) t))
+	| HEnum e -> if e.eid <> 0 then mix 11 e.eid else fields 12 e.efields (fun h (_,_,tl) -> list h 4 (Array.to_list tl))
 
 module ShapeTbl = Hashtbl.Make(struct
 	type t = ttype
