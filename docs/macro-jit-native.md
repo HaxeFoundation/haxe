@@ -38,7 +38,8 @@ What is missing, and is the work of this plan:
    assembler for the subset of arm64 assembly that `emit.mlp` prints;
 3. an in-memory linker and loader (executable memory, relocations, symbols,
    registration with the runtime);
-4. the integration with eval: tiering, interoperation with interpreted code,
+4. the integration with eval: compilation ahead of time, interoperation with
+   interpreted code,
    lifetime in the compilation server.
 
 ## 2. Pipeline
@@ -152,15 +153,19 @@ two tiers mix at function granularity.
 
 ### 3.5 Integration with eval
 
-- **Tiering.** Functions start in the closure tier. A counter (calls plus loop
-  iterations) per function queues it for native compilation past a threshold;
-  the batch is compiled in the background and installed by an atomic swap of
-  the function's entry (an `Atomic.t` of `vfunc`, read at call sites), so
-  domains running macros never see a half-installed function.
-- **Defines.** `-D eval-native=0|1|force`: off, tiered (default once
-  stable), or every supported function compiled before its first call (used by
-  the tests). `-D eval-native-threshold=<n>`. `-D macro-times` reports native
-  compile time separately.
+- **Ahead of time, no tiering.** Functions are compiled to native code where
+  eval compiles them to closures today (`EvalJit`, when a type is loaded into
+  the macro context), one OCaml unit per batch of functions (the types loaded
+  together), so that the runtime registration (a stop-the-world) happens once
+  per batch. A function the translator does not support is compiled to
+  closures, as today. There is no counter, no background compilation and no
+  swap of installed code: simpler, and the generated code never changes
+  under a running macro.
+- **Disk cache** (later): the units of a batch, keyed by the digest of the
+  typed functions and the backend version, so that a cold compilation does
+  not compile again the macros of the libraries that did not change.
+- **Defines.** `-D eval-native=0|1`: off, or on (default once stable).
+  `-D macro-times` reports native compile time separately.
 - **Debugger.** With the eval debugger enabled the native tier is off.
 - **Compilation server.** Code is keyed like the closure tier's cache. Arenas
   belong to the macro context; when it is discarded (a module of macro code
@@ -187,11 +192,11 @@ Each step keeps the outputs of Heaps and hide identical and is measured as in
    arena lifetime and unregistration.
 3. **Translator, value level.** Every value boxed as an eval `value`, every
    operation through helpers. Goal: correctness — `tests/unit` with
-   `compile-macro.hxml` and `--interp` pass with `-D eval-native=force`.
+   `compile-macro.hxml` and `--interp` pass with `-D eval-native=1`.
    The gain here comes only from removing the closure tree (dispatch per node,
    environment handling).
-4. **Tiering and installation**: counters, background compilation domain,
-   atomic install, server lifetime, `-D macro-times`.
+4. **Ahead-of-time compilation in eval**: batches per loaded types, fallback
+   to closures, server lifetime, `-D macro-times`; then the disk cache.
 5. **Typed specialization**, where the native tier earns its keep:
    - `Int`, `Float` and `Bool` locals unboxed in registers (untagged ints
      wrapped to 32 bits, `float` registers), boxed only when they escape;
@@ -205,7 +210,8 @@ Each step keeps the outputs of Heaps and hide identical and is measured as in
    fields of anonymous structures (same design as `macro-jit.md` step 5: a
    prototype or shape and a slot, published as one immutable value, checked
    inline).
-8. **Tuning**: threshold, batch size, compile budget per compilation.
+8. **Tuning**: batch size, backend options (linear scan, CSE…) against
+   compile time.
 
 Step 3 of `macro-jit.md` (immediate `VInt of int`) is compatible with this
 plan and simplifies it: less boxing at the boundary between tiers and in
@@ -215,8 +221,8 @@ Expected, to be confirmed by step 0 and step 5: on typed code (calls,
 integer arithmetic, loops, arrays) native code within 1–3× of node, against
 20–40× today; on `Dynamic` and anonymous structures, bounded by the helpers
 until step 7. Macro execution on hide: under 1 s on one domain, once the
-compile time of the hot functions (`hxsl` checker and linker) is paid; on a
-server, it is paid once.
+compile time is paid; on a server, and with the disk cache, it is paid
+once.
 
 ## 5. Risks
 
@@ -228,10 +234,11 @@ server, it is paid once.
 - **GC correctness.** A wrong machtype (`Val` vs `Int` vs `Addr`) corrupts the
   heap. Mitigations: `Cmm_invariants` in debug builds, the startup tag check,
   GC stress runs (`OCAMLRUNPARAM` with a tiny minor heap) of the test suites
-  with `-D eval-native=force` in CI.
-- **Compile time.** The OCaml backend is not a baseline JIT (a few ms per
-  function, to measure in step 0): only hot functions are compiled, in
-  batches, in the background.
+  with `-D eval-native=1` in CI.
+- **Compile time.** Every function used by macros is compiled: the cost of
+  the backend on the functions the translator produces is measured in step 3
+  (on OCaml code it is about 250 µs per function, section 7) and reduced by
+  backend options, batching and the disk cache.
 - **Non-reentrant backend.** All its global state is touched under one lock,
   saved and restored around each compilation.
 - **Binary size and startup.** The vendored backend adds 5.2 MB to the
@@ -246,13 +253,11 @@ server, it is paid once.
 
 Same as `macro-jit.md` section 5 (semantics, parallel macros, test suites,
 Heaps and hide output, warm/cold fuzzing), plus:
-- every suite run three times: `-D eval-native=0`, `1` and `force`, with
-  identical results;
+- every suite run with `-D eval-native=0` and `1`, with identical results;
 - the GC stress run above;
 - the CI comparison of the encoders against the system assembler;
-- the fuzzing (`tests/fuzz/fuzz.py`) with `-D eval-native=1` and a low
-  threshold, so that functions are compiled, invalidated and recompiled by the
-  server.
+- the fuzzing (`tests/fuzz/fuzz.py`) with `-D eval-native=1`, so that
+  functions are compiled, invalidated and recompiled by the server.
 
 ## 7. Step 0 results
 
@@ -279,9 +284,10 @@ than the backend that produces it.
 
 **Backend cost**: on 10 504 functions of the OCaml compiler sources, 247 µs
 per function with linear scan (292 µs with graph coloring), for about 250
-bytes of code per function (1 MB/s). Compiling the 12 202 functions of hide
-would take about 3 s: tiering is required, only hot functions are worth
-compiling.
+bytes of code per function (1 MB/s). Applied to the 12 202 functions of
+hide, this would be about 3 s; the functions generated from Haxe code differ
+in size and shape from OCaml ones, so the real figure is measured once the
+translator exists (step 3).
 
 **Linking into Haxe**: `compiler-libs` collides with Haxe modules (above);
 the vendored, wrapped backend links. 143 modules, 120 k lines (of which 60 k
@@ -314,15 +320,30 @@ allocation, done by OCaml code of the eval runtime, which a JIT of the
 interpreted code does not speed up. The gain on real macros must be estimated
 from their profile, not from the micro benchmarks.
 
-**Not measured**: macro times of Heaps and hide. Their public sources (and
-those of castle and domkit) do not compile with this branch, which requires
-type annotations where inference used to be enough ("not fully inferred",
-"inference cycle between fields"); this needs the versions adapted to the
-branch. Command, with them: `haxe hide.hxml --times -D macro-times
--D parallel-typing=0` (first part of `hide.hxml`).
+**hide** (`haxe6-annotations` branches of hide, heaps, hxbit, domkit, castle,
+hscript, format and hashlink; first part of `hide.hxml`, `--times
+-D macro-times -D parallel-typing=0`, 3 runs): total 10.1–10.2 s, macro
+execution 1.83–2.01 s, of which `hxsl.Macros.buildShader` 1.04–1.14 s and
+`hrt.prefab.EditContext2.build` 0.43 s; closure compilation of the 12 202
+functions 0.06–0.09 s.
+
+Profile of macro execution (perf, DWARF call graphs, samples whose stack is
+in the execution of eval closures; samples in the GC lose their stack at
+`caml_call_gc` and are not counted):
+
+| where | share |
+|---|---|
+| interpreter: emitters and `EvalJit` closures, field access by hash (`EvalField`, `EvalHash`), prototypes, method calls, operators | 63 % |
+| compiler, through the macro API (`MacroApi`, lexer and parser of strings, encoding of values) | 29 % |
+| eval standard library (strings, arrays, maps) | 7 % |
+
+Native code addresses the first line, and part of the allocation not shown
+here; the macro API is unchanged by it.
 
 **Consequences for the plan**:
 - section 3.2 is now vendoring, not `compiler-libs`;
-- tiering (step 4) is required, not an optimization;
-- before step 5, profile the macros of hide (where the time goes between
-  interpreted code and eval runtime) to decide what to specialize first.
+- no tiering: functions are compiled ahead of time where eval compiles them
+  to closures today, with a disk cache later (section 3.5);
+- in the interpreter share of hide, field access by name (hashing, prototype
+  lookup) and method calls come first: inline caches (step 7) matter as much
+  as typed arithmetic (step 5).
