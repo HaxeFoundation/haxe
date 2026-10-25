@@ -105,12 +105,14 @@ their output identical (see `CLAUDE.md`, regression testing).
    function, `break` and `continue` are compiled as values returned by the
    statement closures (a small control code), keeping exceptions only for
    `throw`. Measured first: OCaml exceptions are cheap, the gain may be small.
-3. **Unboxed integers.** `VInt32 of int32` becomes `VInt of int` holding
-   the value normalized to 32 bits (an immediate, never allocated); `Int32`
-   wrapping is applied where an operation can overflow. The helpers
-   (`vint`, `decode_int`, the encoders) keep the change mechanical across the
-   eval standard library. Expected: integer arithmetic, loops and array
-   accesses no longer allocate.
+3. **Unboxed integers.** `VInt32 of int32` becomes `VInt32 of int`, holding
+   the value normalized to 32 bits (`EvalValue.wrap32`), wrapping applied
+   where an operation can overflow. A constructor with an argument is still
+   a block in OCaml: an Int is one allocation of 2 words instead of two (the
+   block and the custom block of the `int32`), and the operations are on
+   native integers. Done: on hide, macro execution −4 %; benchmarks arrays
+   −12 %, closures and maps −6 %, objects −4 %, anon and shader within the
+   noise (+1 to +7 %).
 4. **Static specialization.** The jit uses the types of the typed AST:
    - operators on `Int`, `Float` and `Bool` operands get their own emitters,
      without matching every case;

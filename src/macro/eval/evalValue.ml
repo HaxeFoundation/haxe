@@ -190,7 +190,8 @@ type value =
 	| VNull
 	| VTrue
 	| VFalse
-	| VInt32 of int32
+	(* an Int: a 32-bit value, sign-extended (see [wrap32]) *)
+	| VInt32 of int
 	| VFloat of float
 	| VEnumValue of venum_value
 	| VObject of vobject
@@ -398,8 +399,8 @@ let rec equals a b = match a,b with
 	| VNull,VNull -> true
 	| VInt32 a,VInt32 b -> a = b
 	| VFloat a,VFloat b -> a = b
-	| VFloat a,VInt32 b -> a = (Int32.to_float b)
-	| VInt32 a,VFloat b -> (Int32.to_float a) = b
+	| VFloat a,VInt32 b -> a = (float_of_int b)
+	| VInt32 a,VFloat b -> (float_of_int a) = b
 	| VEnumValue a,VEnumValue b -> a == b || a.eindex = b.eindex && Array.length a.eargs = 0 && Array.length b.eargs = 0 && a.epath = b.epath
 	| VObject vo1,VObject vo2 -> vo1 == vo2
 	| VInstance vi1,VInstance vi2 -> vi1 == vi2
@@ -561,8 +562,11 @@ let vfunction f = VFunction(f,false)
 let vstatic_function f = VFunction(f,true)
 let vfield_closure v f = VFieldClosure(v,f)
 let vobject o = VObject o
-let vint i = VInt32 (Int32.of_int i)
-let vint32 i = VInt32 i
+(* The 32-bit integer of [i]: its low 32 bits, sign-extended, as Int32 does *)
+let wrap32 i = (i lsl (Sys.int_size - 32)) asr (Sys.int_size - 32)
+
+let vint i = VInt32 (wrap32 i)
+let vint32 i = VInt32 (Int32.to_int i)
 let vint64 i = VInt64 i
 let vfloat f = VFloat f
 let venum_value e = VEnumValue e

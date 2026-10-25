@@ -273,7 +273,7 @@ and loop_needs_fallback ctx body =
    are such values ([int_locals]). They are boxed where they meet the rest of
    the code. *)
 
-let tag_int32 = tag_of (VInt32 0l)
+let tag_int32 = tag_of (VInt32 0)
 
 let is_int_type t = match follow t with
 	| TAbstract({a_path=[],"Int"},_) -> true
@@ -388,10 +388,10 @@ let int_cmp = function
 
 (* The [VInt32] of a native integer *)
 let box_int c =
-	Cmm_helpers.make_alloc dbg tag_int32 [Cmm_helpers.box_int_gen dbg Primitive.Pint32 c]
+	Cmm_helpers.make_alloc dbg tag_int32 [Cmm_helpers.tag_int c dbg]
 
 (* The native integer of a [VInt32] *)
-let unbox_int v = Cmm_helpers.unbox_int dbg Primitive.Pint32 (load v 0)
+let unbox_int v = Cmm_helpers.untag_int (load v 0) dbg
 
 (* [k] applied to a variable holding the value of [e], always bound: [e] may
    be a mutable variable *)

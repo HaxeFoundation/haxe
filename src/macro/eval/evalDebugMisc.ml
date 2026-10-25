@@ -205,7 +205,7 @@ let rec expr_to_value ctx env e =
 		| EConst cst ->
 			begin match cst with
 				| String(s,_) -> EvalString.create_unknown s
-				| Int (s,_) -> VInt32 (Int32.of_string s)
+				| Int (s,_) -> vint32 (Int32.of_string s)
 				| Float (s,_) -> VFloat (float_of_string s)
 				| Ident "true" -> VTrue
 				| Ident "false" -> VFalse
@@ -218,7 +218,7 @@ let rec expr_to_value ctx env e =
 		| EArray(e1,eidx) ->
 			let v1 = loop e1 in
 			let vidx = loop eidx in
-			let idx = match vidx with VInt32 i -> Int32.to_int i | _ -> raise NoValueExpr in
+			let idx = match vidx with VInt32 i -> i | _ -> raise NoValueExpr in
 			begin match v1 with
 				| VArray va -> EvalArray.get va idx
 				| VVector vv -> Array.get vv idx
@@ -285,7 +285,7 @@ let rec expr_to_value ctx env e =
 			| Neg ->
 				begin match loop e1 with
 				| VFloat f -> VFloat (-.f)
-				| VInt32 i -> vint32 (Int32.neg i)
+				| VInt32 i -> vint (- i)
 				| _ -> raise NoValueExpr
 				end
 			| NegBits ->
@@ -405,7 +405,7 @@ and write_expr ctx env expr value =
 		| EArray(e1,e2) ->
 			let v1 = expr_to_value ctx env e1 in
 			let vidx = expr_to_value ctx env e2 in
-			let idx = match vidx with VInt32 i -> Int32.to_int i | _ -> raise NoValueExpr in
+			let idx = match vidx with VInt32 i -> i | _ -> raise NoValueExpr in
 			begin match v1 with
 				| VArray va -> EvalArray.set va idx value
 				| VVector vv -> Array.set vv idx value

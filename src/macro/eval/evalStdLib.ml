@@ -1795,7 +1795,7 @@ module StdMath = struct
 
 	let abs = vfun1 (fun v ->
 		match v with
-		| VInt32 i -> vint32 (Int32.abs i)
+		| VInt32 i -> vint (abs i)
 		| VFloat f -> vfloat (abs_float f)
 		| _ -> unexpected_value v "number"
 	)
@@ -2279,7 +2279,7 @@ module StdSocket = struct
 		let read = List.map pair (decode_optional_array read) in
 		let write = List.map pair (decode_optional_array write) in
 		let others = List.map pair (decode_optional_array others) in
-		let timeout = match timeout with VNull -> 0. | VInt32 i -> Int32.to_float i | VFloat f -> f | _ -> unexpected_value timeout "number" in
+		let timeout = match timeout with VNull -> 0. | VInt32 i -> float_of_int i | VFloat f -> f | _ -> unexpected_value timeout "number" in
 		let read',write',others' = catch_unix_error Unix.select (List.map fst read) (List.map fst write) (List.map fst others) timeout in
 		let read = List.map (fun sock -> List.assq sock read) read' in
 		let write = List.map (fun sock -> List.assq sock write) write' in
@@ -2322,7 +2322,7 @@ module StdSocket = struct
 
 	let setTimeout = vifun1 (fun vthis timeout ->
 		let this = this vthis in
-		let timeout = match timeout with VNull -> 0. | VInt32 i -> Int32.to_float i | VFloat f -> f | _ -> unexpected_value timeout "number" in
+		let timeout = match timeout with VNull -> 0. | VInt32 i -> float_of_int i | VFloat f -> f | _ -> unexpected_value timeout "number" in
 		let timeout = timeout *. 1000. in
 		catch_unix_error (fun () ->
 			Unix.setsockopt_float this SO_RCVTIMEO timeout;
@@ -2500,7 +2500,7 @@ module StdString = struct
 			begin
 				let c_len = match len with
 					| VNull -> (cl_this - c_pos)
-					| VInt32 i -> Int32.to_int i
+					| VInt32 i -> i
 					| _ -> unexpected_value len "int"
 				in
 				let c_len =
@@ -2581,7 +2581,7 @@ module StdStringBuf = struct
 		let c_pos = decode_int pos in
 		let c_len = match len with
 			| VNull -> s.slength - c_pos
-			| VInt32 i -> Int32.to_int i
+			| VInt32 i -> i
 			| _ -> unexpected_value len "int"
 		in
 		if c_len > 0 then begin

@@ -67,7 +67,7 @@ let var_to_json name value vio env =
 		| VNull -> "null"
 		| VTrue -> "true"
 		| VFalse -> "false"
-		| VInt32 i -> Int32.to_string i
+		| VInt32 i -> string_of_int i
 		| VInt64 i -> Signed.Int64.to_string i
 		| VUInt64 u -> Unsigned.UInt64.to_string u
 		| VFloat f -> string_of_float f
@@ -99,7 +99,7 @@ let var_to_json name value vio env =
 		| VNull -> jv "NULL" "null" 0
 		| VTrue -> jv "Bool" "true" 0
 		| VFalse -> jv "Bool" "false" 0
-		| VInt32 i -> jv "Int" (Int32.to_string i) 0
+		| VInt32 i -> jv "Int" (string_of_int i) 0
 		| VInt64 i -> jv "Int64" (Signed.Int64.to_string i) 0
 		| VUInt64 u -> jv "UInt64" (Unsigned.UInt64.to_string u) 0
 		| VFloat f -> jv "Float" (string_of_float f) 0

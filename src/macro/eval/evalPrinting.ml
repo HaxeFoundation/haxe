@@ -142,7 +142,7 @@ and s_value ?(indent_level=0) depth v =
 	if depth > (get_ctx()).max_print_depth then rstop
 	else match v with
 	| VNull -> rnull
-	| VInt32 i32 -> create_ascii(Int32.to_string i32)
+	| VInt32 i -> create_ascii(string_of_int i)
 	| VInt64 i -> create_ascii(Signed.Int64.to_string i)
 	| VUInt64 u -> create_ascii(Unsigned.UInt64.to_string u)
 	| VTrue -> rtrue
