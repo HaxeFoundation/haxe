@@ -234,9 +234,38 @@ Steps, by expected gain over effort:
 3. **Calling convention.** Arguments in an array and the evaluation state
    passed along: about 6% of eval time on Heaps, a change of `vfunc` across
    the standard library. Only if 1 and 2 leave calls as the next hotspot.
-4. **Outside eval (not in this plan's scope).** Typing the macro modules is
-   now the larger part of macro time on a cold build; it is the typer's work
-   (and the claim of the macros, `docs/incremental-compilation.md` §3.5).
+4. **Loading the macro modules.** Now the larger part of macro time on a
+   cold build, and the critical path: on Heaps with parallel typing, the claim
+   of the macros is held 0.82 s in the `types` stage, 0.805 s of it by 9
+   macro loads (the first call of a macro loads its module and what it
+   imports into the macro context), while the other domains wait 0.71 s for
+   the macros and 0.94 s for classes being built. A load, on one domain:
+   typing the bodies (`Finalization.finalize` of the macro context) 77%,
+   creating the modules 25% (parsing 21%), the flush into the interpreter 14%
+   (the filters of the new types 9.5%, the prototypes 4.5%), ordering the
+   types 3.5%. The macro context types its bodies on one domain (its
+   `run_parallel` is `None`) and parallel batches do not nest (one global
+   batch, `Claims.start_tasks`). Parsing is already shared with the main
+   context when the defines read agree: of the 380 files the macro context
+   needs, 161 come from the main context; 79 are parsed by both because they
+   read `macro`.
+
+   Options:
+   - *Parallel typing of the macro context's bodies during a load*, by the
+     domains waiting for it: same results, but a second kind of parallel
+     batch, nested in the global one, with its own task distribution and the
+     same ordering of the units as on one domain.
+   - *Lazy bodies in the macro context*: a body typed on the first call of its
+     function (methods are already jitted then), the others typed at the end
+     of the compilation so that their errors are still reported (later than
+     today). Removes most of the load from the critical path; changes when
+     errors in unused macro code appear, and needs the typing of a body from
+     a macro running without the claim.
+   - *Loading the macro modules earlier*: start the load of the macro named
+     by `@:build`/`@:autoBuild` metadata as soon as the module declaring it is
+     parsed, on a domain with nothing else to do. Same work, off the critical
+     path when there is idle time; the macro context then loads its modules in
+     another order (which must not change the output).
 
 ## 7. Constraints and verification
 
