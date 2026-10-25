@@ -41,11 +41,10 @@ let complete_module m =
 	if m.m_extra.m_complete != module_complete then
 		TypingLock.protect (fun () -> m.m_extra.m_complete ())
 
-(* While typing on several domains, classes are built under the typing lock:
-   building them in parallel made build cycles split between domains, whose
-   outcome depends on timing (phase 3.5). A build can still release the lock
-   while it waits for another domain: a domain that then needs the class waits
-   for the build to end instead of reading it partially. *)
+(* While typing on several domains, a class is built (and its header computed)
+   by the domain that claims it, without the typing lock (phase 3.5): a domain
+   that needs a class another domain is building waits for the build to end
+   instead of reading it partially. *)
 (* the classes being built, with their builder and when the build started: in
    a cycle of builds split between domains, the build that started first is
    read partially, as the outermost build of a cycle on one domain is *)
@@ -127,14 +126,6 @@ end
 (* Classes whose module is being created: their build is not set up yet, and
    reading their members gives what is there (nothing). *)
 let not_ready : tclass list ref = ref []
-
-(* Whether the build of [c] runs build macros: its own, or those that its
-   super classes and interfaces add with @:autoBuild. *)
-let rec has_build_macros c =
-	Meta.has Meta.Build c.cl_meta
-	|| (match c.cl_kind with KAbstractImpl a -> Meta.has Meta.Build a.a_meta | _ -> false)
-	|| List.exists (fun (i,_) -> Meta.has Meta.AutoBuild i.cl_meta || has_build_macros i) (Header.implements c)
-	|| (match Header.super c with Some (csup,_) -> Meta.has Meta.AutoBuild csup.cl_meta || has_build_macros csup | None -> false)
 
 let with_unlocked_build c f = with_unlocked_claim ~is_done:(fun () -> c.cl_build == built) c f
 

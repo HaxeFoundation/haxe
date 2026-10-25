@@ -425,8 +425,9 @@ let lock_free_api = [
 	"init_macros_done"; "make_expr"; "current_pos"; "get_pos_infos"; "make_position";
 ]
 
-(* The functions of the API run under the typing lock: a speculating macro
-   runs without it (see [MacroContext.do_call_macro]). *)
+(* The functions of the API, except [lock_free_api], run under the typing
+   lock: the macro calling them runs without it (see
+   [MacroContext.do_call_macro]). *)
 let shared_state_api n v =
 	match v with
 	| VFunction _ when List.mem n lock_free_api ->

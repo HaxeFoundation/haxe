@@ -1248,7 +1248,8 @@ there needs it.
 **Status: step 3, the typing lock.** `TypingLock` (`src/core/typingLock.ml`)
 is a reentrant lock, only taken while bodies are typed in parallel. It
 protects the operations of body typing that change shared state: loading a
-module, demanding the header or the members of a type (and completing a
+module, demanding the header or the members of a type (no longer since step
+12: a class is built by the domain that claims it) (and completing a
 module read from `.hxb`, resolving `@:using`), calling a macro, creating a
 generic instance or a coroutine class, inlining an extern into its
 implementation class, forcing a lazy type, scheduling `program()` units,
@@ -1271,11 +1272,12 @@ domain, or while typing on several domains) run sequentially under the lock.
 A domain claims each body it types; a body demanded by another domain is
 typed by it if still pending, or waited for. Macros called from another
 domain get their own evaluation state (`EvalMain.ensure_thread_eval`); they
-run under the lock. Not enabled in display requests, in the macro context
+ran under the lock (since step 12 only their API calls do). Not enabled in display requests, in the macro context
 and with `-D fail-fast`. Reading what is final needs no lock: a built class
 (`TAccess.built`), a computed header, a completed `.hxb` module, a created
-module (`m_ready`), a known missing module. The claims of bodies use their
-own mutex, and a domain waiting for a body releases the typing lock
+module (`m_ready`), a known missing module. The claims of bodies use the
+mutex of the claims (`Claims.mutex`, shared with the lazy types and the
+class builds), and a domain waiting for a body releases the typing lock
 (`TypingLock.without`). The stage queues have their own mutex as well
 (`Typecore.program_mutex`): adding units, the most frequent operation under
 the lock while bodies are typed (late argument checks, constraint checks,
@@ -1326,9 +1328,11 @@ macros run). What has such effects is serialized and ordered:
   them in parallel split build cycles between domains, with an outcome
   depending on timing). A build can still release the lock while it waits for
   another domain: a domain that needs a class being built by another one waits
-  for the build to end (`TAccess.with_class_claim`, `build_started`,
-  `build_done`) instead of reading it partially. The class builds stage
-  (`StageTypes`) stays sequential.
+  for the build to end (`build_started`, `build_done`) instead of reading it
+  partially. The class builds stage (`StageTypes`) stays sequential. (Since
+  step 7 this stage has parallel units, and since step 12 every class is built
+  by the domain that claims it, without the typing lock:
+  `TAccess.with_unlocked_claim`.)
 - **The macros run on one domain at a time** (`Claims.with_macro_claim`), even
   while the domain running them waits for another one; the claim is only
   taken by releasing the typing lock when another domain holds it. An
@@ -1377,18 +1381,22 @@ their order.
   the others), and most of the cycles broken (500 to 5000 per compilation of
   hide) came from there: 2 are left.
 - **Only builds that run build macros wait for the order of the tasks**
+  (no order since step 11, no typing lock since step 12)
   (`TAccess.has_build_macros`: the class's own `@:build`, or an `@:autoBuild`
   of a super class or interface), with the macro claim, under the typing lock.
 - **The class builds stage has parallel units** (by module): a class without
   build macros is built without the typing lock by the domain that claims it
   (`TAccess.with_unlocked_build`), the others wait for the build to end.
-- The worker domains of the pool get a 32 MB minor heap
+- The worker domains of the pool get a 32 MB minor heap (16 MB since then: as
+  fast on SpaceCraft, about 0.5 GB less memory on 22 hardware threads)
   (`Parallel.set_worker_minor_heap`, `HAXE_WORKER_MINOR_MB`): a new domain gets
   the default size whatever its creator uses, and the minor collections stop
   every domain. hide: about 19.4 s → 17.3 s.
 - genjs generates the types in parallel, each on its own buffer, then puts the
   code in order, creating the packages there (without a source map only: a
-  replay of the source map in order cost more than it saved). Heaps: 0.23 s →
+  replay of the source map in order cost more than it saved; since then each
+  type gets its own source map, whose mappings are transcoded in parallel,
+  step 9, and types are generated in parallel with a source map too). Heaps: 0.23 s →
   0.11 s.
 What stays: the macros of field bodies wait for the order of the tasks (on
 hide about 9 s summed over the domains, 230 waits: `EditContext2.build` and
@@ -1402,7 +1410,8 @@ stop every domain and by the allocation of the major heap (sampled stacks).
 for the tasks before its own (`Claims.speculate`): it waits for them at its
 first access to what the macros share, releasing the claim of the macros
 meanwhile so that the macros before it run, then goes on in order with its
-macro API state back (`Claims.speculation_resume`). What is shared
+macro API state back (superseded by step 11: there is no order to wait
+for, the macro takes the claim with `Claims.end_speculation`). What is shared
 (`EvalValue.on_shared_state`): the static variables of the interpreter (read
 or written, directly or by reflection), the macro API except the functions
 that read the compilation or type (`EvalMain.speculative_api`: typing waits
@@ -1469,7 +1478,8 @@ macros share at run time (the names of the hashes, the prototypes of
 anonymous objects, the fake prototypes of the encoders) have locks. An
 expression macro started out of the order of the tasks (speculating) then
 runs without the claim of the macros, its interpretation without the typing
-lock, which every function of the macro API takes: other domains type and
+lock, which every function of the macro API takes (except those of
+`EvalMain.lock_free_api`, step 12): other domains type and
 run their own macros meanwhile; it still waits for the order of the tasks at
 its first access to what the macros share. hide: the bodies stage 1.0 s →
 0.7 s, the output identical in every run; cold (4 cores, median of 5): Heaps
@@ -1506,6 +1516,45 @@ from Baz, both using it (either is accepted). hide: 578 of the 604 build
 macros are done without the claim, the class builds stage waits 0.01 s for
 it instead of 1.9 s. Cold (4 cores, median of 5, Haxe 5 → 6): Heaps JS 4.7 s
 → 3.6 s, Heaps HL 6.2 s → 4.6 s, hide 16.2 s → 7.0 s (8.4 s at step 10).
+
+**Status: step 12, classes and macros without the typing lock.**
+- **Headers and builds under the claim of the class only.** The header of a
+  class (super class, interfaces, declared metadata) and its build, with or
+  without build macros, are computed by the domain that claims the class
+  (`TAccess.with_unlocked_claim`), without the typing lock; the other domains
+  wait for them to end. The macro API reads a header through
+  `TAccess.Header.demand` rather than calling `cl_build_header` directly: a
+  macro read the header another domain was computing (hxbit: "Unsupported
+  serializable type Array<ent.Ship>", about one compilation in eight on
+  SpaceCraft).
+- **Every macro runs without the typing lock** while typing on several
+  domains, not only a speculating expression or build macro
+  (`MacroContext.do_call_macro`): other domains type meanwhile. What the macros
+  share is still ordered by the claim of the macros. What stays under the lock
+  is around the interpretation (`TyperEntry.do_macro`): loading the macro,
+  typing and encoding its arguments, decoding its result, and the calls of the
+  macro API.
+- **A macro reading the type of a field that another domain infers waits for
+  it** (`MacroApi.encode_cfield`), instead of getting the lazy type: on one
+  domain the macro would not run meanwhile, and a macro that does not follow
+  `TLazy` saw a type it does not handle (hide's prefab macros generated
+  `type: null`).
+- **The API functions that read nothing of the compilation**
+  (`EvalMain.lock_free_api`: `init_macros_done`, `make_expr`, `current_pos`,
+  `get_pos_infos`, `make_position`) do not take the typing lock: about 150000
+  calls on SpaceCraft, made by the macros, the critical path of typing.
+Measured on SpaceCraft (HL, cold), for the lock-free API functions: 22 typing domains 22.5 s → 19.6 s, 4
+domains 16.0 s → 15.8 s; with the macros run without the typing lock, 60
+parallel builds out of 60 are identical to the sequential one.
+What still takes the typing lock: the calls of the macro API and what surrounds
+the interpretation of a macro (above), creating a module loaded on demand (its
+parsing is done before, outside of the lock), completing a module read from
+`.hxb`, resolving the `using` of a module, creating a `@:generic` instance or
+typing a generic function, turning a function into a coroutine, inlining an
+extern into its implementation class, the temporary removal of the constant
+flag of structures (`Fields.remove_constant_flag`), and the units run by a
+nested stage run (`Typecore.run_stages_upto` from a domain typing in
+parallel).
 
 #### 3.6 Parsing shared between contexts
 
@@ -2604,11 +2653,14 @@ phase 8 the fingerprints of the modules typed again.
 ## 4b. Parallel compilation
 
 Parallelism is not limited to typing: every operation of a compilation runs on
-the same scheduler. Today, parallelism exists in isolated places (filters and
-analyzer per type, DCE marking, `genhl` function compilation, `hl2c` modules,
-`genjvm` classes) and the pool is released while macros run
-(`Parallel.ManagedPool.release` in `macroContext.ml`). The target is a single
-model for the whole compilation.
+the same scheduler. Today, typing runs on several domains (§3.5), and the
+other operations are parallel in their own places (filters and analyzer per
+type, DCE marking, `genjs` types, `genhl` function compilation and
+optimization, `hl2c` modules, `genjvm` classes, the fingerprints of the node
+graph), all on the pool of the compilation (`ServerCompilationContext`, one
+domain per hardware thread, kept by the server across compilations); the pool
+is only released to run `--interp` (`MacroContext.interpret`). The target is a
+single model for the whole compilation.
 
 1. **The query engine is the scheduler.** Every query is a task on a
    persistent work-stealing pool (Domainslib), kept by the server across
@@ -2652,8 +2704,9 @@ model for the whole compilation.
    (`-D compilation-shuffle=<seed>`, which randomizes task order and
    work-stealing); CI runs `tests/incremental` and the unit tests in these
    modes.
-6. **Configuration.** Enabled by default with one domain per available core.
-   `-D parallel-typing=<n>` sets the number of domains typing (4 by default), `0` types
+6. **Configuration.** Enabled by default, the pool having one domain per
+   available core. `-D parallel-typing=<n>` sets how many of them type (4 by
+   default, fewer on a machine with fewer cores), `0` types
    on a single domain (same results). Beyond a few domains, the macros (one
    at a time, the critical path of typing) wait for the typing lock more than
    the other domains gain.
