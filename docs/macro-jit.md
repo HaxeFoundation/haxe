@@ -297,9 +297,17 @@ Steps, by expected gain over effort:
        fail, which is not from this change: the compiler before it reports
        the same messages, and already reports more errors in cascade on one
        domain (83, the shaders whose build fails) than on four (35), so the
-       warm compilation (server on one domain) and the cold one differ. To
-       fix separately: the errors reported after a failed build macro must
-       not depend on the number of domains.
+       warm compilation (server on one domain) and the cold one differ.
+       **Fixed (next commit):** an error reported in the macro context
+       disabled the interpreter (`had_error`): every macro called after it
+       failed (Build failure, then the errors of the class body typed
+       without its build), and which macros came after depended on the
+       order of typing (2592 against 1920 errors for two `-D typer-shuffle`
+       seeds on one domain). Now the macros still run; a macro whose own
+       function reported an error does not run (its body is typed before it
+       is called, whatever the order), one calling what failed to type fails
+       when it calls it. The same error in Heaps now gives the two messages
+       of the error itself, whatever the order and the number of domains.
    - *Lazy bodies in the macro context*: a body typed on the first call of its
      function (methods are already jitted then), the others typed at the end
      of the compilation so that their errors are still reported (later than
