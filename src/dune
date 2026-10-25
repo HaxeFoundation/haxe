@@ -24,6 +24,11 @@
 		xml-light extlib sha terminal_size
 		luv
 		domainslib saturn thread-local-storage dynamic_gc
+		; the native tier of eval (docs/macro-jit-native.md), when the OCaml
+		; version supports it
+		(select evalNative.ml from
+			(jit -> evalNative.enabled.ml)
+			(-> evalNative.disabled.ml))
 	)
 	(modules (:standard \ haxe prebuild))
 	(preprocess (per_module
@@ -55,3 +60,7 @@
 	; Uncomment to enable bytecode output for ocamldebug support
 	; (modes byte)
 )
+
+; The alternatives of the select of evalNative.ml must be in this directory
+(rule (copy macro/eval/evalNative.enabled.ml evalNative.enabled.ml))
+(rule (copy macro/eval/evalNative.disabled.ml evalNative.disabled.ml))

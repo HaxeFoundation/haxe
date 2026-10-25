@@ -220,6 +220,12 @@
 		"platforms": ["eval"]
 	},
 	{
+		"name": "EvalNative",
+		"define": "eval-native",
+		"doc": "Compile the functions run in macro/interp mode to native code, where the platform supports it (see docs/macro-jit-native.md).",
+		"platforms": ["eval"]
+	},
+	{
 		"name": "EvalTimes",
 		"define": "times.eval",
 		"deprecatedDefine": "eval-times",

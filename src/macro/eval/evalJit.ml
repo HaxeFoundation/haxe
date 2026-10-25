@@ -713,6 +713,10 @@ and jit_tfunction jit static pos tf =
 and get_env_creation jit static file info =
 	create_env_info static file (jit.ctx.file_keys#get file) info jit.capture_infos jit.max_num_locals (IntHashtbl.length jit.captures)
 
+(* [jit_expr] of a subexpression of a function being compiled in context [jit]
+   (see [EvalNative]) *)
+let jit_subexpr = jit_expr
+
 let jit_timer ctx f =
 	Timer.time ctx.timer_ctx [(if ctx.is_macro then "macro" else "interp");"jit"] f ()
 

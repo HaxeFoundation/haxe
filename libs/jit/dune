@@ -1,7 +1,7 @@
 (library
 	(name jit)
 	(enabled_if (= %{ocaml_version} 5.3.0))
-	(libraries ocaml_backend threads.posix)
+	(libraries ocaml_backend threads.posix unix)
 	(foreign_stubs
 		(language c)
 		(names jit_stubs))
