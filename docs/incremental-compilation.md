@@ -2637,6 +2637,74 @@ is the replayed calls and the remapping (half each); symbolic operands
 (item 1 proper) would remove the remapping, and the post-processed copy of
 phase 8 the fingerprints of the modules typed again.
 
+**Status: generation memo on SpaceCraft, and the next step.** On SpaceCraft
+(4300 classes, server, body edit in a leaf file: 4.4 s), the HL generation
+takes 3.3 s, of which 2.1 s replay the memo into a new context: converting
+the types again (`to_type`, 0.9 s, half of it the fingerprints of anonymous
+structures), remapping the emitted functions (0.6 s), the class types and
+globals (0.25 s). The replay exists only so that the indexes are allocated as
+by a cold generation (identical output). Done meanwhile: the functions are
+written in parallel (write 0.64 s -> 0.43 s), `Hlopt.optimize` copies the code
+before changing it in place, so the memo shares the code it emitted instead
+of copying every function. Tried and dropped: optimizing each function as soon
+as it is emitted, while the generation goes on (2.6 s -> 4.3 s for the
+generation: the minor collections of the domains optimizing stop the domain
+generating, which is the critical path); generating the classes on several
+domains, each in a context of its own, then replaying the recordings in order
+(the replay costs about as much as the generation).
+
+**Next: no replay (items 1, 2 and 4), and a hot reload delta.** The plan below
+removes the replay and prepares a faster hot reload in the HashLink VM; it is
+to be done in this order, steps 1 to 3 in the compiler, step 4 in HashLink
+(branch `haxe6-annotations`).
+
+1. *Symbolic generation per class.* The generation of a class produces an
+   object: its functions with symbolic operands (constant strings, ints,
+   floats and bytes by value; functions by `(class path, field)` or, for local
+   functions, wrappers and enum closures, by a key derived from their owner
+   and their position in it; globals by name; HL types by
+   `hl_type_key`), its HL types (protos of its classes, enums, virtuals of the
+   structures it uses, by key), its natives and constants. Nothing in it
+   depends on the other classes or on the order of the generation. The server
+   keeps the objects of the classes whose expressions did not change (the
+   validity rules of the memo above) and generates the others again.
+2. *Linker.* One pass over the objects in the order of the types: the tables
+   (types, globals, strings, ints, floats, bytes, natives, functions,
+   constants) are numbered in a canonical order (first use while walking the
+   functions in order, or sorted by key: to decide by measuring), then the
+   operands are resolved, in parallel by function, and the bytecode written
+   (already in parallel). Cold and warm builds both link: the warm output is
+   the cold one. Expected on SpaceCraft: the generation of a leaf edit from
+   3.3 s to about 0.8 s (link and write), the cold build slightly faster (no
+   memo recording). The output changes once compared to the current compiler
+   (another table order), checked with `tests/unit` on HL (JIT and HL/C) and
+   `-D hl-memo-check` adapted to compare warm and cold.
+3. *Delta for hot reload.* Besides the full `.hl`, the server writes (with a
+   define, e.g. `-D hl-hot-reload-delta`) a delta of the classes generated
+   again: their functions, the types, globals, strings and natives they add,
+   referencing what already exists **by the keys HashLink's hot reload uses**
+   (`hl_code_hash`: functions by object name and field name, globals by
+   signature, types by name and structure), so that the delta can be linked
+   against the running module without its indexes. One section per class,
+   each with its relocation table: a section can be read and applied alone
+   (streamable).
+4. *HashLink: loading a delta.* Today `hl_module_patch` (`src/module.c`)
+   reloads the whole new module, hashes every function (`hl_code_hash_*`),
+   matches them with the running ones by signature, JIT-compiles the ones whose
+   hash changed and patches their pointers, and aliases the types whose layout
+   did not change. A delta loader reuses these steps on the sections only:
+   resolve the relocations against the running module (its hash tables),
+   allocate the new globals and types, JIT the functions of the delta, patch.
+   The full reload stays as the fallback (types whose layout changed are
+   refused, as today).
+
+Constraints for steps 1 and 2 coming from step 4: the keys of the symbols must
+be the identities HashLink matches (names, not indexes); a class object must
+carry enough to tell which of its types changed layout (its protos and enum
+constructors), so that the delta can say so instead of the VM comparing every
+type; the canonical order of step 2 must not be needed by the delta (a delta
+only refers by key).
+
 ---
 
 ### Phase 11: cleanup
