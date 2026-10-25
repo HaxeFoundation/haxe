@@ -579,6 +579,9 @@ let rec value_to_expr v p =
 	| _ -> exc_string ("Cannot convert " ^ (value_string v) ^ " to expr")
 
 let encode_obj = encode_obj_s
+type obj_shape = EvalEncode.obj_shape
+let obj_shape = EvalEncode.obj_shape
+let encode_shape = EvalEncode.encode_shape
 
 let field v f = field v (EvalHash.hash f)
 

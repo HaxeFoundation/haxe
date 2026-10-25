@@ -202,6 +202,11 @@ module type InterpApi = sig
 	val encode_array : value list -> value
 	val encode_string  : string -> value
 	val encode_obj : (string * value) list -> value
+	(* The shape of objects with the fields [names], declared once ... *)
+	type obj_shape
+	val obj_shape : string list -> obj_shape
+	(* ... and an object of that shape, with the values of its fields in the order of [names] *)
+	val encode_shape : obj_shape -> value array -> value
 	val encode_lazy : value AtomicLazy.t -> value
 
 	val vfun0 : (unit -> value) -> value
@@ -317,6 +322,52 @@ module MacroApiImpl(InterpImpl:InterpApi) = struct
 
 open InterpImpl
 
+(* The shapes of the objects encoded (see [InterpApi.obj_shape]) *)
+let shape_path_mode = obj_shape ["path"; "mode"]
+let shape_pos_name = obj_shape ["pos"; "name"]
+let shape_pack_name = obj_shape ["pack"; "name"]
+let shape_name_params_pos = obj_shape ["name"; "params"; "pos"]
+let shape_field = obj_shape ["name"; "name_pos"; "doc"; "pos"; "kind"; "meta"; "access"]
+let shape_type_param_decl = obj_shape ["name"; "name_pos"; "params"; "constraints"; "meta"]
+let shape_params_args_ret_expr = obj_shape ["params"; "args"; "ret"; "expr"]
+let shape_function_arg = obj_shape ["name"; "name_pos"; "opt"; "meta"; "type"; "value"]
+let shape_platform_config = obj_shape ["staticTypeSystem"; "sys"; "capturePolicy"; "padNulls"; "addFinalReturn"; "overloadFunctions"; "reservedTypePaths"; "supportsFunctionEquality"; "usesUtf16"; "thisBeforeSuper"; "supportsThreads"; "supportsUnicode"; "supportsRestArgs"; "exceptions"; "scoping"; "supportsAtomics"]
+let shape_scope_flags = obj_shape ["scope"; "flags"]
+let shape_object_field = obj_shape ["field"; "name_pos"; "quotes"; "expr"]
+let shape_var = obj_shape ["name"; "namePos"; "isFinal"; "isStatic"; "type"; "expr"; "meta"]
+let shape_values_guard_expr_pos = obj_shape ["values"; "guard"; "expr"; "pos"]
+let shape_catch = obj_shape ["name"; "name_pos"; "type"; "expr"; "pos"]
+let shape_pos_expr = obj_shape ["pos"; "expr"]
+let shape_meta_access = obj_shape ["get"; "add"; "extract"; "remove"; "has"]
+let shape_name_t_defaultType = obj_shape ["name"; "t"; "defaultType"]
+let shape_op_field = obj_shape ["op"; "field"]
+let shape_op_postFix_field = obj_shape ["op"; "postFix"; "field"]
+let shape_t_field = obj_shape ["t"; "field"]
+let shape_enum_field = obj_shape ["name"; "type"; "pos"; "namePos"; "index"; "meta"; "doc"; "params"]
+let shape_t_params = obj_shape ["t"; "params"]
+let shape_fields_status = obj_shape ["fields"; "status"]
+let shape_name_opt_t = obj_shape ["name"; "opt"; "t"]
+let shape_params_expr = obj_shape ["params"; "expr"]
+let shape_args_t_expr = obj_shape ["args"; "t"; "expr"]
+let shape_v_value = obj_shape ["v"; "value"]
+let shape_c_params = obj_shape ["c"; "params"]
+let shape_name_expr = obj_shape ["name"; "expr"]
+let shape_values_expr = obj_shape ["values"; "expr"]
+let shape_v_expr = obj_shape ["v"; "expr"]
+let shape_pos_expr_t = obj_shape ["pos"; "expr"; "t"]
+let shape_js_generator_api = obj_shape ["outputFile"; "types"; "main"; "generateValue"; "isKeyword"; "hasFeature"; "addFeature"; "quoteString"; "buildMetaData"; "generateStatement"; "setTypeAccessor"; "setCurrentClass"]
+let shape_min_max_file = obj_shape ["min"; "max"; "file"]
+let shape_value = obj_shape ["value"]
+let shape_type_value = obj_shape ["type"; "value"]
+let shape_expr_type = obj_shape ["expr"; "type"]
+let shape_file_pos = obj_shape ["file"; "pos"]
+let shape_compiler_configuration = obj_shape ["version"; "args"; "debug"; "verbose"; "foptimize"; "platform"; "platformConfig"; "stdPath"; "mainClass"; "packageRules"]
+let shape_compilation_statistics = obj_shape ["filesParsed"; "modulesTyped"; "modulesRestoredFromHxb"; "classesBuilt"; "methodsTyped"; "macrosCalled"]
+let shape_line_character = obj_shape ["line"; "character"]
+let shape_start_end = obj_shape ["start"; "end"]
+let shape_file_range = obj_shape ["file"; "range"]
+let shape_type_msg_pos = obj_shape ["type"; "msg"; "pos"]
+
 (*
 	The whole encoding/decoding of compiler values from/to interpreter values based on interpreter api
 *)
@@ -392,20 +443,19 @@ let encode_import (path,mode) =
 		| IAll -> 2,[]
 	in
 	let mode = encode_enum IImportMode tag pl in
-	encode_obj [
-		"path", encode_array (List.map (fun (name,p) -> encode_obj [ "pos", encode_pos p; "name", encode_string name]) path);
-		"mode", mode
-	]
+	encode_shape shape_path_mode [|
+		(* path *) encode_array (List.map (fun (name,p) -> encode_shape shape_pos_name [| (* pos *) encode_pos p; (* name *) encode_string name|]) path);
+		(* mode *) mode|]
 
 let encode_placed_name (s,p) =
 	encode_string s
 
 (* Globals.path *)
 let encode_path (p,n) =
-	encode_obj [
-		"pack", encode_array (List.map encode_string p);
-		"name", encode_string n;
-	]
+	encode_shape shape_pack_name [|
+		(* pack *) encode_array (List.map encode_string p);
+		(* name *) encode_string n;
+	|]
 
 (* Ast.placed_type_path *)
 let rec encode_ast_path ptp =
@@ -448,11 +498,11 @@ and encode_access a =
 	encode_enum ~pos:(Some (pos a)) IAccess tag []
 
 and encode_meta_entry (m,ml,p) =
-	encode_obj [
-		"name", encode_string (Meta.to_string m);
-		"params", encode_array (List.map encode_expr ml);
-		"pos", encode_pos p;
-	]
+	encode_shape shape_name_params_pos [|
+		(* name *) encode_string (Meta.to_string m);
+		(* params *) encode_array (List.map encode_expr ml);
+		(* pos *) encode_pos p;
+	|]
 
 and encode_meta_content m =
 	encode_array (List.map encode_meta_entry m)
@@ -463,15 +513,15 @@ and encode_field (f:class_field) =
 		| FFun f -> 1, [encode_fun f]
 		| FProp (get,set, t, e) -> 2, [encode_placed_name get; encode_placed_name set; null encode_ctype t; null encode_expr e]
 	in
-	encode_obj [
-		"name",encode_placed_name f.cff_name;
-		"name_pos", encode_pos (pos f.cff_name);
-		"doc", null encode_string (gen_doc_text_opt f.cff_doc);
-		"pos", encode_pos f.cff_pos;
-		"kind", encode_enum IField tag pl;
-		"meta", encode_meta_content f.cff_meta;
-		"access", encode_array (List.map encode_access f.cff_access);
-	]
+	encode_shape shape_field [|
+		(* name *) encode_placed_name f.cff_name;
+		(* name_pos *) encode_pos (pos f.cff_name);
+		(* doc *) null encode_string (gen_doc_text_opt f.cff_doc);
+		(* pos *) encode_pos f.cff_pos;
+		(* kind *) encode_enum IField tag pl;
+		(* meta *) encode_meta_content f.cff_meta;
+		(* access *) encode_array (List.map encode_access f.cff_access);
+	|]
 
 and encode_ctype t =
 	let tag, pl = match fst t with
@@ -495,32 +545,31 @@ and encode_ctype t =
 	encode_enum ~pos:(Some (pos t)) ICType tag pl
 
 and encode_tparam_decl tp =
-	encode_obj [
-		"name", encode_placed_name tp.tp_name;
-		"name_pos", encode_pos (pos tp.tp_name);
-		"params", encode_array (List.map encode_tparam_decl tp.tp_params);
-		"constraints", (match tp.tp_constraints with
+	encode_shape shape_type_param_decl [|
+		(* name *) encode_placed_name tp.tp_name;
+		(* name_pos *) encode_pos (pos tp.tp_name);
+		(* params *) encode_array (List.map encode_tparam_decl tp.tp_params);
+		(* constraints *) (match tp.tp_constraints with
 			| None -> encode_array []
 			| Some th -> encode_array [encode_ctype th]);
-		"meta", encode_meta_content tp.tp_meta;
-	]
+		(* meta *) encode_meta_content tp.tp_meta;
+	|]
 
 and encode_fun f =
-	encode_obj [
-		"params", encode_array (List.map encode_tparam_decl f.f_params);
-		"args", encode_array (List.map (fun (n,opt,m,t,e) ->
-			encode_obj [
-				"name", encode_placed_name n;
-				"name_pos", encode_pos (pos n);
-				"opt", vbool opt;
-				"meta", encode_meta_content m;
-				"type", null encode_ctype t;
-				"value", null encode_expr e;
-			]
+	encode_shape shape_params_args_ret_expr [|
+		(* params *) encode_array (List.map encode_tparam_decl f.f_params);
+		(* args *) encode_array (List.map (fun (n,opt,m,t,e) ->
+			encode_shape shape_function_arg [|
+				(* name *) encode_placed_name n;
+				(* name_pos *) encode_pos (pos n);
+				(* opt *) vbool opt;
+				(* meta *) encode_meta_content m;
+				(* type *) null encode_ctype t;
+				(* value *) null encode_expr e;
+			|]
 		) f.f_args);
-		"ret", null encode_ctype f.f_type;
-		"expr", null encode_expr f.f_expr
-	]
+		(* ret *) null encode_ctype f.f_type;
+		(* expr *) null encode_expr f.f_expr|]
 
 and encode_display_kind dk =
 	let tag, pl = match dk with
@@ -566,24 +615,24 @@ and encode_platform p =
 	encode_enum IPlatform tag pl
 
 and encode_platform_config pc =
-	encode_obj [
-		"staticTypeSystem", vbool pc.pf_static;
-		"sys", vbool pc.pf_sys;
-		"capturePolicy", encode_capture_policy pc.pf_capture_policy;
-		"padNulls", vbool pc.pf_pad_nulls;
-		"addFinalReturn", vbool pc.pf_add_final_return;
-		"overloadFunctions", vbool pc.pf_overload;
-		"reservedTypePaths", encode_array (List.map encode_path pc.pf_reserved_type_paths);
-		"supportsFunctionEquality", vbool pc.pf_supports_function_equality;
-		"usesUtf16", vbool pc.pf_uses_utf16;
-		"thisBeforeSuper", vbool pc.pf_this_before_super;
-		"supportsThreads", vbool pc.pf_supports_threads;
-		"supportsUnicode", vbool pc.pf_supports_unicode;
-		"supportsRestArgs", vbool pc.pf_supports_rest_args;
-		"exceptions", encode_exceptions_config pc.pf_exceptions;
-		"scoping", encode_var_scoping_config pc.pf_scoping;
-		"supportsAtomics", vbool pc.pf_supports_atomics;
-	]
+	encode_shape shape_platform_config [|
+		(* staticTypeSystem *) vbool pc.pf_static;
+		(* sys *) vbool pc.pf_sys;
+		(* capturePolicy *) encode_capture_policy pc.pf_capture_policy;
+		(* padNulls *) vbool pc.pf_pad_nulls;
+		(* addFinalReturn *) vbool pc.pf_add_final_return;
+		(* overloadFunctions *) vbool pc.pf_overload;
+		(* reservedTypePaths *) encode_array (List.map encode_path pc.pf_reserved_type_paths);
+		(* supportsFunctionEquality *) vbool pc.pf_supports_function_equality;
+		(* usesUtf16 *) vbool pc.pf_uses_utf16;
+		(* thisBeforeSuper *) vbool pc.pf_this_before_super;
+		(* supportsThreads *) vbool pc.pf_supports_threads;
+		(* supportsUnicode *) vbool pc.pf_supports_unicode;
+		(* supportsRestArgs *) vbool pc.pf_supports_rest_args;
+		(* exceptions *) encode_exceptions_config pc.pf_exceptions;
+		(* scoping *) encode_var_scoping_config pc.pf_scoping;
+		(* supportsAtomics *) vbool pc.pf_supports_atomics;
+	|]
 
 and encode_capture_policy cp =
 	let tag = match cp with
@@ -594,10 +643,10 @@ and encode_capture_policy cp =
 	encode_enum ICapturePolicy tag []
 
 and encode_var_scoping_config vsc =
-	encode_obj [
-		"scope", encode_var_scope vsc.vs_scope;
-		"flags", encode_array (List.map encode_var_scoping_flags vsc.vs_flags);
-	]
+	encode_shape shape_scope_flags [|
+		(* scope *) encode_var_scope vsc.vs_scope;
+		(* flags *) encode_array (List.map encode_var_scoping_flags vsc.vs_flags);
+	|]
 
 and encode_var_scope vs =
 	let tag = match vs with
@@ -665,12 +714,12 @@ and encode_expr e =
 			| EParenthesis e ->
 				4, [loop e]
 			| EObjectDecl fl ->
-				5, [encode_array (List.map (fun ((f,p,qs),e) -> encode_obj [
-					"field",encode_string f;
-					"name_pos",encode_pos p;
-					"quotes",encode_enum IQuoteStatus (match qs with NoQuotes -> 0 | DoubleQuotes -> 1) [];
-					"expr",loop e;
-				]) fl)]
+				5, [encode_array (List.map (fun ((f,p,qs),e) -> encode_shape shape_object_field [|
+					(* field *) encode_string f;
+					(* name_pos *) encode_pos p;
+					(* quotes *) encode_enum IQuoteStatus (match qs with NoQuotes -> 0 | DoubleQuotes -> 1) [];
+					(* expr *) loop e;
+				|]) fl)]
 			| EArrayDecl el ->
 				6, [encode_array (List.map loop el)]
 			| ECall (e,el) ->
@@ -681,15 +730,15 @@ and encode_expr e =
 				9, [encode_unop op; vbool (match flag with Prefix -> false | Postfix -> true); loop e]
 			| EVars vl ->
 				10, [encode_array (List.map (fun v ->
-					encode_obj [
-						"name",encode_placed_name v.ev_name;
-						"namePos",encode_pos (pos v.ev_name);
-						"isFinal",vbool v.ev_final;
-						"isStatic",vbool v.ev_static;
-						"type",null encode_ctype v.ev_type;
-						"expr",null loop v.ev_expr;
-						"meta",encode_meta_content v.ev_meta;
-					]
+					encode_shape shape_var [|
+						(* name *) encode_placed_name v.ev_name;
+						(* namePos *) encode_pos (pos v.ev_name);
+						(* isFinal *) vbool v.ev_final;
+						(* isStatic *) vbool v.ev_static;
+						(* type *) null encode_ctype v.ev_type;
+						(* expr *) null loop v.ev_expr;
+						(* meta *) encode_meta_content v.ev_meta;
+					|]
 				) vl)]
 			| EFunction (kind,f) ->
 				11, [encode_function_kind kind; encode_fun f]
@@ -703,22 +752,21 @@ and encode_expr e =
 				15, [loop econd;loop e;vbool (match flag with NormalWhile -> true | DoWhile -> false)]
 			| ESwitch (e,cases,eopt) ->
 				16, [loop e;encode_array (List.map (fun (ecl,eg,e,p) ->
-					encode_obj [
-						"values",encode_array (List.map loop ecl);
-						"guard",null loop eg;
-						"expr",null loop e;
-						"pos",encode_pos p;
-					]
+					encode_shape shape_values_guard_expr_pos [|
+						(* values *) encode_array (List.map loop ecl);
+						(* guard *) null loop eg;
+						(* expr *) null loop e;
+						(* pos *) encode_pos p;
+					|]
 				) cases);null (fun (e,_) -> encode_null_expr e) eopt]
 			| ETry (e,catches) ->
 				17, [loop e;encode_array (List.map (fun (v,t,e,p) ->
-					encode_obj [
-						"name",encode_placed_name v;
-						"name_pos",encode_pos (pos v);
-						"type",null encode_ctype t;
-						"expr",loop e;
-						"pos",encode_pos p
-					]
+					encode_shape shape_catch [|
+						(* name *) encode_placed_name v;
+						(* name_pos *) encode_pos (pos v);
+						(* type *) null encode_ctype t;
+						(* expr *) loop e;
+						(* pos *) encode_pos p|]
 				) catches)]
 			| EReturn eo ->
 				18, [null loop eo]
@@ -743,17 +791,17 @@ and encode_expr e =
 			| EIs (e,t) ->
 				28, [loop e;encode_ctype t]
 		in
-		encode_obj [
-			"pos", encode_pos p;
-			"expr", encode_enum IExpr tag pl;
-		]
+		encode_shape shape_pos_expr [|
+			(* pos *) encode_pos p;
+			(* expr *) encode_enum IExpr tag pl;
+		|]
 	in
 	encode_lazy (AtomicLazy.from_fun (fun () -> loop e))
 
 and encode_null_expr e =
 	match e with
 	| None ->
-		encode_obj ["pos", vnull;"expr",vnull]
+		encode_shape shape_pos_expr [| (* pos *) vnull; (* expr *) vnull|]
 	| Some e ->
 		encode_expr e
 
@@ -1135,36 +1183,36 @@ let vopt f v = match v with
    (changing it then touches nothing the macros share) *)
 let encode_meta ?(on_read=(fun () -> ())) ?(local=(fun () -> false)) m set =
 	let meta = ref m in
-	encode_obj [
-		"get", vfun0 (fun() ->
+	encode_shape shape_meta_access [|
+		(* get *) vfun0 (fun() ->
 			on_read ();
 			encode_meta_content (!meta)
 		);
-		"add", vfun3 (fun k vl p ->
+		(* add *) vfun3 (fun k vl p ->
 			if not (local ()) then (!EvalValue.on_shared_state ());
 			let el = List.map decode_expr (decode_array vl) in
 			meta := (Meta.from_string (decode_string k), el, decode_pos p) :: !meta;
 			set (!meta);
 			vnull
 		);
-		"extract", vfun1 (fun k ->
+		(* extract *) vfun1 (fun k ->
 			on_read ();
 			let k = Meta.from_string (decode_string k) in
 			encode_and_map_array encode_meta_entry (List.filter (fun (m,_,_) -> m = k) (!meta))
 		);
-		"remove", vfun1 (fun k ->
+		(* remove *) vfun1 (fun k ->
 			if not (local ()) then (!EvalValue.on_shared_state ());
 			let k = Meta.from_string (decode_string k) in
 			meta := List.filter (fun (m,_,_) -> m <> k) (!meta);
 			set (!meta);
 			vnull
 		);
-		"has", vfun1 (fun k ->
+		(* has *) vfun1 (fun k ->
 			on_read ();
 			let k = Meta.from_string (decode_string k) in
 			vbool (List.exists (fun (m,_,_) -> m = k) (!meta));
 		);
-	]
+	|]
 
 let rec encode_mtype ?meta t fields =
 	let i = t_infos t in
@@ -1186,11 +1234,11 @@ let rec encode_mtype ?meta t fields =
 
 and encode_type_params tl =
 	encode_array (List.map (fun tp ->
-		encode_obj [
-			"name",encode_string tp.ttp_name;
-			"t",encode_type tp.ttp_type;
-			"defaultType",(match tp.ttp_default with None -> vnull | Some t -> encode_type t);
-		]
+		encode_shape shape_name_t_defaultType [|
+			(* name *) encode_string tp.ttp_name;
+			(* t *) encode_type tp.ttp_type;
+			(* defaultType *) (match tp.ttp_default with None -> vnull | Some t -> encode_type t);
+		|]
 	) tl)
 
 and encode_tenum e =
@@ -1225,26 +1273,26 @@ and encode_tabstract a =
 	encode_mtype (TAbstractDecl a) [
 		"type", encode_type a.a_this;
 		"impl", (match a.a_impl with None -> vnull | Some c -> encode_clref c);
-		"binops", members (fun () -> encode_array (List.map (fun (op,cf) -> encode_obj [ "op",encode_binop op; "field",encode_cfield cf]) a.a_ops));
-		"unops", members (fun () -> encode_array (List.map (fun (op,postfix,cf) -> encode_obj [ "op",encode_unop op; "postFix",vbool (match postfix with Postfix -> true | Prefix -> false); "field",encode_cfield cf]) a.a_unops));
-		"from", members (fun () -> encode_array ((List.map (fun t -> encode_obj [ "t",encode_type t; "field",vnull]) a.a_from) @ (List.map (fun (t,cf) -> encode_obj [ "t",encode_type t; "field",encode_cfield cf]) a.a_from_field)));
-		"to", members (fun () -> encode_array ((List.map (fun t -> encode_obj [ "t",encode_type t; "field",vnull]) a.a_to) @ (List.map (fun (t,cf) -> encode_obj [ "t",encode_type t; "field",encode_cfield cf]) a.a_to_field)));
+		"binops", members (fun () -> encode_array (List.map (fun (op,cf) -> encode_shape shape_op_field [| (* op *) encode_binop op; (* field *) encode_cfield cf|]) a.a_ops));
+		"unops", members (fun () -> encode_array (List.map (fun (op,postfix,cf) -> encode_shape shape_op_postFix_field [| (* op *) encode_unop op; (* postFix *) vbool (match postfix with Postfix -> true | Prefix -> false); (* field *) encode_cfield cf|]) a.a_unops));
+		"from", members (fun () -> encode_array ((List.map (fun t -> encode_shape shape_t_field [| (* t *) encode_type t; (* field *) vnull|]) a.a_from) @ (List.map (fun (t,cf) -> encode_shape shape_t_field [| (* t *) encode_type t; (* field *) encode_cfield cf|]) a.a_from_field)));
+		"to", members (fun () -> encode_array ((List.map (fun t -> encode_shape shape_t_field [| (* t *) encode_type t; (* field *) vnull|]) a.a_to) @ (List.map (fun (t,cf) -> encode_shape shape_t_field [| (* t *) encode_type t; (* field *) encode_cfield cf|]) a.a_to_field)));
 		"array", members (fun () -> encode_array (List.map encode_cfield a.a_array));
 		"resolve", members (fun () -> match a.a_read with None -> vnull | Some cf -> encode_cfref cf);
 		"resolveWrite", members (fun () -> match a.a_write with None -> vnull | Some cf -> encode_cfref cf);
 	]
 
 and encode_efield f =
-	encode_obj [
-		"name", encode_string f.ef_name;
-		"type", encode_type f.ef_type;
-		"pos", encode_pos f.ef_pos;
-		"namePos", encode_pos f.ef_name_pos;
-		"index", vint f.ef_index;
-		"meta", encode_meta f.ef_meta (fun m -> f.ef_meta <- m);
-		"doc", null encode_string (get_own_doc_opt f.ef_doc);
-		"params", encode_type_params f.ef_params;
-	]
+	encode_shape shape_enum_field [|
+		(* name *) encode_string f.ef_name;
+		(* type *) encode_type f.ef_type;
+		(* pos *) encode_pos f.ef_pos;
+		(* namePos *) encode_pos f.ef_name_pos;
+		(* index *) vint f.ef_index;
+		(* meta *) encode_meta f.ef_meta (fun m -> f.ef_meta <- m);
+		(* doc *) null encode_string (get_own_doc_opt f.ef_doc);
+		(* params *) encode_type_params f.ef_params;
+	|]
 
 and encode_cfield f =
 	encode_obj [
@@ -1361,9 +1409,9 @@ and encode_tclass c =
 		"isAbstract", vbool (has_class_flag c CAbstract);
 		"superClass", (match c.cl_super with
 			| None -> vnull
-			| Some (c,pl) -> encode_obj ["t",encode_clref c;"params",encode_tparams pl]
+			| Some (c,pl) -> encode_shape shape_t_params [| (* t *) encode_clref c; (* params *) encode_tparams pl|]
 		);
-		"interfaces", encode_array (List.map (fun (c,pl) -> encode_obj ["t",encode_clref c;"params",encode_tparams pl]) c.cl_implements);
+		"interfaces", encode_array (List.map (fun (c,pl) -> encode_shape shape_t_params [| (* t *) encode_clref c; (* params *) encode_tparams pl|]) c.cl_implements);
 		"fields", encode_ref () (fun () -> build (); encode_and_map_array encode_cfield (fields c.cl_ordered_fields)) (fun() -> "class fields");
 		"statics", encode_ref () (fun () -> build (); encode_and_map_array encode_cfield (fields c.cl_ordered_statics)) (fun() -> "class fields");
 		"constructor", members (fun () -> match c.cl_constructor with None -> vnull | Some cf -> ignore (fields [cf]); encode_cfref cf);
@@ -1380,10 +1428,10 @@ and encode_ttype t =
 	]
 
 and encode_tanon a =
-	encode_obj [
-		"fields", encode_pmap_array encode_cfield a.a_fields;
-		"status", encode_anon_status !(a.a_status);
-	]
+	encode_shape shape_fields_status [|
+		(* fields *) encode_pmap_array encode_cfield a.a_fields;
+		(* status *) encode_anon_status !(a.a_status);
+	|]
 
 and encode_anon_status s =
 	let tag, pl = (match s with
@@ -1426,11 +1474,10 @@ and encode_type t =
 			3 , [encode_ref t encode_ttype (fun() -> s_type_path t.t_path); encode_tparams pl]
 		| TFun (pl,ret) ->
 			let pl = List.map (fun (n,o,t) ->
-				encode_obj [
-					"name",encode_string n;
-					"opt",vbool o;
-					"t",encode_type t
-				]
+				encode_shape shape_name_opt_t [|
+					(* name *) encode_string n;
+					(* opt *) vbool o;
+					(* t *) encode_type t|]
 			) pl in
 			4 , [encode_array pl; encode_type ret]
 		| TAnon a ->
@@ -1506,10 +1553,10 @@ and encode_tconst c =
 
 and encode_tvar v =
 	let f_extra ve =
-		encode_obj [
-			"params",encode_type_params ve.v_params;
-			"expr",vopt encode_texpr ve.v_expr;
-		]
+		encode_shape shape_params_expr [|
+			(* params *) encode_type_params ve.v_params;
+			(* expr *) vopt encode_texpr ve.v_expr;
+		|]
 	in
 	encode_obj [
 		"id", vint v.v_id;
@@ -1532,23 +1579,20 @@ and encode_module_type mt =
 	encode_enum IModuleType tag pl
 
 and encode_tfunc func =
-	encode_obj [
-		"args",encode_array (List.map (fun (v,c) ->
-			encode_obj [
-				"v",encode_tvar v;
-				"value",match c with None -> vnull | Some c -> encode_texpr c
-			]
+	encode_shape shape_args_t_expr [|
+		(* args *) encode_array (List.map (fun (v,c) ->
+			encode_shape shape_v_value [|
+				(* v *) encode_tvar v;
+				(* value *) match c with None -> vnull | Some c -> encode_texpr c|]
 		) func.tf_args);
-		"t",encode_type func.tf_type;
-		"expr",encode_texpr func.tf_expr
-	]
+		(* t *) encode_type func.tf_type;
+		(* expr *) encode_texpr func.tf_expr|]
 
 and encode_field_access fa =
 	let encode_instance c tl =
-		encode_obj [
-			"c",encode_clref c;
-			"params",encode_tparams tl
-		]
+		encode_shape shape_c_params [|
+			(* c *) encode_clref c;
+			(* params *) encode_tparams tl|]
 	in
 	let tag,pl = match fa with
 		| FInstance(c,tl,cf) -> 0,[encode_clref c;encode_tparams tl;encode_cfref cf]
@@ -1571,10 +1615,10 @@ and encode_texpr e =
 			| TTypeExpr mt -> 5,[encode_module_type mt]
 			| TParenthesis e1 -> 6,[loop e1]
 			| TObjectDecl fl -> 7, [encode_array (List.map (fun ((f,_,_),e) ->
-				encode_obj [
-					"name",encode_string f;
-					"expr",loop e;
-				]) fl)]
+				encode_shape shape_name_expr [|
+					(* name *) encode_string f;
+					(* expr *) loop e;
+				|]) fl)]
 			| TArrayDecl el -> 8,[encode_texpr_list el]
 			| TCall(e1,el) -> 9,[loop e1;encode_texpr_list el]
 			| TNew(c,pl,el) -> 10,[encode_clref c;encode_tparams pl;encode_texpr_list el]
@@ -1593,16 +1637,15 @@ and encode_texpr e =
 				in
 				18,[
 					loop switch_subject;
-					encode_array (List.map (fun case -> encode_obj ["values",encode_texpr_list case.case_patterns;"expr",loop case.case_expr]) switch.switch_cases);
+					encode_array (List.map (fun case -> encode_shape shape_values_expr [| (* values *) encode_texpr_list case.case_patterns; (* expr *) loop case.case_expr|]) switch.switch_cases);
 					vopt encode_texpr switch.switch_default
 				]
 			| TTry(e1,catches) -> 19,[
 				loop e1;
 				encode_array (List.map (fun (v,e) ->
-					encode_obj [
-						"v",encode_tvar v;
-						"expr",loop e
-					]) catches
+					encode_shape shape_v_expr [|
+						(* v *) encode_tvar v;
+						(* expr *) loop e|]) catches
 				)]
 			| TReturn e1 -> 20,[vopt encode_texpr e1]
 			| TBreak -> 21,[]
@@ -1614,11 +1657,10 @@ and encode_texpr e =
 			| TEnumIndex e1 -> 27,[loop e1]
 			| TIdent s -> 28,[encode_string s]
 		in
-		encode_obj [
-			"pos", encode_pos e.epos;
-			"expr", encode_enum ITypedExpr tag pl;
-			"t", encode_type e.etype
-		]
+		encode_shape shape_pos_expr_t [|
+			(* pos *) encode_pos e.epos;
+			(* expr *) encode_enum ITypedExpr tag pl;
+			(* t *) encode_type e.etype|]
 	in
 	loop e
 
@@ -2282,50 +2324,50 @@ let macro_api ccom get_api =
 			let f = prepare_callback f 1 in
 			let gen com js_ctx =
 				Genjs.setup_kwds com;
-				let api = encode_obj [
-					"outputFile", encode_string com.file;
-					"types", encode_array (List.map (fun t -> encode_type (type_of_module_type t)) com.types);
-					"main", (match com.main.main_expr with None -> vnull | Some e -> encode_texpr e);
-					"generateValue", vfun1 (fun v ->
+				let api = encode_shape shape_js_generator_api [|
+					(* outputFile *) encode_string com.file;
+					(* types *) encode_array (List.map (fun t -> encode_type (type_of_module_type t)) com.types);
+					(* main *) (match com.main.main_expr with None -> vnull | Some e -> encode_texpr e);
+					(* generateValue *) vfun1 (fun v ->
 						let e = decode_texpr v in
 						let str = Genjs.gen_single_expr js_ctx e false in
 						encode_string str
 					);
-					"isKeyword", vfun1 (fun v ->
+					(* isKeyword *) vfun1 (fun v ->
 						vbool (Hashtbl.mem Genjs.kwds (decode_string v))
 					);
-					"hasFeature", vfun1 (fun v ->
+					(* hasFeature *) vfun1 (fun v ->
 						vbool (Gctx.has_feature com (decode_string v))
 					);
-					"addFeature", vfun1 (fun v ->
+					(* addFeature *) vfun1 (fun v ->
 						Gctx.add_feature com (decode_string v);
 						vnull
 					);
-					"quoteString", vfun1 (fun v ->
+					(* quoteString *) vfun1 (fun v ->
 						encode_string ("\"" ^ StringHelper.s_escape (decode_string v) ^ "\"")
 					);
-					"buildMetaData", vfun1 (fun t ->
+					(* buildMetaData *) vfun1 (fun t ->
 						match Texpr.build_metadata com.basic (decode_type_decl t) with
 						| None -> vnull
 						| Some e -> encode_texpr e
 					);
-					"generateStatement", vfun1 (fun v ->
+					(* generateStatement *) vfun1 (fun v ->
 						let e = decode_texpr v in
 						let str = Genjs.gen_single_expr js_ctx e true in
 						encode_string str
 					);
-					"setTypeAccessor", vfun1 (fun callb ->
+					(* setTypeAccessor *) vfun1 (fun callb ->
 						let callb = prepare_callback callb 1 in
 						js_ctx.Genjs.type_accessor <- (fun t ->
 							decode_string (callb [encode_type (type_of_module_type t)])
 						);
 						vnull
 					);
-					"setCurrentClass", vfun1 (fun c ->
+					(* setCurrentClass *) vfun1 (fun c ->
 						Genjs.set_current_class js_ctx (match decode_type_decl c with TClassDecl c -> c | _ -> Globals.die "" __LOC__);
 						vnull
 					);
-				] in
+				|] in
 				ignore(f [api]);
 			in
 			let com = ccom() in
@@ -2343,7 +2385,7 @@ let macro_api ccom get_api =
 		);
 		"get_pos_infos", vfun1 (fun p ->
 			let p = decode_pos p in
-			encode_obj ["min",vint (Pos.min p);"max",vint (Pos.max p);"file",encode_string (Pos.file p)]
+			encode_shape shape_min_max_file [| (* min *) vint (Pos.min p); (* max *) vint (Pos.max p); (* file *) encode_string (Pos.file p)|]
 		);
 		"make_position", vfun3 (fun min max file ->
 			encode_pos (Pos.make (decode_string file) (decode_int min) (decode_int max))
@@ -2473,7 +2515,7 @@ let macro_api ccom get_api =
 					match Hashtbl.find_opt type_caches_computed (id,path) with
 					| Some (step',v,deps) when step' = step -> DepRecord.replay deps; Some v
 					| _ -> None
-			) |> (function Some v -> encode_obj ["value",v] | None -> vnull)
+			) |> (function Some v -> encode_shape shape_value [| (* value *) v|] | None -> vnull)
 		);
 		"type_cache_compute", vfun3 (fun id t f ->
 			let mt = try module_type_of_type (decode_type t) with Exit -> (get_api()).exc_string "TypeCache: not a type with a path" in
@@ -2494,7 +2536,7 @@ let macro_api ccom get_api =
 			(* the types of this compilation *)
 			let l = List.filter (fun (_,e) -> match com.module_lut#find_opt e.tc_module.m_path with Some m -> m == e.tc_module | None -> false) l in
 			let l = List.sort (fun (p1,_) (p2,_) -> compare p1 p2) l in
-			encode_array (List.map (fun (_,e) -> encode_obj ["type",encode_type (type_of_module_type e.tc_type);"value",e.tc_value]) l)
+			encode_array (List.map (fun (_,e) -> encode_shape shape_type_value [| (* type *) encode_type (type_of_module_type e.tc_type); (* value *) e.tc_value|]) l)
 		);
 		"build_type", vfun1 (fun v ->
 			let rec loop t = match t with
@@ -2593,7 +2635,7 @@ let macro_api ccom get_api =
 			let te = (api.type_expr (decode_expr e)) in
 			let v_e = encode_expr (api.store_typed_expr te) in
 			let v_to_string () = (s_type (print_context())) te.etype in
-			encode_obj ["expr",v_e;"type",encode_ref te.etype encode_type v_to_string]
+			encode_shape shape_expr_type [| (* expr *) v_e; (* type *) encode_ref te.etype encode_type v_to_string|]
 		);
 		"get_output", vfun0 (fun() ->
 			encode_string (ccom()).file
@@ -2607,25 +2649,25 @@ let macro_api ccom get_api =
 			if p = Globals.null_pos then
 				vnull
 			else
-				encode_obj ["file",encode_string (Pos.file p);"pos",vint (Pos.min p)]
+				encode_shape shape_file_pos [| (* file *) encode_string (Pos.file p); (* pos *) vint (Pos.min p)|]
 		);
 		"get_display_mode", vfun0 (fun() ->
 			encode_display_mode (ccom()).display.dms_kind;
 		);
 		"get_configuration", vfun0 (fun() ->
 			let com = ccom() in
-			encode_obj [
-				"version", vint com.sctx.version.version;
-				"args", encode_array (List.map encode_string (Args.to_raw_args com.parsed_args));
-				"debug", vbool com.debug;
-				"verbose", vbool com.verbose;
-				"foptimize", vbool com.foptimize;
-				"platform", encode_platform com.platform;
-				"platformConfig", encode_platform_config com.config;
-				"stdPath", encode_array (List.map (fun path -> encode_string path#path) com.class_paths#get_std_paths);
-				"mainClass", (match com.main.main_path with None -> vnull | Some path -> encode_path path);
-				"packageRules", encode_string_map encode_package_rule com.package_rules;
-			]
+			encode_shape shape_compiler_configuration [|
+				(* version *) vint com.sctx.version.version;
+				(* args *) encode_array (List.map encode_string (Args.to_raw_args com.parsed_args));
+				(* debug *) vbool com.debug;
+				(* verbose *) vbool com.verbose;
+				(* foptimize *) vbool com.foptimize;
+				(* platform *) encode_platform com.platform;
+				(* platformConfig *) encode_platform_config com.config;
+				(* stdPath *) encode_array (List.map (fun path -> encode_string path#path) com.class_paths#get_std_paths);
+				(* mainClass *) (match com.main.main_path with None -> vnull | Some path -> encode_path path);
+				(* packageRules *) encode_string_map encode_package_rule com.package_rules;
+			|]
 		);
 		"set_platform_configuration", vfun1 (fun v ->
 			(ccom()).config <- decode_platform_config v;
@@ -2728,34 +2770,33 @@ let macro_api ccom get_api =
 		"server_stats", vfun0 (fun () ->
 			let com = ccom() in
 			let stats = com.request_scope.stats in
-			encode_obj [
-				"filesParsed", vint !(stats.s_files_parsed);
-				"modulesTyped", vint !(stats.s_modules_typed);
-				"modulesRestoredFromHxb", vint !(stats.s_modules_restored);
-				"classesBuilt", vint !(stats.s_classes_built);
-				"methodsTyped", vint !(stats.s_methods_typed);
-				"macrosCalled", vint !(stats.s_macros_called);
-			]
+			encode_shape shape_compilation_statistics [|
+				(* filesParsed *) vint !(stats.s_files_parsed);
+				(* modulesTyped *) vint !(stats.s_modules_typed);
+				(* modulesRestoredFromHxb *) vint !(stats.s_modules_restored);
+				(* classesBuilt *) vint !(stats.s_classes_built);
+				(* methodsTyped *) vint !(stats.s_methods_typed);
+				(* macrosCalled *) vint !(stats.s_macros_called);
+			|]
 		);
 		"position_to_range", vfun1 (fun p ->
 			let p = decode_pos p in
 			let l1,c1,l2,c2 = Lexer.get_pos_coords p in
 			let make_pos line character =
-				encode_obj [
-					"line",vint line;
-					"character",vint character;
-				]
+				encode_shape shape_line_character [|
+					(* line *) vint line;
+					(* character *) vint character;
+				|]
 			in
 			let pos_start = make_pos l1 c1 in
 			let pos_end = make_pos l2 c2 in
-			let range = encode_obj [
-				"start",pos_start;
-				"end",pos_end;
-			] in
-			let location = encode_obj [
-				"file",encode_string (Pos.file p);
-				"range",range
-			] in
+			let range = encode_shape shape_start_end [|
+				(* start *) pos_start;
+				(* end *) pos_end;
+			|] in
+			let location = encode_shape shape_file_range [|
+				(* file *) encode_string (Pos.file p);
+				(* range *) range|] in
 			location
 		);
 		"position_to_zero_range", vfun1 (fun p ->
@@ -2766,7 +2807,7 @@ let macro_api ccom get_api =
 			let f = prepare_callback f 1 in
 			(ccom()).callbacks#add_null_safety_report (fun errors warnings ->
 				let encode_item kind (msg,pos) =
-					encode_obj [("type", encode_string kind); ("msg", encode_string msg); ("pos", encode_pos pos)]
+					encode_shape shape_type_msg_pos [| (* type *) encode_string kind; (* msg *) encode_string msg; (* pos *) encode_pos pos|]
 				in
 				let encode_warning (w,msg,pos) =
 					encode_item "warning" (msg,pos)

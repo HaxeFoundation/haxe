@@ -164,6 +164,46 @@ let rec same_names l1 l2 = match l1,l2 with
 	| s1 :: l1,s2 :: l2 -> (s1 == s2 || String.equal s1 s2) && same_names l1 l2
 	| _ -> false
 
+(* The shape of the objects of a site of the macro API (see
+   [MacroApi.InterpApi.obj_shape]): the names of the fields, hashed once, and
+   the prototype and slots for the last context that used it *)
+type obj_shape_cache = {
+	osc_ctx : context;
+	osc_proto : vprototype;
+	osc_slots : int array;
+}
+
+type obj_shape = {
+	os_keys : int list;
+	(* replaced as a whole: a race between domains only computes it again *)
+	mutable os_cache : obj_shape_cache option;
+}
+
+let obj_shape names = { os_keys = List.map hash names; os_cache = None }
+
+let encode_shape shape values =
+	let ctx = get_ctx() in
+	let c = match shape.os_cache with
+		| Some c when c.osc_ctx == ctx ->
+			c
+		| _ ->
+			let proto,sorted = ctx.get_object_prototype ctx (List.map (fun k -> k,()) shape.os_keys) in
+			let sorted = Array.of_list (List.map fst sorted) in
+			let slot k =
+				let rec loop i = if sorted.(i) = k then i else loop (i + 1) in
+				loop 0
+			in
+			let c = { osc_ctx = ctx; osc_proto = proto; osc_slots = Array.of_list (List.map slot shape.os_keys) } in
+			shape.os_cache <- Some c;
+			c
+	in
+	let a = Array.make (Array.length c.osc_slots) vnull in
+	Array.iteri (fun i v -> a.(c.osc_slots.(i)) <- v) values;
+	vobject {
+		ofields = a;
+		oproto = OProto c.osc_proto;
+	}
+
 let encode_obj_s l =
 	let ctx = get_ctx() in
 	let names = List.map fst l in
