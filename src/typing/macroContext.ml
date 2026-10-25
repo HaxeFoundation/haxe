@@ -821,6 +821,8 @@ let create_macro_context com =
 	com2.platform <- Eval;
 	Common.init_platform com2;
 	let mctx = !create_context_ref com2 None in
+	(* as the main context: no parallel typing in display mode *)
+	if com.display.dms_kind <> DMNone then mctx.g.run_parallel <- None;
 	mctx.m.is_display_file <- false;
 	CommonCache.lock_signature com2 "get_macro_context";
 	mctx

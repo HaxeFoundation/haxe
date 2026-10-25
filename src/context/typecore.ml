@@ -123,6 +123,9 @@ type typer_globals = {
 	program : program_queues;
 	(* runs tasks on several domains, with -D parallel-typing *)
 	mutable run_parallel : (stage -> (unit -> unit) array -> unit) option;
+	(* the macro context: it runs parallel batches of its own while it loads a
+	   macro, from a unit of the main context (see [run_parallel_units]) *)
+	mutable nested_parallel : bool;
 	retain_meta : bool;
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;
@@ -646,6 +649,20 @@ let in_unit f =
 	DomainLocal.set unit_depth (DomainLocal.get unit_depth + 1);
 	Std.finally (fun () -> DomainLocal.set unit_depth (DomainLocal.get unit_depth - 1)) f ()
 
+(* The same for the units of the macro context (its own count). *)
+let macro_unit_depth = DomainLocal.make (fun () -> 0)
+
+(* Whether the main context typed in parallel when the current batch of the
+   macro context started: its domain then runs a task of the pool. *)
+let macro_batch_in_pool = ref false
+
+let in_unit_of g f =
+	if g.nested_parallel then begin
+		DomainLocal.set macro_unit_depth (DomainLocal.get macro_unit_depth + 1);
+		Std.finally (fun () -> DomainLocal.set macro_unit_depth (DomainLocal.get macro_unit_depth - 1)) (fun () -> in_unit f) ()
+	end else
+		in_unit f
+
 (* Groups the parallel units [units] by module, in the order of their first unit. *)
 let group_by_module units =
 	let groups = Hashtbl.create 0 in
@@ -697,7 +714,7 @@ let rec run_stages_upto g (p : stage) =
 		) in
 		match next with
 		| `Run f ->
-			in_unit f;
+			in_unit_of g f;
 			loop ()
 		| `Parallel (i,s) ->
 			run_parallel_units g (Obj.magic i) s;
@@ -710,6 +727,8 @@ let rec run_stages_upto g (p : stage) =
 	   of the macros, which its typing is done with *)
 	match g.run_parallel with
 	| None -> loop ()
+	(* the macro context outside of the tasks of its batches: with the claim *)
+	| Some _ when g.nested_parallel && current_queues g = None -> loop ()
 	| Some _ -> TypingLock.protect ~site:"stages" loop
 
 (* Runs the parallel units of a stage: the units of each module in order, the
@@ -725,27 +744,38 @@ and run_parallel_units g stage s =
 		units
 	) in
 	let groups = Array.of_list (group_by_module units) in
+	let can_start =
+		if g.nested_parallel then
+			(* a batch of the macro context starts from the domain loading a
+			   macro, outside of its units and of the tasks of its batches *)
+			current_queues g = None && DomainLocal.get macro_unit_depth = 0
+		else
+			not !TypingLock.active && DomainLocal.get unit_depth = 0
+	in
 	match g.run_parallel with
-	| Some run when not !TypingLock.active && DomainLocal.get unit_depth = 0 && Array.length groups > 1 ->
+	| Some run when can_start && Array.length groups > 1 ->
 		let queues = Array.map (fun _ -> make_program_queues ()) groups in
 		let before = Obj.magic stage - 1 in
 		let task i () =
 			let q = queues.(i) in
 			DomainLocal.set task_queues (Some (g.program,q));
 			Std.finally (fun () -> DomainLocal.set task_queues None) (fun () ->
-				in_unit (fun () -> List.iter (fun f ->
+				in_unit_of g (fun () -> List.iter (fun f ->
 					f ();
 					if before >= 0 then run_stages_upto g (Obj.magic before)
 				) groups.(i))
 			) ()
 		in
+		(* a batch of the macro context can run while the main context types in parallel *)
+		let was_active = !TypingLock.active in
+		if g.nested_parallel then macro_batch_in_pool := was_active;
 		TypingLock.active := true;
 		Std.finally (fun () ->
-			TypingLock.active := false;
+			TypingLock.active := was_active;
 			Array.iter (fun tq -> transfer_queues tq g.program) queues
 		) (run stage) (Array.mapi (fun i _ -> task i) groups)
 	| _ ->
-		Array.iter (fun fl -> in_unit (fun () -> List.iter (fun f -> f ()) fl)) groups
+		Array.iter (fun fl -> in_unit_of g (fun () -> List.iter (fun f -> f ()) fl)) groups
 
 let run_stages g p _where = run_stages_upto g p
 

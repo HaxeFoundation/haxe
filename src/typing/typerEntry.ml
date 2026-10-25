@@ -318,6 +318,63 @@ let run_parallel_tasks com n stage tasks =
 		| None -> ()
 	) results
 
+(* Runs the typing tasks of a batch of the macro context (the modules a macro
+   load brings, see [Typecore.run_parallel_units]): the domain loading the
+   macro, the domains of the pool with nothing to do and the domains waiting
+   for the claim of the macros take the tasks in their order
+   ([Claims.lend_claim]). The exception of the first failed task (in task
+   order) is raised once all are done. *)
+let run_macro_tasks com stage tasks =
+	let n = Array.length tasks in
+	let results = Array.make n None in
+	let next = Atomic.make 0 and finished = Atomic.make 0 in
+	let run i =
+		(* what the domain was doing is suspended: its own task, if any, and
+		   the units it runs *)
+		let queues = DomainLocal.get task_queues and depth = DomainLocal.get unit_depth and mdepth = DomainLocal.get macro_unit_depth in
+		DomainLocal.set unit_depth 0;
+		DomainLocal.set macro_unit_depth 0;
+		Claims.as_batch_task (fun () ->
+			try tasks.(i) () with exc -> results.(i) <- Some (exc,Printexc.get_raw_backtrace ())
+		);
+		DomainLocal.set task_queues queues;
+		DomainLocal.set unit_depth depth;
+		DomainLocal.set macro_unit_depth mdepth;
+		Atomic.incr finished;
+		Claims.notify_done ()
+	in
+	let run_next () =
+		let i = Atomic.fetch_and_add next 1 in
+		if i < n then (run i; true) else false
+	in
+	let rec pull () = if run_next () then pull () in
+	Timer.time com.timer_ctx ["macro";"typing";"in parallel"] (fun () ->
+		(* the typing lock is only released to wait: the tasks need it *)
+		TypingLock.without (fun () ->
+			Claims.lend_claim run_next (fun () ->
+				(* the domains of the pool with nothing to do take tasks too. The
+				   domain loading the macro never waits for them through the
+				   pool (Task.await): it could go on on another domain, whose
+				   domain-local state is not its own *)
+				let pool = Parallel.ManagedPool.acquire com.sctx.pool in
+				let start_pullers () =
+					for _ = 1 to min (n - 1) (Domainslib.Task.get_num_domains pool) do
+						ignore (Domainslib.Task.async pool pull)
+					done;
+					pull ()
+				in
+				if !macro_batch_in_pool then start_pullers ()
+				else Domainslib.Task.run pool start_pullers;
+				(* tasks taken by the domains waiting for the claim *)
+				Claims.wait_done (fun () -> Atomic.get finished = n)
+			)
+		)
+	) ();
+	Array.iter (function
+		| Some (exc,bt) -> Printexc.raise_with_backtrace exc bt
+		| None -> ()
+	) results
+
 let create com macros =
 	Typecore.typer_shuffle := (match Define.defined_value_safe com.defines Define.TyperShuffle with
 		| "" -> None
@@ -332,10 +389,11 @@ let create com macros =
 			program = make_program_queues ();
 			(* with -D fail-fast, the first error stops typing: sequential *)
 			(* on by default, off with -D parallel-typing=0 (see [typing_domains]) *)
-			run_parallel = (let n = typing_domains com in if Parallel.is_enabled () && n > 1 && not com.is_macro_context && com.display.dms_kind = DMNone && not (Common.fail_fast com) then
-				Some (run_parallel_tasks com n)
+			run_parallel = (let n = typing_domains com in if Parallel.is_enabled () && n > 1 && com.display.dms_kind = DMNone && not (Common.fail_fast com) then
+				Some (if com.is_macro_context then run_macro_tasks com else run_parallel_tasks com n)
 			else
 				None);
+			nested_parallel = com.is_macro_context;
 			retain_meta = Common.defined com Define.RetainUntypedMeta;
 			global_using = [];
 			complete = false;

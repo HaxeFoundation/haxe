@@ -40,6 +40,13 @@ let breaks = Array.make 3 0
 (* the waiting domains let through to break a cycle *)
 let let_through : Domain.id list ref = ref []
 
+(* A batch of tasks of the macro context (the typing of the modules a macro
+   load brings, docs/macro-jit.md): its domain lends it the claim of the
+   macros it holds (see [lent]), and the domains waiting for that claim run its
+   tasks instead of sleeping ([help], set by the batch). *)
+let in_batch : bool Domain.DLS.key = Domain.DLS.new_key (fun () -> false)
+let help : (unit -> bool) ref = ref (fun () -> false)
+
 (* Waits, with [mutex] held, until [cond ()] holds, or until let through to
    break a cycle of waiting domains (see [wait_kind]). Tells whether [cond ()]
    holds. [safe ()]: whether going on without [cond ()] reads what a single
@@ -63,7 +70,21 @@ let wait ?(kind=WaitValue) ?(seq=0) ?(safe=(fun () -> false)) ~owner cond =
 		if not (cond () || through ()) then begin
 			TypingTrace.event (fun () -> Printf.sprintf "wait %s for %d" kind_names.(rank kind) (owner :> int));
 			let t = Unix.gettimeofday () in
-			while not (cond () || through ()) do Condition.wait done_ mutex done;
+			while not (cond () || through ()) do
+				(* waiting for the claim of the macros lent to a batch: run its tasks *)
+				let helped = kind = WaitMacros && not (Domain.DLS.get in_batch) && begin
+					(* not waiting while it runs a task: a domain waiting for it
+					   does not close a cycle through its wait *)
+					let entry = List.assoc me !waiting in
+					waiting := List.remove_assoc me !waiting;
+					Mutex.unlock mutex;
+					let r = !help () in
+					Mutex.lock mutex;
+					waiting := (me,entry) :: !waiting;
+					r
+				end in
+				if not helped then Condition.wait done_ mutex
+			done;
 			let k = rank kind in
 			TypingTrace.event (fun () -> "waited " ^ kind_names.(k));
 			waited.(k) <- waited.(k) +. (Unix.gettimeofday () -. t);
@@ -132,6 +153,13 @@ let add_held tbl reason d =
 let macro_owners : macro_owner list ref = ref []
 let claim_seq = ref 0
 
+(* the claim lent to the tasks of a batch (see [in_batch]): a task takes it
+   over (one at a time) when it is on top, the domain that lent it included,
+   so that the macros still run on one domain at a time *)
+let lent : macro_owner option ref = ref None
+
+let is_lent o = Domain.DLS.get in_batch && (match !lent with Some l -> l == o | None -> false)
+
 let held () = Mutex.protect mutex (fun () -> Hashtbl.fold (fun r v acc -> (r,v) :: acc) claim_held [])
 
 (* Takes the claim of the macros (see [macro_owner]), giving what to release. *)
@@ -153,6 +181,8 @@ let take_macro_claim ?(reason="macro") ?(effects=true) () =
 		match !macro_owners with
 		| [] ->
 			take ()
+		| o :: _ when is_lent o ->
+			take ()
 		| o :: _ when o.mo_domain = me ->
 			o.mo_count <- o.mo_count + 1;
 			o
@@ -164,6 +194,7 @@ let take_macro_claim ?(reason="macro") ?(effects=true) () =
 	(* the typing lock is only released to wait *)
 	let o = Mutex.protect mutex (fun () -> match !macro_owners with
 		| [] -> Some (take ())
+		| o :: _ when is_lent o -> Some (take ())
 		| o :: _ when o.mo_domain = me -> o.mo_count <- o.mo_count + 1; Some o
 		| _ -> None
 	) in
@@ -384,3 +415,59 @@ let speculate b f =
 		| v -> if finish () then rerun () else v
 		| exception e -> if finish () then rerun () else raise e
 	end
+
+(* The claim of the macros the current domain holds, lent to the tasks of a
+   batch while [f] runs them ([run_task] runs the next one, if any): the
+   domains waiting for it run tasks too. The speculation state of a domain
+   running a task is its own (a task types what the domain lending the claim
+   would type). *)
+let lend_claim run_task f =
+	let o = Mutex.protect mutex (fun () -> match !macro_owners with
+		| o :: _ when o.mo_domain = Domain.self () && !lent = None -> Some o
+		| _ -> None
+	) in
+	match o with
+	| None ->
+		(* nothing to lend (no claim, or one lent already): the tasks run
+		   on the domains of the batch only *)
+		f ()
+	| Some o ->
+		Mutex.protect mutex (fun () ->
+			lent := Some o;
+			help := run_task;
+			Condition.broadcast done_
+		);
+		Std.finally (fun () -> Mutex.protect mutex (fun () ->
+			lent := None;
+			help := (fun () -> false);
+			Condition.broadcast done_
+		)) f ()
+
+(* Runs [f] as a task of a batch, with the speculation state of a domain
+   that holds no claim, restoring the current one afterwards. *)
+let as_batch_task f =
+	let s = (Domain.DLS.get speculating,Domain.DLS.get speculation_claim,Domain.DLS.get current_reader,
+		Domain.DLS.get speculation_depth,Domain.DLS.get invalidated,Domain.DLS.get speculation_epoch,Domain.DLS.get in_batch) in
+	Domain.DLS.set speculating false;
+	Domain.DLS.set speculation_claim None;
+	Domain.DLS.set current_reader None;
+	Domain.DLS.set speculation_depth 0;
+	Domain.DLS.set invalidated false;
+	Domain.DLS.set in_batch true;
+	let restore () =
+		let (a,b,c,d,e,f,g) = s in
+		Domain.DLS.set speculating a;
+		Domain.DLS.set speculation_claim b;
+		Domain.DLS.set current_reader c;
+		Domain.DLS.set speculation_depth d;
+		Domain.DLS.set invalidated e;
+		Domain.DLS.set speculation_epoch f;
+		Domain.DLS.set in_batch g
+	in
+	Std.finally restore f ()
+
+(* Wakes the domains waiting with [mutex] (a task of a batch is done). *)
+let notify_done () = Mutex.protect mutex (fun () -> Condition.broadcast done_)
+
+(* Waits until [cond ()] holds, with [mutex]. *)
+let wait_done cond = Mutex.protect mutex (fun () -> while not (cond ()) do Condition.wait done_ mutex done)

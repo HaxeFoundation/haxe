@@ -254,7 +254,52 @@ Steps, by expected gain over effort:
    - *Parallel typing of the macro context's bodies during a load*, by the
      domains waiting for it: same results, but a second kind of parallel
      batch, nested in the global one, with its own task distribution and the
-     same ordering of the units as on one domain.
+     same ordering of the units as on one domain. **Chosen, implemented:**
+     - The macro context has a `run_parallel` of its own
+       (`TyperEntry.run_macro_tasks`) and `nested_parallel`: its parallel
+       units (grouped by module, each task with its own queues, merged in task
+       order afterwards, as for the main context) start a batch from the
+       domain loading a macro, outside of the units of the macro context and
+       of the tasks of its batches, while the main context types in parallel
+       or not. Outside of its tasks the macro context runs its stages with
+       the claim of the macros only, as before; inside them, with the typing
+       lock like the tasks of the main context.
+     - The tasks are taken in order by the domain loading the macro, by the
+       domains of the pool with nothing to do (`Task.async`, never awaited:
+       a continuation resumed by the pool can go on on another domain, whose
+       domain-local state is not its own) and by the domains waiting for the
+       claim of the macros (`Claims.wait` runs a task instead of sleeping;
+       the domain is not registered as waiting meanwhile, or the cycle
+       detection sees false cycles and lets a domain take the claim).
+     - The claim of the macros held by the loading domain is lent to the
+       batch (`Claims.lend_claim`): a task that runs a macro takes it over
+       while the lent claim is on top, one task at a time, so that macros
+       still run on one domain at a time. A domain running a task has the
+       speculation state of a domain holding no claim
+       (`Claims.as_batch_task`), restored afterwards.
+     - Not in display mode (the main context does not type in parallel
+       then), nor with `-D parallel-typing=0/1`.
+     - Measured on Heaps `-D apicheck` (4-core machine, so no domain of the
+       pool is idle while the main context types in parallel; median of 7):
+       the claim of the macros held in the `types` stage 0.79 s -> 0.61 s,
+       the domains waiting for the macros 0.69 s -> 0.51 s, for classes
+       being built 0.86 s -> 0.68 s, all macro time 0.73 s -> 0.64 s, the
+       whole compilation 4.55 s -> 4.40 s. With the main context typing on
+       one domain (pool idle), the batches of the macro context take 0.70 s
+       -> 0.48 s. On a machine with more hardware threads than typing
+       domains (22 against 4 on SpaceCraft), the idle domains of the pool
+       take tasks too.
+     - Checked: Heaps output identical with `-D parallel-typing=0,1,2,3,8,16`
+       (two runs each) and for the 43 samples; `tests/unit` (macro, also with
+       `-D parallel-typing=0`, JS), `tests/misc`, `tests/server`,
+       `tests/incremental`, `tests/threads` pass. Warm/cold fuzzing on Heaps
+       (seed 1): one difference, after an error that makes a build macro
+       fail, which is not from this change: the compiler before it reports
+       the same messages, and already reports more errors in cascade on one
+       domain (83, the shaders whose build fails) than on four (35), so the
+       warm compilation (server on one domain) and the cold one differ. To
+       fix separately: the errors reported after a failed build macro must
+       not depend on the number of domains.
    - *Lazy bodies in the macro context*: a body typed on the first call of its
      function (methods are already jitted then), the others typed at the end
      of the compilation so that their errors are still reported (later than
