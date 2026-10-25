@@ -526,8 +526,36 @@ end)
 
 (* [gather_types], with the index of a type found by its shape first (the
    structural comparison of the map only once per shape) *)
-let gather_types_by_shape (code:code) =
-	let types = ref PMap.empty in
+(* the distinct types of a function (ftype, registers, [OType]) in the order of
+   their first use, by shape *)
+let function_types f =
+	let out = DynArray.create () and tbl = ref None in
+	let add t =
+		match t with
+		| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HType | HDynObj | HGUID -> DynArray.add out t
+		| _ ->
+		match !tbl with
+		| Some tbl -> if not (ShapeTbl.mem tbl t) then begin ShapeTbl.add tbl t (); DynArray.add out t end
+		| None ->
+			let n = DynArray.length out in
+			let rec seen i = i < n && (same_shape (DynArray.unsafe_get out i) t || seen (i + 1)) in
+			if not (seen 0) then begin
+				DynArray.add out t;
+				if n >= 32 then begin
+					let h = ShapeTbl.create 64 in
+					DynArray.iter (fun t -> ShapeTbl.replace h t ()) out;
+					tbl := Some h
+				end
+			end
+	in
+	add f.ftype;
+	Array.iter add f.regs;
+	Array.iter (function OType (_,t) -> add t | _ -> ()) f.code;
+	DynArray.to_array out
+
+let gather_types_by_shape ?functions_types (code:code) =
+	(* structurally equal types are one type, as in [gather_types] *)
+	let types = Hashtbl.create 0 in
 	let shapes = ShapeTbl.create 0 in
 	let arr = DynArray.create() in
 	let rec get_type t =
@@ -537,13 +565,13 @@ let gather_types_by_shape (code:code) =
 			| HStruct { psuper = Some p } -> get_type (HStruct p)
 			| HNull t | HRef t -> get_type t
 			| _ -> ());
-			match (try Some (PMap.find t !types) with Not_found -> None) with
+			match Hashtbl.find_opt types t with
 			| Some index ->
 				ShapeTbl.add shapes t index
 			| None ->
 				let index = DynArray.length arr in
 				DynArray.add arr t;
-				types := PMap.add t index !types;
+				Hashtbl.add types t index;
 				ShapeTbl.add shapes t index;
 				match t with
 				| HFun (args, ret) | HMethod (args, ret) ->
@@ -562,15 +590,10 @@ let gather_types_by_shape (code:code) =
 	List.iter (fun t -> get_type t) [HVoid; HUI8; HUI16; HI32; HI64; HF32; HF64; HBool; HType; HDyn]; (* make sure all basic types get lower indexes *)
 	Array.iter (fun g -> get_type g) code.globals;
 	Array.iter (fun (_,_,t,_) -> get_type t) code.natives;
-	Array.iter (fun f ->
-		get_type f.ftype;
-		Array.iter (fun r -> get_type r) f.regs;
-		Array.iter (function
-			| OType (_,t) -> get_type t
-			| _ -> ()
-		) f.code;
-	) code.functions;
-	DynArray.to_array arr, (fun t -> try ShapeTbl.find shapes t with Not_found -> PMap.find t !types)
+	(match functions_types with
+	| Some l -> Array.iter (Array.iter get_type) l
+	| None -> Array.iter (fun f -> Array.iter get_type (function_types f)) code.functions);
+	DynArray.to_array arr, (fun t -> try ShapeTbl.find shapes t with Not_found -> Hashtbl.find types t)
 
 let lookup_type types t =
 	try PMap.find t types with Not_found -> Globals.die "" __LOC__

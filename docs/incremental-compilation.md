@@ -2768,8 +2768,26 @@ takes the same time (1.26–1.30 s against 1.26–1.31 s): the link (0.06–0.08
 is paid by the faster writer. Not measured on SpaceCraft (not available
 here); scaling the fixed costs of Heaps by the number of classes gives about
 1 s for its leaf edit, of which the writer and the link are most: the next
-steps there are a writer that reuses the bytes of the functions whose final
-indexes did not change, and keeping the entry point.
+steps there are keeping the entry point and the enum constructors, and a
+link that starts again from the first object that changed.
+
+**Status: structures and writer.** The structures were cached by
+fingerprint, then by an equality of their OCaml values (positions and
+metadata included): a structure written at several places did not match the
+others of its bucket, each new one was compared to all of them, deeply.
+`tests/unit` on HL spent 10 s in `generate;hl;functions` for that. The
+equality is now on what `to_type` reads (field names, kinds and types,
+declarations by path, type parameters and `hl.Abstract` names physically, as
+their constraints and names give the type), with cycles assumed equal: the
+generation of `tests/unit` takes 0.55 s, and structures equal but for their
+positions are one virtual type (fewer `tovirtual` between equal virtuals; the
+output changed again). The writer gathers the types of each function on the
+domains of the pool, then merges them in order, and merges the structurally
+equal types with a hash table instead of a map (its types 0.044 s -> 0.03 s on
+Heaps; writing the functions is already parallel). Reusing the bytes of the
+functions of a previous write was not done: after an edit that adds a
+constant, the numbers by first use move for every function that comes after,
+so few functions keep their bytes.
 
 ---
 

@@ -309,26 +309,52 @@ let efield_name e f =
 let global_type ctx g =
 	DynArray.get ctx.cglobals.arr g
 
-(* Structural equality, as [compare] gives it, with the closures (of lazy
-   types) equal: two structures typed alike are, whatever the state of the
-   lazy types they reach. The structures of the modules a server keeps from
-   its previous compilation meet those typed again, where [compare] fails. *)
+(* Whether two structures convert to the same HL type: equality on what
+   [to_type] reads (field names, kinds and types, declarations by path, type
+   parameters physically for their constraints), not on positions nor
+   metadata. A structure written at several places is one type; the structures
+   of the modules a server keeps meet those typed again. *)
 let same_anon (a : tanon) (b : tanon) =
-	let rec eq a b =
-		a == b ||
-		Obj.is_block a && Obj.is_block b &&
-		let ta = Obj.tag a in
-		ta = Obj.tag b &&
-		if ta = Obj.closure_tag || ta = Obj.infix_tag then true
-		else if ta < Obj.no_scan_tag && ta <> Obj.forward_tag && ta <> Obj.lazy_tag && ta <> Obj.object_tag then begin
-			let n = Obj.size a in
-			n = Obj.size b &&
-			let rec loop i = i >= n || (eq (Obj.field a i) (Obj.field b i) && loop (i + 1)) in
-			loop 0
-		end else
-			(try compare a b = 0 with Invalid_argument _ -> false)
+	let assumed = ref [] in
+	let rec norm t = match t with
+		| TMono { tm_type = Some t } -> norm t
+		| TLazy f -> norm (lazy_type f)
+		| _ -> t
 	in
-	eq (Obj.repr a) (Obj.repr b)
+	let rec ty t1 t2 =
+		t1 == t2 ||
+		let t1 = norm t1 and t2 = norm t2 in
+		t1 == t2 ||
+		match t1, t2 with
+		| TMono _, TMono _ | TDynamic _, TDynamic _ -> true
+		| TInst (c1,l1), TInst (c2,l2) ->
+			(match c1.cl_kind, c2.cl_kind with
+			| (KTypeParameter _ | KExpr _), _ | _, (KTypeParameter _ | KExpr _) -> c1 == c2
+			| _ -> c1.cl_path = c2.cl_path) && params l1 l2
+		| TEnum (e1,l1), TEnum (e2,l2) -> e1.e_path = e2.e_path && params l1 l2
+		| TType (d1,l1), TType (d2,l2) -> d1.t_path = d2.t_path && params l1 l2
+		| TAbstract (a1,l1), TAbstract (a2,l2) -> a1.a_path = a2.a_path && params l1 l2
+		| TFun (args1,r1), TFun (args2,r2) ->
+			(try List.for_all2 (fun (_,o1,t1) (_,o2,t2) -> o1 = o2 && ty t1 t2) args1 args2 with Invalid_argument _ -> false) && ty r1 r2
+		| TAnon a1, TAnon a2 -> anon a1 a2
+		| _ -> false
+	and params l1 l2 = try List.for_all2 ty l1 l2 with Invalid_argument _ -> false
+	and anon a1 a2 =
+		a1 == a2 || List.exists (fun (x,y) -> x == a1 && y == a2) !assumed ||
+		(match !(a1.a_status), !(a2.a_status) with
+		| ClassStatics c1, ClassStatics c2 -> c1.cl_path = c2.cl_path
+		| EnumStatics e1, EnumStatics e2 -> e1.e_path = e2.e_path
+		| (ClassStatics _ | EnumStatics _), _ | _, (ClassStatics _ | EnumStatics _) -> false
+		| _ ->
+			let method_kind cf = match cf.cf_kind with Method (MethNormal | MethInline) -> true | _ -> false in
+			assumed := (a1,a2) :: !assumed;
+			PMap.fold (fun _ n -> n + 1) a1.a_fields 0 = PMap.fold (fun _ n -> n + 1) a2.a_fields 0 &&
+			PMap.foldi (fun name cf1 acc -> acc && match PMap.find name a2.a_fields with
+				| cf2 -> method_kind cf1 = method_kind cf2 && ty cf1.cf_type cf2.cf_type
+				| exception Not_found -> false
+			) a1.a_fields true)
+	in
+	anon a b
 
 let find_anon cache key a =
 	let rec loop = function
@@ -4632,9 +4658,19 @@ let write_index_gen b i =
 (* Where the domain writing a part of the functions writes (see [write_code]). *)
 let parallel_byte : (int -> unit) option Domain.DLS.key = Domain.DLS.new_key (fun () -> None)
 
-let write_code ?pool ch code debug =
-
-	let all_types, type_index = gather_types_by_shape code in
+let write_code ?timer ?pool ch code debug =
+	let timer name = match timer with Some t -> t ["generate";"hl";"write";name] | None -> (fun () -> ()) in
+	let t = timer "types" in
+	(* the types of each function on the domains of the pool, then in order *)
+	let functions_types = match pool with
+		| Some pool when Array.length code.functions > 1024 ->
+			let a = LargeArray.make_non_float (Array.length code.functions) in
+			Domainslib.Task.parallel_for pool ~chunk_size:64 ~start:0 ~finish:(Array.length a - 1) ~body:(fun i -> Array.unsafe_set a i (function_types code.functions.(i)));
+			Some a
+		| _ -> None
+	in
+	let all_types, type_index = gather_types_by_shape ?functions_types code in
+	t();
 	let byte_ch = IO.write_byte ch in
 	let byte b = match Domain.DLS.get parallel_byte with Some f -> f b | None -> byte_ch b in
 	let write_index = write_index_gen byte in
@@ -4911,6 +4947,7 @@ let write_code ?pool ch code debug =
 	in
 	(* the functions are written by parts on the domains of the pool, each to
 	   a string, then in their order *)
+	let t = timer "functions" in
 	(match pool with
 	| Some pool when Array.length code.functions > 1024 ->
 		let n = Array.length code.functions and chunk = 256 in
@@ -4926,6 +4963,7 @@ let write_code ?pool ch code debug =
 		Array.iter (IO.nwrite_string ch) parts
 	| _ ->
 		Array.iter write_function code.functions);
+	t();
 	Array.iter (fun (g,fields) ->
 		write_index g;
 		write_index (Array.length fields);
@@ -5223,7 +5261,7 @@ let prev_sign = ref "" and prev_data = ref ""
 
 let write_bytecode com code =
 	let ch = IO.output_string() in
-	Parallel.run_with_pool com.pool (fun pool -> write_code ?pool ch code (not (Gctx.raw_defined com "hl_no_debug")));
+	Parallel.run_with_pool com.pool (fun pool -> write_code ~timer:(Timer.start_timer com.timer_ctx) ?pool ch code (not (Gctx.raw_defined com "hl_no_debug")));
 	IO.close_out ch
 
 let generate com =
