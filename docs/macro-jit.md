@@ -308,6 +308,9 @@ Steps, by expected gain over effort:
        is called, whatever the order), one calling what failed to type fails
        when it calls it. The same error in Heaps now gives the two messages
        of the error itself, whatever the order and the number of domains.
+       Warm/cold fuzzing on Heaps after the fix: seed 5 (server on 8
+       domains, 25 edits, the two differences it found before) and seed 1
+       (server on 1 domain, 30 edits): no difference.
    - *Lazy bodies in the macro context*: a body typed on the first call of its
      function (methods are already jitted then), the others typed at the end
      of the compilation so that their errors are still reported (later than
