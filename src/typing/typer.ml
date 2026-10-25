@@ -929,7 +929,7 @@ and type_new ctx ptp el with_type force_inline p =
 		let cf = fa.fa_field in
 		(* an inline constructor is inlined after typing (InlineConstructors) *)
 		if !DepRecord.enabled && (fa.fa_inline || (match cf.cf_kind with Method MethInline -> true | _ -> false)) then
-			(match fa.fa_host with FHInstance(c,_) | FHStatic c | FHAbstract(_,_,c) -> DepRecord.record_field c cf "inline" | FHAnon -> ());
+			(match fa.fa_host with FHInstance(c,_) | FHStatic c -> DepRecord.record_inline_constructor c cf | FHAbstract(_,_,c) -> DepRecord.record_field c cf "inline" | FHAnon -> ());
 		no_abstract_constructor c p;
 		begin match cf.cf_kind with
 			| Var { v_read = AccRequire (r,msg) } -> (match msg with Some msg -> raise_typing_error msg p | None -> error_require r p)

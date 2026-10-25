@@ -651,12 +651,18 @@ end
 
 let rec type_inline (ictx : inline_context) cf f ethis params tret config p ?(self_calling_closure=false) force =
 	(* the inlined body is not typed again: what it reads of the @:generic
-	   instances (not part of the dependency graph) is read by the caller too *)
+	   instances (not part of the dependency graph), and the inline
+	   constructors it calls, inlined in the caller, are read by the caller too *)
 	if !DepRecord.enabled then begin
 		let generic c = match c.cl_kind with KGenericInstance _ -> DepRecord.record_generic_instance c | _ -> () in
 		let rec loop e =
 			(match e.eexpr with
-			| TNew (c,_,_) | TTypeExpr (TClassDecl c) -> generic c
+			| TNew (c,_,_) ->
+				generic c;
+				(match c.cl_constructor with
+				| Some ({cf_kind = Method MethInline} as cf) -> DepRecord.record_inline_constructor c cf
+				| _ -> ())
+			| TTypeExpr (TClassDecl c) -> generic c
 			| TField (_,(FInstance (c,_,_) | FStatic (c,_) | FClosure (Some (c,_),_))) -> generic c
 			| _ -> ());
 			Type.iter loop e

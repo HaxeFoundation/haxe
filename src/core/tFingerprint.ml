@@ -503,6 +503,9 @@ let has_inline_body c cf =
 	match cf.cf_kind with
 	| Method (MethInline | MethMacro) | Var { v_read = AccInline } -> true
 	| _ when has_class_field_flag cf CfGeneric -> true
+	(* the initial value of an instance variable is copied where an inline
+	   constructor of its class, or of a class extending it, is inlined *)
+	| Var _ when not (has_class_field_flag cf CfStatic) -> true
 	(* the default values of the arguments of the constructor of a
 	   [@:structInit] class are copied where a structure declares an instance *)
 	| _ when (match c.cl_constructor with Some cf' -> cf' == cf | None -> false) && Meta.has Meta.StructInit c.cl_meta -> true

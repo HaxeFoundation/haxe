@@ -131,6 +131,24 @@ let record_generic_instance c = add (DKey(s_type_path c.cl_module.m_path,"generi
 let record_field c cf node = if !enabled && DomainLocal.get current <> None then match c.cl_kind with
 	| KGenericInstance _ -> record_generic_instance c
 	| _ -> add (DField(c,cf,node))
+(* An inline constructor is inlined after typing (InlineConstructors) with the
+   instance variables of its class and of the classes it extends, and their
+   initial values: what is inlined depends on them too. *)
+let record_inline_constructor c cf = if !enabled && DomainLocal.get current <> None then begin
+	record_field c cf "inline";
+	let rec loop c =
+		record_type c.cl_path "members";
+		(* an initial value may not be typed yet *)
+		List.iter (fun f -> match f.cf_kind with
+			| Var _ -> record_field c f "inline"
+			| _ -> ()
+		) c.cl_ordered_fields;
+		match c.cl_super with
+		| Some (c,_) -> loop c
+		| None -> ()
+	in
+	loop c
+end
 let record_lookup path = if !enabled && DomainLocal.get current <> None then add (DType(path,"lookup"))
 let record_absent path name static = if !enabled && DomainLocal.get current <> None then add (DAbsent(path,name,static))
 
