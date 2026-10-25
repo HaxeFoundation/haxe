@@ -2587,7 +2587,8 @@ the forced minor collections (section 4b, item 8), the step takes 0.12 s.
 The next step is item 1, so that the code generation itself (`generate;hl;
 functions` in `--times`, 0.9 s of the 1.3 s left) is per function.
 
-**Status: item 1, first step (generation memo, server only).** Instead of
+**Status: item 1, first step (generation memo, server only; replaced by the
+linker, see the last status below).** Instead of
 symbolic operands, the generation of each class is recorded and replayed
 (`genhl.ml`, "generation memo"):
 
@@ -2704,6 +2705,71 @@ carry enough to tell which of its types changed layout (its protos and enum
 constructors), so that the delta can say so instead of the VM comparing every
 type; the canonical order of step 2 must not be needed by the delta (a delta
 only refers by key).
+
+**Status: steps 1 and 2 done (objects and linker, `genhl.ml`, "objects and
+linker").** The replay of the generation memo (events, mapper) is removed.
+
+- *Objects.* The generation of a class produces an object: its functions,
+  optimized, the natives it declares and the warnings it emitted. The
+  operands are the symbols of the generation context: the indexes of its
+  tables of strings, ints, floats and bytes (by value), of functions (by
+  `(name, path)`), of globals (by name, or by value for constants) and of
+  debug files (by name). A table only grows and keeps the key of every index
+  for the lifetime of the context, which the server keeps with the objects;
+  the HL types are the types of the context, built once, holding symbols as
+  well. The linker never reads the order of the symbols, so a symbol is a key.
+  What depended on the other classes or on the order of the generation is
+  named after its owner: local functions are `#k` and method wrappers `#wk`
+  of their class (a class generates its own wrappers; hl2c numbers the
+  wrappers of the same type), an enum constructor used as a value is the
+  function of the constructor, and the functions of the enum constructors are
+  generated again at every link from the current enums (their positions are
+  not part of the declarations compared). An object records the names of the
+  HL types of its class (instances and statics) for the delta of step 3.
+- *What is kept.* The context and the objects are kept when the declarations,
+  defines and resources are the same (the rules of the memo); a class is
+  generated again when its body changed (same rules) or when the lexer read
+  one of its debug files again (its lines may have moved). The entry point is
+  generated at every compilation. Found on the way: the declarations compared
+  did not see a changed constraint of a type parameter (retyping updates the
+  parameter in place, and its previous fingerprint was computed lazily from
+  it, `inference/generic-constraint` on HL); the constraints are captured.
+- *Linker* (cold and warm builds). The symbols of the objects (each in the
+  order of its first use) are listed once per object, in parallel; one
+  sequential pass walks the objects in the order of the types (the entry
+  point last) and numbers every table by first use, then what the symbols
+  use (types, globals and their types, constants, natives, the enum
+  constructors called); `""` is string 0. Functions are numbered by their
+  position (objects in order, then the enum constructors used), natives after,
+  sorted by library. The types are copied with the final indexes, the
+  functions remapped in parallel, then the existing writer runs. First use was
+  kept over sorting by key: the walk is linear, and the cost is in the tables
+  of types, whose lookups are by shape (the same constructors with the same
+  class, virtual and enum records): hashing types structurally and comparing
+  them physically put the many equal boxes (`HNull i32`...) in one bucket
+  (walk and types 0.1 s -> 0.03 s). The writer also finds a type by its shape
+  before the structural map (write 0.15 s -> 0.09 s).
+- *Checks.* `-D hl-memo-check` compares the bytes written by the warm
+  generation with those of a generation from scratch in the same compilation
+  (dumps `.memo.txt`/`.cold.txt` on a difference). The output is identical with
+  `-D typer-shuffle` and any `-D parallel-typing`; two fuzzing runs of Heaps on
+  HL (seeds 1 and 2, 86 compilations) found no difference; `tests/unit` passes
+  on HL (JIT and HL/C, as before), `tests/incremental --add-target hl` fails
+  only the 4 cases that expect `out/main.js` (5 before, see above), the server
+  tests as before. The output changed once compared to the previous compiler
+  (table order, a debug file for positions without file).
+
+Heaps (`-D apicheck`, server, a body edit of `h3d.scene.Object`, 3 of 1126
+classes generated again): the HL generation takes 0.22–0.40 s instead of
+0.79–0.88 s (the classes 0.04–0.1 s, declarations 0.03–0.04 s, entry point
+and enum constructors 0.03 s, link 0.05–0.07 s, write 0.1–0.2 s), the
+compilation 0.73–0.94 s instead of 1.33–1.47 s. Cold (CLI) the generation
+takes the same time (1.26–1.30 s against 1.26–1.31 s): the link (0.06–0.08 s)
+is paid by the faster writer. Not measured on SpaceCraft (not available
+here); scaling the fixed costs of Heaps by the number of classes gives about
+1 s for its leaf edit, of which the writer and the link are most: the next
+steps there are a writer that reuses the bytes of the functions whose final
+indexes did not change, and keeping the entry point.
 
 ---
 
