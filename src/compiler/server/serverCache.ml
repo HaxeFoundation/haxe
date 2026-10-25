@@ -143,11 +143,6 @@ let get_changed_directories sctx com =
 let get_changed_directories sctx com =
 	Timer.time com.Common.timer_ctx ["server";"module cache";"changed dirs"] (get_changed_directories sctx) com
 
-(* Modules are kept in memory, fully typed: partial typing only applied to
-   modules decoded from the hxb cache, which the server no longer uses. *)
-let get_typing_mode com m_extra =
-	FullTyping
-
 (* The file a lookup of module [path] finds, "" if none (query graph, phase 6). *)
 (* Phase 6: a body that the previous compilation typed, of a module typed
    again, is kept when its computation is still valid. *)
@@ -394,7 +389,7 @@ let check_module sctx com m_path m_extra p =
 				check_module_path();
 				if List.mem VolatileMacro m_extra.m_check_policy && Common.volatile_changed m_path m_extra then raise (Dirty (ReadChanged "volatile macro"));
 				if not (has_policy NoFileSystemCheck) || Path.file_extension (Path.UniqueKey.lazy_path m_extra.m_file) <> "hx" then check_file();
-				if (get_typing_mode com m_extra) = FullTyping && not (Define.defined com.defines Define.IncrementalRetypeChangedOnly) then check_dependencies();
+				if not (Define.defined com.defines Define.IncrementalRetypeChangedOnly) then check_dependencies();
 				None
 			with
 			| Dirty reason ->
@@ -468,114 +463,6 @@ let check_module sctx com m_path m_extra p =
 	end;
 	state
 
-let get_hxb_module com cc path typing_mode =
-	try
-		let mc = cc#get_hxb_module path in
-		match get_typing_mode com mc.mc_extra with
-			| AllowPartialTyping ->
-				mc.mc_extra.m_cache_state <- MSGood;
-				BinaryModule mc
-			| FullTyping ->
-				begin match mc.mc_extra.m_cache_state with
-					| MSBad reason when typing_mode = AllowPartialTyping -> BadBinaryModule (mc, reason)
-					| MSBad reason -> BadModule reason
-					| _ -> BinaryModule mc
-				end
-	with Not_found ->
-		NoModule
-
-class hxb_reader_api_server
-	(com : Common.context)
-	(cc : context_cache)
-	(delay : ProgramStage.stage -> (unit -> unit) -> unit)
-= object(self)
-
-	method make_module (path : path) (file : string) =
-		let mc = cc#get_hxb_module path in
-		{
-			m_id = mc.mc_id;
-			m_path = path;
-			m_types = [];
-			m_statics = None;
-			(* Creating a new m_extra because if we keep the same reference, display requests *)
-			(* can alter it with bad data (for example adding dependencies that are not cached) *)
-			m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps; m_display_deps = None }
-		}
-
-	method add_module (m : module_def) =
-		com.module_lut#add m.m_path m
-
-	method resolve_type (pack : string list) (mname : string) (tname : string) full_restore =
-		let path = (pack,mname) in
-		let m = self#resolve_module path full_restore in
-		List.find (fun t -> snd (t_path t) = tname) m.m_types
-
-	method resolve_module (path : path) full_restore =
-		match self#find_module path full_restore with
-		| GoodModule m ->
-			m
-		| BinaryModule mc ->
-			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
-			let typing_mode = get_typing_mode com mc.mc_extra in
-			let f_next chunks until =
-				let macro = if com.is_macro_context then " (macro)" else "" in
-				let f  = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until in
-				Timer.time com.timer_ctx ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] f typing_mode
-			in
-
-			let m,chunks = f_next mc.mc_chunks EOT in
-
-			(* We try to avoid reading expressions as much as possible, so we only do this for
-				 our current display file if we're in display mode. *)
-			(match typing_mode with
-			| FullTyping -> ignore(f_next chunks EOM)
-			| AllowPartialTyping -> delay StageMembers (fun () -> ignore(f_next chunks EOF)));
-			incr com.request_scope.stats.s_modules_restored;
-			m
-		| BadBinaryModule (mc, reason) ->
-			let reader = new HxbReader.hxb_reader path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
-			let typing_mode = get_typing_mode com mc.mc_extra in
-			let f_next chunks until =
-				let macro = if com.is_macro_context then " (macro)" else "" in
-				let f  = reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) chunks until in
-				Timer.time com.timer_ctx ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] f full_restore
-			in
-
-			let m,chunks = f_next mc.mc_chunks EOT in
-			m.m_extra.m_cache_state <- MSBad reason;
-
-			(* We try to avoid reading expressions as much as possible, so we only do this for
-				 our current display file if we're in display mode. *)
-			(match typing_mode with
-			| FullTyping -> ignore(f_next chunks EOM)
-			| AllowPartialTyping -> delay StageMembers (fun () -> ignore(f_next chunks EOF)));
-			incr com.request_scope.stats.s_modules_restored;
-			m
-		| BadModule reason ->
-			die (Printf.sprintf "Unexpected BadModule %s (%s)" (s_type_path path) (Printer.s_module_skip_reason reason)) __LOC__
-		| NoModule ->
-			die (Printf.sprintf "Unexpected NoModule %s" (s_type_path path)) __LOC__
-
-	method find_module (m_path : path) typing_mode =
-		try
-			GoodModule (com.module_lut#find m_path)
-		with Not_found -> get_hxb_module com cc m_path typing_mode
-
-	method basic_types =
-		com.basic
-
-	method get_var_id (i : int) =
-		i
-
-	method read_expression_eagerly (cf : tclass_field) =
-		true
-
-	method make_lazy_type t f =
-		let r = make_unforced_lazy t f "server-api" in
-		delay StageChecks (fun () -> ignore(lazy_type r));
-		TLazy r
-end
-
 let handle_cache_bound_objects com cbol =
 	DynArray.iter (function
 		| Resource(name,data) ->
@@ -588,7 +475,7 @@ let handle_cache_bound_objects com cbol =
 
 (* Adds module [m] and all its dependencies (recursively) from the cache to the current compilation
    context. *)
-let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : pos) =
+let rec add_modules sctx com delay (m : module_def) (p : pos) =
 	let own_sign = CommonCache.get_cache_sign com in
 	let rec add_modules tabs m0 m =
 		if m.m_extra.m_cache_state <> MSGood then begin
@@ -611,12 +498,8 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 				List.iter (fun t ->
 					(t_infos t).mt_restore()
 				) m.m_types;
-				(* The main module gets added when reading hxb already, so let's not add it again. Note that we
-				   can't set its m_added ahead of time because we want the rest of the logic here to run. *)
-				if not from_binary then
-					com.module_lut#add m.m_path m;
+				com.module_lut#add m.m_path m;
 				handle_cache_bound_objects com m.m_extra.m_cache_bound_objects;
-				let typing_mode = get_typing_mode com m.m_extra in
 				PMap.iter (fun _ mdep ->
 					let mpath = mdep.md_path in
 					if mdep.md_sign = own_sign then begin
@@ -626,15 +509,8 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 							match type_module sctx com delay mpath p with
 							| GoodModule m ->
 								Some m
-							| BinaryModule mc ->
-								failwith (Printf.sprintf "Unexpectedly found unresolved binary module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
 							| NoModule ->
 								failwith (Printf.sprintf "Unexpectedly could not find module %s as a dependency of %s" (s_type_path mpath) (s_type_path m0.m_path))
-							| BadBinaryModule (_, reason) | BadModule reason when typing_mode = AllowPartialTyping ->
-								com.warning WIgnoredBadModule com.warning_options (Printf.sprintf "Ignored bad dependency %s (%s) of %s" (s_type_path m.m_path) (Printer.s_module_skip_reason reason) (s_type_path m0.m_path)) p;
-								None
-							| BadBinaryModule (_, reason) ->
-								failwith (Printf.sprintf "Unexpected bad hxb module %s (%s) as a dependency of %s" (s_type_path mpath) (Printer.s_module_skip_reason reason) (s_type_path m0.m_path))
 							| BadModule _ ->
 								(* a module can be valid although a module it depends on is not,
 								   when what it read from it did not change (phase 6): that one
@@ -644,7 +520,7 @@ let rec add_modules sctx com delay (m : module_def) (from_binary : bool) (p : po
 						in
 						Option.may (fun m2 -> add_modules (tabs ^ "  ") m0 m2) m2
 					end
-				) (if typing_mode = FullTyping then m.m_extra.m_deps else Option.default m.m_extra.m_deps m.m_extra.m_display_deps)
+				) m.m_extra.m_deps
 			)
 		end
 	in
@@ -659,8 +535,8 @@ and type_module sctx com delay mpath p =
 		ServerMessage.skipping_dep com "" (m_path,(fun () -> Printer.s_module_skip_reason reason));
 		BadModule reason
 	in
-	let add_modules from_binary m =
-		Timer.time com.timer_ctx ["server";"module cache";"add modules"] (add_modules sctx com delay m from_binary) p;
+	let add_modules m =
+		Timer.time com.timer_ctx ["server";"module cache";"add modules"] (add_modules sctx com delay m) p;
 		GoodModule m
 	in
 	let check_module sctx m_path m_extra p =
@@ -673,7 +549,7 @@ and type_module sctx com delay mpath p =
 				| MSBad reason -> BadModule reason
 				| _ -> GoodModule m
 			end;
-		with Not_found -> get_hxb_module com cc m_path FullTyping
+		with Not_found -> NoModule
 	in
 	(* Should not raise anything! *)
 	let m = match find_module_in_cache cc mpath p with
@@ -682,45 +558,10 @@ and type_module sctx com delay mpath p =
 			   in the cache. The true cache state will be known after check_module. *)
 			begin match check_module sctx mpath m.m_extra p with
 				| None ->
-					add_modules false m;
+					add_modules m;
 				| Some reason ->
 					skip m.m_path reason
 			end
-		| BinaryModule mc ->
-			(* Similarly, we only know that a binary module wasn't explicitly tainted. Decode it only after
-			   checking dependencies. This means that the actual decoding never has any reason to fail. *)
-			begin match check_module sctx mpath mc.mc_extra p with
-				| None ->
-					let reader = new HxbReader.hxb_reader mpath com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
-					let typing_mode = get_typing_mode com mc.mc_extra in
-					let api = match com.hxb_reader_api with
-						| Some api ->
-							api
-						| None ->
-							let api = (new hxb_reader_api_server com cc delay :> HxbReaderApi.hxb_reader_api) in
-							com.hxb_reader_api <- Some api;
-							api
-					in
-					let f_next chunks until =
-						let macro = if com.is_macro_context then " (macro)" else "" in
-						Timer.time com.timer_ctx ["server";"module cache";"hxb read" ^ macro;"until " ^ (string_of_chunk_kind until)] (reader#read_chunks_until api chunks until) typing_mode
-					in
-
-					let m,chunks = f_next mc.mc_chunks EOT in
-
-					(* We try to avoid reading expressions as much as possible, so we only do this for
-					   our current display file if we're in display mode. *)
-					(match typing_mode with
-					| FullTyping -> ignore(f_next chunks EOM)
-					| AllowPartialTyping -> delay StageMembers (fun () -> ignore(f_next chunks EOF)));
-					incr com.request_scope.stats.s_modules_restored;
-					add_modules true m;
-				| Some reason ->
-					skip mpath reason
-			end
-		| BadBinaryModule (_, reason) ->
-			(* A BadModule state here means that the module is already invalidated in the cache, e.g. from server/invalidate. *)
-			skip mpath reason
 		| BadModule reason ->
 			(* A BadModule state here means that the module is already invalidated in the cache, e.g. from server/invalidate. *)
 			skip mpath reason
@@ -745,7 +586,6 @@ let cleanup sctx =
 	| None ->
 		()
 	end;
-	sctx.cs#clear_temp_cache;
 	(* Remove context caches that haven't been accessed within the max age window.
 	   This prevents unbounded accumulation of stale contexts when compilation defines
 	   change between requests, generating new cache signatures each time. *)

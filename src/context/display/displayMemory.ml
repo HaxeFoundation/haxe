@@ -126,8 +126,9 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 				"size",jint (mem_size cache_mem.(1));
 				"list",jarray l;
 			];
+			(* kept for the protocol: the server no longer has a binary cache *)
 			"binaryCache",jobject [
-				"size",jint (mem_size cache_mem.(2));
+				"size",jint 0;
 			];
 		]
 	| MModule(sign,path) ->

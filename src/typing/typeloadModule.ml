@@ -850,9 +850,7 @@ and load_module' com g m p =
 			List.iter (fun (_,path) -> ignore(load_module' com g path p)) (List.rev mine);
 			Atomic.set m.m_extra.m_ready true;
 			m
-		| BinaryModule _ ->
-			die "" __LOC__ (* The server builds those *)
-		| NoModule | BadModule _ | BadBinaryModule _ -> try
+		| NoModule | BadModule _ -> try
 			let m = load_hxb_module com g m p in
 			Atomic.set m.m_extra.m_ready true;
 			m

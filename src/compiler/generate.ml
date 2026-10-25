@@ -4,8 +4,6 @@ open ParsedArg
 open TType
 open Tanon_identification
 
-exception Missing_hxb_module
-
 let check_auxiliary_output com actx =
 	begin match actx.xml_out with
 		| None -> ()
@@ -34,30 +32,16 @@ let create_writer com config =
 		IO.close_out out
 	)
 
-let export_hxb from_cache com config cc platform m =
-	let open HxbData in
+let export_hxb com config platform m =
 	match m.m_extra.m_kind with
 		| MCode | MMacro | MFake | MExtern -> begin
 			(* Printf.eprintf "Export module %s\n" (s_type_path m.m_path); *)
 			let l = platform :: (fst m.m_path @ [snd m.m_path]) in
 			let path = (String.concat "/" l) ^ ".hxb" in
-
-			if from_cache then begin
-				let hxb_cache = try cc#get_hxb_module m.m_path with Not_found -> raise Missing_hxb_module in
-				let out = IO.output_string () in
-				write_header out;
-				List.iter (fun (kind,data) ->
-					write_chunk_prefix kind (Bytes.length data) out;
-					IO.nwrite out data
-				) hxb_cache.mc_chunks;
-				let data = IO.close_out out in
-				Some (path,data)
-			end else begin
-				let writer,close = create_writer com config in
-				HxbWriter.write_module writer m;
-				let bytes = close () in
-				Some (path,bytes)
-			end
+			let writer,close = create_writer com config in
+			HxbWriter.write_module writer m;
+			let bytes = close () in
+			Some (path,bytes)
 		end
 	| _ ->
 		None
@@ -67,19 +51,18 @@ let check_hxb_output com config =
 	let match_path_list l sl_path =
 		List.exists (fun sl -> Ast.match_path true sl_path sl) l
 	in
-	let try_write from_cache =
+	let write () =
 		let path = config.HxbWriterConfig.archive_path in
 		let path = Str.global_replace (Str.regexp "\\$target") (platform_name com.platform) path in
 		let t = Timer.start_timer com.timer_ctx ["generate";"hxb"] in
 		Path.mkdir_from_path path;
 		let zip = new Zip_output.zip_output path 0 in
 		let export com config =
-			let cc = CommonCache.get_cache com in
 			let target = Common.platform_name_macro com in
 			let f m =
 				let sl_path = fst m.m_path @ [snd m.m_path] in
 				if not (match_path_list config.exclude sl_path) || match_path_list config.include' sl_path then
-					Timer.time com.timer_ctx ["generate";"hxb";s_type_path m.m_path] (export_hxb from_cache com config cc target) m
+					Timer.time com.timer_ctx ["generate";"hxb";s_type_path m.m_path] (export_hxb com config target) m
 				else
 					None
 			in
@@ -112,9 +95,7 @@ let check_hxb_output com config =
 		) ()
 	in
 	try
-		(* This case shouldn't happen, unless some modules are not stored in hxb cache (which should not be the case currently) *)
-		if com.sctx.is_server then try try_write true with Missing_hxb_module -> try_write false
-		else try_write false
+		write ()
 	with Sys_error s ->
 		com.error (Printf.sprintf "Could not write to %s: %s" config.archive_path s) null_pos
 

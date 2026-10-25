@@ -698,8 +698,8 @@ let generate_module modules find_module m =
 		"dependents",jarray (List.map (fun (path, sign) -> (jobject [
 			"path",jstring (s_type_path path);
 			"sign",jstring (Digest.to_hex sign);
-		])) (Hashtbl.fold (fun _ (m':HxbData.module_cache) acc ->
-			if PMap.mem m.m_id m'.mc_extra.m_deps then (m'.mc_path, m'.mc_extra.m_sign) :: acc
+		])) (Hashtbl.fold (fun _ m' acc ->
+			if PMap.mem m.m_id m'.m_extra.m_deps then (m'.m_path, m'.m_extra.m_sign) :: acc
 			else acc
 		) modules []));
 	]

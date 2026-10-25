@@ -56,13 +56,6 @@ type chunk_kind =
 type cached_chunk = chunk_kind * bytes
 type cached_chunks = cached_chunk list
 
-type module_cache = {
-	mc_path : path;
-	mc_id : int;
-	mc_chunks : cached_chunks;
-	mc_extra : module_def_extra;
-}
-
 type typing_mode =
 	| FullTyping
 	| AllowPartialTyping

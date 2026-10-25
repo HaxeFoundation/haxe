@@ -2078,22 +2078,6 @@ class hxb_reader
 		end;
 		close()
 
-	method read_chunks (new_api : hxb_reader_api) (chunks : cached_chunks) =
-		fst (self#read_chunks_until new_api chunks EOM FullTyping)
-
-	method read_chunks_until (new_api : hxb_reader_api) (chunks : cached_chunks) end_chunk typing_mode' =
-		api <- new_api;
-		typing_mode <- typing_mode';
-		let rec loop = function
-			| (kind,data) :: chunks ->
-				ch <- BytesWithPosition.create data;
-				self#read_chunk_data kind;
-				if kind = end_chunk then chunks else loop chunks
-			| [] -> die "" __LOC__
-		in
-		let remaining = loop chunks in
-		(current_module, remaining)
-
 	method read (new_api : hxb_reader_api) (bytes : bytes) =
 		api <- new_api;
 		typing_mode <- FullTyping;

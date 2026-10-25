@@ -53,10 +53,7 @@ let get_module_name_of_cfile file cfile = match cfile.c_module_name with
 class context_cache (index : int) (sign : Digest.t) = object(self)
 	val files : (Path.UniqueKey.t,cached_file) Hashtbl.t = Hashtbl.create 0
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
-	val binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
 	val fake_modules : (Path.UniqueKey.t,module_def) Hashtbl.t = Hashtbl.create 0
-	val tmp_binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
-	val get_hxb_module_mutex = Mutex.create ()
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
 	val mutable initialized = false
@@ -92,41 +89,8 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method find_module_opt path =
 		Hashtbl.find_opt modules path
 
-	method get_hxb_module path =
-		Mutex.protect get_hxb_module_mutex (fun () ->
-			try
-				Hashtbl.find tmp_binary_cache path
-			with Not_found ->
-				let mc = Hashtbl.find binary_cache path in
-				let m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps } in
-				let mc = { mc with mc_extra = m_extra } in
-				Hashtbl.add tmp_binary_cache path mc;
-				mc
-		)
-
 	method find_module_extra path =
-		try (Hashtbl.find modules path).m_extra
-		with Not_found -> (self#get_hxb_module path).mc_extra
-
-	method add_binary_cache m chunks =
-		Hashtbl.replace binary_cache m.m_path {
-			mc_path = m.m_path;
-			mc_id = m.m_id;
-			mc_chunks = chunks;
-			mc_extra = { m.m_extra with m_cache_state = MSGood; m_display_deps = None }
-		}
-
-	method cache_hxb_module config warn anon_identification m =
-		match m.m_extra.m_kind with
-		| MImport ->
-			Hashtbl.add modules m.m_path m;
-			None
-		| _ ->
-			Some (fun () ->
-				let writer = HxbWriter.create config warn anon_identification in
-				HxbWriter.write_module writer m;
-				HxbWriter.get_chunks writer
-			)
+		(Hashtbl.find modules path).m_extra
 
 	method cache_module_in_memory path m =
 		Hashtbl.replace modules path m
@@ -159,21 +123,15 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method remove_fake_module key =
 		Hashtbl.remove fake_modules key
 
-	method clear_temp_cache =
-		Hashtbl.clear tmp_binary_cache
-
 	method clear_cache =
 		Hashtbl.clear modules;
-		Hashtbl.clear entity_indexes;
-		self#clear_temp_cache
+		Hashtbl.clear entity_indexes
 
 	(* Clears all module caches and user-file parse cache entries, preserving only stdlib/lib file parse cache. *)
 	method clear_modules =
 		Hashtbl.clear modules;
 		Hashtbl.clear entity_indexes;
-		Hashtbl.clear binary_cache;
 		Hashtbl.clear fake_modules;
-		self#clear_temp_cache;
 		Hashtbl.clear removed_files;
 		Hashtbl.filter_map_inplace (fun _ cfile ->
 			match cfile.c_file_path.class_path#scope with
@@ -191,9 +149,6 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method get_files = files
 	method get_modules = modules
 
-	method get_hxb = binary_cache
-
-	(* TODO handle hxb cache there too *)
 	method get_removed_files = removed_files
 
 	method get_json = json
@@ -201,7 +156,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 
 (* Pointers for memory inspection. *)
 	method get_pointers : unit array =
-		[|Obj.magic files;Obj.magic modules;Obj.magic binary_cache|]
+		[|Obj.magic files;Obj.magic modules|]
 
 	(* access tracking *)
 
@@ -263,9 +218,6 @@ class cache = object(self)
 		tasks <- PriorityQueue.Empty
 
 	(* contexts *)
-
-	method clear_temp_cache =
-		Hashtbl.iter (fun _ ctx -> ctx#clear_temp_cache) contexts
 
 	method get_context sign =
 		try
@@ -348,26 +300,14 @@ class cache = object(self)
 		Hashtbl.iter (fun _ cc ->
 			Hashtbl.iter (fun _ m ->
 				if m.m_path = m_path then m.m_extra.m_cache_state <- MSBad (Tainted reason)
-			) cc#get_modules;
-			Hashtbl.iter (fun _ mc ->
-				if mc.HxbData.mc_path = m_path then
-					mc.HxbData.mc_extra.m_cache_state <- match reason, mc.mc_extra.m_cache_state with
-					| CheckDisplayFile, (MSBad _ as state) -> state
-					| _ -> MSBad (Tainted reason)
-			) cc#get_hxb
+			) cc#get_modules
 		) contexts
 
 	method taint_modules file_key reason =
 		Hashtbl.iter (fun _ cc ->
 			Hashtbl.iter (fun _ m ->
 				if Path.UniqueKey.lazy_key m.m_extra.m_file = file_key then m.m_extra.m_cache_state <- MSBad (Tainted reason)
-			) cc#get_modules;
-			Hashtbl.iter (fun _ mc ->
-				if Path.UniqueKey.lazy_key mc.HxbData.mc_extra.m_file = file_key then
-					mc.HxbData.mc_extra.m_cache_state <- match reason, mc.HxbData.mc_extra.m_cache_state with
-					| CheckDisplayFile, (MSBad _ as state) -> state
-					| _ -> MSBad (Tainted reason)
-			) cc#get_hxb
+			) cc#get_modules
 		) contexts
 
 	(* haxelibs *)
