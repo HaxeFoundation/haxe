@@ -708,6 +708,8 @@ module TypeBinding = struct
 		| TAbstract(_,tl) | TInst(_,tl) | TEnum(_,tl) | TType(_,tl) -> List.for_all is_full_type tl
 		| TLazy _ | TDynamic _ | TAnon _ -> true
 
+	let () = TFunctions.lazy_processing_complete_hook := is_full_type
+
 	(* Pairs already reported, for the current compilation. *)
 	let reported_cycles : (int * pos * string) list ref = ref []
 	let reported_cycles_mutex = Mutex.create ()

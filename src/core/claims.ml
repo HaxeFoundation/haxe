@@ -27,8 +27,9 @@ let rank = function
 let kind_names = [|"macros";"value";"class"|]
 
 (* the domains waiting, with the domain they wait for, what they wait for and,
-   for a class, when its build started, and the condition they wait for *)
-let waiting : (Domain.id * (Domain.id * wait_kind * int * (unit -> bool))) list ref = ref []
+   for a class, when its build started, the condition they wait for, and
+   whether letting them through is what one domain does (see [wait]) *)
+let waiting : (Domain.id * (Domain.id * wait_kind * int * (unit -> bool) * (unit -> bool))) list ref = ref []
 
 (* the time domains spent waiting, and how many times, by kind *)
 let waited = Array.make 3 0.
@@ -41,8 +42,10 @@ let let_through : Domain.id list ref = ref []
 
 (* Waits, with [mutex] held, until [cond ()] holds, or until let through to
    break a cycle of waiting domains (see [wait_kind]). Tells whether [cond ()]
-   holds. *)
-let wait ?(kind=WaitValue) ?(seq=0) ~owner cond =
+   holds. [safe ()]: whether going on without [cond ()] reads what a single
+   domain reads in the same cycle (the final type of a field whose body is
+   being typed): such a wait is let through first among those of its kind. *)
+let wait ?(kind=WaitValue) ?(seq=0) ?(safe=(fun () -> false)) ~owner cond =
 	let me = Domain.self () in
 	let rec chain d acc =
 		if d = me then Some acc
@@ -50,13 +53,13 @@ let wait ?(kind=WaitValue) ?(seq=0) ~owner cond =
 		else if List.mem_assoc d acc then None
 		else match List.assoc_opt d !waiting with
 			(* a domain whose condition holds, or let through, is about to go on *)
-			| Some (_,_,_,cond') when cond' () || List.mem d !let_through -> None
-			| Some (d',k,n,_) -> chain d' ((d,(k,n)) :: acc)
+			| Some (_,_,_,cond',_) when cond' () || List.mem d !let_through -> None
+			| Some (d',k,n,_,s) -> chain d' ((d,(k,n,s ())) :: acc)
 			| None -> None
 	in
 	let through () = List.mem me !let_through in
 	let block () =
-		waiting := (me,(owner,kind,seq,cond)) :: !waiting;
+		waiting := (me,(owner,kind,seq,cond,safe)) :: !waiting;
 		if not (cond () || through ()) then begin
 			let t = Unix.gettimeofday () in
 			while not (cond () || through ()) do Condition.wait done_ mutex done;
@@ -73,11 +76,13 @@ let wait ?(kind=WaitValue) ?(seq=0) ~owner cond =
 		cond ()
 	| Some cycle ->
 		(* the domain of the cycle to let through: the current one when it is as good;
-		   among classes, the one whose build started first, as the outermost build
-		   of a cycle on one domain is the one read partially *)
-		let better (k,n) (k',n') = rank k' < rank k || (rank k' = rank k && n' < n) in
-		let best = List.fold_left (fun (d,kn) (d',kn') -> if better kn kn' then (d',kn') else (d,kn)) (me,(kind,seq)) cycle in
-		let k = rank (fst (snd best)) in
+		   a safe wait first; among classes, the one whose build started first, as
+		   the outermost build of a cycle on one domain is the one read partially *)
+		let better (k,n,s) (k',n',s') =
+			rank k' < rank k || (rank k' = rank k && ((s' && not s) || (s' = s && n' < n)))
+		in
+		let best = List.fold_left (fun (d,kn) (d',kn') -> if better kn kn' then (d',kn') else (d,kn)) (me,(kind,seq,safe ())) cycle in
+		let k = (match snd best with (k,_,_) -> rank k) in
 		breaks.(k) <- breaks.(k) + 1;
 		if fst best = me then
 			false

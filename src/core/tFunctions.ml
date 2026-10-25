@@ -369,6 +369,9 @@ let lazy_force_hook : ((unit -> t) -> t) DomainLocal.t = DomainLocal.make (fun (
 (* Called when the placeholder type of a lazy being computed is read
    (instrumentation of order-dependent typing, see WTypingOrder). *)
 let lazy_processing_read_hook : (tlazy ref -> unit) ref = ref (fun _ -> ())
+(* Whether the type of a lazy being processed is already fully determined
+   (set by the typer). *)
+let lazy_processing_complete_hook : (t -> bool) ref = ref (fun _ -> false)
 
 (* The lazy types being forced, with the domain forcing them. *)
 let forcing_lazies : (tlazy ref * Domain.id) list ref = ref []
@@ -420,7 +423,10 @@ let rec lazy_type_parallel f =
 		Std.finally finish (DomainLocal.get lazy_force_hook) g
 	| `Wait (owner,t) ->
 		let waited = TypingLock.without (fun () -> Mutex.protect Claims.mutex (fun () ->
-			Claims.wait ~owner (fun () -> lazy_owner f = None)
+			(* going on reads the type as it is: the final one once it is fully
+			   determined, as on one domain *)
+			let safe () = match !f with LProcessing t -> !lazy_processing_complete_hook t | _ -> false in
+			Claims.wait ~safe ~owner (fun () -> lazy_owner f = None)
 		)) in
 		if waited then lazy_type_parallel f else t
 
