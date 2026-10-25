@@ -2797,6 +2797,44 @@ generation (write 0.09 s, link 0.075 s, declarations 0.035 s, entry point
 0.025 s, the classes generated again the rest); a cold build 1.15–1.23 s
 (1.23–1.36 s before this work).
 
+**Status: classes generated in parallel.** The objects being independent of
+each other, the classes to generate (all of them cold, the ones whose body
+changed in the server) are generated on the domains of the pool, one task per
+class, the classes with the most fields first; then the entry point, the enum
+constructors and the link, as before. What the generation shares:
+
+- *Tables of symbols.* Each table has a lock, and each domain a cache of the
+  keys it already met (reset when the context changes); the ids only name
+  keys, so the order in which the domains allocate them does not matter.
+- *HL types.* They are built under one lock (reentrant on its domain), as
+  before; a type is published, in lock-free tables (`Saturn.Htbl`) read by the
+  other domains, when the outermost construction that created it ends: no
+  domain sees a class type whose fields are not computed yet. The tuples are
+  built under the lock.
+- *Per domain.* The state of the function and of the class being generated
+  (`m`, `cur`, `rec_cache`, `ct_delayed`) is in a copy of the context per
+  task; the lines of the debug information are read from a table of the lines
+  of each file per domain (`Lexer.find_line` keeps a search hint in the file,
+  which the domains would share).
+- *Warnings and errors.* The warnings are kept by the objects and emitted in
+  the order of the types after the generation; when a class fails, the
+  generation is done again sequentially, from a new context, which reports the
+  error of the first class in the order of the types.
+
+`-D hl-gen-sequential` generates the classes on one domain: the output is the
+same, byte for byte (Heaps, `tests/unit`). Found on the way, by the warm/cold
+check: the cast of an object to an interface looks for the field caching the
+interface in a map whose keys are compared structurally, and a key could be
+added while its virtual type was still being built (its fields come later),
+so the map was out of order and the cast found the field or not depending on
+the order of the construction; the keys are compared one by one.
+
+Heaps (`-D apicheck`, cold, 4 cores): `generate;hl;functions` takes
+0.35–0.44 s instead of 0.85–0.96 s (`-D hl-gen-sequential`); the HL generation
+1.38–1.55 s instead of 1.94–2.02 s (this machine is slower than for the
+measurements above). A leaf edit in the server generates 3 classes, below the
+16 classes from which the generation goes parallel.
+
 ---
 
 ### Phase 11: cleanup
