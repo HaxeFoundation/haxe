@@ -231,17 +231,28 @@ let make_binop ctx op e1 e2 is_assign_op p =
 			tfloat
 		| KUnk , KInt ->
 			if unify_int ctx e1 KUnk then tint else tfloat
-		| KUnk , KFloat
+		(* like the other arithmetic operators: the unknown operand is an Int *)
+		| KUnk , KFloat ->
+			ignore(unify_int ctx e1 KUnk);
+			tfloat
 		| KUnk , KString  ->
 			e2.etype
 		| KInt , KUnk ->
 			if unify_int ctx e2 KUnk then tint else tfloat
-		| KFloat , KUnk
+		| KFloat , KUnk ->
+			ignore(unify_int ctx e2 KUnk);
+			tfloat
 		| KString , KUnk ->
 			e1.etype
 		| _ , KString
 		| KString , _ ->
 			tstring
+		| KUnk , KDyn ->
+			ignore(unify_int ctx e1 KUnk);
+			e2.etype
+		| KDyn , KUnk ->
+			ignore(unify_int ctx e2 KUnk);
+			e1.etype
 		| _ , KDyn ->
 			e2.etype
 		| KDyn , _ ->
