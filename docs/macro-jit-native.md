@@ -347,3 +347,35 @@ here; the macro API is unchanged by it.
 - in the interpreter share of hide, field access by name (hashing, prototype
   lookup) and method calls come first: inline caches (step 7) matter as much
   as typed arithmetic (step 5).
+
+## 8. Native translation results and decision
+
+The translation of step 3 is implemented (`src/macro/eval/evalNative.enabled.ml`,
+`-D eval-native`): functions compiled ahead of time by groups (the methods of
+a type in one unit), most expressions native, the others compiled by EvalJit
+and called from the native code; Int values whose representation is known
+kept unboxed; `tests/unit` passes with it, also under GC stress.
+
+Measured on hide (macro execution 1.67–1.80 s with closures):
+
+| variant | native code | compile time | macro execution |
+|---|---|---|---|
+| one unit per function | 1.6 MB | 2.6 s | no change |
+| groups per type | 1.6 MB | 1.7 s | no change |
+| + more expressions native | 2.6 MB | 2.8 s | 1.57–1.62 s |
+| + Int specialization, merged calls | 2.5 MB | 2.9–3.0 s | 1.67–1.73 s |
+
+- The OCaml backend costs about 1 µs per byte of code (3–4 µs per
+  instruction, as much for a test as for a call), whatever the code: on
+  OCaml's own sources as on the generated code.
+- The time of macros is not in the dispatch of the closure tree, which the
+  native code removes, but in what the operations do: field lookups by hash,
+  prototypes, boxed integers (`VInt32` of a boxed `int32`), generic
+  comparisons. The native code calls the same OCaml functions.
+- Int specialization does not reduce the code on hide (little Int code, and
+  boxing inline is larger than a call); merging the sequence of calls with
+  simple operands reduces it by 10 %.
+
+Decision: the native tier is left in place, disabled by default, and the
+work goes to the closure tier (`macro-jit.md`): immediate integers (step 3)
+and inline caches (step 5) address the costs above without compile time.
