@@ -10,6 +10,17 @@ of domains typing in parallel (-D parallel-typing), so that a dependence on
 the scheduling also shows up as a difference. The edits accumulate; an edit
 that does not compile is undone.
 
+Some edits (--errors, a probability) introduce an error at a given level of
+the compilation: syntax, type loading, field signature, field initialization,
+method body, macro call. The warm and cold compilations must report the same
+errors, and the server must give the same output as a cold compilation once
+the error is undone.
+
+With --mem, the size of what the server keeps alive is measured after each
+compilation (server/gcCompact): it must not grow with the compilations, failed
+ones included. A growth of more than --leak-mb between the first successful
+compilations and the last ones is reported as a LEAK line.
+
     python3 tests/fuzz/fuzz.py --dir <project> --hxml build.hxml --out out/main.js \
         --src src,lib --edits 50 --seed 1 --port 7000
 
@@ -28,6 +39,9 @@ ap.add_argument("--exclude", default="Macro", help="comma separated substrings o
 ap.add_argument("--edits", type=int, default=50)
 ap.add_argument("--seed", type=int, default=1)
 ap.add_argument("--port", default="7000")
+ap.add_argument("--errors", type=float, default=0.3, help="probability that an edit introduces an error")
+ap.add_argument("--mem", action="store_true", help="measure the memory kept alive by the server")
+ap.add_argument("--leak-mb", type=float, default=100, help="growth of the live memory reported as a leak")
 ap.add_argument("--haxe", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "haxe"))
 args = ap.parse_args()
 
@@ -72,16 +86,51 @@ def retyped():
 	try: return len(json.loads(p.stderr)["result"]["result"])
 	except Exception: return -1
 
+def live_mb():
+	request = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "server/gcCompact", "params": {}})
+	p = subprocess.run([H, "--connect", args.port, "--display", request], capture_output=True, text=True)
+	try: return json.loads(p.stderr)["result"]["result"]["live"] / 1e6
+	except Exception: return -1
+
 last = None
+
+METHOD = r"\s*(public |private |static |override |inline )*function \w+\([^)]*\)[^{;]*\{\s*$"
+
+# the errors, by level of the compilation
+ERRORS = ["syntax", "unknown-type", "field-init", "body", "unknown-ident", "macro-arg", "macro"]
 
 def mutate():
 	global last
 	f = random.choice(files)
 	src = open(f).read()
 	lines = src.split("\n")
-	kind = random.choice(["comment", "literal", "field", "infer", "literal", "comment"])
+	if random.random() < args.errors:
+		kind = random.choice(ERRORS)
+	else:
+		kind = random.choice(["comment", "literal", "field", "infer", "literal", "comment"])
 	i = 0
-	if kind == "comment":
+	fields = [i for i, l in enumerate(lines) if re.match(r"\s*(public |private |static |override |inline )*function ", l)]
+	bodies = [i for i, l in enumerate(lines) if re.match(METHOD, l)]
+	if kind in ["syntax", "body", "unknown-ident", "macro-arg", "macro"]:
+		if not bodies: return None
+		i = random.choice(bodies) + 1
+		lines.insert(i, {
+			"syntax": "\t\tvar = ;",
+			"body": "\t\tvar fuzzError : Int = \"fuzz\";",
+			"unknown-ident": "\t\tfuzzUnknownIdent();",
+			# the argument of a macro must be a constant
+			"macro-arg": "\t\thaxe.macro.Compiler.getDefine(Std.string(1));",
+			# an error raised by the macro (Context.error)
+			"macro": "\t\thaxe.macro.Compiler.includeFile(\"fuzz-missing.js\", \"inline\");",
+		}[kind])
+	elif kind in ["unknown-type", "field-init"]:
+		if not fields: return None
+		i = random.choice(fields)
+		lines.insert(i, {
+			"unknown-type": "\tpublic var fuzzError : FuzzUnknownType;",
+			"field-init": "\tpublic static var fuzzError : Int = \"fuzz\";",
+		}[kind])
+	elif kind == "comment":
 		i = random.randrange(len(lines))
 		lines.insert(i, "// fuzz")
 	elif kind == "literal":
@@ -90,9 +139,8 @@ def mutate():
 		i = random.choice(idx)
 		lines[i] = re.sub(r"([^\w.])(\d+)([^\w.x])", lambda m: m.group(1) + str(int(m.group(2)) + 1) + m.group(3), lines[i], count=1)
 	elif kind == "field":
-		idx = [i for i, l in enumerate(lines) if re.match(r"\s*(public |private |static |override |inline )*function ", l)]
-		if not idx: return None
-		i = random.choice(idx)
+		if not fields: return None
+		i = random.choice(fields)
 		lines.insert(i, "\tpublic var fuzzField%d : Int = 0;" % random.randrange(1000))
 	elif kind == "infer":
 		# a function returning a literal without a declared type: change the literal
@@ -114,11 +162,13 @@ def compare(label):
 	crc, cout, _ = run([args.hxml] + cold_args)
 	cold_file = read_out()
 	same = rc == crc and out == cout and (rc != 0 or warm_file == cold_file)
+	mem = live_mb() if args.mem else -1
+	if mem >= 0 and rc == 0: live.append(mem)
 	# the server does not write an output that it believes unchanged: put its
 	# own output back
 	if warm_file is not None:
 		open(os.path.join(D, args.out), "wb").write(warm_file)
-	print("%-5s rc=%d %.2fs retyped=%-4d %-60s cold: %s" % ("SAME" if same else "DIFF", rc, t, nr, label, " ".join(cold_args)), flush=True)
+	print("%-5s rc=%d %.2fs retyped=%-4d %s%-60s cold: %s" % ("SAME" if same else "DIFF", rc, t, nr, "live=%-5.0f " % mem if mem >= 0 else "", label, " ".join(cold_args)), flush=True)
 	if not same:
 		open(D + ".fuzz-warm.txt", "w").write(out)
 		open(D + ".fuzz-cold.txt", "w").write(cout)
@@ -126,6 +176,8 @@ def compare(label):
 
 print("server: -D parallel-typing=%s" % warm_domains, flush=True)
 fails = 0
+# the live memory (MB) after the successful compilations
+live = []
 try:
 	compare("initial")
 	k = 0
@@ -143,6 +195,12 @@ try:
 			open(last[0], "w").write(last[1])
 			same, rc = compare("undo")
 			if not same: fails += 1
+	if args.mem and len(live) >= 6:
+		# the first compilations fill the caches
+		n = max(3, len(live) // 4)
+		growth = min(live[-n:]) - max(live[1:n + 1])
+		print("%s live memory: %.0f MB after the first compilations, %.0f MB after the last ones" % ("LEAK" if growth > args.leak_mb else "MEM ", max(live[1:n + 1]), min(live[-n:])), flush=True)
+		if growth > args.leak_mb: fails += 1
 finally:
 	server.kill()
 	server.wait()

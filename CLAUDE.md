@@ -27,6 +27,19 @@ default configuration.
   `python3 tests/fuzz/fuzz.py --dir <project> --out <output file> --src <dirs> --edits 50 --seed <n> --port <port>`.
   A `DIFF` line is a regression to investigate (the warm and cold compiler
   outputs are saved next to the project).
+- **Errors**: part of the fuzzing edits (`--errors`, a probability, 0.3 by
+  default) introduce an error at a given level: syntax, unknown type in a
+  signature, field initialization, method body, unknown identifier, argument
+  of a macro, error raised by a macro. The warm and cold compilations must
+  report the same errors, and the server must give the same output as a cold
+  compilation once the error is undone.
+- **Memory**: with `--mem`, the fuzzer measures what the server keeps alive
+  after each compilation (`server/gcCompact`, field `live`; `after` is the
+  size of the heap, free space included) and reports a `LEAK` line when it
+  grows by more than `--leak-mb` between the first successful compilations and
+  the last ones. Failed compilations must not stay alive either: run it with
+  errors and with several domains, since the state of the domains of the pool
+  outlives a compilation.
 
 Pitfalls:
 - Do not run two instances of the incremental runner at once: it deletes its
