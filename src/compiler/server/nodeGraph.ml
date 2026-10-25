@@ -240,6 +240,10 @@ let decl_table file decls =
 	List.iter (fun (name,node,fp) -> Hashtbl.replace h (name ^ "\t" ^ node) fp) (TypeloadParse.find_decl_fingerprints file decls);
 	h
 
+(* Whether this compilation found macro module [path] of the context of
+   signature [sign] valid, without typing it again (set by the validation). *)
+let macro_module_checked : (string -> path -> bool) ref = ref (fun _ _ -> false)
+
 (* Prepares the storage of the nodes of the modules of [com] that were typed in
    this compilation (the computations recorded by [DepRecord]). [resolve path]
    is the file a lookup of [path] finds ("" if none), [decls_of m] the
@@ -306,25 +310,78 @@ let prepare_store com resolve decls_of is_typed =
 				| TClassDecl c -> Hashtbl.replace classes (s_type_path c.cl_path ^ "\tmembers") c
 				| _ -> ()
 			) m.m_types) modules;
+			let absent_holds n name static =
+				match Hashtbl.find_opt classes n.n_key with
+				| Some c ->
+					if name = "new" && not static then
+						(* a constructor inherited from the parent (added after typing it) is what
+						   the computation found: the one of the parent *)
+						(match c.cl_constructor with None -> true | Some cf -> has_class_field_flag cf CfInheritedConstructor)
+					else not (PMap.mem name (if static then c.cl_statics else c.cl_fields))
+				| None ->
+					false
+			in
+			(* The fingerprint of a node after typing: the one computed if its module
+			   was typed again, else the one it had. *)
+			let fp_now n = if Hashtbl.mem typed_paths n.n_owner then Hashtbl.find_opt fps n.n_key else n.n_fp in
+			(* Whether computation [p] read the same as when it ran: what it computes,
+			   kept by a module not typed again, holds. The validation found it invalid
+			   on what it knew then (modules found changed later, assumptions); after
+			   typing, the fingerprints are known (a cycle reads the same). *)
+			let same_inputs_memo = Hashtbl.create 0 in
+			let rec same_inputs p =
+				match Hashtbl.find_opt same_inputs_memo p.n_key with
+				| Some b -> b
+				| None ->
+					Hashtbl.replace same_inputs_memo p.n_key true;
+					let edges = match p.n_edges with Some l -> l | None -> [||] in
+					let b = Array.for_all (function
+						| Leaf (f,key,a,b) ->
+							f.f_step = g.step && (f.f_unchanged || same_fp (match f.f_current with Some h -> Hashtbl.find_opt h key | None -> None) a b)
+						| Lookup (l,seen) ->
+							l.l_step = g.step && l.l_current = seen
+						| Node (n,a,b) ->
+							same_fp (fp_now n) a b && (Hashtbl.mem typed_paths n.n_owner || same_produced n)
+						| Absent (n,name,static) ->
+							if Hashtbl.mem typed_paths n.n_owner then absent_holds n name static else same_produced n
+						| Module path ->
+							not (Hashtbl.mem typed_paths path)
+						| MacroModule (sign,path) ->
+							!macro_module_checked sign path
+					) edges in
+					Hashtbl.replace same_inputs_memo p.n_key b;
+					b
+			(* node [n] of a module not typed again keeps its fingerprint: it is
+			   the same value if what computes it read the same *)
+			and same_produced n =
+				let p = if n.n_by_known then n.n_by else producer_of g n.n_key in
+				match p with
+				| Some p when is_computation p -> same_inputs p
+				| _ -> true
+			in
 			List.filter_map (function
 				| ANode (n,seen) ->
 					let now = Hashtbl.find_opt fps n.n_key in
 					(* a node no module produces (no fingerprint before or after) keeps it *)
 					if (Hashtbl.mem typed_paths n.n_owner || seen = None) && now = seen then None
+					(* a node of a module that was not typed again (found valid before the
+					   computation of the node was found invalid) keeps its fingerprint if
+					   that computation read the same: depending on the order in which
+					   modules are checked (several domains load them in any order), this
+					   happens and compiling again would type more for nothing *)
+					else if not (Hashtbl.mem typed_paths n.n_owner) && n.n_fp = seen && same_produced n then None
 					else begin
 						if trace then trace_line (Printf.sprintf "[graph] assumption failed: %s (seen %s, now %s, owner %s typed %b)" n.n_key (match seen with Some fp -> TFingerprint.to_string fp | None -> "none") (match now with Some fp -> TFingerprint.to_string fp | None -> "none") (s_type_path n.n_owner) (Hashtbl.mem typed_paths n.n_owner));
 						Some (n.n_key,now)
 					end
 				| AAbsent (n,name,static) ->
-					match Hashtbl.find_opt classes n.n_key with
-					| Some c when (if name = "new" && not static then
-							(* a constructor inherited from the parent (added after typing it) is what
-							   the computation found: the one of the parent *)
-							(match c.cl_constructor with None -> true | Some cf -> has_class_field_flag cf CfInheritedConstructor)
-						else not (PMap.mem name (if static then c.cl_statics else c.cl_fields))) -> None
-					| _ ->
+					(* the members of a class not typed again keep their names if what
+					   computes them read the same *)
+					if absent_holds n name static || (not (Hashtbl.mem typed_paths n.n_owner) && same_produced n) then None
+					else begin
 						if trace then trace_line ("[graph] assumption failed: " ^ absent_key n name static);
 						Some (absent_key n name static,None)
+					end
 			) g.assumptions
 		end
 	in

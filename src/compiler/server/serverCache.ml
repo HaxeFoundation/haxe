@@ -286,6 +286,7 @@ let check_module sctx com m_path m_extra p =
 			with Not_found ->
 				false
 		in
+		NodeGraph.macro_module_checked := checked;
 		NodeGraph.current := Some (own_sign,{ v with NodeGraph.v_module_valid = checked own_sign; v_macro_module_valid = checked },Hashtbl.create 0)
 	) validation;
 	let rec check m_path m_extra =

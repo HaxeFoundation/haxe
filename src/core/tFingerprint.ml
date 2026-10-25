@@ -299,7 +299,10 @@ let add_var_decl h v =
 	add_string h v.v_name;
 	add_type h v.v_type;
 	add_int h (v.v_flags land h.var_flags);
-	add_meta h v.v_meta;
+	(* @:realPath is added by the renaming of the variables, after typing, to
+	   the variables of the bodies (those of an inline function too, which
+	   later inlinings copy): it is not what the variable is *)
+	add_meta h (List.filter (fun (m,_,_) -> m <> Meta.RealPath) v.v_meta);
 	add_pos h v.v_pos
 
 let add_field_ref h c cf =
