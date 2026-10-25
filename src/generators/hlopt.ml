@@ -1213,6 +1213,9 @@ let optimize dump get_str (f:fundecl) =
 	match hit with
 	| Some r -> r
 	| None ->
+	(* the optimization changes the code in place: the generator keeps the
+	   code it emitted (its memo) *)
+	let f = { f with code = Array.copy f.code } in
 	let old_code = if dump then Array.copy f.code else f.code in
 	let rctx = _optimize f in
 	let old_ops = f.code in
