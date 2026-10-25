@@ -1,0 +1,16 @@
+(executable
+	(name spike)
+	(enabled_if (= %{ocaml_version} 5.3.0))
+	(modules spike)
+	(libraries jit ocaml_backend unix)
+	(flags (:standard -w -9-27-26-32))
+)
+
+; Compares the encoder with GNU as: needs compiler-libs (the ocamlopt driver)
+(executable
+	(name asmdiff)
+	(enabled_if (= %{ocaml_version} 5.3.0))
+	(modules asmdiff)
+	(libraries jit compiler-libs.optcomp unix)
+	(flags (:standard -w -9-27-26-32))
+)

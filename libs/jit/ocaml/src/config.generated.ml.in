@@ -1,0 +1,94 @@
+(* @configure_input@ *)
+#2 "utils/config.generated.ml.in"
+(**************************************************************************)
+(*                                                                        *)
+(*                                 OCaml                                  *)
+(*                                                                        *)
+(*             Xavier Leroy, projet Cristal, INRIA Rocquencourt           *)
+(*                                                                        *)
+(*   Copyright 1996 Institut National de Recherche en Informatique et     *)
+(*     en Automatique.                                                    *)
+(*                                                                        *)
+(*   All rights reserved.  This file is distributed under the terms of    *)
+(*   the GNU Lesser General Public License version 2.1, with the          *)
+(*   special exception on linking described in the file LICENSE.          *)
+(*                                                                        *)
+(**************************************************************************)
+
+(* This file is included in config_main.ml during the build rather
+   than compiled on its own *)
+
+let bindir = {@QS@|@ocaml_bindir@|@QS@}
+
+let standard_library_default = {@QS@|@ocaml_libdir@|@QS@}
+
+let ccomp_type = {@QS@|@ccomptype@|@QS@}
+let c_compiler = {@QS@|@CC@|@QS@}
+let c_output_obj = {@QS@|@outputobj@|@QS@}
+let c_has_debug_prefix_map = @cc_has_debug_prefix_map@
+let as_has_debug_prefix_map = @as_has_debug_prefix_map@
+let bytecode_cflags = {@QS@|@bytecode_cflags@|@QS@}
+let bytecode_cppflags = {@QS@|@bytecode_cppflags@|@QS@}
+let native_cflags = {@QS@|@native_cflags@|@QS@}
+let native_cppflags = {@QS@|@native_cppflags@|@QS@}
+
+let bytecomp_c_libraries = {@QS@|@zstd_libs@ @cclibs@|@QS@}
+(* bytecomp_c_compiler and native_c_compiler have been supported for a
+   long time and are retained for backwards compatibility.
+   For programs that don't need compatibility with older OCaml releases
+   the recommended approach is to use the constituent variables
+   c_compiler, {bytecode,native}_c[pp]flags etc. directly.
+*)
+let bytecomp_c_compiler =
+  c_compiler ^ " " ^ bytecode_cflags ^ " " ^ bytecode_cppflags
+let native_c_compiler =
+  c_compiler ^ " " ^ native_cflags ^ " " ^ native_cppflags
+let native_c_libraries = {@QS@|@cclibs@|@QS@}
+let native_ldflags = {@QS@|@native_ldflags@|@QS@}
+let native_pack_linker = {@QS@|@PACKLD@|@QS@}
+let default_rpath = {@QS@|@rpath@|@QS@}
+let mksharedlibrpath = {@QS@|@mksharedlibrpath@|@QS@}
+let ar = {@QS@|@AR@|@QS@}
+let supports_shared_libraries = @supports_shared_libraries@
+let native_dynlink = @natdynlink@
+let mkdll = {@QS@|@mkdll_exp@|@QS@}
+let mkexe = {@QS@|@mkexe_exp@|@QS@}
+let mkmaindll = {@QS@|@mkmaindll_exp@|@QS@}
+
+let flambda = @flambda@
+let with_flambda_invariants = @flambda_invariants@
+let with_cmm_invariants = @cmm_invariants@
+let windows_unicode = @windows_unicode@ != 0
+
+let flat_float_array = @flat_float_array@
+
+let function_sections = @function_sections@
+let afl_instrument = @afl@
+
+let native_compiler = @native_compiler@
+
+let architecture = {@QS@|@arch@|@QS@}
+let model = {@QS@|@model@|@QS@}
+let system = {@QS@|@system@|@QS@}
+
+let asm = {@QS@|@AS@|@QS@}
+let asm_cfi_supported = @asm_cfi_supported@
+let with_frame_pointers = @frame_pointers@
+let reserved_header_bits = @reserved_header_bits@
+
+let ext_exe = {@QS@|@exeext@|@QS@}
+let ext_obj = "." ^ {@QS@|@OBJEXT@|@QS@}
+let ext_asm = "." ^ {@QS@|@S@|@QS@}
+let ext_lib = "." ^ {@QS@|@libext@|@QS@}
+let ext_dll = "." ^ {@QS@|@SO@|@QS@}
+
+let host = {@QS@|@host@|@QS@}
+let target = {@QS@|@target@|@QS@}
+
+let systhread_supported = @systhread_support@
+
+let flexdll_dirs = [@flexdll_dir@]
+
+let ar_supports_response_files = @ar_supports_response_files@
+
+let tsan = @tsan@

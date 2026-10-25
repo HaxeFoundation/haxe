@@ -1,0 +1,4 @@
+(executable
+	(name gen_config)
+	(enabled_if (= %{ocaml_version} 5.3.0))
+	(libraries unix))
