@@ -3094,7 +3094,7 @@ and eval_expr ctx e =
 	| TFunction f ->
 		let fid = closure_fid ctx in
 		let lname = (try List.assq e ctx.m.mlnames with Not_found -> "") in
-		let lname = if ctx.m.mlocal = "" then lname else ctx.m.mlocal ^ "/" ^ lname in
+		let lname = if ctx.m.mlocal = "" then lname else ctx.m.mlocal ^ "." ^ lname in
 		let rank = (try Hashtbl.find ctx.m.mlcount lname with Not_found -> 0) in
 		Hashtbl.replace ctx.m.mlcount lname (rank + 1);
 		let lname = if rank = 0 then lname else lname ^ "#" ^ string_of_int rank in
