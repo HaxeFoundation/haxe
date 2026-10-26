@@ -4727,7 +4727,13 @@ let link ctx objects enum_objects entry =
 	} in
 	code, gnames
 
-let generate_static_content ctx types f =
+(* What the entry point runs after the types are initialized, in order. *)
+type init_item =
+	| IClassInit of tclass * texpr (* __init__ *)
+	| IStatic of tclass * tclass_field * texpr (* the assignment of its initial value *)
+	| IMain of texpr
+
+let generate_static_content ctx types f items =
 	(* the classes implementing each interface (through the interfaces it
 	   extends), the last type first *)
 	let implemented_by = lazy (
@@ -4917,11 +4923,90 @@ let generate_static_content ctx types f =
 
 	) types;
 
-	let j = jump ctx (fun d -> OJTrue (is_init,d)) in
-	op ctx (ORet (alloc_tmp ctx HVoid));
-	j();
-	free ctx is_init;
-	ignore(eval_expr ctx f.tf_expr);
+	if compare_version ctx.hl_ver "2.0.0" < 0 || Path.file_extension ctx.com.file = "c" then begin
+		(* before HL 2.0, and with HL/C, no hot reload of the statics : they are initialized only when the program starts *)
+		let j = jump ctx (fun d -> OJTrue (is_init,d)) in
+		op ctx (ORet (alloc_tmp ctx HVoid));
+		j();
+		free ctx is_init;
+		ignore(eval_expr ctx f.tf_expr);
+	end else begin
+		(*
+			The entry point runs again after a hot reload (is_init is then false) : it initializes the
+			statics the reload added, either in a new class or in an existing one, and the __init__ of
+			the new classes. The VM tells which ones by words of 32 bits, bit k of word w being the own
+			field w * 32 + k of the class object, word -1 telling whether the class is new. When the
+			program starts, every bit is set and the VM is not called.
+		*)
+		let native = lookup ctx.cnatives ("$hot_init_bits@?std", -1) (fun() ->
+			let fid = alloc_fun_path ctx ([],"std") "hot_init_bits" in
+			(alloc_string ctx "?std", alloc_string ctx "hot_init_bits", HFun ([HType;HI32],HI32), fid)
+		) in
+		let _,_,_,native = lookup_get ctx.cnatives native in
+		let load_bits c w =
+			let r = alloc_tmp ctx HI32 in
+			hold ctx r;
+			let j = jump ctx (fun d -> OJFalse (is_init,d)) in
+			op ctx (OInt (r, alloc_i32 ctx (-1l)));
+			let jend = jump ctx (fun d -> OJAlways d) in
+			j();
+			let rt = alloc_tmp ctx HType in
+			op ctx (OType (rt, snd (class_global ctx c)));
+			op ctx (OCall2 (r, native, rt, reg_int ctx w));
+			jend();
+			r
+		in
+		let guard bits mask f =
+			let m = alloc_tmp ctx HI32 in
+			op ctx (OInt (m, alloc_i32 ctx mask));
+			op ctx (OAnd (m, bits, m));
+			hold ctx m;
+			let zero = reg_int ctx 0 in
+			free ctx m;
+			let j = jump ctx (fun d -> OJEq (m, zero, d)) in
+			f();
+			j()
+		in
+		(* the bits of the statics are loaded once per class and per word *)
+		let cur_class = ref None and words = ref [] in
+		let flush() =
+			List.iter (fun (_,r) -> free ctx r) !words;
+			words := [];
+			cur_class := None
+		in
+		let bits c w =
+			(match !cur_class with Some c2 when c2 == c -> () | _ -> flush(); cur_class := Some c);
+			try List.assoc w !words with Not_found ->
+				let r = load_bits c w in
+				words := (w,r) :: !words;
+				r
+		in
+		let field_index c cf =
+			match snd (class_global ctx c) with
+			| HObj o ->
+				(try
+					let fid, _ = PMap.find cf.cf_name o.pindex in
+					let start = (match o.psuper with None -> 0 | Some p -> p.pnfields) in
+					if fid < start then None else Some (fid - start)
+				with Not_found -> None)
+			| _ -> None
+		in
+		List.iter (function
+			| IClassInit (c,e) ->
+				guard (bits c (-1)) (-1l) (fun() -> ignore(eval_expr ctx e))
+			| IStatic (c,cf,e) ->
+				(match field_index c cf with
+				| Some i -> guard (bits c (i lsr 5)) (Int32.shift_left 1l (i land 31)) (fun() -> ignore(eval_expr ctx e))
+				| None -> guard (bits c (-1)) (-1l) (fun() -> ignore(eval_expr ctx e)))
+			| IMain e ->
+				flush();
+				let j = jump ctx (fun d -> OJFalse (is_init,d)) in
+				ignore(eval_expr ctx e);
+				j()
+		) items;
+		flush();
+		free ctx is_init;
+	end;
 	op ctx (ORet (alloc_tmp ctx HVoid))
 
 let generate_static_init ctx types main =
@@ -4931,7 +5016,7 @@ let generate_static_init ctx types main =
 	(* init class statics *)
 	let init_exprs = ref [] in
 	List.iter (fun t ->
-		(match t with TClassDecl ({ cl_init = Some {cf_expr = Some e} } as c) when not (is_excluded c) -> init_exprs := e :: !init_exprs | _ -> ());
+		(match t with TClassDecl ({ cl_init = Some {cf_expr = Some e} } as c) when not (is_excluded c) -> init_exprs := IClassInit (c,e) :: !init_exprs | _ -> ());
 		match t with
 		| TClassDecl c when not (has_class_flag c CExtern) && not (is_excluded c) ->
 			List.iter (fun f ->
@@ -4939,7 +5024,7 @@ let generate_static_init ctx types main =
 				| Var _, Some e ->
 					let p = e.epos in
 					let e = mk (TBinop (OpAssign,(mk (TField (mk (TTypeExpr t) t_dynamic p,FStatic (c,f))) f.cf_type p), e)) f.cf_type p in
-					exprs := e :: !exprs;
+					exprs := IStatic (c,f,e) :: !exprs;
 				| _ ->
 					()
 			) c.cl_ordered_statics;
@@ -4948,12 +5033,13 @@ let generate_static_init ctx types main =
 	(* call main() *)
 	(match main with
 	| None -> ()
-	| Some e -> exprs := e :: !exprs);
+	| Some e -> exprs := IMain e :: !exprs);
 	let fid = alloc_fun_path ctx ([],"") "#init" in
-	let exprs = List.rev !init_exprs @ List.rev !exprs in
+	let items = List.rev !init_exprs @ List.rev !exprs in
+	let exprs = List.map (function IClassInit (_,e) | IStatic (_,_,e) | IMain e -> e) items in
 	let initpos = fake_pos "fun$init" in
 	let f = { tf_expr = mk (TBlock exprs) t_void initpos; tf_args = []; tf_type = t_void } in
-	let gen_content() = generate_static_content ctx types f in
+	let gen_content() = generate_static_content ctx types f items in
 	ignore(make_fun ~gen_content ctx ("","") fid f None None);
 	fid
 
