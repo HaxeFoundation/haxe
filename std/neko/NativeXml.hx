@@ -47,7 +47,7 @@ class Xml {
 
 	private function new():Void {}
 
-	private static var _parse : Dynamic = neko.Lib.load("std", "parse_xml", 2);
+	private static var _parse = neko.Lib.load("std", "parse_xml", 2);
 
 	public static function parse(str:String):Xml {
 		var x = new Xml();

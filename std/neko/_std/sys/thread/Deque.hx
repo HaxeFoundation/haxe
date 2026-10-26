@@ -42,8 +42,8 @@ class Deque<T> {
 		return deque_pop(q, block);
 	}
 
-	static var deque_create : Dynamic = neko.Lib.loadLazy("std", "deque_create", 0);
-	static var deque_add : Dynamic = neko.Lib.loadLazy("std", "deque_add", 2);
-	static var deque_push : Dynamic = neko.Lib.loadLazy("std", "deque_push", 2);
-	static var deque_pop : Dynamic = neko.Lib.loadLazy("std", "deque_pop", 2);
+	static var deque_create = neko.Lib.loadLazy("std", "deque_create", 0);
+	static var deque_add = neko.Lib.loadLazy("std", "deque_add", 2);
+	static var deque_push = neko.Lib.loadLazy("std", "deque_push", 2);
+	static var deque_pop = neko.Lib.loadLazy("std", "deque_pop", 2);
 }

@@ -49,8 +49,8 @@ private class Stdin extends haxe.io.Output {
 		}
 	}
 
-	static var _stdin_write : Dynamic = neko.Lib.load("std", "process_stdin_write", 4);
-	static var _stdin_close : Dynamic = neko.Lib.load("std", "process_stdin_close", 1);
+	static var _stdin_write = neko.Lib.load("std", "process_stdin_write", 4);
+	static var _stdin_close = neko.Lib.load("std", "process_stdin_close", 1);
 }
 
 private class Stdout extends haxe.io.Input {
@@ -78,8 +78,8 @@ private class Stdout extends haxe.io.Input {
 		}
 	}
 
-	static var _stdout_read : Dynamic = neko.Lib.load("std", "process_stdout_read", 4);
-	static var _stderr_read : Dynamic = neko.Lib.load("std", "process_stderr_read", 4);
+	static var _stdout_read = neko.Lib.load("std", "process_stdout_read", 4);
+	static var _stderr_read = neko.Lib.load("std", "process_stderr_read", 4);
 }
 
 @:coreApi class Process {
@@ -116,9 +116,9 @@ private class Stdout extends haxe.io.Input {
 		_kill(p);
 	}
 
-	static var _run : Dynamic = neko.Lib.load("std", "process_run", 2);
-	static var _exit : Dynamic = neko.Lib.load("std", "process_exit", 1);
-	static var _pid : Dynamic = neko.Lib.load("std", "process_pid", 1);
-	static var _close : Dynamic = neko.Lib.loadLazy("std", "process_close", 1);
-	static var _kill : Dynamic = neko.Lib.loadLazy("std", "process_kill", 1);
+	static var _run = neko.Lib.load("std", "process_run", 2);
+	static var _exit = neko.Lib.load("std", "process_exit", 1);
+	static var _pid = neko.Lib.load("std", "process_pid", 1);
+	static var _close = neko.Lib.loadLazy("std", "process_close", 1);
+	static var _kill = neko.Lib.loadLazy("std", "process_kill", 1);
 }

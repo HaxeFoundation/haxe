@@ -93,15 +93,15 @@ class Utf8 {
 		return new String(utf8_sub(untyped s.__s, pos, len));
 	}
 
-	static var utf8_buf_alloc : Dynamic = neko.Lib.load("std", "utf8_buf_alloc", 1);
-	static var utf8_buf_add : Dynamic = neko.Lib.load("std", "utf8_buf_add", 2);
-	static var utf8_buf_content : Dynamic = neko.Lib.load("std", "utf8_buf_content", 1);
-	static var utf8_buf_length : Dynamic = neko.Lib.load("std", "utf8_buf_length", 1);
-	static var utf8_iter : Dynamic = neko.Lib.load("std", "utf8_iter", 2);
+	static var utf8_buf_alloc = neko.Lib.load("std", "utf8_buf_alloc", 1);
+	static var utf8_buf_add = neko.Lib.load("std", "utf8_buf_add", 2);
+	static var utf8_buf_content = neko.Lib.load("std", "utf8_buf_content", 1);
+	static var utf8_buf_length = neko.Lib.load("std", "utf8_buf_length", 1);
+	static var utf8_iter = neko.Lib.load("std", "utf8_iter", 2);
 
-	static var utf8_get : Dynamic = neko.Lib.load("std", "utf8_get", 2);
-	static var utf8_validate : Dynamic = neko.Lib.load("std", "utf8_validate", 1);
-	static var utf8_length : Dynamic = neko.Lib.load("std", "utf8_length", 1);
-	static var utf8_compare : Dynamic = neko.Lib.load("std", "utf8_compare", 2);
-	static var utf8_sub : Dynamic = neko.Lib.load("std", "utf8_sub", 3);
+	static var utf8_get = neko.Lib.load("std", "utf8_get", 2);
+	static var utf8_validate = neko.Lib.load("std", "utf8_validate", 1);
+	static var utf8_length = neko.Lib.load("std", "utf8_length", 1);
+	static var utf8_compare = neko.Lib.load("std", "utf8_compare", 2);
+	static var utf8_sub = neko.Lib.load("std", "utf8_sub", 3);
 }

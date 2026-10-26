@@ -402,7 +402,13 @@ let gen_method ctx p c acc =
 	| None ->
 		((c.cf_name, null p) :: acc)
 	| Some e ->
-		match e.eexpr with
+		(* a primitive is loaded with the class, also through a cast to the
+		   type of the field (the [haxe.Function] that [load] returns) *)
+		let rec native e = match e.eexpr with
+			| TCast (e1,None) | TMeta (_,e1) | TParenthesis e1 -> native e1
+			| _ -> e
+		in
+		match (native e).eexpr with
 		| TCall ({ eexpr = TField (_,FStatic ({cl_path=["neko"],"Lib"},{cf_name="load" | "loadLazy" as load})) },[{ eexpr = TConst (TString m) };{ eexpr = TConst (TString f) };{ eexpr = TConst (TInt n) }]) ->
 			let p = pos ctx e.epos in
 			let e = call p (EField (builtin p "loader","loadprim"),p) [(EBinop ("+",(EBinop ("+",str p m,str p "@"),p),str p f),p); (EConst (Int (Int32.to_int n)),p)] in

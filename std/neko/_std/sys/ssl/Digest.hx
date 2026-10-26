@@ -36,7 +36,7 @@ class Digest {
 		return dgst_verify(data.getData(), signature.getData(), @:privateAccess pubKey.__k, untyped alg.__s);
 	}
 
-	private static var dgst_make : Dynamic = neko.Lib.loadLazy("ssl", "dgst_make", 2);
-	private static var dgst_sign : Dynamic = neko.Lib.loadLazy("ssl", "dgst_sign", 3);
-	private static var dgst_verify : Dynamic = neko.Lib.loadLazy("ssl", "dgst_verify", 4);
+	private static var dgst_make = neko.Lib.loadLazy("ssl", "dgst_make", 2);
+	private static var dgst_sign = neko.Lib.loadLazy("ssl", "dgst_sign", 3);
+	private static var dgst_verify = neko.Lib.loadLazy("ssl", "dgst_verify", 4);
 }

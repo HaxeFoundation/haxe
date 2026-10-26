@@ -136,15 +136,15 @@ class Certificate {
 		cert_add_der(__x, der.getData());
 	}
 
-	private static var cert_load_defaults : Dynamic = neko.Lib.loadLazy("ssl", "cert_load_defaults", 0);
-	private static var cert_load_file : Dynamic = neko.Lib.loadLazy("ssl", "cert_load_file", 1);
-	private static var cert_load_path : Dynamic = neko.Lib.loadLazy("ssl", "cert_load_path", 1);
-	private static var cert_get_subject : Dynamic = neko.Lib.loadLazy("ssl", "cert_get_subject", 2);
-	private static var cert_get_issuer : Dynamic = neko.Lib.loadLazy("ssl", "cert_get_issuer", 2);
-	private static var cert_get_altnames : Dynamic = neko.Lib.loadLazy("ssl", "cert_get_altnames", 1);
-	private static var cert_get_notbefore : Dynamic = neko.Lib.loadLazy("ssl", "cert_get_notbefore", 1);
-	private static var cert_get_notafter : Dynamic = neko.Lib.loadLazy("ssl", "cert_get_notafter", 1);
-	private static var cert_get_next : Dynamic = neko.Lib.loadLazy("ssl", "cert_get_next", 1);
-	private static var cert_add_pem : Dynamic = neko.Lib.loadLazy("ssl", "cert_add_pem", 2);
-	private static var cert_add_der : Dynamic = neko.Lib.loadLazy("ssl", "cert_add_der", 2);
+	private static var cert_load_defaults = neko.Lib.loadLazy("ssl", "cert_load_defaults", 0);
+	private static var cert_load_file = neko.Lib.loadLazy("ssl", "cert_load_file", 1);
+	private static var cert_load_path = neko.Lib.loadLazy("ssl", "cert_load_path", 1);
+	private static var cert_get_subject = neko.Lib.loadLazy("ssl", "cert_get_subject", 2);
+	private static var cert_get_issuer = neko.Lib.loadLazy("ssl", "cert_get_issuer", 2);
+	private static var cert_get_altnames = neko.Lib.loadLazy("ssl", "cert_get_altnames", 1);
+	private static var cert_get_notbefore = neko.Lib.loadLazy("ssl", "cert_get_notbefore", 1);
+	private static var cert_get_notafter = neko.Lib.loadLazy("ssl", "cert_get_notafter", 1);
+	private static var cert_get_next = neko.Lib.loadLazy("ssl", "cert_get_next", 1);
+	private static var cert_add_pem = neko.Lib.loadLazy("ssl", "cert_add_pem", 2);
+	private static var cert_add_der = neko.Lib.loadLazy("ssl", "cert_add_der", 2);
 }

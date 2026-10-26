@@ -50,8 +50,8 @@ class Host {
 		neko.Lib.load("std", "socket_init", 0)();
 	}
 
-	private static var host_resolve : Dynamic = neko.Lib.load("std", "host_resolve", 1);
-	private static var host_reverse : Dynamic = neko.Lib.load("std", "host_reverse", 1);
-	private static var host_to_string : Dynamic = neko.Lib.load("std", "host_to_string", 1);
-	private static var host_local : Dynamic = neko.Lib.load("std", "host_local", 0);
+	private static var host_resolve = neko.Lib.load("std", "host_resolve", 1);
+	private static var host_reverse = neko.Lib.load("std", "host_reverse", 1);
+	private static var host_to_string = neko.Lib.load("std", "host_to_string", 1);
+	private static var host_local = neko.Lib.load("std", "host_local", 0);
 }

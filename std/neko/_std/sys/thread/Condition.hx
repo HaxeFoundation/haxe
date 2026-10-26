@@ -31,11 +31,11 @@ class Condition {
 		cond_broadcast(c);
 	}
 
-	static var cond_create : Dynamic = neko.Lib.loadLazy("std", "cond_create", 0);
-	static var cond_try_acquire : Dynamic = neko.Lib.loadLazy("std", "cond_try_acquire", 1);
-	static var cond_acquire : Dynamic = neko.Lib.loadLazy("std", "cond_acquire", 1);
-	static var cond_release : Dynamic = neko.Lib.loadLazy("std", "cond_release", 1);
-	static var cond_wait : Dynamic = neko.Lib.loadLazy("std", "cond_wait", 1);
-	static var cond_signal : Dynamic = neko.Lib.loadLazy("std", "cond_signal", 1);
-	static var cond_broadcast : Dynamic = neko.Lib.loadLazy("std", "cond_broadcast", 1);
+	static var cond_create = neko.Lib.loadLazy("std", "cond_create", 0);
+	static var cond_try_acquire = neko.Lib.loadLazy("std", "cond_try_acquire", 1);
+	static var cond_acquire = neko.Lib.loadLazy("std", "cond_acquire", 1);
+	static var cond_release = neko.Lib.loadLazy("std", "cond_release", 1);
+	static var cond_wait = neko.Lib.loadLazy("std", "cond_wait", 1);
+	static var cond_signal = neko.Lib.loadLazy("std", "cond_signal", 1);
+	static var cond_broadcast = neko.Lib.loadLazy("std", "cond_broadcast", 1);
 }

@@ -19,7 +19,7 @@ package sys.thread;
 		lock_release(s);
 	}
 
-	static var lock_create : Dynamic = neko.Lib.loadLazy("std", "lock_create", 1);
-	static var lock_release : Dynamic = neko.Lib.load("std", "lock_release", 1);
+	static var lock_create = neko.Lib.loadLazy("std", "lock_create", 1);
+	static var lock_release = neko.Lib.load("std", "lock_release", 1);
 	static var lock_wait:(Dynamic, ?Float) -> Bool = neko.Lib.load("std", "lock_wait", 2);
 }

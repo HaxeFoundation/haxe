@@ -29,7 +29,9 @@ package haxe;
 	type, the underlying type will be `Dynamic`.
 **/
 @:callable
-abstract Function(Dynamic) {}
+abstract Function(Dynamic) {
+	@:to extern inline function toFunction<T:Function>():T return this;
+}
 
 /**
 	This type unifies with an enum instance if all constructors of the enum

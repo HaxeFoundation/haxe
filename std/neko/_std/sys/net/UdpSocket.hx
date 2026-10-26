@@ -61,7 +61,7 @@ class UdpSocket extends Socket {
 		socket_set_broadcast(__s, b);
 	}
 
-	static var socket_recv_from : Dynamic = neko.Lib.loadLazy("std", "socket_recv_from", 5);
-	static var socket_send_to : Dynamic = neko.Lib.loadLazy("std", "socket_send_to", 5);
-	static var socket_set_broadcast : Dynamic = neko.Lib.loadLazy("std", "socket_set_broadcast", 2);
+	static var socket_recv_from = neko.Lib.loadLazy("std", "socket_recv_from", 5);
+	static var socket_send_to = neko.Lib.loadLazy("std", "socket_send_to", 5);
+	static var socket_set_broadcast = neko.Lib.loadLazy("std", "socket_set_broadcast", 2);
 }

@@ -306,8 +306,10 @@ Cases to handle explicitly:
 - `var x = dynamicExpr;` (an initializer of type `Dynamic`, e.g.
   `neko.Lib.load(...)`): error like any other unresolved type. Today its
   monomorph stays open and is bound by its first use (often to a function
-  type); in Haxe 6 it needs an annotation (`: Dynamic`). The Neko standard
-  library is annotated (222 fields).
+  type); in Haxe 6 it needs an annotation (`: Dynamic`). `neko.Lib.load` and
+  `loadLazy` return `haxe.Constraints.Function` instead of `Dynamic`: a
+  callable type, which converts to any function type (`@:to`) and has no
+  field, so the Neko natives they load need no annotation.
 - `function f() return g();` where `g` is not typed yet: allowed; the type of
   `f` depends on `FieldSig(g)` (lazy typing, as today).
 - Cycles of unannotated fields (`f` calls `g`, `g` calls `f`): today they may
@@ -465,7 +467,7 @@ php, lua, jvm, neko): 7 common fields (`Serializer.BASE64_CODES`,
 `ThreadImpl.getName`, `js.Boot.__resolveNativeClass`), 9 target-specific ones
 (HL `Tls`, `Deque`, `Mutex` natives, Lua `Boot.clampInt32` and
 `Socket.timeout`, PHP `Boot.__get`, JVM `Enum._hx_getParameters`) and 7 Neko
-ones (and the 222 Neko natives loaded with `neko.Lib.load`, `: Dynamic`), plus the return types breaking the inference cycles of
+ones (the Neko natives loaded with `neko.Lib.load` need none, see above), plus the return types breaking the inference cycles of
 `haxe.macro.Printer`, `haxe.Template`, `haxe.rtti.CType` and
 `haxe.zip.Huffman`. `-w +WUnresolvedFieldType -w +WTypingOrder` reports
 nothing in `std` on these targets.
