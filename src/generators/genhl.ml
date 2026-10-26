@@ -4934,7 +4934,8 @@ let generate_static_content ctx types f items =
 		(*
 			The entry point runs again after a hot reload (is_init is then false) : it initializes the
 			statics the reload added, either in a new class or in an existing one, and the __init__ of
-			the new classes. The VM tells which ones by words of 32 bits, bit k of word w being the own
+			the new classes. The static finals are set again by every reload : they are constants of
+			the code (a shader source for example). The VM tells which ones by words of 32 bits, bit k of word w being the own
 			field w * 32 + k of the class object, word -1 telling whether the class is new. When the
 			program starts, every bit is set and the VM is not called.
 		*)
@@ -4994,6 +4995,9 @@ let generate_static_content ctx types f items =
 		List.iter (function
 			| IClassInit (c,e) ->
 				guard (bits c (-1)) (-1l) (fun() -> ignore(eval_expr ctx e))
+			| IStatic (_,cf,e) when has_class_field_flag cf CfFinal ->
+				(* a static final is a constant of the code : set again by every reload *)
+				ignore(eval_expr ctx e)
 			| IStatic (c,cf,e) ->
 				(match field_index c cf with
 				| Some i -> guard (bits c (i lsr 5)) (Int32.shift_left 1l (i land 31)) (fun() -> ignore(eval_expr ctx e))
