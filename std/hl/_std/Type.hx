@@ -77,23 +77,36 @@ class Type {
 
 	@:keep static function initEnum(et:hl.Type, t:hl.Type):hl.BaseType.Enum@:privateAccess {
 		var e:hl.BaseType.Enum = cast t.getGlobal();
-		if( e != null )
+		if( e != null ) {
+			// the entry point runs again after a hot reload : the constructors may have changed
+			// (the VM upgraded the live values and __evalues__)
+			var cl = t.getEnumFields();
+			var same = cl.length == e.__constructs__.length;
+			for (i in 0...cl.length)
+				if( same && String.fromUCS2(cl[i]) != e.__constructs__[i] )
+					same = false;
+			if( !same )
+				initConstructs(e, cl);
 			return e;
+		}
 		e = et.allocObject();
 		e.__type__ = t;
 		e.__evalues__ = t.getEnumValues();
 		e.__ename__ = t.getTypeName();
+		initConstructs(e, t.getEnumFields());
+		register(e.__ename__.bytes, e);
+		t.setGlobal(e);
+		return e;
+	}
+
+	static function initConstructs(e:hl.BaseType.Enum, cl:hl.NativeArray<hl.Bytes>) @:privateAccess {
 		e.__emap__ = new hl.types.BytesMap();
 		e.__constructs__ = new Array();
-		var cl = t.getEnumFields();
 		for (i in 0...cl.length) {
 			var name = cl[i];
 			e.__emap__.set(name, i);
 			e.__constructs__.push(String.fromUCS2(name));
 		}
-		register(e.__ename__.bytes, e);
-		t.setGlobal(e);
-		return e;
 	}
 
 	@:keep static function register(b:hl.Bytes, t:hl.BaseType):Void {
