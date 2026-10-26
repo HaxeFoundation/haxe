@@ -71,6 +71,8 @@ and enum_proto = {
 	eid : int;
 	mutable eglobal : int option;
 	mutable efields : (string * string index * ttype array) array;
+	(* the names of the parameters of each constructor, from HL 2.0 (empty before) *)
+	mutable eparams : string index array array;
 }
 
 and field_proto = {

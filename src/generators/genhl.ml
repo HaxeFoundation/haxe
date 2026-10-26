@@ -323,6 +323,7 @@ let tuple_type ctx tl =
 				ename = "";
 				eid = 0;
 				efields = [|"",0,Array.of_list tl|];
+				eparams = [||];
 			} in
 			ctx.cached_tuples := PMap.add tl ct !(ctx.cached_tuples);
 			ct
@@ -1035,6 +1036,7 @@ and enum_type_locked tref ctx e key_path =
 			| Some (HEnum et as t) ->
 				et.eglobal <- None;
 				et.efields <- [||];
+				et.eparams <- [||];
 				et, t
 			| Some _ -> raise Memo_rebuild
 			| None ->
@@ -1043,6 +1045,7 @@ and enum_type_locked tref ctx e key_path =
 					ename = ename;
 					eid = alloc_string ctx ename;
 					efields = [||];
+					eparams = [||];
 				} in
 				et, HEnum et
 		in
@@ -1058,6 +1061,13 @@ and enum_type_locked tref ctx e key_path =
 			) in
 			(f.ef_name, alloc_string ctx f.ef_name, args)
 		) e.e_names);
+		(* the hot reload of HL 2.0 matches the parameters of a constructor by name *)
+		if compare_version ctx.hl_ver "2.0.0" >= 0 then
+			et.eparams <- Array.of_list (List.map (fun f ->
+				match (PMap.find f e.e_constrs).ef_type with
+				| TFun (args,_) -> Array.of_list (List.map (fun (n,_,_) -> alloc_string ctx n) args)
+				| _ -> [||]
+			) e.e_names);
 		let ct = enum_class ctx e in
 		et.eglobal <- Some (alloc_global ctx (match ct with HObj o -> o.pname | _ -> die "" __LOC__) ct);
 		t
@@ -4552,7 +4562,8 @@ let link ctx objects enum_objects entry =
 					PhysEnum.add eseen e ();
 					str e.eid;
 					Option.may glob e.eglobal;
-					Array.iter (fun (_,s,tl) -> str s; Array.iter typ tl) e.efields
+					Array.iter (fun (_,s,tl) -> str s; Array.iter typ tl) e.efields;
+					Array.iter (Array.iter str) e.eparams
 				end
 			| _ -> ()
 		end
@@ -4611,7 +4622,7 @@ let link ctx objects enum_objects entry =
 		PhysProto.add pfinal p { null_proto with pname = p.pname; pid = smap.(p.pid); pnfields = p.pnfields }
 	) pseen;
 	PhysVirtual.iter (fun v () -> PhysVirtual.add vfinal v { vfields = [||]; vindex = v.vindex }) vseen;
-	PhysEnum.iter (fun e () -> PhysEnum.add efinal e { ename = e.ename; eid = smap.(e.eid); eglobal = None; efields = [||] }) eseen;
+	PhysEnum.iter (fun e () -> PhysEnum.add efinal e { ename = e.ename; eid = smap.(e.eid); eglobal = None; efields = [||]; eparams = [||] }) eseen;
 	let tfinal = PhysType.create (DynArray.length tlist) in
 	let rec ft t =
 		if is_immediate t then t else
@@ -4648,7 +4659,8 @@ let link ctx objects enum_objects entry =
 	PhysVirtual.iter (fun v v2 -> v2.vfields <- LargeArray.map (fun (n,s,t) -> (n,smap.(s),ft t)) v.vfields) vfinal;
 	PhysEnum.iter (fun e e2 ->
 		e2.eglobal <- Option.map (fun g -> gmap.(g)) e.eglobal;
-		e2.efields <- LargeArray.map (fun (n,s,tl) -> (n,smap.(s),Array.map ft tl)) e.efields
+		e2.efields <- LargeArray.map (fun (n,s,tl) -> (n,smap.(s),Array.map ft tl)) e.efields;
+		e2.eparams <- Array.map (Array.map (fun s -> smap.(s))) e.eparams
 	) efinal;
 	(* keyed by the types, compared when complete *)
 	PhysProto.iter (fun p p2 -> p2.pinterfaces <- PMap.foldi (fun t i acc -> PMap.add (ft t) i acc) p.pinterfaces PMap.empty) pfinal;
@@ -4709,7 +4721,7 @@ let link ctx objects enum_objects entry =
 	let gnames = Array.make (DynArray.length gorder) "" in
 	Hashtbl.iter (fun name g -> if gmap.(g) >= 0 then gnames.(gmap.(g)) <- name) ctx.cglobals.map;
 	let code = {
-		version = if compare_version ctx.hl_ver "2.0.0" >= 0 then 6 else if Array.length bytes = 0 then 4 else 5;
+		version = if compare_version ctx.hl_ver "2.0.0" >= 0 then 7 else if Array.length bytes = 0 then 4 else 5;
 		entrypoint = fidmap.(entry);
 		strings = table sorder (DynArray.get ctx.cstrings.arr);
 		bytes = bytes;
@@ -5295,11 +5307,15 @@ let write_code ?timer ?pool ch code debug =
 			| None -> write_index 0
 			| Some g -> write_index (g + 1));
 			write_index (Array.length e.efields);
-			Array.iter (fun (_,nid,tl) ->
+			Array.iteri (fun i (_,nid,tl) ->
 				write_index nid;
 				if Array.length tl > 0xFF then die "" __LOC__;
 				byte (Array.length tl);
 				Array.iter write_type tl;
+				if code.version >= 7 then begin
+					let names = if i < Array.length e.eparams then e.eparams.(i) else [||] in
+					Array.iteri (fun k _ -> write_index (if k < Array.length names then names.(k) + 1 else 0)) tl
+				end
 			) e.efields
 		| HNull t ->
 			byte 19;
