@@ -86,6 +86,10 @@ type method_context = {
 	mutable massign : lassign list;
 	(* lookup into massign by variable id, so we can set the scope end when the block closes *)
 	mvar_assigns : (int, lassign) Hashtbl.t;
+	(* the names of the local functions of the method (see local_function_names) *)
+	mutable mlocal : string;
+	mutable mlnames : (texpr * string) list;
+	mutable mlcount : (string, int) Hashtbl.t;
 }
 
 type array_impl = {
@@ -421,7 +425,48 @@ let method_context id t captured hasthis =
 		mcurpos = Globals.null_pos;
 		massign = [];
 		mvar_assigns = Hashtbl.create 0;
+		mlocal = "";
+		mlnames = [];
+		mlcount = Hashtbl.create 0;
 	}
+
+(* The names of the local functions of a method body: the variable, field or
+   function that receives them. The hot reload of HL 2.0 identifies a local
+   function by the name of its path in its method (with the rank of the
+   functions of the same path), so that adding one does not change which body
+   the live closures of the others run. *)
+let local_function_names e =
+	let names = ref [] in
+	let rec strip e = match e.eexpr with
+		| TCast (e,None) | TMeta (_,e) | TParenthesis e -> strip e
+		| _ -> e
+	in
+	let rec name_of e = match (strip e).eexpr with
+		| TLocal v -> v.v_name
+		| TField (_,fa) -> field_name fa
+		| TTypeExpr t -> snd (t_path t)
+		| TCall (e,_) | TArray (e,_) -> name_of e
+		| _ -> ""
+	in
+	let add e n =
+		let e = strip e in
+		match e.eexpr with
+		| TFunction _ when not (List.exists (fun (e2,_) -> e2 == e) !names) -> names := (e,n) :: !names
+		| _ -> ()
+	in
+	let rec loop e =
+		(match e.eexpr with
+		| TVar (v,Some e) -> add e v.v_name
+		| TBinop ((OpAssign | OpAssignOp _),e1,e2) -> add e2 (name_of e1)
+		| TCall (c,el) -> List.iter (fun e -> add e (name_of c)) el
+		| TNew (c,_,el) -> List.iter (fun e -> add e (snd c.cl_path)) el
+		| TObjectDecl fl -> List.iter (fun ((n,_,_),e) -> add e n) fl
+		| TReturn (Some e) -> add e "return"
+		| _ -> ());
+		Type.iter loop e
+	in
+	loop e;
+	!names
 
 let field_name c f =
 	s_type_path c.cl_path ^ ":" ^ f.cf_name
@@ -3048,7 +3093,12 @@ and eval_expr ctx e =
 			!ret)
 	| TFunction f ->
 		let fid = closure_fid ctx in
-		let capt = make_fun ctx ("","") fid f None (Some ctx.m.mcaptured) in
+		let lname = (try List.assq e ctx.m.mlnames with Not_found -> "") in
+		let lname = if ctx.m.mlocal = "" then lname else ctx.m.mlocal ^ "/" ^ lname in
+		let rank = (try Hashtbl.find ctx.m.mlcount lname with Not_found -> 0) in
+		Hashtbl.replace ctx.m.mlcount lname (rank + 1);
+		let lname = if rank = 0 then lname else lname ^ "#" ^ string_of_int rank in
+		let capt = make_fun ~lname ctx ("","") fid f None (Some ctx.m.mcaptured) in
 		let r = alloc_tmp ctx (to_type ctx e.etype) in
 		if capt == ctx.m.mcaptured then
 			op ctx (OInstanceClosure (r, fid, ctx.m.mcaptreg))
@@ -3622,12 +3672,13 @@ and gen_method_wrapper ctx rt t p =
 			debug = make_debug ctx ctx.m.mdebug;
 			assigns = make_assigns ctx.m.massign;
 			need_opt = false;
+			flocal = -1;
 		} in
 		ctx.m <- old;
 		DynArray.add ctx.cur.g_funs f;
 		fid
 
-and make_fun ?gen_content ctx name fidx f cthis cparent =
+and make_fun ?gen_content ?lname ctx name fidx f cthis cparent =
 	let old = ctx.m in
 	let capt = build_capture_vars ctx f in
 	let has_captured_vars = Array.length capt.c_vars > 0 in
@@ -3637,6 +3688,14 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 	) in
 
 	ctx.m <- method_context fidx (to_type ctx f.tf_type) capt (cthis <> None);
+	let hot_names = compare_version ctx.hl_ver "2.0.0" >= 0 in
+	(match lname with
+	| Some n ->
+		ctx.m.mlocal <- n;
+		ctx.m.mlnames <- old.mlnames;
+		ctx.m.mlcount <- old.mlcount
+	| None ->
+		if hot_names then ctx.m.mlnames <- local_function_names f.tf_expr);
 
 	set_curpos ctx f.tf_expr.epos;
 
@@ -3790,6 +3849,7 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		debug = make_debug ctx ctx.m.mdebug;
 		assigns = make_assigns ~sorted:true ctx.m.massign;
 		need_opt = (gen_content = None || name <> ("",""));
+		flocal = (match lname with Some n when hot_names -> alloc_string ctx n | _ -> -1);
 	} in
 	ctx.m <- old;
 	DynArray.add ctx.cur.g_funs hlf;
@@ -4370,6 +4430,7 @@ let gen_enum_ctor ctx e ef eid =
 		debug = make_debug ctx ctx.m.mdebug;
 		assigns = make_assigns ctx.m.massign;
 		need_opt = false;
+		flocal = -1;
 	} in
 	ctx.m <- old;
 	hlf
@@ -4474,6 +4535,7 @@ let object_syms sizes o =
 		let cur = ref null_debug in
 		Array.iter (fun ((fi,_,_) as d) -> if d != !cur then begin cur := d; file fi end) f.debug;
 		Array.iter (fun (s,_,_) -> str s) f.assigns;
+		if f.flocal >= 0 then str f.flocal;
 	) o.o_funs;
 	{
 		s_strings = DynArray.to_array strs;
@@ -4705,6 +4767,7 @@ let link ctx objects enum_objects entry =
 			) f.debug;
 			assigns = LargeArray.map (fun (s,p,e) -> (smap.(s),p,e)) f.assigns;
 			need_opt = f.need_opt;
+			flocal = if f.flocal < 0 then -1 else smap.(f.flocal);
 		}
 	in
 	let out = LargeArray.make_non_float nfuns in
@@ -5007,8 +5070,8 @@ let generate_static_content ctx types f items =
 		List.iter (function
 			| IClassInit (c,e) ->
 				guard (bits c (-1)) (-1l) (fun() -> ignore(eval_expr ctx e))
-			| IStatic (_,cf,e) when has_class_field_flag cf CfFinal ->
-				(* a static final is a constant of the code : set again by every reload *)
+			| IStatic (_,cf,e) when has_meta Meta.HotReload cf.cf_meta ->
+				(* @:hotReload : a value of the code (a shader source), set again by every reload *)
 				ignore(eval_expr ctx e)
 			| IStatic (c,cf,e) ->
 				(match field_index c cf with
@@ -5384,6 +5447,7 @@ let write_code ?timer ?pool ch code debug =
 		write_index (Array.length f.code);
 		Array.iter write_type f.regs;
 		Array.iter write_op f.code;
+		if code.version >= 7 then write_index (f.flocal + 1);
 		if debug then begin
 			write_debug_infos f.debug;
 			write_index (Array.length f.assigns);

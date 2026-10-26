@@ -224,6 +224,8 @@ type fundecl = {
 	debug : (int * int * Globals.pos) array;
 	assigns : (string index * int * int) array;
 	need_opt : bool;
+	(* the name of a local function in its method, from HL 2.0 (-1 if none) *)
+	flocal : string index;
 }
 
 type code = {
