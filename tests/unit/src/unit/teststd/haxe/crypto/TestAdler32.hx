@@ -5,6 +5,10 @@ import haxe.io.Bytes;
 
 class TestAdler32 extends unit.Test {
 
+	// Compare as hex: the size of Int differs between targets
+	static inline function hex(i:Int)
+		return StringTools.hex(i, 8);
+
 	static function filled(len:Int) {
 		var b = Bytes.alloc(len);
 		b.fill(0, len, 0xFF);
@@ -19,18 +23,18 @@ class TestAdler32 extends unit.Test {
 	}
 
 	public function test() {
-		eq(Adler32.make(Bytes.ofString("")), 1);
-		eq(Adler32.make(Bytes.ofString("The quick brown fox jumps over the lazy dog")), 0x5BDC0FDA);
-		eq(new Adler32().toString(), "0000000000000001");
+		eq(1, Adler32.make(Bytes.ofString("")));
+		eq("5BDC0FDA", hex(Adler32.make(Bytes.ofString("The quick brown fox jumps over the lazy dog"))));
+		eq("0000000000000001", new Adler32().toString());
 
-		eq(Adler32.make(filled(1)), 0x01000100);
-		eq(Adler32.make(filled(3799)), 0x0D27C8FC);
-		eq(Adler32.make(filled(3800)), 0xD722C9FB);
-		eq(Adler32.make(filled(3801)), 0xA22BCAFA);
-		eq(Adler32.make(filled(7600)), 0x74FC9404);
-		eq(Adler32.make(filled(7601)), 0x0A0E9503);
+		eq("01000100", hex(Adler32.make(filled(1))));
+		eq("0D27C8FC", hex(Adler32.make(filled(3799))));
+		eq("D722C9FB", hex(Adler32.make(filled(3800))));
+		eq("A22BCAFA", hex(Adler32.make(filled(3801))));
+		eq("74FC9404", hex(Adler32.make(filled(7600))));
+		eq("0A0E9503", hex(Adler32.make(filled(7601))));
 
-		eq(Adler32.make(pattern(10000, 31, 7)), 0x41977596);
+		eq("41977596", hex(Adler32.make(pattern(10000, 31, 7))));
 	}
 
 	public function testSplitUpdate() {
@@ -39,13 +43,13 @@ class TestAdler32 extends unit.Test {
 		a.update(b, 0, 100);
 		a.update(b, 100, 5000);
 		a.update(b, 5100, 3900);
-		eq(a.get(), 0x527080C4);
+		eq("527080C4", hex(a.get()));
 	}
 
 	public function testOffset() {
 		var b = Bytes.ofString("xxThe quick brown fox jumps over the lazy dogyy");
 		var a = new Adler32();
 		a.update(b, 2, 43);
-		eq(a.get(), 0x5BDC0FDA);
+		eq("5BDC0FDA", hex(a.get()));
 	}
 }
