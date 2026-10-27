@@ -45,7 +45,8 @@ let let_through : Domain.id list ref = ref []
    macros it holds (see [lent]), and the domains waiting for that claim run its
    tasks instead of sleeping ([help], set by the batch). *)
 let in_batch : bool Domain.DLS.key = Domain.DLS.new_key (fun () -> false)
-let help : (unit -> bool) ref = ref (fun () -> false)
+let no_help () = false
+let help : (unit -> bool) ref = ref no_help
 
 (* Waits, with [mutex] held, until [cond ()] holds, or until let through to
    break a cycle of waiting domains (see [wait_kind]). Tells whether [cond ()]
@@ -72,7 +73,9 @@ let wait ?(kind=WaitValue) ?(seq=0) ?(safe=(fun () -> false)) ~owner cond =
 			let t = Unix.gettimeofday () in
 			while not (cond () || through ()) do
 				(* waiting for the claim of the macros lent to a batch: run its tasks *)
-				let helped = kind = WaitMacros && not (Domain.DLS.get in_batch) && begin
+				(* only when a claim is lent: while it helps, a broadcast is lost and a
+				   domain starting to wait does not see a cycle through it *)
+				let helped = kind = WaitMacros && not (Domain.DLS.get in_batch) && !help != no_help && begin
 					(* not waiting while it runs a task: a domain waiting for it
 					   does not close a cycle through its wait *)
 					let entry = List.assoc me !waiting in
@@ -83,7 +86,9 @@ let wait ?(kind=WaitValue) ?(seq=0) ?(safe=(fun () -> false)) ~owner cond =
 					waiting := (me,entry) :: !waiting;
 					r
 				end in
-				if not helped then Condition.wait done_ mutex
+				(* [mutex] was released to help: a broadcast sent meanwhile is lost,
+				   the condition is checked again before sleeping *)
+				if not (helped || cond () || through ()) then Condition.wait done_ mutex
 			done;
 			let k = rank kind in
 			TypingTrace.event (fun () -> "waited " ^ kind_names.(k));
@@ -512,7 +517,7 @@ let lend_claim run_task f =
 		);
 		Std.finally (fun () -> Mutex.protect mutex (fun () ->
 			lent := None;
-			help := (fun () -> false);
+			help := no_help;
 			Condition.broadcast done_
 		)) f ()
 
