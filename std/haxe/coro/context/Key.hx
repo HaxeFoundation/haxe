@@ -1,8 +1,7 @@
 package haxe.coro.context;
 
 class KeyImpl<T> {
-	static var counter = 0;
-	static var counterMutex = new sys.thread.Mutex(); // TODO: AtomicInt once it's cross-platform
+	static var counter = new haxe.atomic.AtomicInt(0);
 
 	public final name:String;
 	public final id:Int;
@@ -13,9 +12,7 @@ class KeyImpl<T> {
 	}
 
 	static public function createNew<T>(name:String) {
-		counterMutex.acquire();
-		var id = counter++;
-		counterMutex.release();
+		var id = counter.add(1);
 		return new KeyImpl<T>(id, name);
 	}
 }

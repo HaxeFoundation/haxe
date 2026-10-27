@@ -399,6 +399,7 @@ and type_ident ctx i p mode with_type =
 					if ctx.f.in_display then begin
 						raise_error_msg err p
 					end;
+					if ctx.f.in_call_args then raise (WithTypeError (make_error err p));
 					if Diagnostics.error_in_diagnostics_run ctx.com p then begin
 						DisplayToplevel.handle_unresolved_identifier ctx i p false;
 						DisplayFields.handle_missing_ident ctx i mode with_type p;
@@ -637,7 +638,13 @@ and type_block ctx el with_type p =
 	let rec loop acc = function
 		| [] -> List.rev acc
 		| e :: l ->
-			let acc = try merge acc (type_expr ctx e (if l = [] then with_type else WithType.no_value)) with Error err -> check_error ctx err; acc in
+			let with_type = if l = [] then with_type else WithType.no_value in
+			let acc =
+				try merge acc (type_expr ctx e with_type)
+				with Error err ->
+					check_error ctx err;
+					(match with_type with | WithType.NoValue -> acc | _ -> mk (TConst TNull) (mk_mono()) (pos e) :: acc)
+			in
 			loop acc l
 	in
 	let l = loop [] el in
@@ -786,6 +793,10 @@ and type_object_decl ctx fl with_type p =
 		let fields = List.fold_left (fun acc ((n,opt,t),parg) ->
 			let f = mk_field n t parg parg in
 			if opt then f.cf_meta <- [(Meta.Optional,[],null_pos)];
+			(try
+				let cf = PMap.find n c.cl_fields in
+				f.cf_doc <- cf.cf_doc
+			with Not_found -> ());
 			PMap.add n f acc
 		) PMap.empty args in
 		let t,fl = type_fields fields in
@@ -1249,7 +1260,22 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 			if params <> [] then v.v_extra <- Some (var_extra params None);
 			Some v
 	in
-	let e = TypeloadFunction.type_function ctx args rt f.f_expr ctx.f.in_display p in
+	let e =
+		let old_in_call_args = ctx.f.in_call_args in
+		let resets_call_args = old_in_call_args && not (in_overload_call_args ctx) in
+		if resets_call_args then ctx.f.in_call_args <- false;
+		let deactivate_capture = match (if resets_call_args then call_arg_body_capture ctx else None) with
+			| Some buf -> activate_message_capture ctx.com buf
+			| None -> (fun () -> ())
+		in
+		Std.finally (fun () -> deactivate_capture (); ctx.f.in_call_args <- old_in_call_args)
+			(fun () ->
+				try TypeloadFunction.type_function ctx args rt f.f_expr ctx.f.in_display p
+				with Error err when resets_call_args ->
+					check_error ctx err;
+					mk (TBlock []) ctx.t.tvoid p
+			) ()
+	in
 	let tf = {
 		tf_args = args#for_expr ctx;
 		tf_type = rt;

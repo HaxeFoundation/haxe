@@ -396,8 +396,14 @@ class Xml {
 
 	function new(nodeType:XmlType) {
 		this.nodeType = nodeType;
-		children = [];
-		attributeMap = new Map();
+		switch (nodeType) {
+			case Document:
+				children = [];
+			case Element:
+				children = [];
+				attributeMap = new Map();
+			case _:
+		}
 	}
 
 	inline function ensureElementType() {

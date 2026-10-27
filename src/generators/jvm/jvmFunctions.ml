@@ -290,6 +290,14 @@ type typed_function_kind =
 	| FuncMember of jpath * string
 	| FuncStatic of jpath * string
 
+(* A typed_function lives either as an inner class of its caller (THostInner
+   — the default for locals and most member/static cases) or as a standalone
+   top-level class at a caller-independent path (THostStandalone — used by
+   the shared field-closure pool, see gctx.closure_paths in genjvm.ml). *)
+type typed_function_host =
+	| THostInner of JvmClass.builder
+	| THostStandalone of jpath
+
 module JavaFunctionalInterface = struct
 	type t = {
 		jargs: jsignature list;
@@ -323,7 +331,7 @@ open JvmGlobals
 class typed_function
 	(functions : typed_functions)
 	(kind : typed_function_kind)
-	(host_class : JvmClass.builder)
+	(host : typed_function_host)
 	(host_method : JvmMethod.builder)
 	(context : (string * jsignature) list)
 
@@ -332,19 +340,26 @@ class typed_function
 	val mutable functional_interfaces = []
 
 	val jc_closure =
-		let name = match kind with
-			| FuncLocal s ->
-				let name = patch_name host_method#get_name in
-				let name = match s with
-					| None -> name
-					| Some s -> name ^ "_" ^ s
+		let jc = match host with
+			| THostInner host_class ->
+				let name = match kind with
+					| FuncLocal s ->
+						let name = patch_name host_method#get_name in
+						let name = match s with
+							| None -> name
+							| Some s -> name ^ "_" ^ s
+						in
+						Printf.sprintf "Closure_%s_%i" name (host_class#get_next_closure_id name)
+					| FuncStatic(path,name) | FuncMember(path,name) ->
+						let prefix = match fst path with [] -> snd path | pkg -> String.concat "_" pkg ^ "_" ^ snd path in
+						Printf.sprintf "%s_%s" prefix (patch_name name)
 				in
-				Printf.sprintf "Closure_%s_%i" name (host_class#get_next_closure_id name)
-			| FuncStatic(path,name) | FuncMember(path,name) ->
-				let prefix = match fst path with [] -> snd path | pkg -> String.concat "_" pkg ^ "_" ^ snd path in
-				Printf.sprintf "%s_%s" prefix (patch_name name)
+				host_class#spawn_inner_class None haxe_function_path (Some name)
+			| THostStandalone path ->
+				let jc = new JvmClass.builder path haxe_function_path in
+				jc#add_access_flag 0x01; (* public *)
+				jc
 		in
-		let jc = host_class#spawn_inner_class None haxe_function_path (Some name) in
 		jc#add_typed_function jc#get_this_path;
 		jc#add_access_flag 0x10; (* final *)
 		jc
@@ -396,7 +411,15 @@ class typed_function
 			let msig = method_sig jfi.jargs jfi.jret in
 			if not (jc_closure#has_method jfi.jname msig) then begin
 				let jm_invoke_next = spawn_invoke_next jfi.jname msig false in
-				functions#make_forward_method_jsig jc_closure jm_invoke_next meth.name jfi.jargs jfi.jret meth.dargs meth.dret
+				(* Forward to the typed invoke (arg_sigs, ret) rather than the
+				   Object-declassified (meth.dargs, meth.dret). When the FI's
+				   own method is also named "invoke" with an erased Object
+				   return (Function0<T>, Callable<V>, …), forwarding to
+				   meth.dret would emit `invokevirtual invoke()Object` against
+				   this very bridge and self-recurse — the later loop that
+				   would have synthesized the Object→typed bridge is then
+				   short-circuited by has_method. *)
+				functions#make_forward_method_jsig jc_closure jm_invoke_next meth.name jfi.jargs jfi.jret arg_sigs ret
 			end
 		) functional_interfaces;
 		let rec loop meth =

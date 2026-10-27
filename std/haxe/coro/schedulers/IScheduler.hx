@@ -10,7 +10,7 @@ interface IScheduler {
 		Schedules `func` to be run `ms` milliseconds from now. Returns an `ISchedulerHandle` which
 		allows cancellation.
 
-		The exact way `func` is called is implemented-dependent. It is strongly recommended to
+		The exact way `func` is called is implementation-dependent. It is strongly recommended to
 		return from the callback as soon as possible, e.g. by dispatching further operations
 		to a dispatcher instead of executing them directly. In particular, continuations should
 		not be resumed synchronously from the callback code.

@@ -28,7 +28,7 @@ depends: [
   "sha"
   "camlp-streams"
   "ppx_parser" {>= "0.2.0"}
-  "conf-libpcre2-8"
+  "pcre2"
   "conf-zlib"
   "conf-neko"
   "luv" {>= "0.5.13"}

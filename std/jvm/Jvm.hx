@@ -241,7 +241,7 @@ class Jvm {
 		return n == null ? null : n.doubleValue();
 	}
 
-	static public function toByte(d:Dynamic) {
+	static public function toByte(d:Dynamic):jvm.Int8 {
 		return d == null ? 0 : (d : java.lang.Number).byteValue();
 	}
 

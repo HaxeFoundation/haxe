@@ -303,6 +303,7 @@ let rec collect_vars ?(in_block=false) rc scope e =
 		let scope = create_scope (Some scope) in
 		List.iter (fun (v,_) -> declare_var rc scope v) fn.tf_args;
 		List.iter (fun (v,_) -> use_var rc scope v) fn.tf_args;
+		List.iter (fun (_,eo) -> Option.may (collect_vars scope) eo) fn.tf_args;
 		(match fn.tf_expr.eexpr with
 		| TBlock exprs -> List.iter (collect_vars scope) exprs
 		| _ -> collect_vars scope fn.tf_expr

@@ -1024,9 +1024,9 @@ let generate_function gctx ctx f =
 		| OGetUI8 (r,b,idx) ->
 			sexpr "%s = *(unsigned char*)(%s + %s)" (reg r) (reg b) (reg idx)
 		| OGetUI16 (r,b,idx) ->
-			sexpr "%s = *(unsigned short*)(%s + %s)" (reg r) (reg b) (reg idx)
+			sexpr "{ unsigned short _v; memcpy(&_v, %s + %s, sizeof(_v)); %s = _v; }" (reg b) (reg idx) (reg r)
 		| OGetMem (r,b,idx) ->
-			sexpr "%s = *(%s*)(%s + %s)" (reg r) (ctype (rtype r)) (reg b) (reg idx)
+			sexpr "memcpy(&%s, %s + %s, sizeof(%s))" (reg r) (reg b) (reg idx) (reg r)
 		| OGetArray (r, arr, idx) ->
 			(match rtype arr with
 			| HAbstract _ ->
@@ -1040,9 +1040,9 @@ let generate_function gctx ctx f =
 		| OSetUI8 (b,idx,r) ->
 			sexpr "*(unsigned char*)(%s + %s) = (unsigned char)%s" (reg b) (reg idx) (reg r)
 		| OSetUI16 (b,idx,r) ->
-			sexpr "*(unsigned short*)(%s + %s) = (unsigned short)%s" (reg b) (reg idx) (reg r)
+			sexpr "{ unsigned short _v = (unsigned short)%s; memcpy(%s + %s, &_v, sizeof(_v)); }" (reg r) (reg b) (reg idx)
 		| OSetMem (b,idx,r) ->
-			sexpr "*(%s*)(%s + %s) = %s" (ctype (rtype r)) (reg b) (reg idx) (reg r)
+			sexpr "memcpy(%s + %s, &%s, sizeof(%s))" (reg b) (reg idx) (reg r) (reg r)
 		| OSetArray (arr,idx,v) ->
 			(match rtype arr with
 			| HAbstract _ ->
@@ -1760,6 +1760,11 @@ let write_c com file (code:code) gnames num_domains =
 	) all_types;
 
 	line "";
+	line "#ifndef HL_DUMP_TYPES";
+	line "HL_API void hl_sys_print(vbyte*);";
+	line "#endif";
+
+	line "";
 	line "static void dump_types( void (*fdump)( void *, int) ) {";
 	block ctx;
 	line "#ifdef HL_DUMP_TYPES";
@@ -1782,7 +1787,7 @@ let write_c com file (code:code) gnames num_domains =
 		| _ -> ()
 	) all_types;
 	line "#else";
-	sexpr "printf(\"dump_types not available, please compile with HL_DUMP_TYPES defined\\n\")";
+	sexpr "hl_sys_print((vbyte*)USTR(\"dump_types not available, please compile with HL_DUMP_TYPES defined\\n\"))";
 	line "#endif";
 	unblock ctx;
 	line "}";

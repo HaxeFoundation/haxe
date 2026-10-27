@@ -63,6 +63,9 @@ typedef InitializeParams = {
 
 	/** The maximum number of completion items to return **/
 	final ?maxCompletionItems:Int;
+
+	/** Maximum age in seconds for unused context caches before they are removed **/
+	final ?staleContextMaxAge:Int;
 }
 
 /**

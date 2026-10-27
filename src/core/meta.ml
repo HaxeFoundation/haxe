@@ -1,13 +1,22 @@
 open Globals
 include MetaList
 
-let has m ml = List.exists (fun (m2,_,_) -> m = m2) ml
-let has_one_of ml1 ml2 = List.exists (fun (m2,_,_) -> List.mem m2 ml1) ml2
-let get m ml = List.find (fun (m2,_,_) -> m = m2) ml
+let[@inline] meta_eq (a : strict_meta) (b : strict_meta) =
+	a == b || (Obj.is_block (Obj.repr a) && Obj.is_block (Obj.repr b) && a = b)
+
+let rec has m ml = match ml with
+	| [] -> false
+	| (m2,_,_) :: l -> meta_eq m m2 || has m l
+
+let has_one_of ml1 ml2 = List.exists (fun (m2,_,_) -> List.exists (meta_eq m2) ml1) ml2
+
+let rec get m ml = match ml with
+	| [] -> raise Not_found
+	| ((m2,_,_) as mt) :: l -> if meta_eq m m2 then mt else get m l
 
 let rec remove m = function
 	| [] -> []
-	| (m2,_,_) :: l when m = m2 -> l
+	| (m2,_,_) :: l when meta_eq m m2 -> l
 	| x :: l -> x :: remove m l
 
 type user_meta = {

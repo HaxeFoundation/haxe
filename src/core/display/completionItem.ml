@@ -246,16 +246,13 @@ module CompletionModuleType = struct
 				("importStatus",jint (ImportStatus.to_int is));
 			]) ::
 			("kind",jint (to_int cm.kind)) ::
-			(match ctx.generation_mode with
-			| GMFull | GMWithoutDoc | GMMinimum ->
-				("meta",generate_metadata ctx cm.meta) ::
-				("pos",generate_pos ctx cm.pos) ::
-				("params",jlist (generate_ast_type_param ctx) cm.params) ::
-				("isExtern",jbool cm.is_extern) ::
-				("isFinal",jbool cm.is_final) ::
-				("isAbstract",jbool cm.is_abstract) ::
-				(if ctx.generation_mode = GMFull then ["doc",jopt jstring (gen_doc_text_opt cm.doc)] else [])
-			)
+			("meta",generate_metadata ctx cm.meta) ::
+			("pos",generate_pos ctx cm.pos) ::
+			("params",jlist (generate_ast_type_param ctx) cm.params) ::
+			("isExtern",jbool cm.is_extern) ::
+			("isFinal",jbool cm.is_final) ::
+			("isAbstract",jbool cm.is_abstract) ::
+			(if ctx.generate_docs then ["doc",jopt jstring (gen_doc_text_opt cm.doc)] else [])
 		in
 		jobject fields
 end
@@ -271,12 +268,14 @@ module ClassFieldOrigin = struct
 		| Unknown
 
 	let to_json ctx cfo =
+		let octx = { ctx with generate_member_bodies = false } in
+		let generate_module_type mt = generate_module_type octx mt in
 		let i,args = match cfo with
-		| Self mt -> 0,if ctx.generation_mode = GMMinimum then None else Some (generate_module_type ctx mt)
-		| StaticImport mt -> 1,if ctx.generation_mode = GMMinimum then None else Some (generate_module_type ctx mt)
-		| Parent mt -> 2,if ctx.generation_mode = GMMinimum then None else Some (generate_module_type ctx mt)
-		| StaticExtension mt -> 3,if ctx.generation_mode = GMMinimum then None else Some (generate_module_type ctx mt)
-		| AnonymousStructure an -> 4,if ctx.generation_mode = GMMinimum then None else Some (generate_anon ctx an)
+		| Self mt -> 0,if ctx.generate_origins then Some (generate_module_type mt) else None
+		| StaticImport mt -> 1,if ctx.generate_origins then Some (generate_module_type mt) else None
+		| Parent mt -> 2,if ctx.generate_origins then Some (generate_module_type mt) else None
+		| StaticExtension mt -> 3,if ctx.generate_origins then Some (generate_module_type mt) else None
+		| AnonymousStructure an -> 4,if ctx.generate_origins then Some (generate_anon ctx an) else None
 		| BuiltIn -> 5,None
 		| Unknown -> 6,None
 		in

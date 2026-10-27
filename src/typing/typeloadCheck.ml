@@ -47,7 +47,7 @@ let is_generic_parameter ctx c =
 	with Not_found ->
 		false
 
-let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
+let valid_redefinition com map1 map2 f1 t1 f2 t2 = (* child, parent *)
 	let tctx = {
 		type_param_pairs = [];
 		known_type_params = f1.cf_params
@@ -87,7 +87,7 @@ let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 				raise (Unify_error (Cannot_unify (t1,t2) :: msg :: l))
 			end
 		| _ ->
-			die "" __LOC__
+			display_error com (Printf.sprintf "Unexpected types when checking redefinition of %s:\n\tf1: %s\n\tf2: %s" f1.cf_name (s_type_kind t1) (s_type_kind t2)) f1.cf_pos;
 		end
 	| _,(Var { v_write = AccNo | AccNever }) ->
 		(* write variance *)
@@ -191,7 +191,7 @@ let check_override_field ctx p rctx =
 		display_error ctx.com ("Field " ^ i ^ " has different property access than in superclass") p);
 	if (has_class_field_flag rctx.cf_old CfFinal) then display_error ctx.com ("Cannot override final method " ^ i) p;
 	try
-		valid_redefinition rctx.map rctx.map rctx.cf_new rctx.cf_new.cf_type rctx.cf_old rctx.t_old;
+		valid_redefinition ctx.com rctx.map rctx.map rctx.cf_new rctx.cf_new.cf_type rctx.cf_old rctx.t_old;
 	with
 		Unify_error l ->
 			display_error_ext ctx.com (make_error (Custom ("Field " ^ i ^ " overrides parent class with different or incomplete type")) ~sub:([
@@ -433,7 +433,7 @@ module Inheritance = struct
 						display_error com ("Field " ^ f.cf_name ^ " has different property access than in " ^ s_type_path intf.cl_path ^ ": " ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind) p
 					else try
 						let map1 = TClass.get_map_function  intf params in
-						valid_redefinition map1 map2 f2 t2 f (apply_params intf.cl_params params f.cf_type)
+						valid_redefinition com map1 map2 f2 t2 f (apply_params intf.cl_params params f.cf_type)
 					with
 						Unify_error l ->
 							if not ((has_class_flag c CExtern)) then begin

@@ -3,7 +3,7 @@ open Ast
 open Type
 open Common
 open Typecore
-open TyperBase
+open ArrayAccess
 open Fields
 open Calls
 open Error
@@ -67,7 +67,6 @@ module IterationKind = struct
 		| IteratorInt of texpr * texpr
 		| IteratorArrayDecl of texpr list
 		| IteratorArray
-		| IteratorArrayAccess
 		| IteratorGenericStack of tclass
 		| IteratorIterator
 		| IteratorCustom of (texpr -> texpr -> Type.t -> pos -> texpr) * (texpr -> pos -> texpr)
@@ -86,9 +85,6 @@ module IterationKind = struct
 		allow_dynamic = false;
 		allow_open_mono = false;
 	}
-
-	let get_next_array_element arr iexpr pt p =
-		(mk (TArray (arr,iexpr)) pt p)
 
 	let try_iterator_unification ctx e =
 		let pt = spawn_monomorph ctx e.epos in
@@ -183,41 +179,8 @@ module IterationKind = struct
 				cannot_iterate_on ctx.com e
 
 	let of_texpr_by_array_access ctx e p =
-		match follow e.etype with
-		| TInst({ cl_array_access = Some pt } as c,pl) when (try match follow (PMap.find "length" c.cl_fields).cf_type with TAbstract ({ a_path = [],"Int" },[]) -> true | _ -> false with Not_found -> false) && not (PMap.mem "iterator" c.cl_fields) ->
-			IteratorArrayAccess,e,apply_params c.cl_params pl pt
-		| TAbstract({a_impl = Some c} as a,tl) ->
-			let cf_length = PMap.find "get_length" c.cl_statics in
-			let get_length e p =
-				CallUnification.make_static_call_better ctx c cf_length tl [e] ctx.com.basic.tint p
-			in
-			(match follow cf_length.cf_type with
-				| TFun(_,tr) ->
-					(match follow tr with
-						| TAbstract({a_path = [],"Int"},_) -> ()
-						| _ -> raise Not_found
-					)
-				| _ ->
-					raise Not_found
-			);
-			(try
-				(* first try: do we have an @:arrayAccess getter field? *)
-				let todo = mk (TConst TNull) ctx.t.tint p in
-				let cf,_,r,_ = AbstractCast.find_array_read_access_raise ctx a tl todo p in
-				let get_next e_base e_index t p =
-					CallUnification.make_static_call_better ctx c cf tl [e_base;e_index] r p
-				in
-				IteratorCustom(get_next,get_length),e,r
-			with Not_found ->
-				(* second try: do we have @:arrayAccess on the abstract itself? *)
-				if not (Meta.has Meta.ArrayAccess a.a_meta) then raise Not_found;
-				(* let's allow this only for core-type abstracts *)
-				if not (Meta.has Meta.CoreType a.a_meta) then raise Not_found;
-				(* in which case we assume that a singular type parameter is the element type *)
-				let t = match tl with [t] -> t | _ -> raise Not_found in
-				IteratorCustom(get_next_array_element,get_length),e,t
-			)
-	 	| _ -> raise Not_found
+		let aa = get_array_access ctx e.etype p in
+		IteratorCustom((fun e_base e_index _ p -> make_array_get ctx aa e_base e_index p),make_array_length ctx aa),e,aa.aa_type
 
 	let map_unroll_params ctx unroll_params i = match unroll_params with
 		| None ->
@@ -344,9 +307,6 @@ module IterationKind = struct
 		let mk_field e n =
 			TField (e,try quick_field e.etype n with Not_found -> Error.raise_msg (Printf.sprintf "Could not find field %s on %s" n (s_type_kind e.etype)) e.epos)
 		in
-		let get_array_length arr p =
-			mk (mk_field arr "length") ctx.com.basic.tint p
-		in
 		let gen_int_iter e1 pt f_get f_length =
 			let index = gen_local ctx t_int v.v_pos in
 			index.v_meta <- (Meta.ForLoopVariable,[],null_pos) :: index.v_meta;
@@ -449,8 +409,8 @@ module IterationKind = struct
 				Texpr.duplicate_tvars e_identity e
 			) el in
 			mk (TBlock el) t_void p
-		| IteratorArray | IteratorArrayAccess ->
-			gen_int_iter e1 pt get_next_array_element get_array_length
+		| IteratorArray ->
+			gen_int_iter e1 pt Texpr.Builder.make_array_access (get_array_length ctx)
 		| IteratorCustom(f_next,f_length) ->
 			gen_int_iter e1 pt f_next f_length
 		| IteratorIterator ->

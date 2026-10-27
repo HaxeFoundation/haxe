@@ -1,6 +1,6 @@
 {
 	"terminal.integrated.env.windows": {
-		"PATH": "${workspaceFolder};${env:PATH}"
+		"PATH": "${workspaceFolder};${workspaceFolder}/opam;${env:PATH}"
 	},
 	"files.associations": {
 		"*.mly": "ocaml",

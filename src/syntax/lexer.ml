@@ -34,6 +34,23 @@ type error_msg =
 
 exception Error of error_msg * pos
 
+(* Feed sedlex a refill that decodes UTF-8 on demand into its buffer, instead of
+   Utf8.from_string's per-character generator (the allocation source). Lazy and
+   single-pass: only the consumed prefix is decoded. *)
+let lexbuf_from_utf8_string s =
+	let n = String.length s in
+	let pos = ref 0 in
+	Sedlexing.create (fun buf start len ->
+		let count = ref 0 in
+		while !count < len && !pos < n do
+			let d = String.get_utf_8_uchar s !pos in
+			if not (Uchar.utf_decode_is_valid d) then raise Sedlexing.MalFormed;
+			Array.unsafe_set buf (start + !count) (Uchar.utf_decode_uchar d);
+			pos := !pos + Uchar.utf_decode_length d;
+			incr count
+		done;
+		!count)
+
 type lexer_file = {
 	lfile : string;
 	mutable lline : int;
@@ -644,12 +661,12 @@ let rec not_xml ctx depth in_open =
 	| _ ->
 		die "" __LOC__
 
-let rec token ctx lexbuf =
+let make_token ctx =
 	let mk = mk ctx in
-	let token = token ctx in
 	let newline = newline ctx in
 	let mk_tok = mk_tok ctx in
 	let mk_keyword = mk_keyword ctx in
+	let rec token lexbuf =
 	match%sedlex lexbuf with
 	| eof -> mk lexbuf Eof
 	| Plus (Chars " \t") -> token lexbuf
@@ -816,6 +833,10 @@ let rec token ctx lexbuf =
 	| ident -> mk_ident ctx lexbuf
 	| idtype -> mk lexbuf (Const (Ident (lexeme lexbuf)))
 	| _ -> invalid_char ctx lexbuf
+	in
+	token
+
+let token ctx lexbuf = make_token ctx lexbuf
 
 let rec sharp_token ctx lexbuf =
 	match%sedlex lexbuf with

@@ -1,0 +1,2 @@
+MaskBodyCall.hx:7: characters 12-13 : String should be Int
+MaskBodyCall.hx:7: characters 12-13 : ... For function argument 'i'

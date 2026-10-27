@@ -1068,6 +1068,13 @@ let expr_of_type_path (sl,s) p =
 
 let match_path recursive sl sl_pattern =
 	let rec loop top sl1 sl2 = match sl1,sl2 with
+		(* trailing ** matches any remainder, at any depth *)
+		| _,["**"] ->
+			true
+		(* ** matches zero segments here, or one or more by consuming sl1 *)
+		| _,("**" :: sl2') ->
+			loop false sl1 sl2'
+			|| (match sl1 with [] -> false | _ :: sl1 -> loop false sl1 sl2)
 		| [],[] ->
 			true
 		(* always recurse into types of package paths *)
@@ -1079,8 +1086,9 @@ let match_path recursive sl sl_pattern =
 			recursive
 		| [],_ ->
 			false
+		(* * matches exactly one segment *)
 		| (s1 :: sl1),(s2 :: sl2) ->
-			s1 = s2 && loop false sl1 sl2
+			(s2 = "*" || s1 = s2) && loop false sl1 sl2
 	in
 	loop true sl sl_pattern
 

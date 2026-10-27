@@ -22,27 +22,32 @@
 
 package sys.thread;
 
-@:callable
-@:coreType
-private abstract NativeThreadHandle {}
+@:include("hx/thread/Thread.hpp")
+@:cpp.ManagedType({ namespace : [ "hx", "thread" ], type : "Thread", flags : [ StandardNaming ] })
+private extern class NativeThread {
+	static function create(job:()->Void):NativeThread;
+	static function current():NativeThread;
 
-private typedef ThreadHandle = NativeThreadHandle;
+	function getName():String;
+	function setName(name:String):Void;
+}
 
-abstract ThreadImpl(ThreadHandle) {
+abstract ThreadImpl(NativeThread) {
 
 	public static #if !scriptable inline #end function current():ThreadImpl {
-		return untyped __global__.__hxcpp_thread_current();
+		return cast NativeThread.current();
 	}
 
 	public static #if !scriptable inline #end function create(job:Void->Void):ThreadImpl {
-		return untyped __global__.__hxcpp_thread_create(job);
+		return cast NativeThread.create(job);
 	}
 
 	public static function setName( t : ThreadImpl, name : String ) {
+		(cast t : NativeThread).setName(name);
 	}
 
 	public static function getName( t : ThreadImpl ) {
-		return null;
+		return (cast t : NativeThread).getName();
 	}
 
 }

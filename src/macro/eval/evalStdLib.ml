@@ -2199,7 +2199,7 @@ module StdSocket = struct
 		let this = this vthis in
 		let host = decode_i32 host in
 		let port = decode_int port in
-		catch_unix_error Unix.bind this (ADDR_INET (StdHost.int32_addr host,port));
+		catch_unix_error (Unix.bind this) (ADDR_INET (StdHost.int32_addr host,port));
 		vnull
 	)
 
@@ -2229,7 +2229,7 @@ module StdSocket = struct
 	let listen = vifun1 (fun vthis connections ->
 		let this = this vthis in
 		let connections = decode_int connections in
-		catch_unix_error Unix.listen this connections;
+		catch_unix_error (Unix.listen this) connections;
 		vnull
 	)
 
@@ -2248,7 +2248,7 @@ module StdSocket = struct
 		let buf = decode_bytes buf in
 		let pos = decode_int pos in
 		let len = decode_int len in
-		vint (catch_unix_error Unix.recv this buf pos len [])
+		vint (catch_unix_error (Unix.recv this buf pos len) [])
 	)
 
 	let receiveChar = vifun0 (fun vthis ->
@@ -2289,13 +2289,13 @@ module StdSocket = struct
 		let buf = decode_bytes buf in
 		let pos = decode_int pos in
 		let len = decode_int len in
-		vint (catch_unix_error Unix.send this buf pos len [])
+		vint (catch_unix_error (Unix.send this buf pos len) [])
 	)
 
 	let sendChar = vifun1 (fun vthis char ->
 		let this = this vthis in
 		let char = decode_int char in
-		ignore(catch_unix_error Unix.send this (Bytes.make 1 (char_of_int char)) 0 1 []);
+		ignore(catch_unix_error (Unix.send this (Bytes.make 1 (char_of_int char)) 0 1) []);
 		VNull
 	)
 
@@ -2332,7 +2332,7 @@ module StdSocket = struct
 			| _,VTrue -> SHUTDOWN_SEND
 			| _ -> exc_string "Nothing to shut down"
 		in
-		catch_unix_error Unix.shutdown this mode;
+		catch_unix_error (Unix.shutdown this) mode;
 		vnull
 	)
 end
@@ -2813,7 +2813,7 @@ module StdSys = struct
 		| v ->
 			let s = decode_string s in
 			let v = decode_string v in
-			catch_unix_error Unix.putenv s v;
+			catch_unix_error (Unix.putenv s) v;
 			vnull
 	)
 
@@ -2959,18 +2959,18 @@ module StdTls = struct
 		| _ -> unexpected_value vthis "Thread"
 
 	let get_value = vifun0 (fun vthis ->
-		let this = this vthis in
+		ignore (this vthis);
 		try
 			let eval = get_eval (get_ctx()) in
-			IntMap.find this eval.eval_storage
+			TlsStorage.find eval.eval_storage vthis
 		with Not_found ->
 			vnull
 	)
 
 	let set_value = vifun1 (fun vthis v ->
-		let this = this vthis in
+		ignore (this vthis);
 		let eval = get_eval (get_ctx()) in
-		eval.eval_storage <- IntMap.add this v eval.eval_storage;
+		TlsStorage.replace eval.eval_storage vthis v;
 		v
 	)
 end

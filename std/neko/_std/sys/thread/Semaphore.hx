@@ -4,23 +4,22 @@ package sys.thread;
 	var s:Dynamic;
 
 	public function new(value:Int):Void {
-		s = semaphore_create(value);
+		s = lock_create(value);
 	}
 
 	public function acquire():Void {
-		semaphore_acquire(s);
+		lock_wait(s);
 	}
 
 	public function tryAcquire(?timeout:Float):Bool {
-		return semaphore_try_acquire(s, timeout);
+		return lock_wait(s, timeout ?? 0.);
 	}
 
 	public function release():Void {
-		semaphore_release(s);
+		lock_release(s);
 	}
 
-	static var semaphore_create = neko.Lib.loadLazy("std", "semaphore_create", 1);
-	static var semaphore_try_acquire = neko.Lib.loadLazy("std", "semaphore_try_acquire", 2);
-	static var semaphore_acquire = neko.Lib.loadLazy("std", "semaphore_acquire", 1);
-	static var semaphore_release = neko.Lib.loadLazy("std", "semaphore_release", 1);
+	static var lock_create = neko.Lib.loadLazy("std", "lock_create", 1);
+	static var lock_release = neko.Lib.load("std", "lock_release", 1);
+	static var lock_wait:(Dynamic, ?Float) -> Bool = neko.Lib.load("std", "lock_wait", 2);
 }

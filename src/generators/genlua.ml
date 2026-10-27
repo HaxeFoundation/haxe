@@ -95,7 +95,11 @@ let get_exposed ctx path meta = try
 
 let dot_path = Globals.s_type_path
 
-let s_path ctx = flat_path
+let s_path ctx path =
+    let fp = flat_path path in
+    match fst path with
+    | [] -> fp
+    | _ -> "_hx_c." ^ fp
 
 (* Lua requires decimal encoding for characters, rather than the hex *)
 (* provided by StringHelper.s_escape *)
@@ -239,11 +243,11 @@ let inject_rest_args ctx args e =
 
 let fun_block ctx f p =
     let fn_body = inject_rest_args ctx f.tf_args f.tf_expr in
-    List.fold_left (fun e (a,c) ->
+    List.fold_right (fun (a,c) e ->
         match c with
         | None | Some {eexpr = TConst TNull} -> e
         | Some c -> Type.concat (Texpr.set_default ctx.com.basic a c p) e
-    ) fn_body f.tf_args
+    ) f.tf_args fn_body
 
 let open_block ctx =
     let oldt = ctx.tabs in
@@ -851,7 +855,7 @@ and gen_expr ?(local=true) ctx e = begin
             spr ctx "#";
             gen_value ctx e;
         ) else (
-            spr ctx "__lua_lib_luautf8_Utf8.len(";
+            print ctx "%s.len(" (s_path ctx (["lua";"lib";"luautf8"],"Utf8"));
             gen_value ctx e;
             spr ctx ", nil, nil, true)";
         )
@@ -2009,7 +2013,7 @@ let alloc_ctx com =
 				output_current_col = 0;
 				sources = DynArray.create();
 				sources_hash = Hashtbl.create 0;
-				mappings = Rbuffer.create 16;
+				mappings = Buffer.create 16;
 				current_expr = None;
 			}
 		else
@@ -2237,6 +2241,7 @@ let generate com =
          newline ctx
     );
 
+    println ctx "local _hx_c = {}";
     List.iter (generate_type_forward ctx) com.types; newline ctx;
 
     (* Generate some dummy placeholders for utility libs that may be required*)

@@ -44,6 +44,8 @@ let parse_path f =
 		| [x] ->
 			check_invalid_char x;
 			[],x
+		| _ :: ("_std" :: l) ->
+			loop l
 		| x :: l ->
 			check_package_name x;
 			let path,name = loop l in

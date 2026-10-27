@@ -670,11 +670,10 @@ and jit_tfunction jit static pos tf =
 		| Local slot -> execute_set_local slot
 	) tf.tf_args in
 	let fl = if static then fl else (execute_set_local 0) :: fl in
-	(* Add conditionals for default values. *)
-	let e = List.fold_left (fun e (v,cto) -> match cto with
+	let e = List.fold_right (fun (v,cto) e -> match cto with
 		| None -> e
 		| Some ct -> concat (Texpr.set_default (ctx.curapi.MacroApi.get_com()).Common.basic v ct e.epos) e
-	) tf.tf_expr tf.tf_args in
+	) tf.tf_args tf.tf_expr in
 	let has_final_return el = match List.rev el with
 		| {eexpr = TReturn _} :: _ -> true
 		| _ -> false

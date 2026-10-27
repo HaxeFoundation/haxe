@@ -10,11 +10,6 @@ open Constructor
 open Case
 open Texpr.Builder
 
-type match_kind =
-	| SKValue
-	| SKEnum
-	| SKLength
-
 let constructor_to_texpr ctx con =
 	let open Typecore in
 	let open Constructor in
@@ -49,11 +44,6 @@ let s_subject v_lookup s e =
 	in
 	loop true s e
 
-let s_match_kind = function
-	| SKValue -> "value"
-	| SKEnum -> "enum"
-	| SKLength -> "length"
-
 let unify_constructor ctx params t con =
 	match fst con with
 	| ConEnum(en,ef) ->
@@ -77,98 +67,25 @@ let unify_constructor ctx params t con =
 	| _ ->
 		Some(con,params)
 
-let rec extract_ctor e = match e.eexpr with
-	| TConst ct -> Some (ConConst ct)
-	| TField(_,FEnum(en,ef)) -> Some (ConEnum(en,ef))
-	| TCast(e1,None) -> extract_ctor e1
-	| _ -> None
-
-let all_ctors ctx e cases =
-	let infer_type() = match cases with
-		| [] -> e,e.etype,false
-		| sc :: _ ->
-			let fail() =
-				(* error "Could not determine switch kind, make sure the type is known" e.epos; *)
-				t_dynamic
-			in
-			let t = match fst sc.sc_con with
-				| ConEnum(en,_) -> TEnum(en,extract_param_types en.e_params)
-				| ConArray _ -> ctx.t.tarray t_dynamic
-				| ConConst ct ->
-					begin match ct with
-						| TString _ -> ctx.t.tstring
-						| TInt _ -> ctx.t.tint
-						| TFloat _ -> ctx.t.tfloat
-						| TBool _ -> ctx.t.tbool
-						| _ -> fail()
-					end
-				| ConStatic({cl_kind = KAbstractImpl a},_) -> (TAbstract(a,extract_param_types a.a_params))
-				| ConTypeExpr mt -> ExprToPattern.get_general_module_type ctx mt e.epos
-				| ConFields _ | ConStatic _ -> fail()
-			in
-			e,t,true
-	in
-	let e,t,inferred = match follow e.etype with
-		| TDynamic _ | TMono _ ->
-			infer_type()
-		| _ ->
-			e,e.etype,false
-	in
+(* The constructors of the scrutinee's type which the cases leave unmatched. *)
+let unmatched_ctors scrutinee cases =
 	let h = Compile.ConTable.create 0 in
-	let add constructor =
+	List.iter (fun constructor ->
 		Compile.ConTable.replace h constructor true
-	in
-	let rec loop deep t = match follow t with
-		| TAbstract({a_path = [],"Bool"},_) ->
-			if not deep then begin
-				add (ConConst(TBool true),null_pos);
-				add (ConConst(TBool false),null_pos);
-			end;
-			SKValue,RunTimeFinite
-		| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
-			if not deep then List.iter (fun cf ->
-				ignore(follow cf.cf_type);
-				if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then match cf.cf_expr with
-					| Some e ->
-						begin match extract_ctor e with
-						| Some (ConConst TNull) -> ()
-						| Some ctor -> add (ctor,null_pos)
-						| None -> add (ConStatic(c,cf),null_pos)
-						end;
-					| _ -> add (ConStatic(c,cf),null_pos)
-			) c.cl_ordered_statics;
-			let real_kind,_ = loop true (Abstract.get_underlying_type a pl) in
-			real_kind,CompileTimeFinite
-		| TAbstract(a,pl) when not (Meta.has Meta.CoreType a.a_meta) ->
-			loop deep (Abstract.get_underlying_type a pl)
-		| TInst({cl_path=[],"String"},_)
-		| TInst({cl_kind = KTypeParameter _ },_) ->
-			SKValue,Infinite
-		| TInst({cl_path=[],"Array"},_) ->
-			SKLength,Infinite
-		| TEnum(en,pl) ->
-			if not deep then
-				PMap.iter (fun _ ef -> add (ConEnum(en,ef),null_pos)) en.e_constrs;
-			SKEnum,RunTimeFinite
-		| TAnon _ ->
-			SKValue,Infinite
-		| TInst(_,_) ->
-			SKValue,Infinite
-		| _ ->
-			SKValue,Infinite
-	in
-	let kind,finiteness = loop false t in
-	let compatible_kind con = match fst con with
-		| ConEnum _ -> kind = SKEnum
-		| ConArray _ -> kind = SKLength
-		| _ -> kind = SKValue
+	) scrutinee.scr_constructors;
+	let compatible_kind con = match fst con,scrutinee.scr_kind with
+		| ConEnum _,SKEnum -> true
+		| ConEnum _,_ -> false
+		| ConArray _,SKLength _ -> true
+		| ConArray _,_ -> false
+		| _,SKValue -> true
+		| _ -> false
 	in
 	List.iter (fun sc ->
 		if not (compatible_kind sc.sc_con) then raise_typing_error "Incompatible pattern" sc.sc_dt.dt_pos;
 		if sc.sc_unguarded then Compile.ConTable.remove h sc.sc_con
 	) cases;
-	let unmatched = Compile.ConTable.fold (fun con _ acc -> con :: acc) h [] in
-	e,unmatched,kind,finiteness
+	Compile.ConTable.fold (fun con _ acc -> con :: acc) h []
 
 let report_not_exhaustive v_lookup e_subject unmatched =
 	let sl = match follow e_subject.etype with
@@ -219,19 +136,21 @@ let to_texpr ctx t_switch with_type dt =
 						| Some e -> Some e
 						| None -> Some (mk (TBlock []) ctx.t.tvoid case.case_pos)
 					end
-				| Switch(e_subject,[{sc_con = (ConFields _,_)} as sc],_) -> (* TODO: Can we improve this by making it more general? *)
+				| Switch(scrutinee,[{sc_con = (ConFields _,_)} as sc],_) -> (* TODO: Can we improve this by making it more general? *)
 					begin match loop dt_rec params sc.sc_dt with
 						| None ->
 							None
 						| Some e ->
-							Some (concat e_subject e)
+							Some (concat scrutinee.scr_expr e)
 					end
-				| Switch(e_subject,cases,default) ->
+				| Switch(scrutinee,cases,default) ->
 					let dt_rec',toplevel = match dt_rec with
 						| Toplevel -> AfterSwitch,true
 						| AfterSwitch | Deep -> Deep,false
 					in
-					let e_subject,unmatched,kind,finiteness = all_ctors ctx e_subject cases in
+					let e_subject = scrutinee.scr_expr in
+					let unmatched = unmatched_ctors scrutinee cases in
+					let finiteness = scrutinee.scr_finiteness in
 					let unmatched = ExtList.List.filter_map (unify_constructor ctx params e_subject.etype) unmatched in
 					let loop params dt = match loop dt_rec' params dt with
 						| None ->
@@ -274,11 +193,11 @@ let to_texpr ctx t_switch with_type dt =
 							| Some e -> Some {case_patterns = List.map (constructor_to_texpr ctx) (List.sort Constructor.compare cons);case_expr = e}
 						end
 					) cases in
-					let is_nullable_subject = is_explicit_null_or_abstract_over_that e_subject.etype in
-					let e_subject = match kind with
+					let is_nullable_subject = scrutinee.scr_nullable in
+					let e_subject = match scrutinee.scr_kind with
 						| SKValue -> e_subject
 						| SKEnum -> mk_index_call e_subject
-						| SKLength -> ExprToPattern.type_field_access ctx e_subject "length"
+						| SKLength aa -> ArrayAccess.make_array_length ctx aa e_subject e_subject.epos
 					in
 					let e = match cases,e_default,with_type with
 						| [case],None,_ when (match finiteness with RunTimeFinite -> true | _ -> false) && not is_nullable_subject ->

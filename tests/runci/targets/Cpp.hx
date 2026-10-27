@@ -80,7 +80,7 @@ class Cpp {
 			runCpp("bin/cpp/TestMain-debug", []);
 
 			changeDirectory(sysDir);
-			runCommand("haxe", ["--each", "compile-cpp.hxml"].concat(args));
+			runCommand("haxe", args.concat(["compile-cpp.hxml"]));
 			runSysTest(FileSystem.fullPath("bin/cpp/Main-debug"));
 
 			changeDirectory(threadsDir);
@@ -110,7 +110,7 @@ class Cpp {
 			runCppia("bin/unit.cppia", FileSystem.fullPath("bin/cppia/Host-debug"));
 
 			changeDirectory(sysDir);
-			runCommand("haxe", ["compile-cppia.hxml"].concat(args));
+			runCommand("haxe", args.concat(["compile-cppia.hxml"]));
 			runCppia("bin/cppia/Main.cppia", runSysTest);
 		}
 	}

@@ -4,7 +4,6 @@ open Type
 open Common
 open CompletionItem
 open ClassFieldOrigin
-open DisplayException
 open Display
 open DisplayEmitter
 open DisplayPosition
@@ -208,6 +207,8 @@ let handle_path_display ctx path p =
 			with Not_found ->
 				()
 			end
+		| (IDKModule([],s),p),DMDefault ->
+			DisplayToplevel.collect_and_raise ctx TKType WithType.no_value CRImport (s,p) p
 		| (IDKModule(sl,s),p),_ ->
 			raise (Parser.TypePath(sl,None,true,p))
 		| (IDKSubType(sl,sm,st),p),(DMDefinition | DMTypeDefinition) ->

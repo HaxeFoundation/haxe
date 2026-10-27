@@ -5,8 +5,6 @@ open OptimizerTexpr
 open Typecore
 open Error
 
-let maybe_reapply_overload_call_ref = ref (fun _ _ -> assert false)
-
 let mk_untyped_call name p params =
 	{
 		eexpr = TCall({ eexpr = TIdent name; etype = t_dynamic; epos = p }, params);
@@ -589,7 +587,7 @@ object(self)
 					add (mk (TVar (v,eo)) scom.basic.tvoid e.epos);
 				) vl;
 				List.iter (fun (l,e) -> match l.i_default_value with
-					| Some e when l.i_read > 0 -> add (Texpr.set_default scom.basic l.i_subst e e.epos)
+					| Some e when l.i_read > 0 -> add (Texpr.set_default scom.basic l.i_subst (Texpr.duplicate_tvars e_identity e) e.epos)
 					| _ -> ()
 				) _inlined_vars;
 				begin match e.eexpr with
@@ -614,12 +612,6 @@ object(self)
 			| _ -> unify_func());
 		end;
 		let vars = Hashtbl.create 0 in
-		let maybe_reapply_overload_call = match ictx.typer with
-			| Some ctx ->
-				(!maybe_reapply_overload_call_ref) ctx
-			| None ->
-				(fun e -> e)
-		in
 		let rec map_var map_type v =
 			if not (Hashtbl.mem vars v.v_id) then begin
 				Hashtbl.add vars v.v_id ();
@@ -643,7 +635,7 @@ object(self)
 				else map_type
 			in
 			let e = Type.map_expr_type (map_expr_type map_type) map_type (map_var map_type) e in
-			maybe_reapply_overload_call e
+			OverloadResolution.maybe_reapply_overload_call e
 		in
 		let e = map_expr_type map_type e in
 		let rec drop_unused_vars e =

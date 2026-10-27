@@ -52,6 +52,14 @@ extern class Utf8 {
      */
     static overload function encode(codepoint:Char32, buffer:View<UInt8>):Int;
 
+	/**
+	 * Encodes all characters in the string to UTF-8 bytes.
+	 *
+	 * @param string String to encode.
+	 * @return Array containing UTF-8 bytes.
+	 */
+	static overload function encode(string:String):Array<UInt8>;
+
     /**
      * Decodes all bytes in the buffer into a string. An empty string is returned if the buffer is empty.
      */

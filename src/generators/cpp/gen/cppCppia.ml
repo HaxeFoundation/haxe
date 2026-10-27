@@ -7,7 +7,7 @@ open CppAst
 open CppAstTools
 open CppContext
 
-type script_type = 
+type script_type =
   | ScriptBool
   | ScriptInt
   | ScriptFloat
@@ -756,7 +756,7 @@ class script_writer ctx filename asciiOut basic =
         match fieldExpression with
         | Some ({ eexpr = TFunction function_def } as e) ->
             if cppiaAst then (
-              let args = List.map (fun (v, e) -> (CppRetyper.retype_tvar basic v), e) function_def.tf_args in
+              let args = List.map this#retype_default_arg function_def.tf_args in
               let cppExpr =
                 CppRetyper.expression ctx TCppVoid args (cpp_type_of basic function_def.tf_type)
                   function_def.tf_expr false
@@ -884,6 +884,16 @@ class script_writer ctx filename asciiOut basic =
            this#writeOpLine op);
         this#gen_expression expr)
 
+    method private retype_default_arg (v, e) =
+      let v =
+        match e with
+        | Some { eexpr = TConst _ } | None -> v
+        | Some _ when is_cpp_scalar (cpp_type_of basic v.v_type) ->
+            { v with v_type = basic.tnull v.v_type }
+        | Some _ -> v
+      in
+      (CppRetyper.retype_tvar basic v, e)
+
     method gen_func_args args =
       let gen_inits = ref [] in
       List.iter
@@ -892,7 +902,7 @@ class script_writer ctx filename asciiOut basic =
           this#writeVar arg.tcppv_var;
           match init with
           | Some { eexpr = TConst TNull } -> this#write "0\n"
-          | Some const ->
+          | Some ({ eexpr = TConst _ } as const) ->
               let argType = cpp_type_of basic const.etype in
               if is_cpp_scalar argType || argType == TCppString then (
                 this#write "1 ";
@@ -901,14 +911,18 @@ class script_writer ctx filename asciiOut basic =
               else (
                 gen_inits := (arg, const) :: !gen_inits;
                 this#write "0\n")
+          | Some init ->
+              gen_inits := (arg, init) :: !gen_inits;
+              this#write "0\n"
           | _ -> this#write "0\n")
         args;
 
-      if List.length !gen_inits == 0 then fun () -> ()
+      let gen_inits = List.rev !gen_inits in
+      if List.length gen_inits == 0 then fun () -> ()
       else (
         this#begin_expr;
-        this#writePos (snd (List.hd !gen_inits));
-        this#writeList (this#op IaBlock) (List.length !gen_inits + 1);
+        this#writePos (snd (List.hd gen_inits));
+        this#writeList (this#op IaBlock) (List.length gen_inits + 1);
         List.iter
           (fun (arg, const) ->
             let start_expr () =
@@ -936,7 +950,7 @@ class script_writer ctx filename asciiOut basic =
             this#gen_expression const;
             this#end_expr;
             this#begin_expr)
-          !gen_inits;
+          gen_inits;
         fun () -> this#end_expr)
 
     method gen_expression expr =
@@ -955,7 +969,7 @@ class script_writer ctx filename asciiOut basic =
             ^ this#typeText function_def.tf_type
             ^ string_of_int (List.length function_def.tf_args)
             ^ "\n");
-          let close = this#gen_func_args (List.map (fun (v, e) -> CppRetyper.retype_tvar basic v, e) function_def.tf_args) in
+          let close = this#gen_func_args (List.map this#retype_default_arg function_def.tf_args) in
           let pop = this#pushReturn function_def.tf_type in
           this#gen_expression function_def.tf_expr;
           pop ();

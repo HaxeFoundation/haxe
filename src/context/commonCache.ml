@@ -120,7 +120,9 @@ let rec cache_context cs com =
 	) a;
 	begin match com.get_macros() with
 		| None -> ()
-		| Some com -> cache_context cs com
+		| Some macro_com ->
+			cc#add_child (get_cache_sign macro_com);
+			cache_context cs macro_com
 	end;
 	if Define.defined com.defines HxbStats then
 		HxbReader.dump_stats (platform_name com.platform) com.hxb_reader_stats

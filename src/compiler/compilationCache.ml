@@ -35,12 +35,14 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	val files : (Path.UniqueKey.t,cached_file) Hashtbl.t = Hashtbl.create 0
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	val binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
+	val fake_modules : (Path.UniqueKey.t,module_def) Hashtbl.t = Hashtbl.create 0
 	val tmp_binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
 	val get_hxb_module_mutex = Mutex.create ()
 	val removed_files = Hashtbl.create 0
 	val mutable json = JNull
 	val mutable initialized = false
 	val mutable last_access_time = Unix.gettimeofday ()
+	val children : (Digest.t,unit) Hashtbl.t = Hashtbl.create 0
 
 	(* files *)
 
@@ -108,6 +110,17 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method cache_module_in_memory path m =
 		Hashtbl.replace modules path m
 
+	(* fake modules *)
+
+	method find_fake_module key =
+		Hashtbl.find fake_modules key
+
+	method add_fake_module key m =
+		Hashtbl.replace fake_modules key m
+
+	method remove_fake_module key =
+		Hashtbl.remove fake_modules key
+
 	method clear_temp_cache =
 		Hashtbl.clear tmp_binary_cache
 
@@ -119,6 +132,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method clear_modules =
 		Hashtbl.clear modules;
 		Hashtbl.clear binary_cache;
+		Hashtbl.clear fake_modules;
 		self#clear_temp_cache;
 		Hashtbl.clear removed_files;
 		Hashtbl.filter_map_inplace (fun _ cfile ->
@@ -153,6 +167,11 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 
 	method update_access_time = last_access_time <- Unix.gettimeofday ()
 	method get_last_access_time = last_access_time
+
+	(* child contexts *)
+
+	method add_child (child_sign : Digest.t) = Hashtbl.replace children child_sign ()
+	method get_children = children
 end
 
 let create_directory path mtime = {
@@ -180,7 +199,7 @@ end
 class cache = object(self)
 	val contexts : (string,context_cache) Hashtbl.t = Hashtbl.create 0
 	val mutable context_list = []
-	val haxelib : (string list, string list) Hashtbl.t = Hashtbl.create 0
+	val haxelib : (string list * string option, string list) Hashtbl.t = Hashtbl.create 0
 	val directories : (string, cached_directory list) Hashtbl.t = Hashtbl.create 0
 	val native_libs : (string,cached_native_lib) Hashtbl.t = Hashtbl.create 0
 	val mutable tasks : (server_task PriorityQueue.t) = PriorityQueue.Empty
@@ -378,19 +397,53 @@ class cache = object(self)
 
 	(* Remove context caches that haven't been accessed for [max_age_seconds] seconds.
 	   This prevents unbounded accumulation of stale contexts when defines change between
-	   compilations, creating new signatures each time. *)
+	   compilations, creating new signatures each time.
+
+	   A stale context is only removed if no live (non-stale) context transitively
+	   reaches it via `children` edges. Otherwise the next dep walk on a live
+	   module would `get_context` the removed signature, get back a freshly-created
+	   empty context, and crash with "Could not find dependency". *)
 	method remove_stale_contexts max_age_seconds =
 		let now = Unix.gettimeofday () in
-		let threshold = now -. max_age_seconds in
-		let to_remove = Hashtbl.fold (fun sign cc acc ->
-			if cc#get_last_access_time < threshold then sign :: acc else acc
-		) contexts [] in
-		List.iter (fun sign ->
-			Hashtbl.remove contexts sign
-		) to_remove;
-		if to_remove <> [] then
-			context_list <- List.filter (fun cc -> cc#get_last_access_time >= threshold) context_list;
-		List.length to_remove
+		let threshold = now -. (float_of_int max_age_seconds) in
+		let is_stale cc = cc#get_last_access_time < threshold in
+		(* Short-circuit: nothing stale, nothing to do. *)
+		let any_stale = Hashtbl.fold (fun _ cc acc -> acc || is_stale cc) contexts false in
+		if not any_stale then 0
+		else begin
+			(* Transitive closure of "kept": start with non-stale contexts, follow
+			   each kept context's children edges. *)
+			let kept = Hashtbl.create 0 in
+			let worklist = ref [] in
+			Hashtbl.iter (fun sign cc ->
+				if not (is_stale cc) then begin
+					Hashtbl.replace kept sign ();
+					worklist := cc :: !worklist
+				end
+			) contexts;
+			while !worklist <> [] do
+				let cc = List.hd !worklist in
+				worklist := List.tl !worklist;
+				Hashtbl.iter (fun target_sign () ->
+					if not (Hashtbl.mem kept target_sign) then begin
+						Hashtbl.replace kept target_sign ();
+						match Hashtbl.find_opt contexts target_sign with
+						| Some target_cc -> worklist := target_cc :: !worklist
+						| None -> ()
+					end
+				) cc#get_children
+			done;
+			let to_remove = Hashtbl.fold (fun sign cc acc ->
+				if is_stale cc && not (Hashtbl.mem kept sign) then sign :: acc else acc
+			) contexts [] in
+			List.iter (fun sign -> Hashtbl.remove contexts sign) to_remove;
+			if to_remove <> [] then begin
+				let removed_set = Hashtbl.create (List.length to_remove) in
+				List.iter (fun s -> Hashtbl.replace removed_set s ()) to_remove;
+				context_list <- List.filter (fun cc -> not (Hashtbl.mem removed_set cc#get_sign)) context_list
+			end;
+			List.length to_remove
+		end
 
 	(* Pointers for memory inspection. *)
 	method get_pointers : unit array =

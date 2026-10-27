@@ -1,0 +1,3 @@
+Main.hx:6: characters 14-19 : Constraint check failure for f.A
+Main.hx:6: characters 14-19 : ... Int should be String
+Main.hx:6: characters 14-19 : ... For function argument 'c'

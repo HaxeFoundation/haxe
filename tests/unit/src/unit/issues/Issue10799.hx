@@ -37,7 +37,7 @@ class Issue10799 extends Test {
 		eq(6, untyped __lua__("self.myField(3)"));
 		this.myField = Issue10799.foo;
 		eq(9, untyped __lua__("self.myField(3)"));
-		eq(9, untyped __lua__("__unit_issues_Issue10799.foo(3)"));
+		eq(9, untyped __lua__("_hx_c.__unit_issues_Issue10799.foo(3)"));
 		this.myField = this.bar;
 		eq(12, untyped __lua__("self.myField(3)"));
 		exc(() -> untyped __lua__("self.bar(3)"));

@@ -64,7 +64,7 @@ let resolve_class_field_ref dce cfr =
 
 (* check for @:keepSub metadata, which forces @:keep on child classes *)
 let rec super_forces_keep c =
-	Meta.has Meta.KeepSub c.cl_meta || match c.cl_super with
+	Meta.has Meta.KeepSub c.cl_meta || (List.exists (fun (c,_) -> super_forces_keep c) c.cl_implements) || match c.cl_super with
 	| Some (csup,_) -> super_forces_keep csup
 	| _ -> false
 
@@ -106,6 +106,15 @@ let keep_whole_class dce c =
 let keep_whole_enum dce en =
 	Meta.has_one_of keep_metas en.e_meta
 	|| not (dce.full || is_std_file dce (Path.UniqueKey.lazy_path en.e_module.m_extra.m_file) || has_meta Meta.Dce en.e_meta)
+
+(* check if a field carries @:dce, forcing it to be DCE-eligible even if its class is kept *)
+let field_forces_dce cf = has_meta Meta.Dce cf.cf_meta
+
+(* check if a class has any field marked with @:dce *)
+let class_has_dce_field c =
+	List.exists field_forces_dce c.cl_ordered_fields
+	|| List.exists field_forces_dce c.cl_ordered_statics
+	|| (match c.cl_constructor with Some cf -> field_forces_dce cf | None -> false)
 
 let mk_used_meta pos =
 	Meta.Used,[],(mk_zero_range_pos pos)
@@ -357,14 +366,14 @@ let opt f e = match e with None -> () | Some e -> f e
 
 let rec to_string dce stack t = match t with
 	| TInst(c,tl) ->
-		field dce c "toString" CfrMember;
+		keep_to_string dce c;
 	| TType(tt,tl) ->
 		if not (List.exists (fun t2 -> Type.fast_eq t t2) stack) then begin
 			to_string dce (t :: stack) (apply_typedef tt tl)
 		end
 	| TAbstract({a_impl = Some c} as a,tl) ->
 		if Meta.has Meta.CoreType a.a_meta then
-			field dce c "toString" CfrMember
+			keep_to_string dce c
 		else
 			to_string dce stack (Abstract.get_underlying_type a tl)
 	| TMono r ->
@@ -379,33 +388,49 @@ let rec to_string dce stack t = match t with
 		(* if we to_string these it does not imply that we need all its sub-types *)
 		()
 
-and field dce c n kind =
-	(try
+(* resolve a field by name across the class, its super classes, implemented interfaces and type
+   parameter constraints, returning the class that actually defines it. Raises Not_found if absent. *)
+and resolve_field dce c n kind =
+	try
 		let cf = find_field c n kind in
-		mark_field dce c cf kind;
+		(c,cf)
 	with Not_found -> try
 		if (has_class_flag c CInterface) then begin
 			let rec loop cl = match cl with
 				| [] -> raise Not_found
 				| (c,_) :: cl ->
-					try field dce c n kind with Not_found -> loop cl
+					try resolve_field dce c n kind with Not_found -> loop cl
 			in
 			loop c.cl_implements
-		end else match c.cl_super with Some (csup,_) -> field dce csup n kind | None -> raise Not_found
-	with Not_found -> try
+		end else match c.cl_super with Some (csup,_) -> resolve_field dce csup n kind | None -> raise Not_found
+	with Not_found ->
 		match c.cl_kind with
 		| KTypeParameter ttp ->
 			let rec loop tl = match tl with
 				| [] -> raise Not_found
 				| TInst(c,_) :: cl ->
-					(try field dce c n kind with Not_found -> loop cl)
+					(try resolve_field dce c n kind with Not_found -> loop cl)
 				| t :: tl ->
 					loop tl
 			in
 			loop (get_constraints ttp)
 		| _ -> raise Not_found
+
+and field dce c n kind =
+	try
+		let (c,cf) = resolve_field dce c n kind in
+		mark_field dce c cf kind
 	with Not_found ->
-		if dce.debug then prerr_endline ("[DCE] Field " ^ n ^ " not found on " ^ (s_type_path c.cl_path)) else ())
+		if dce.debug then prerr_endline ("[DCE] Field " ^ n ^ " not found on " ^ (s_type_path c.cl_path))
+
+(* keep a type's toString, unless that field opts out of being implicitly kept with @:dce
+   (it is only pulled in by Std.string/trace/Array.join, never by an explicit call) *)
+and keep_to_string dce c =
+	try
+		let (c,cf) = resolve_field dce c "toString" CfrMember in
+		if not (field_forces_dce cf) then mark_field dce c cf CfrMember
+	with Not_found ->
+		()
 
 and mark_directly_used_class dce c =
 	(* don't add @:directlyUsed if it's used within the class itself. this can happen with extern inline methods *)
@@ -607,8 +632,8 @@ and expr dce e =
 		check_feature dce ft;
 		expr dce e;
 
-	(* keep toString method of T when array<T>.join() is called *)
-	| TCall ({eexpr = TField(_, FInstance({cl_path = ([],"Array")}, pl, {cf_name="join"}))} as ef, args) ->
+	(* keep toString method of T when array<T>.join() or array<T>.toString() is called *)
+	| TCall ({eexpr = TField(_, FInstance({cl_path = ([],"Array")}, pl, {cf_name="join" | "toString"}))} as ef, args) ->
 		List.iter (fun e -> to_string dce [] e) pl;
 		expr dce ef;
 		List.iter (expr dce) args;
@@ -813,7 +838,8 @@ let collect_entry_points dce types =
 				let cf_if_feature = extract_if_feature cf.cf_meta in
 				check_feature cf_ref (cl_if_feature @ cf_if_feature);
 				(* Have to delay mark_field so that we see all @:ifFeature *)
-				if keep_class || is_struct || keep_field dce cf c kind then delayed := (fun () -> mark_field dce c cf kind) :: !delayed
+				(* a @:dce field is not kept just because its class is: it must be reached like in full DCE *)
+				if (keep_class && not (field_forces_dce cf)) || is_struct || keep_field dce cf c kind then delayed := (fun () -> mark_field dce c cf kind) :: !delayed
 			in
 			List.iter (loop CfrStatic) c.cl_ordered_statics;
 			List.iter (loop CfrMember) c.cl_ordered_fields;
@@ -872,7 +898,7 @@ let mark pool dce =
 let sweep dce types =
 	let rec loop acc types =
 		match types with
-		| (TClassDecl c) as mt :: l when keep_whole_class dce c ->
+		| (TClassDecl c) as mt :: l when keep_whole_class dce c && not (class_has_dce_field c) ->
 			loop (mt :: acc) l
 		| (TClassDecl c) as mt :: l ->
 			let check_property cf stat =
@@ -900,10 +926,14 @@ let sweep dce types =
 					()
 				end;
 			in
+			(* a kept-whole class only reaches this branch because of @:dce fields:
+			   keep all of its fields except the @:dce ones that DCE did not reach *)
+			let class_kept = keep_whole_class dce c in
+			let keep cf kind = (class_kept && not (field_forces_dce cf)) || keep_field dce cf c kind in
 			(* add :keep so subsequent filter calls do not process class fields again *)
 			c.cl_meta <- (mk_keep_meta c.cl_pos) :: c.cl_meta;
  			c.cl_ordered_statics <- List.filter (fun cf ->
-				let b = keep_field dce cf c CfrStatic in
+				let b = keep cf CfrStatic in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
 					check_property cf true;
@@ -912,7 +942,7 @@ let sweep dce types =
 				b
 			) c.cl_ordered_statics;
 			c.cl_ordered_fields <- List.filter (fun cf ->
-				let b = keep_field dce cf c CfrMember in
+				let b = keep cf CfrMember in
 				if not b then begin
 					if dce.debug then print_endline ("[DCE] Removed field " ^ (s_type_path c.cl_path) ^ "." ^ (cf.cf_name));
 					check_property cf false;
@@ -920,11 +950,11 @@ let sweep dce types =
 				end;
 				b
 			) c.cl_ordered_fields;
-			(match c.cl_constructor with Some cf when not (keep_field dce cf c CfrConstructor) -> c.cl_constructor <- None | _ -> ());
+			(match c.cl_constructor with Some cf when not (keep cf CfrConstructor) -> c.cl_constructor <- None | _ -> ());
 			let inef cf = is_physical_field cf in
 			let has_non_extern_fields = List.exists inef c.cl_ordered_fields || List.exists inef c.cl_ordered_statics in
-			(* we keep a class if it was used or has a used field *)
-			if has_class_flag c CUsed || has_non_extern_fields then loop (mt :: acc) l else begin
+			(* we keep a class if it is kept whole, was used or has a used field *)
+			if class_kept || has_class_flag c CUsed || has_non_extern_fields then loop (mt :: acc) l else begin
 				(match TClass.get_cl_init c with
 				| Some f when Meta.has Meta.KeepInit c.cl_meta ->
 					(* it means that we only need the __init__ block *)

@@ -653,15 +653,29 @@ module Printer = struct
 		| ServerInvalidateModule -> "server_invalidate_module"
 
 	let s_module_skip_reason reason =
-		let rec loop stack = function
+		(* A dependency chain can be as long as the module graph is deep: a buffer and a set, so
+		   that the string costs linear time (Printf from the inside out and List.mem on the stack
+		   were quadratic, which the server pays once per skipped module). *)
+		let buf = Buffer.create 64 in
+		let seen = Hashtbl.create 16 in
+		let rec loop first = function
 			| DependencyDirty(path,reason) ->
-				(Printf.sprintf "%s%s - %s" (if stack = [] then "DependencyDirty " else "") (s_type_path path) (if List.mem path stack then "rec" else loop (path :: stack) reason))
-			| Tainted cause -> "Tainted " ^ (s_module_tainting_reason cause)
-			| FileChanged file -> "FileChanged " ^ file
-			| Shadowed file -> "Shadowed " ^ file
-			| LibraryChanged -> "LibraryChanged"
+				if first then Buffer.add_string buf "DependencyDirty ";
+				Buffer.add_string buf (s_type_path path);
+				Buffer.add_string buf " - ";
+				if Hashtbl.mem seen path then
+					Buffer.add_string buf "rec"
+				else begin
+					Hashtbl.replace seen path ();
+					loop false reason
+				end
+			| Tainted cause -> Buffer.add_string buf ("Tainted " ^ (s_module_tainting_reason cause))
+			| FileChanged file -> Buffer.add_string buf ("FileChanged " ^ file)
+			| Shadowed file -> Buffer.add_string buf ("Shadowed " ^ file)
+			| LibraryChanged -> Buffer.add_string buf "LibraryChanged"
 		in
-		loop [] reason
+		loop true reason;
+		Buffer.contents buf
 
 	let s_module_cache_state = function
 		| MSGood -> "Good"

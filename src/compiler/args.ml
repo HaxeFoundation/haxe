@@ -253,6 +253,15 @@ let parse_args args =
 					add (IncludeModule arg)));
 			loop rest
 	in
+	let rec hack_loop acc args = match args with
+		| "--run" :: _ ->
+			(List.rev acc) @ args
+		| [] ->
+			List.rev acc
+		| arg :: args ->
+			hack_loop (Helper.expand_env arg :: acc) args
+	in
+	let args = hack_loop [] args in (* TODO: test this *)
 	loop args;
 	DynArray.to_list parsed
 
@@ -592,7 +601,7 @@ let expand_args args =
 			let libs, rest = find_subsequent_libs [name] rest in
 			let ex = {
 				original = List.map (fun name -> AddLib name) libs;
-				state = NotYetExpanded (AddLibs libs)
+				state = NotYetExpanded (AddLibs (libs, Unix.getcwd ()))
 			} in
 			loop (Expand ex :: current) rest
 		| HxmlFile path :: rest ->

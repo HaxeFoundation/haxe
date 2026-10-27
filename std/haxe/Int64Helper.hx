@@ -113,4 +113,18 @@ class Int64Helper {
 		}
 		return result;
 	}
+
+	/**
+		Converts an `Int64` to a `Float`.
+
+		Loss of precision may occur for values whose magnitude exceeds 2^53.
+	**/
+	public static function toFloat(x:Int64):Float {
+		var high = x.high;
+		var low = x.low;
+		// `low` is treated as an unsigned 32-bit word; both terms are exactly
+		// representable as Float, so the single addition yields the correctly
+		// rounded result.
+		return high * 4294967296. + (low < 0 ? 4294967296. + low : low);
+	}
 }

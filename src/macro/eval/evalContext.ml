@@ -22,6 +22,12 @@ open EvalValue
 open EvalHash
 open EvalString
 
+module TlsStorage = Ephemeron.K1.Make(struct
+	type t = value
+	let equal = (==)
+	let hash v = match v with VInstance {ikind = ITls i} -> i | _ -> 0
+end)
+
 type var_info = {
 	vi_name : string;
 	vi_pos : pos;
@@ -122,7 +128,7 @@ and eval = {
 	mutable last_return : value option;
 	(* The debug channel used to synchronize with the debugger. *)
 	debug_channel : unit Event.channel;
-	mutable eval_storage : value IntMap.t;
+	eval_storage : value TlsStorage.t;
 }
 
 and debug_state =
@@ -284,7 +290,9 @@ and context = {
 	mutable instance_prototypes : vprototype IntMap.t;
 	mutable static_prototypes : static_prototypes;
 	mutable constructors : value AtomicLazy.t IntMap.t;
+	fake_proto_cache : (int,vprototype) Hashtbl.t;
 	file_keys : Common.file_keys;
+	object_name_cache : (int list,int) Hashtbl.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
 	(* eval *)
 	mutable next_thread_id : int Atomic.t;

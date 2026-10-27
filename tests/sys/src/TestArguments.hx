@@ -27,6 +27,8 @@ class TestArguments extends utest.Test {
 		"(",
 		")",
 		"( )",
+		"^",
+		"a^b",
 
 		// backslashes
 		"\\",

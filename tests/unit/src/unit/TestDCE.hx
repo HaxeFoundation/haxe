@@ -27,6 +27,21 @@ class GenericKeepSub<T> {}
 
 class ChildOfGenericKeepSub extends GenericKeepSub<String> {}
 
+@:keepSub
+interface KeepSubInterface {}
+
+// never referenced/constructed, kept only via @:keepSub on the interface
+class ImplementsKeepSubInterface implements KeepSubInterface {}
+class ExtendsImplementsKeepSubInterface extends ImplementsKeepSubInterface {}
+
+@:keepSub
+interface KeepSubBaseInterface {}
+
+interface KeepSubChildInterface extends KeepSubBaseInterface {}
+
+// kept via @:keepSub on a transitively extended interface
+class ImplementsKeepSubChildInterface implements KeepSubChildInterface {}
+
 @:analyzer(no_local_dce)
 class DCEClass {
 	// used statics
@@ -213,8 +228,50 @@ class TestDCE extends Test {
 		hf(ThrownWithToString, "toString");
 	}
 
-	function testIssue6500() {
+	public function testDceField() {
+		// the class is force-kept, but individual @:dce fields still get eliminated when unused
+		var o = new KeepClassWithDceField();
+		o.dceUsed();
+		var c = Type.getClass(o);
+
+		hf(c, "normalUnused"); // kept because the whole class is @:keep
+		hf(c, "dceUsed"); // @:dce but reached -> kept
+		nhf(c, "dceUnused"); // @:dce and unreached -> removed
+
+		hsf(c, "staticNormalUnused");
+		nhsf(c, "staticDceUnused");
+	}
+
+	public function testDceToString() {
+		// Std.string normally keeps toString, but @:dce opts the field out of that heuristic
+		var e = new DceToStringElement();
+		var s = Std.string(e);
+		var c = Type.getClass(e);
+		nhf(c, "toString");
+	}
+
+	#if !python
+	public function testArrayJoinKeepsToString() {
+		var a = [new JoinElement()];
+		eq("aaa", a.join(""));
+		hf(JoinElement, "toString");
+	}
+
+	public function testArrayToStringKeepsToString() {
+		var a = [new ArrayToStringElement()];
+		t(a.toString().indexOf("aaa") != -1);
+		hf(ArrayToStringElement, "toString");
+	}
+	#end
+
+	public function testIssue6500() {
 		t(Type.resolveClass("unit.ChildOfGenericKeepSub") != null);
+	}
+
+	public function testKeepSubInterface() {
+		t(Type.resolveClass("unit.ImplementsKeepSubInterface") != null);
+		t(Type.resolveClass("unit.ImplementsKeepSubChildInterface") != null);
+		t(Type.resolveClass("unit.ExtendsImplementsKeepSubInterface") != null);
 	}
 
 	public function testIssue7259() {
@@ -235,6 +292,32 @@ class TestDCE extends Test {
 class ClassWithBar {
 	static public function bar()
 		return 'bar';
+}
+
+@:analyzer(no_local_dce)
+class DceToStringElement {
+	public function new() {}
+
+	@:dce public function toString()
+		return "must not be kept by Std.string";
+}
+
+@:keep
+@:analyzer(no_local_dce)
+class KeepClassWithDceField {
+	public function new() {}
+
+	// no @:dce: kept along with the whole @:keep class even though unused
+	function normalUnused() {}
+
+	static function staticNormalUnused() {}
+
+	// @:dce: eligible for elimination despite the class being kept
+	@:dce public function dceUsed() {}
+
+	@:dce function dceUnused() {}
+
+	@:dce static function staticDceUnused() {}
 }
 
 class UsedConstructed {
@@ -309,6 +392,24 @@ class ThrownWithToString {
 
 	public function toString() {
 		return "I was thrown today";
+	}
+}
+
+// toString must be kept because Array<JoinElement>.join() is called
+class JoinElement {
+	public function new() {}
+
+	public function toString() {
+		return "aaa";
+	}
+}
+
+// toString must be kept because Array<ArrayToStringElement>.toString() is called
+class ArrayToStringElement {
+	public function new() {}
+
+	public function toString() {
+		return "aaa";
 	}
 }
 

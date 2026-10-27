@@ -20,12 +20,18 @@ let write_callable_header callable_name captures func return_type_str prefix out
   | None ->
     Printf.sprintf "\t%s() {} \n" callable_name |> output);
   
+  (* Override __Compare *)
   output "\tint __Compare(const ::hx::Object* inRhs) const override {\n";
   Printf.sprintf "\t\tauto casted = dynamic_cast<const %s*>(inRhs);\n" callable_name |> output;
   output "\t\tif (!casted) { return -1; }\n";
   if Option.is_some captures then
     output "\t\tif (__this != casted->__this) return 1;\n";
   output "\t\treturn 0;\n";
+  output "\t}\n";
+
+  (* Override callableId, Haxe function closures are only compared based on name, not signature *)
+  output "\tstd::type_index callableId() const override {\n";
+  Printf.sprintf "\t\treturn std::type_index{ typeid(%s) };\n" callable_name |> output;
   output "\t}\n";
 
   Printf.sprintf "\t%s HX_LOCAL_RUN(%s) override {\n" return_type_str (cpp_callable_args func.tcf_args prefix) |> output
@@ -198,12 +204,15 @@ let gen_init_function ctx output_cpp tcpp_class =
   | None ->
     ()
 
+let new_default_closure func obj =
+  Printf.sprintf "%s(new __default_%s(%s))" (func_to_callable_string "::hx::Callable" func) func.tcf_name obj
+
 let gen_dynamic_function_allocator ctx output_cpp tcpp_class =
   match tcpp_class.tcl_dynamic_functions with
   | [] -> ()
   | functions ->
     let mapper func =
-      Printf.sprintf "\tif (!_hx_obj->%s.mPtr) { _hx_obj->%s = new __default_%s(_hx_obj); }" func.tcf_name func.tcf_name func.tcf_name in
+      Printf.sprintf "\tif (!_hx_obj->%s.mPtr) { _hx_obj->%s = %s; }" func.tcf_name func.tcf_name (new_default_closure func "_hx_obj") in
     let rec folder acc class_def =
       if has_dynamic_member_functions class_def then
         let super_name = join_class_path_remap class_def.cl_path "::" ^ "_obj" in
@@ -548,7 +557,7 @@ let generate_managed_class base_ctx tcpp_class =
   (* Initialise non-static variables *)
   output_cpp (class_name ^ "::" ^ class_name ^ "()\n{\n");
   List.iter
-    (fun func -> output_cpp ("\t" ^ func.tcf_name ^ " = new __default_" ^ func.tcf_name ^ "(this);\n"))
+    (fun func -> output_cpp (Printf.sprintf "\t%s = %s;\n" func.tcf_name (new_default_closure func "this")))
     tcpp_class.tcl_dynamic_functions;
   output_cpp "}\n\n";
 
@@ -684,10 +693,8 @@ let generate_managed_class base_ctx tcpp_class =
       |> List.fold_right (print_property prop_printer) tcpp_class.tcl_properties
       |> List.fold_right (print_function fun_printer) tcpp_class.tcl_functions in
 
-    if List.length all_fields > 0 then (
-      dump_quick_field_test all_fields;
-      output_cpp "\treturn super::__Field(inName,inCallProp);\n}\n\n");
-    );
+    dump_quick_field_test all_fields;
+    output_cpp "\treturn super::__Field(inName,inCallProp);\n}\n\n");
 
   if has_tcpp_class_flag tcpp_class StaticGet then (
     Printf.sprintf "bool %s::__GetStatic(const ::String &inName, ::Dynamic &outValue, ::hx::PropertyAccess inCallProp)\n{\n" class_name |> output_cpp;
@@ -943,7 +950,7 @@ let generate_managed_class base_ctx tcpp_class =
       let ret         = if return_type = "Void" || return_type = "void" then " " else "return " in
       let vtable      = Printf.sprintf "__scriptVTable[%i]" (idx + 1) in
 
-      Printf.sprintf "\t%s %s(%s) {\n" return_type func.tcf_name args |> output_cpp;
+      Printf.sprintf "\t%s %s(%s) override {\n" return_type func.tcf_name args |> output_cpp;
       Printf.sprintf ("\tif (%s) {\n") vtable |> output_cpp;
       output_cpp "\t\t::hx::CppiaCtx *__ctx = ::hx::CppiaCtx::getCurrent();\n";
       output_cpp "\t\t::hx::AutoStack __as(__ctx);\n";

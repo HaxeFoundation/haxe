@@ -183,3 +183,18 @@ class TestDeepTypeParams {
 		});
 	}
 }
+
+// Inlining a generic function returning Null<T> must not bind the inline
+// type-param monomorph to Null<Int> instead of Int.
+@:nullSafety
+class TestInlineGenericReturn {
+	static function main() {
+		final arr = [1, 2, 3];
+		iter(arr, item -> true);
+	}
+
+	static inline function iter<T>(it:Array<T>, callback:(item:T) -> Bool):Null<T> {
+		for (v in it) callback(v);
+		return null;
+	}
+}

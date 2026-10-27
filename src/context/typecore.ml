@@ -88,12 +88,18 @@ type macro_result =
 
 type typer_pass_tasks = {
 	mutable tasks : (unit -> unit) list;
+	mutable tasks_late : (unit -> unit) list;
 }
 
 type function_mode =
 	| FunFunction
 	| FunCoroutine
 	| FunNotFunction
+
+type call_arg_context = {
+	cac_in_overload : bool;
+	mutable cac_body_capture : Message.t list ref;
+}
 
 type typer_globals = {
 	mutable delayed : typer_pass_tasks Array.t;
@@ -112,6 +118,7 @@ type typer_globals = {
 	mutable build_count : int;
 	mutable t_dynamic_def : Type.t;
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
+	mutable call_arg_context : call_arg_context option;
 	root_typer : typer;
 	(* api *)
 	mutable continuation_api : ContTypes.continuation_api option;
@@ -147,7 +154,6 @@ and typer_field = {
 	mutable meta : metadata;
 	mutable in_display : bool;
 	mutable in_call_args : bool;
-	mutable in_overload_call_args : bool;
 }
 
 and typer = {
@@ -217,7 +223,6 @@ module TyperManager = struct
 			untyped = false;
 			meta = [];
 			in_display = false;
-			in_overload_call_args = false;
 			in_call_args = false;
 		}
 
@@ -387,9 +392,45 @@ let spawn_monomorph' ctx p =
 let spawn_monomorph ctx p =
 	TMono (spawn_monomorph' ctx p)
 
+let monomorph_transaction ctx =
+	let current = ctx.e.monomorphs in
+	let known = List.fold_left (fun acc (m,_) -> match m.tm_type with
+		| None -> (m,m.tm_down_constraints) :: acc
+		| Some _ -> acc
+	) [] current in
+	(fun () ->
+		List.iter (fun (m,constr) ->
+			(match m.tm_type with Some _ -> m.tm_type <- None | None -> ());
+			if constr != m.tm_down_constraints then m.tm_down_constraints <- constr;
+		) known;
+		ctx.e.monomorphs <- current
+	)
+
 let make_static_field_access c cf t p =
 	let ethis = Texpr.Builder.make_static_this c p in
 	mk (TField (ethis,(FStatic (c,cf)))) t p
+
+let enter_call_args ctx ~in_overload =
+	let old_in_call_args = ctx.f.in_call_args in
+	let old_context = ctx.g.call_arg_context in
+	ctx.f.in_call_args <- true;
+	ctx.g.call_arg_context <- Some { cac_in_overload = in_overload; cac_body_capture = ref [] };
+	(fun () ->
+		ctx.f.in_call_args <- old_in_call_args;
+		ctx.g.call_arg_context <- old_context;
+	)
+
+let in_overload_call_args ctx = match ctx.g.call_arg_context with
+	| Some cac -> cac.cac_in_overload
+	| None -> false
+
+let reset_call_arg_body_capture ctx = match ctx.g.call_arg_context with
+	| Some cac -> let buf = ref [] in cac.cac_body_capture <- buf; buf
+	| None -> ref []
+
+let call_arg_body_capture ctx = match ctx.g.call_arg_context with
+	| Some cac -> Some cac.cac_body_capture
+	| None -> None
 
 let raise_with_type_error msg p =
 	raise (WithTypeError (make_error (Custom msg) p))
@@ -473,7 +514,7 @@ let delay g (p : typer_pass) f =
 let delay_late g (p : typer_pass) f =
 	let p = Obj.magic p in
 	let tasks = g.delayed.(p) in
-	tasks.tasks <- tasks.tasks @ [f];
+	tasks.tasks_late <- f :: tasks.tasks_late;
 	if p < g.delayed_min_index then
 		g.delayed_min_index <- p
 
@@ -489,16 +530,24 @@ let rec flush_pass g (p : typer_pass) where =
 			()
 		else begin
 			let tasks = g.delayed.(i) in
-			match tasks.tasks with
+			begin match tasks.tasks with
 			| f :: l ->
 				tasks.tasks <- l;
 				f();
 				flush_pass g p where
 			| [] ->
-				(* Done with this pass (for now), update min index to next one *)
-				let i = i + 1 in
-				g.delayed_min_index <- i;
-				loop i
+				begin match tasks.tasks_late with
+				| _ :: _ ->
+					tasks.tasks <- List.rev tasks.tasks_late;
+					tasks.tasks_late <- [];
+					flush_pass g p where
+				| [] ->
+					(* Done with this pass (for now), update min index to next one *)
+					let i = i + 1 in
+					g.delayed_min_index <- i;
+					loop i
+				end
+			end
 		end
 	in
 	loop g.delayed_min_index

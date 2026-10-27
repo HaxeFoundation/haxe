@@ -157,20 +157,10 @@ class ThreadCallbackManager {
 	}
 
 	static function iterateCallbacks<F>(callbacks:Array<ThreadCallback<F>>, f:ThreadCallback<F> -> Void) {
-		var firstException = null;
 		for (c in callbacks) {
 			if (!c.isClosed) {
-				try {
-					f(c);
-				} catch(e:Exception) {
-					if (firstException == null) {
-						firstException = e;
-					}
-				}
+				f(c);
 			}
-		}
-		if (firstException != null) {
-			throw firstException;
 		}
 	}
 

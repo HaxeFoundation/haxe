@@ -1,0 +1,2 @@
+MaskStructValue.hx:4: characters 7-15 : Object requires field y
+MaskStructValue.hx:4: characters 7-15 : ... For optional function argument 'r'

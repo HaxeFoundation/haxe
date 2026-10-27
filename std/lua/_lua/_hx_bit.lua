@@ -1,4 +1,30 @@
-if _G.bit32 or pcall(require, 'bit32') then
+-- Try native Lua 5.3+ bitwise operators first
+local _hx_bit_native = (function()
+    local ok, fn = pcall(load, [[
+        -- mask to unsigned 32-bit, then convert to signed Int32
+        local function _s(v)
+            v = v & 0xFFFFFFFF
+            if v >= 0x80000000 then v = v - 0x100000000 end
+            return v
+        end
+        return {
+            band = function(a, b) return _s(a & b) end,
+            bor = function(a, b) return _s(a | b) end,
+            bxor = function(a, b) return _s(a ~ b) end,
+            bnot = function(a) return _s(~a) end,
+            lshift = function(a, b) return _s(a << b) end,
+            rshift = function(a, b) return (a & 0xFFFFFFFF) >> b end,
+            arshift = function(a, b) return _s(a // (1 << b)) end
+        }
+    ]])
+    if ok and fn then return fn() end
+    return nil
+end)()
+
+if _hx_bit_native then
+  _hx_bit_raw = _hx_bit_native
+  _hx_bit = _hx_bit_raw
+elseif _G.bit32 or pcall(require, 'bit32') then
   -- lua 5.2 and 5.3 have bit32 builtin, otherwise it may be an external library
   _hx_bit_raw = _G.bit32 or require('bit32')
   _hx_bit = setmetatable({}, { __index = _hx_bit_raw })

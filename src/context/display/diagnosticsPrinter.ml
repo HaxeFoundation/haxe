@@ -53,7 +53,7 @@ open CompletionModuleType
     position, handles cross-entry field deduplication, and wraps
     them in the final "entries" array. *)
 let make_missing_fields_message mf =
-	let jctx = create_context GMMinimum in
+	let jctx = create_minimal_config () in
 	let scope cf =
 		if has_class_field_flag cf CfStatic then CFSStatic else CFSMember
 	in
@@ -101,7 +101,7 @@ let make_missing_fields_message mf =
 		]
 	] in
 	let j = jobject [
-		"moduleType",generate_module_type jctx mf.mf_on;
+		"moduleType",generate_module_type { jctx with generate_member_bodies = false } mf.mf_on;
 		"moduleFile",jstring (Path.UniqueKey.lazy_path (t_infos mf.mf_on).mt_module.m_extra.m_file);
 		"entry",entry
 	] in

@@ -654,7 +654,7 @@ let handle_display ctx e_ast dk mode with_type =
 	ctx.f.in_display <- fst old;
 	ctx.f.in_call_args <- snd old;
 	let f () = display_expr ctx e_ast e dk mode with_type p in
-	if ctx.f.in_overload_call_args then begin
+	if in_overload_call_args ctx then begin
 		try
 			f()
 		with DisplayException de ->

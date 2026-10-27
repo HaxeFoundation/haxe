@@ -88,20 +88,21 @@ and do_check_cast ctx uctx tleft eright p =
 						loop2 a.a_to
 					end
 				| TInst(c,tl), TFun _ when has_class_flag c CFunctionalInterface ->
-					let cf = try
-						snd (ctx.com.functional_interface_lut#find c.cl_path)
-					with Not_found -> match TClass.get_singular_interface_field c.cl_ordered_fields with
-						| None ->
-							raise Not_found
-						| Some cf ->
-							ctx.com.functional_interface_lut#add c.cl_path (c,cf);
-							cf
+					let cf = match TClass.get_singular_interface_field c.cl_ordered_fields with
+						| None -> raise Not_found
+						| Some cf -> cf
 					in
 					let map = apply_params c.cl_params tl in
 					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 					unify_raise_custom native_unification_context eright.etype (map (apply_params cf.cf_params monos cf.cf_type)) p;
 					if has_mono tright then raise_typing_error ("Cannot use this function as a functional interface because it has unknown types: " ^ (s_type (print_context()) tright)) p;
-					eright
+					(* Wrap the function expression in a TCast to the SAM type so
+					   the SAM TInst lives in the typed AST. Without this the
+					   genjvm AST scan can't see SAM conversions in argument
+					   position (TNew has no callee subexpression; the
+					   constructor's parameter types are unreachable), and the
+					   emitted closure would not implement the SAM interface. *)
+					mk_cast eright tleft p
 				| _ ->
 					raise Not_found
 			end

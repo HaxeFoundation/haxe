@@ -90,11 +90,11 @@ class Lua {
 
 		getLuaDependencies();
 
-		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-l5.4", "-j2.0", "-j@v2.1"]) {
+		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-l5.4", "-l5.5", "-j2.0", "-j2.1"]) {
 			// luajit 2.0 was missing arm64 support
 			if (System.arch == Arm64 && lv == "-j2.0") continue;
 
-			final envpath = getInstallPath() + '/lua_env/lua${lv.replace("@v", "")}';
+			final envpath = getInstallPath() + '/lua_env/lua$lv';
 			addToPATH(envpath + '/bin');
 
 			Sys.println('--------------------');
@@ -138,12 +138,12 @@ class Lua {
 
 			installLib("lrexlib-pcre2", "2.9.1-1");
 
-			//Install bit32 for lua 5.1 and 5.4
-			if (lv == "-l5.1" || lv == "-l5.4")
+			//Install bit32 for lua 5.1 (5.3+ uses native bit operators)
+			if (lv == "-l5.1")
 				installLib("https://raw.githubusercontent.com/lunarmodules/lua-compat-5.3/refs/heads/master/rockspecs/bit32-scm-1.rockspec", "");
 
 			installLib("https://raw.githubusercontent.com/luvit/luv/refs/heads/master/luv-scm-0.rockspec", "");
-			installLib("luautf8", "0.1.6-1");
+			installLib("luautf8", "0.2.1-1");
 
 			installLib("https://raw.githubusercontent.com/HaxeFoundation/hx-lua-simdjson/master/hx-lua-simdjson-scm-1.rockspec", "");
 
@@ -154,7 +154,7 @@ class Lua {
 			}
 
 			changeDirectory(sysDir);
-			runCommand("haxe", ["compile-lua.hxml"].concat(args));
+			runCommand("haxe", args.concat(["compile-lua.hxml"]));
 			runSysTest("lua", ["bin/lua/sys.lua"]);
 
 			changeDirectory(getMiscSubDir("lua", "luaDeadCode", "stringReflection"));
