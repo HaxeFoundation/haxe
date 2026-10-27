@@ -207,15 +207,23 @@ let handle_locals ctx cls params states tf_args econtinuation =
 	|> Hashtbl.to_seq_values
 	|> List.of_seq
 
+(* These fields only exist when BaseContinuation is compiled with coro.stack-traces, which may
+   not be the case if it was loaded from a cache built with different defines. *)
+let find_stack_trace_field cont name p =
+	try
+		PMap.find name cont.base_continuation_class.cl_fields
+	with Not_found ->
+		Error.raise_typing_error (Printf.sprintf "haxe.coro.BaseContinuation has no field %s, was it compiled without -D coro.stack-traces?" name) p
+
 let build_call_stack ctx cont econtinuation p =
-	let b = ctx.builder in
-	if not ctx.typer.com.debug then
-		b#void_block_at [] p
+	if not ctx.stack_traces then
+		[]
 	else begin
+		let b = ctx.builder in
 		let basic = ctx.typer.t in
-		let build_cf = PMap.find "buildCallStack" cont.base_continuation_class.cl_fields in
+		let build_cf = find_stack_trace_field cont "buildCallStack" p in
 		let eaccess = b#instance_field econtinuation cont.base_continuation_class [basic.tany] build_cf build_cf.cf_type in
-		mk (TCall (eaccess, [])) basic.tvoid p
+		[mk (TCall (eaccess, [])) basic.tvoid p]
 	end
 
 module SuspensionCalls = struct
@@ -322,14 +330,13 @@ module SuspensionCalls = struct
 				if ctx.num_states = 1 then begin
 					(* Single-state: no while loop to break out of.
 					   Emit the error handler directly (equivalent to eexchandle). *)
-					let ewrapped_call = build_call_stack ctx cont econtinuation p in
-					b#void_block [
+					b#void_block ([
 						b#assign etmp_error eerr_field;
 						b#assign eerror etmp_error;
-						ewrapped_call;
+					] @ build_call_stack ctx cont econtinuation p @ [
 						b#assign exprs.estate (b#int (Obj.magic CoroThrown) p);
 						b#return econtinuation;
-					]
+					])
 				end else
 					b#void_block [
 						b#assign etmp_error eerr_field;
@@ -439,10 +446,10 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 		match cb.cb_next with
 		| NextSuspend (call, None) ->
 			let ecallcoroutine, eret = SuspensionCalls.make_suspending_tail_call ctx cont exprs call in
-			add_state None [ stack_item_inserter call.cs_pos ] (Some [ ecallcoroutine; eret ]);
+			add_state None (stack_item_inserter call.cs_pos) (Some [ ecallcoroutine; eret ]);
 		| NextSuspend (call, Some cb_next) ->
 			let ecallcoroutine, estateswitch = SuspensionCalls.make_suspending_call ctx cont exprs call in
-			add_state (Some cb_next.cb_id) [ stack_item_inserter call.cs_pos ] (Some [ ecallcoroutine; estateswitch ]);
+			add_state (Some cb_next.cb_id) (stack_item_inserter call.cs_pos) (Some [ ecallcoroutine; estateswitch ]);
 		| NextUnknown ->
 			add_state (Some (-1)) [set_control CoroReturned; ereturn] None
 		| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next ->
@@ -457,7 +464,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 			   is needed — the error handler follows the body naturally. *)
 			let tail = if single_state then None else Some [ b#break p ] in
 			let etmp_error = {etmp_error with epos = e1.epos } in
-			add_state None ([b#assign etmp_error (get_caught e1); stack_item_inserter e1.epos; b#assign etmp_error (start_exception etmp_error); ]) tail
+			add_state None ([b#assign etmp_error (get_caught e1)] @ stack_item_inserter e1.epos @ [b#assign etmp_error (start_exception etmp_error)]) tail
 		| NextIfThen (econd,cb_then,cb_next) ->
 			let eif = b#if_then_else econd (set_state cb_then.cb_id) (set_state cb_next.cb_id) com.basic.tint in
 			add_state None [eif] None
@@ -578,10 +585,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 				DynArray.add cases {case_patterns = patterns; case_expr = expr};
 		) exc_state_map;
 		let el =
-			let ewrapped_call = build_call_stack ctx cont econtinuation p in
-			[
-				b#assign eerror etmp_error;
-				ewrapped_call;
+			[b#assign eerror etmp_error] @ build_call_stack ctx cont econtinuation p @ [
 				set_control CoroThrown;
 				ereturn;
 			]

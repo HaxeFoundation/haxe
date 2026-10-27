@@ -296,12 +296,12 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	let {CoroToTexpr.ecompletion;eresult;_} = exprs in
 	let tret_invoke_resume = cont.suspension_result coro_class.outside.result_type in
 
-	(* In debug mode, insert an initial setStackItem call at the very start of
+	(* With coro.stack-traces, insert an initial setStackItem call at the very start of
 	   invokeResume so that the continuation always has a valid stack item, even in
 	   single-state coroutines where no suspension call triggers setStackItem. *)
-	let eloop =
-		let einit = stack_item_inserter coro_class.name_pos in
-		b#void_block [einit; eloop]
+	let eloop = match stack_item_inserter coro_class.name_pos with
+		| [] -> eloop
+		| el -> b#void_block (el @ [eloop])
 	in
 
 	let invoke_resume_field = match gen_mode with
@@ -555,10 +555,10 @@ let fun_to_coro ctx =
 	let egoto  = continuation_field cont.goto_label basic.tint in
 	let exprs = {CoroToTexpr.econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} in
 	let stack_item_inserter pos =
-		if not ctx.typer.com.debug then
-			b#void_block []
+		if not ctx.stack_traces then
+			[]
 		else begin
-		let field = PMap.find "setStackItem" cont.base_continuation_class.cl_fields in
+		let field = CoroToTexpr.find_stack_trace_field cont "setStackItem" coro_class.name_pos in
 		(* setStackItem(kind, cls, func, id, file, line, column, pmin, pmax)
 		   kind: 0 = ClassFunction, 1 = LocalFunction *)
 		let eargs =
@@ -588,7 +588,7 @@ let fun_to_coro ctx =
 			b#int pos.pmin coro_class.name_pos;
 			b#int pos.pmax coro_class.name_pos;
 		] in
-		mk (TCall (eaccess, eargs)) basic.tvoid coro_class.name_pos
+		[mk (TCall (eaccess, eargs)) basic.tvoid coro_class.name_pos]
 		end
 	in
 
@@ -622,11 +622,11 @@ let fun_to_coro ctx =
 			);
 			make_inline_tail_call = (fun call ->
 				let (ecallcoroutine, eret) = CoroToTexpr.SuspensionCalls.make_suspending_tail_call ctx cont exprs call in
-				b#void_block [stack_item_inserter call.cs_pos; ecallcoroutine; eret]
+				b#void_block (stack_item_inserter call.cs_pos @ [ecallcoroutine; eret])
 			);
 			make_sync_call = (fun call e_opt ->
 				let (ecall, echeck) = CoroToTexpr.SuspensionCalls.make_sync_call_and_check ctx cont exprs call e_opt in
-				b#void_block [stack_item_inserter call.cs_pos; ecall; echeck]
+				b#void_block (stack_item_inserter call.cs_pos @ [ecall; echeck])
 			);
 			make_this = (fun e ->
 				let egthis = AtomicLazy.force egthis in
@@ -642,10 +642,10 @@ let fun_to_coro ctx =
 	(* 6. Transform blocks to state machine *)
 
 	let start_exception =
-		if not ctx.typer.com.debug then
+		if not ctx.stack_traces then
 			(fun e -> e)
 		else begin
-			let cf = PMap.find "startException" cont.base_continuation_class.cl_fields in
+			let cf = CoroToTexpr.find_stack_trace_field cont "startException" coro_class.name_pos in
 			let ef = continuation_field cf cf.cf_type in
 			(fun e ->
 				mk (TCall(ef,[e])) basic.texception coro_class.name_pos
@@ -690,6 +690,7 @@ let create_coro_context typer config coro_type =
 		class_name_pos;
 		deferred_exprs = Hashtbl.create 0;
 		wildcard_catches = [typer.com.config.pf_exceptions.ec_wildcard_catch;(["haxe"],"Exception")];
+		stack_traces = Common.defined typer.com Define.CoroStackTraces;
 		has_capture_vars = false;
 		captures_this = false;
 		next_block_id = 0;
