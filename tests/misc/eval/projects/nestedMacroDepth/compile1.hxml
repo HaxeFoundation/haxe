@@ -1,0 +1,3 @@
+--main Main
+--interp
+-D parallel-typing=0
