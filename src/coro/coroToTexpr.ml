@@ -500,6 +500,8 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 					match follow vcatch.v_type with
 					| TDynamic _ ->
 						set_state cb_catch.cb_id (* no next *)
+					| TInst({ cl_path = path },_) when List.mem path ctx.wildcard_catches ->
+						set_state cb_catch.cb_id (* no next *)
 					| t ->
 						let etypecheck = std_is (AtomicLazy.force etmp_error_unwrapped) vcatch.v_type in
 						b#if_then_else etypecheck (set_state cb_catch.cb_id) enext com.basic.tvoid

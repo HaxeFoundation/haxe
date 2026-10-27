@@ -645,4 +645,36 @@ class TestCoroutines extends Test {
 		eq(null, cont2.lastError);
 		eq(3, cont2.lastResult);
 	}
+
+	function testIssue13080() {
+		var cont = new TrackingCont();
+		invokeCoroutine(cont, @:coroutine function() {
+			try {
+				throw "oops";
+			} catch (e:haxe.Exception) {
+				return e;
+			}
+		});
+		eq(1, cont.resumeCount);
+		eq("oops", cont.lastResult.message);
+		eq(null, cont.lastError);
+	}
+
+	#if jvm
+
+	function testIssue13080Throwable() {
+		var cont = new TrackingCont();
+		invokeCoroutine(cont, @:coroutine function() {
+			try {
+				throw "oops";
+			} catch (e:java.lang.Throwable) {
+				return e;
+			}
+		});
+		eq(1, cont.resumeCount);
+		eq("oops", cont.lastResult.getMessage());
+		eq(null, cont.lastError);
+	}
+
+	#end
 }
