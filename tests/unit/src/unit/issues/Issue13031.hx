@@ -7,9 +7,9 @@ class Issue13031 extends Test {
 			{url: "http://127.0.0.1/status", host: "127.0.0.1", port: 80},
 			{url: "http://127.0.0.1:4444/status", host: "127.0.0.1:4444", port: 4444},
 			{url: "127.0.0.1:4444/status", host: "127.0.0.1:4444", port: 4444},
-			{url: "http://127.0.0.1:80/status", host: "127.0.0.1:80", port: 80},
+			{url: "http://127.0.0.1:80/status", host: "127.0.0.1", port: 80},
 			{url: "https://127.0.0.1/status", host: "127.0.0.1", port: 443},
-			{url: "https://127.0.0.1:443/status", host: "127.0.0.1:443", port: 443},
+			{url: "https://127.0.0.1:443/status", host: "127.0.0.1", port: 443},
 			{url: "https://127.0.0.1:8443/status", host: "127.0.0.1:8443", port: 8443}
 		]) {
 			var socket = new RequestSocket();
