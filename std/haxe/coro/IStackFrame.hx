@@ -1,7 +1,7 @@
 package haxe.coro;
 
 /**
-	This interface is internally used to manage coroutine call stacks. Only meaningful with `-D coro.stack-traces`.
+	This interface is internally used to manage coroutine call stacks. `getStackItem` only returns stack items with `-D coro.stack-traces`.
 **/
 interface IStackFrame {
 	/**

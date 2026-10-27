@@ -42,7 +42,7 @@
 	{
 		"name": "CoroStackTraces",
 		"define": "coro.stack-traces",
-		"doc": "Generate the information required to build coroutine stack traces. Also disables coroutine tail-call optimizations and the `numStates` check of `@:coroutine(assert)`."
+		"doc": "Generate the information required to build coroutine stack traces. Combine with `-debug` to also keep frames of coroutines that end in a tail call."
 	},
 	{
 		"name": "Cppia",

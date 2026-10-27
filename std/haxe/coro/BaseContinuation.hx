@@ -105,7 +105,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 	#if coro.stack_traces
 	// The following functions are called by compiler-generated code when -D coro.stack-traces is set.
 
-	function setStackItem(kind:StackItemKind, cls:String, func:String, id:Int, file:String, line:Int, column:Int) {
+	function setStackItem(kind:StackItemKind, cls:String, func:String, id:Int, file:String, line:Int, column:Int, pmin:Int, pmax:Int) {
 		stackItem = switch (kind) {
 			case ClassFunction:
 				ClassFunction(cls, func, file, line, column);

@@ -265,13 +265,12 @@ let check_assertions assert_config num_states num_hoisted p =
 	begin match assert_config with
 	| None -> ()
 	| Some assert_config ->
-		(match assert_config.num_states,num_states with
-		| Some expected,Some num_states ->
+		(match assert_config.num_states with
+		| None -> ()
+		| Some expected ->
 			if num_states <> expected then
 				Error.raise_typing_error
-					(Printf.sprintf "Expected %d coroutine state(s), got %d" expected num_states) p
-		| _ ->
-			());
+					(Printf.sprintf "Expected %d coroutine state(s), got %d" expected num_states) p);
 		(match assert_config.num_hoisted with
 		| None -> ()
 		| Some expected ->
@@ -284,9 +283,10 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	let b = ctx.builder in
 	let cont = coro_class.ContinuationClassBuilder.continuation_api in
 	let eloop, initial_state, fields, num_states = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls coro_class.outside.param_types args exprs coro_class.name_pos stack_item_inserter start_exception in
-	(* Check @:coroutine(assert) config — skip numStates assertion with coro.stack-traces
-	   because it disables TCO which may add extra states. *)
-	check_assertions ctx.config.assert_config (if ctx.stack_traces then None else Some num_states) (List.length fields) coro_class.name_pos;
+	(* Check @:coroutine(assert) config — skip numStates assertion in debug mode
+	   because debug mode disables TCO which may add extra states. *)
+	if not ctx.typer.com.debug then
+		check_assertions ctx.config.assert_config num_states (List.length fields) coro_class.name_pos;
 	(* update cf_type to use inside type parameters *)
 	List.iter (fun cf ->
 		cf.cf_type <- substitute_type_params coro_class.type_param_subst cf.cf_type;
@@ -559,7 +559,7 @@ let fun_to_coro ctx =
 			[]
 		else begin
 		let field = CoroToTexpr.find_stack_trace_field cont "setStackItem" coro_class.name_pos in
-		(* setStackItem(kind, cls, func, id, file, line, column)
+		(* setStackItem(kind, cls, func, id, file, line, column, pmin, pmax)
 		   kind: 0 = ClassFunction, 1 = LocalFunction *)
 		let eargs =
 			match ctx.coro_type with
@@ -585,6 +585,8 @@ let fun_to_coro ctx =
 			b#string pos.pfile coro_class.name_pos;
 			b#int l1 coro_class.name_pos;
 			b#int c1 coro_class.name_pos;
+			b#int pos.pmin coro_class.name_pos;
+			b#int pos.pmax coro_class.name_pos;
 		] in
 		[mk (TCall (eaccess, eargs)) basic.tvoid coro_class.name_pos]
 		end
