@@ -1,5 +1,5 @@
 /**
-	Micro benchmarks of the eval interpreter (docs/macro-jit.md, step 0).
+	Micro benchmarks of the eval interpreter.
 
 	Run with `--interp` (`haxe interp.hxml`) or as a macro (`haxe macro.hxml`),
 	both use the same engine. Every case prints its time in milliseconds and a

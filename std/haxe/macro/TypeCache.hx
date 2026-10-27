@@ -29,8 +29,8 @@ import haxe.macro.Type;
 	(`setCurrent`), or computed on demand by a pure function of the type.
 
 	A `TypeCache` is declared as the initializer of a static variable, which is
-	its identity: the static variables of macros are reset for every expansion,
-	but the content of a `TypeCache` is kept by the compiler.
+	its identity: every macro expansion starts from the same state of the
+	static variables, but the content of a `TypeCache` is kept by the compiler.
 
 	```haxe
 	static var shaders = new TypeCache<ShaderData>(t -> parseShader(t));

@@ -41,7 +41,7 @@ let breaks = Array.make 3 0
 let let_through : Domain.id list ref = ref []
 
 (* A batch of tasks of the macro context (the typing of the modules a macro
-   load brings, docs/macro-jit.md): its domain lends it the claim of the
+   load brings): its domain lends it the claim of the
    macros it holds (see [lent]), and the domains waiting for that claim run its
    tasks instead of sleeping ([help], set by the batch). *)
 let in_batch : bool Domain.DLS.key = Domain.DLS.new_key (fun () -> false)

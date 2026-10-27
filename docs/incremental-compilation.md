@@ -3438,9 +3438,9 @@ phase 4 `Decls` fingerprints and happens in phase 6.
   phase 3 with the cycle instrumentation described in phase 3.3.
 - **Parallel macro execution.** Expansions run on several domains, speculating
   (§3.5, steps 10 and 13); what still serializes is the loading of a macro and
-  the API functions that type or change the compilation. The speed of the
-  interpreter itself is the subject of `docs/macro-jit.md` (closure compiler
-  improvements: macro execution of Heaps 0.57 s → 0.39 s).
+  the API functions that type or change the compilation. The interpreter
+  itself got faster too (closure compiler improvements: macro execution of
+  Heaps 0.57 s → 0.39 s).
 - **Parallel speedup.** Dependencies between queries bound the achievable
   parallelism (critical path); to be measured per phase with the scheduler
   statistics.
