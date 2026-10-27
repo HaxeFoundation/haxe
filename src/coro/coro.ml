@@ -468,6 +468,7 @@ let fun_to_coro ctx =
 	let vtmp_result = AtomicLazy.from_fun (fun () -> alloc_var VGenerated "_hx_result" (basic.tnull basic.tany) coro_class.name_pos) in
 	let etmp_result = AtomicLazy.from_fun (fun () -> b#local (AtomicLazy.force vtmp_result) coro_class.name_pos) in
 	let vtmp_error = alloc_var VGenerated "_hx_error" (basic.tnull basic.texception) coro_class.name_pos in
+	let etmp_error = b#local vtmp_error coro_class.name_pos in
 	let vtmp_error_unwrapped = AtomicLazy.from_fun (fun () -> alloc_var VGenerated "_hx_error_unwrapped" (basic.tnull basic.tany) coro_class.name_pos) in
 	let etmp_error_unwrapped = AtomicLazy.from_fun (fun () -> b#local (AtomicLazy.force vtmp_error_unwrapped) coro_class.name_pos) in
 
@@ -495,7 +496,7 @@ let fun_to_coro ctx =
 
 	let deferred,install_deferred = make_deferred_api ctx b in
 	CoroFromTexpr.check_captures ctx args expr;
-	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred expr);
+	ignore(CoroFromTexpr.expr_to_coro ctx etmp_result etmp_error etmp_error_unwrapped cb_root scope deferred expr);
 
 	(* Count the number of reachable CFG blocks. *)
 	let count = ref 0 in
@@ -552,7 +553,6 @@ let fun_to_coro ctx =
 	in
 
 	let egoto  = continuation_field cont.goto_label basic.tint in
-	let etmp_error = b#local vtmp_error coro_class.name_pos in
 	let exprs = {CoroToTexpr.econtinuation;ecompletion;estate;eresult;egoto;eerror;etmp_result;etmp_error;etmp_error_unwrapped} in
 	let stack_item_inserter pos =
 		if not ctx.typer.com.debug then
@@ -689,6 +689,7 @@ let create_coro_context typer config coro_type =
 		coro_type;
 		class_name_pos;
 		deferred_exprs = Hashtbl.create 0;
+		wildcard_catches = [typer.com.config.pf_exceptions.ec_wildcard_catch;(["haxe"],"Exception")];
 		has_capture_vars = false;
 		captures_this = false;
 		next_block_id = 0;

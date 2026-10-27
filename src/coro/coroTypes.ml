@@ -73,6 +73,7 @@ type coro_ctx = {
 	coro_type : coro_for;
 	class_name_pos : pos;
 	deferred_exprs : (int, unit -> texpr) Hashtbl.t;
+	wildcard_catches : path list;
 	mutable has_capture_vars : bool;
 	mutable captures_this : bool;
 	mutable next_block_id : int;
