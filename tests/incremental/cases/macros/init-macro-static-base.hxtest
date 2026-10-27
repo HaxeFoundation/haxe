@@ -1,37 +1,42 @@
 # An initialization macro gives a configuration to the build macros that run
-# after it. With static isolation, an ordinary static is reset for every
-# expansion, so the configuration it holds is lost: a warning tells to declare
-# it @:persistent (plan phase 7, item 4). Writes in place (a map) are seen too.
+# after it: what it leaves in the static variables, writes in place (a map)
+# included, is their base, which every expansion starts from (plan phase 7,
+# item 4). The changes an expansion makes are undone when it ends, in place
+# too: A and B each see the configuration only, whatever the order of their
+# builds and the domain running them.
 @args --macro Macro.init()
 === ordinary statics
-@expect-warning Macro.prefix is written by this initialization macro but reset for every macro expansion
-@expect-warning Macro.names is written by this initialization macro but reset for every macro expansion
-@expect-output prefix: null, names: 0
+@expect-no-warning
+@expect-output prefix: my, names: 1, seen: 1 | prefix: my, names: 1, seen: 1
 --- Main.hx
 class Main {
 	static function main() {
-		trace(A.info());
+		trace(A.info() + " | " + B.info());
 	}
 }
 --- A.hx
 @:build(Macro.build())
 class A {}
+--- B.hx
+@:build(Macro.build())
+class B {}
 --- Macro.hx
 class Macro {
 	static var prefix:String = null;
 	static var names = new Map<String, Bool>();
-	static var scratch = 0;
+	static var seen:Array<String> = [];
 
 	public static function init() {
 		prefix = "my";
 		names.set("a", true);
-		scratch++;
-		scratch--;
 	}
 
 	public static function build():Array<haxe.macro.Expr.Field> {
 		var fields = haxe.macro.Context.getBuildFields();
-		var s = "prefix: " + prefix + ", names: " + [for (k in names.keys()) k].length;
+		seen.push(haxe.macro.Context.getLocalClass().toString());
+		var s = "prefix: " + prefix + ", names: " + [for (k in names.keys()) k].length + ", seen: " + seen.length;
+		names.set("b", true);
+		prefix = "changed";
 		fields.push((macro class {
 			public static function info() return $v{s};
 		}).fields[0]);
@@ -41,11 +46,12 @@ class Macro {
 
 === persistent statics
 @expect-no-warning
-@expect-output prefix: my, names: 1
+@expect-output prefix: my, names: 1, seen: 1 | prefix: my, names: 1, seen: 1
 --- Macro.hx
 class Macro {
 	@:persistent static var prefix:String = null;
 	@:persistent static var names = new Map<String, Bool>();
+	static var seen:Array<String> = [];
 
 	public static function init() {
 		prefix = "my";
@@ -54,7 +60,8 @@ class Macro {
 
 	public static function build():Array<haxe.macro.Expr.Field> {
 		var fields = haxe.macro.Context.getBuildFields();
-		var s = "prefix: " + prefix + ", names: " + [for (k in names.keys()) k].length;
+		seen.push(haxe.macro.Context.getLocalClass().toString());
+		var s = "prefix: " + prefix + ", names: " + [for (k in names.keys()) k].length + ", seen: " + seen.length;
 		fields.push((macro class {
 			public static function info() return $v{s};
 		}).fields[0]);

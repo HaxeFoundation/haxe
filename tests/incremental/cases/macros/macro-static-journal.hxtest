@@ -1,0 +1,47 @@
+# Every expansion starts from the base of the static variables: the changes it
+# makes, in place (an array, an instance) or to what changes cannot be
+# journaled for (bytes, copied again for every expansion), are undone when it
+# ends. A nested expansion (the build of B, run by the build of A) leaves its
+# caller's state as it was (plan phase 7, item 4).
+=== initial
+@expect-output A: 1 1 1 [A] | B: 1 1 1 [B]
+--- Main.hx
+class Main {
+	static function main() {
+		trace(A.info() + " | " + B.info());
+	}
+}
+--- A.hx
+@:build(Macro.build(true))
+class A {}
+--- B.hx
+@:build(Macro.build(false))
+class B {}
+--- Macro.hx
+import haxe.macro.Context;
+
+class Counter {
+	public var n = 0;
+	public function new() {}
+}
+
+class Macro {
+	static var list:Array<String> = [];
+	static var counter = new Counter();
+	static var bytes = haxe.io.Bytes.alloc(1);
+
+	public static function build(nested:Bool):Array<haxe.macro.Expr.Field> {
+		var name = Context.getLocalClass().get().name;
+		list.push(name);
+		counter.n++;
+		bytes.set(0, bytes.get(0) + 1);
+		if (nested)
+			Context.buildType(Context.getType("B"));
+		var s = name + ": " + list.length + " " + counter.n + " " + bytes.get(0) + " [" + list.join(",") + "]";
+		var fields = Context.getBuildFields();
+		fields.push((macro class {
+			public static function info() return $v{s};
+		}).fields[0]);
+		return fields;
+	}
+}

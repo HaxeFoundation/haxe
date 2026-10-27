@@ -2059,8 +2059,9 @@ module StdReflect = struct
 			ifields = Array.copy vi.ifields;
 			iproto = vi.iproto;
 			ikind = vi.ikind;
-			(* the copy shares what its kind holds (a map...) *)
-			imark = (match vi.ikind with INormal -> 0 | _ -> vi.imark);
+			(* the copy shares what its kind holds (a map...), and its frozen
+			   group or journal (not the identity of an object of the base) *)
+			imark = (match vi.ikind with INormal -> 0 | _ -> if vi.imark < base_mark then vi.imark else 0);
 		}
 		| VString _ -> o
 		| VArray va -> VArray { va with avalues = Array.copy va.avalues; amark = 0 }

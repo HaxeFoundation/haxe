@@ -182,12 +182,16 @@ module PrototypeBuilder = struct
 			pparent = pctx.parent;
 			pkind = pctx.kind;
 			pvalue = vnull;
-			pinit = [];
+			pinitializing = false;
+			pexec = [];
+			pdomain_seen = [||];
 			preset = [||];
 			presettable = [||];
 			pshared = [||];
 			pdomain = [||];
+			pdomain_gen = [||];
 			pdomain_epoch = [||];
+			pvolatile = [||];
 			pfrozen = [||];
 		} in
 		proto.pvalue <- vprototype proto;
@@ -214,6 +218,8 @@ let create_static_prototype ctx mt =
 	let key = path_hash path in
 	let com = if ctx.is_macro then (EvalContext.curapi ctx).MacroApi.get_macro_com() else (EvalContext.curapi ctx).MacroApi.get_com() in
 	let meta = Texpr.build_metadata com.Common.basic mt in
+	(* the initializers an expansion reading the variables depends on *)
+	let recorders = ref [] in
 	let o = match mt with
 	| TClassDecl c ->
 		let pparent = match c.cl_super with
@@ -240,7 +246,9 @@ let create_static_prototype ctx mt =
 				let persistent = is_persistent cf in
 				let field_path = s_type_path path ^ "." ^ cf.cf_name in
 				let record = exec_recorder ctx c cf in
-				(* when the types are added, then again for every expansion *)
+				if not persistent then Option.may (fun r -> recorders := r :: !recorders) record;
+				(* when the types are added, then again for every compilation of the
+				   server (see [static_prototypes#reset]) *)
 				let init set proto =
 					Option.may (fun r -> r (DomainLocal.get current_epoch)) record;
 					let old = DomainLocal.get DepRecord.current_static in
@@ -266,6 +274,7 @@ let create_static_prototype ctx mt =
 			| None -> ()
 			| Some e ->
 				let record = if ctx.is_macro then DepRecord.exec_recorder (s_type_path c.cl_path) "exec-init" else None in
+				Option.may (fun r -> recorders := r :: !recorders) record;
 				let init _ =
 					Option.may (fun r -> r (DomainLocal.get current_epoch)) record;
 					ignore(eval_expr ctx (EKMethod(key,key___init__)) e)
@@ -299,6 +308,7 @@ let create_static_prototype ctx mt =
 	| _ ->
 		die "" __LOC__
 	in
+	(fst (fst o)).pexec <- !recorders;
 	let rec loop v name path = match path with
 		| [] ->
 			set_field v (hash name) (vprototype (fst (fst o)))
@@ -453,7 +463,6 @@ let add_types ctx types ready =
 			ctx.static_prototypes#add_init proto non_persistent_delays;
 			(* static isolation is for macros only, not for the interpreted program *)
 			if ctx.is_macro then begin
-				proto.pinit <- non_persistent_delays;
 				set_isolated_statics proto
 					(Array.of_list (ExtList.List.filter_map (fun (persistent,i,_,_) -> if persistent || i < 0 then None else Some i) delays))
 					(Array.of_list (ExtList.List.filter_map (fun (persistent,i,_,_) -> if persistent && i >= 0 then Some i else None) delays))
@@ -465,7 +474,11 @@ let add_types ctx types ready =
 		raise e
 	in
 	(* 4. Initialize static fields. *)
-	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,_,first,_) -> first proto) delays) fl_static_init
+	let init () = DynArray.iter (fun (proto,delays) -> List.iter (fun (_,_,first,_) -> first proto) delays) fl_static_init in
+	if ctx.is_macro then
+		initialize_statics (DynArray.fold_right (fun (proto,_) acc -> proto :: acc) fl_static_init []) init
+	else
+		init ()
 
 let add_types ctx types ready =
 	Timer.time ctx.timer_ctx [(if ctx.is_macro then "macro" else "interp");"add_types"] (add_types ctx types) ready

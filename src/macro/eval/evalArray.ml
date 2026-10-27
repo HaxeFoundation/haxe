@@ -36,7 +36,7 @@ let make len =
 	try Array.make len vnull with _ -> EvalContext.error_message "Array allocation is too large"
 
 (* before changing [a] (see [EvalValue.freeze_persistent]) *)
-let barrier a = if a.amark <> 0 then frozen_write a.amark
+let barrier = array_barrier
 
 let set_length a l =
 	barrier a;

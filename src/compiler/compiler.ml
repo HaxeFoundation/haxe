@@ -275,10 +275,12 @@ let do_type com mctx actx display_file_dot_path =
 	enter_stage com CInitMacrosStart;
 	ServerMessage.compiler_stage com;
 	Setup.init_native_libs com actx.hxb_libs;
+	MacroContext.Interp.set_init_phase_done false;
 	let mctx = List.fold_left (fun mctx path ->
 		Some (MacroContext.call_init_macro com mctx path)
 	) mctx (List.rev actx.config_macros) in
 	enter_stage com CInitMacrosDone;
+	MacroContext.Interp.set_init_phase_done true;
 	check_defines com;
 	update_platform_config com; (* make sure to adapt all flags changes defined during init macros *)
 	ServerMessage.compiler_stage com;

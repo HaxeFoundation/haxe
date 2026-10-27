@@ -388,8 +388,6 @@ let value_signature v =
 	loop v;
 	Digest.string (Buffer.contents buf)
 
-let () = EvalValue.value_signature := value_signature
-
 let prepare_callback = EvalMisc.prepare_callback
 
 let init ctx = ()
@@ -456,7 +454,9 @@ let do_reuse ctx api args =
 	EvalContext.set_curapi ctx api;
 	ctx.args <- args;
 	ctx.had_error <- false;
-	ctx.static_prototypes#reset
+	(* the base of the static variables (see [EvalValue.base_mode]) *)
+	with_base_mode (fun () -> ctx.static_prototypes#reset);
+	if ctx.is_macro then reseal_statics ctx.static_prototypes#iter
 
 let set_error ctx b =
 	(* TODO: Have to reset this somewhere if running compilation server. But where... *)
@@ -720,6 +720,16 @@ let freeze_persistent () =
 	if !GlobalState.initialized then begin
 		let ctx = get_ctx () in
 		if ctx.is_macro then freeze_persistent ctx.static_prototypes#iter
+	end
+
+(* The initialization macros of the compilation start ([b] false) or are done:
+   the base of the static variables of the macros changes no more, but in the
+   variables of the prototypes loaded later (see [EvalValue.initialize_statics]). *)
+let set_init_phase_done b =
+	EvalValue.init_phase_done := b;
+	if b && !GlobalState.initialized then begin
+		let ctx = get_ctx () in
+		if ctx.is_macro then reseal_statics ctx.static_prototypes#iter
 	end
 
 let ensure_thread_eval () =

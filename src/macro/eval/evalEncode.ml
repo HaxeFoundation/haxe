@@ -327,12 +327,16 @@ let fake_proto cache path =
 			pparent = None;
 			pkind = PInstance;
 			pvalue = vnull;
-			pinit = [];
+			pinitializing = false;
+			pexec = [];
+			pdomain_seen = [||];
 			preset = [||];
 			presettable = [||];
 			pshared = [||];
 			pdomain = [||];
+			pdomain_gen = [||];
 			pdomain_epoch = [||];
+			pvolatile = [||];
 			pfrozen = [||];
 		} in
 		proto.pvalue <- vprototype proto;
@@ -381,12 +385,16 @@ let ref_proto =
 		pparent = None;
 		pkind = PInstance;
 		pvalue = vnull;
-		pinit = [];
+		pinitializing = false;
+		pexec = [];
+		pdomain_seen = [||];
 		preset = [||];
 		presettable = [||];
 		pshared = [||];
 		pdomain = [||];
+		pdomain_gen = [||];
 		pdomain_epoch = [||];
+		pvolatile = [||];
 		pfrozen = [||];
 	} in
 	proto.pvalue <- vprototype proto;

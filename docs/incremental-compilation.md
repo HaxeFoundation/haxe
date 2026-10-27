@@ -11,7 +11,7 @@ actually changed, with a result **bit-for-bit identical** to a cold compilation.
 | Granularity | **The field**, directly: dependencies, fingerprints and retyping are per field. |
 | Scope | Typing, filters and generation. |
 | Targets | **JS and HL only.** Other targets (C++, JVM, Python, Lua, PHP, Neko, Flash) are **out of the scope of this plan**: they must keep compiling with a global generation step, but nothing in this plan makes their generation incremental. |
-| Macros | Automatic tracing of compiler API reads; **volatility is explicit** (`Context.setVolatile(?check)`), like file dependencies; volatile expansions are re-executed with early cutoff on their output. Console output (`Sys.println`, `trace`) is printed immediately, in no guaranteed order, and not replayed from the cache. **Macro statics are reset for every expansion**; `@:persistent` statics are **caches** (pure memoization, which the compiler may empty at any time); data attached to types uses **`haxe.macro.TypeCache<T>`**, given by the build of the type or computed by a pure function of it. File dependencies are **explicit**: only files declared with `registerModuleDependency` are tracked (and watched, wherever they are); reading or writing other files is the macro's responsibility. |
+| Macros | Automatic tracing of compiler API reads; **volatility is explicit** (`Context.setVolatile(?check)`), like file dependencies; volatile expansions are re-executed with early cutoff on their output. Console output (`Sys.println`, `trace`) is printed immediately, in no guaranteed order, and not replayed from the cache. **Every macro expansion starts from the base of the macro statics** (what their initializers and the initialization macros left), its changes undone when it ends; `@:persistent` statics are **caches** (pure memoization, which the compiler may empty at any time); data attached to types uses **`haxe.macro.TypeCache<T>`**, given by the build of the type or computed by a pure function of it. File dependencies are **explicit**: only files declared with `registerModuleDependency` are tracked (and watched, wherever they are); reading or writing other files is the macro's responsibility. |
 | Target release | **Haxe 6.** Work happens on the long-lived `haxe6-incremental` branch, regularly merging `development` in. New warnings (phase 1, cycles) may be backported to a Haxe 5.x release as a transition. |
 | Compatibility | Breaking changes accepted for Haxe 6. The new rules are **warnings in Haxe 5.x** and **errors in Haxe 6, with no compatibility flag**. |
 | Macro context and configurations | Every context on a server (the macro context, the target context, and other configurations such as js and hl, or debug and release) keeps a **separate query graph** (different defines, platform and standard library overrides), but they all **share parsing**: a parsed module is reused by another context when the defines read during its parsing have the same values in both (phase 3.6). |
@@ -1495,9 +1495,10 @@ stay on one domain at a time.
 **Status: step 10, expression macros on several domains (§4b, item 3).**
 The state of the macro interpreter that an expansion changes is local to the
 domain running it: the compiler API of the expansion (`curapi`, the functions
-of the encoders), and the static variables reset for every expansion, kept by
-domain slot on their prototype (`get_static`, `set_static`; the `@:persistent`
-slots and the statics of the interpreted program stay shared). The tables the
+of the encoders), and the copy of the base of the static variables that its
+expansions change and undo, kept by domain slot on their prototype
+(`get_static`, `set_static`; the `@:persistent` slots and the statics of the
+interpreted program stay shared). The tables the
 macros share at run time (the names of the hashes, the prototypes of
 anonymous objects, the fake prototypes of the encoders) have locks. An
 expression macro started out of the order of the tasks (speculating) then
@@ -2502,23 +2503,23 @@ cycles are errors (§ phase 3.3).
    - file writes: not tracked (see item 8).
 4. **Static state isolation.** Macro-context static variables no longer carry
    state from one macro call to another.
-   - **Ordinary statics are reset for every expansion.** During an expansion, a
-     static starts from its initial value; everything written is discarded when
-     the expansion ends. Restoring the reference is not enough (a
-     `static var cache = new Map()` is usually mutated in place), so the
-     interpreter **re-runs the static's initializer on first access in each
-     expansion**, lazily: statics an expansion does not touch cost nothing.
+   - **Every expansion starts from the base of the ordinary statics**: what
+     their initializers and the initialization macros (`--macro`) left, the
+     configuration these give included. Everything an expansion writes, in
+     place too (a `static var cache = new Map()` is usually mutated in place),
+     is undone when it ends.
    - **Nested expansions** (a `typeExpr` or `getType` triggering another build
-     or expression macro) get their own state, and the caller's state is
+     or expression macro) start from the base too, and the caller's state is
      restored on return (stack discipline).
    - **`@:persistent` means cache.** A `@:persistent` static survives
      expansions and compilations, as pure memoization: its content must be a
      function of what is put in it, reading it records no dependency, and the
      compiler may empty it at any time (at least when the macro code changes).
      It can be written anytime. Configuration written by initialization
-     macros is a cache too: they run first on every compilation and rebuild
-     it. Outside of macros it is an ordinary static, so the same code also
-     works at run time.
+     macros needs no `@:persistent`: it is the base of the ordinary statics,
+     rebuilt on every compilation since they run first (a `@:persistent`
+     variable they write is a cache too). Outside of macros it is an ordinary
+     static, so the same code also works at run time.
    - `-D macro-state-check` empties the caches before each expansion and
      compares the fingerprint of its result with the one obtained with the
      caches: a difference shows an impure use (e.g. a registry that depends
@@ -2683,32 +2684,57 @@ prerequisite for running them in parallel (§4b, item 3).
 - Isolation (item 4), always on (the temporary `-D macro-isolation` is
   gone once the corpus passed with it): every expansion (`EvalMain.call_path` in the macro
   interpreter, and every callback of a macro such as `onAfterTyping`) gets an
-  epoch of its own; a class's static variables are initialized again
-  (initializers and `__init__`, `null` without initializer) on the first
-  access of an expansion to one of them (`EvalValue.fresh_statics`, from the
-  JIT and the reflection paths), and the classes an expansion initialized
-  again get their previous state back when it ends, so a nested expansion
-  leaves its caller's state as it was. `@:persistent` statics are not reset,
-  and keep the writes of a nested expansion (only the other slots are
-  restored: a build macro of an interface run from the build of its
-  implementer may give the configuration, as in domkit).
-  The interpreted program (`--interp`) is not affected. Accesses to statics
-  already wait for the order of expansions (speculative macros), so they do
-  not race.
+  epoch of its own and starts from the **base** of the static variables
+  (`pfields`): what their initializers left, then the initialization macros,
+  which write it directly (`EvalValue.base_mode`, nested expansions
+  included), so the configuration they give is kept without `@:persistent`.
+  - The base changes no more once the initialization macros are done
+    (`set_init_phase_done`), but in the slots of the prototypes loaded later,
+    whose initializers run as an expansion (their changes to other
+    prototypes, a registry, are undone) writing their own slots
+    (`pinitializing`, `initialize_statics`); the reset of a new compilation of
+    the server writes it again.
+  - The base is **sealed** (`seal_statics`) when it may have changed: its
+    arrays, objects and instances get an identity in their mark (from
+    `base_mark`, the frozen groups of `@:persistent` state below it). Fully at
+    the end of the initialization macros and after a reset (the copies are
+    made again: `base_generation`), the new prototypes once initialized.
+  - Each domain running macros reads and writes a **deep copy** of the base
+    (`domain_values`), made on the first access of the compilation to a
+    prototype, by identity (`slot_memos`, by domain slot: what two variables
+    share stays shared); the objects of the copy are marked with the domain
+    slot (negative marks). What the expansions share is not copied (frozen
+    `@:persistent` groups, functions, types, mutexes).
+  - The changes an expansion makes to the copy are **journaled**: the first
+    write of an expansion to the slots of a prototype, or to an object of the
+    copy (through the write barriers of the arrays, field writes, `Reflect`
+    and the maps, which thaw frozen groups too), saves its state; when the
+    expansion ends, the journal undoes them, the last first. A nested
+    expansion starts from the base: the journal entries of its caller swap
+    their state while it runs, and back when it ends. A speculating macro run
+    again (`Claims.Invalidated`) starts from the base too.
+  - What writes cannot be journaled for (bytes, buffers, vectors, atomics) is
+    copied again from the base by every expansion that reads its prototype
+    (`pvolatile`). The state of a regular expression and what a function
+    captured are not journaled.
+  - Objects of a copy that escape to shared state are copied (`export`): when
+    written to a `@:persistent` variable, or to the base (an initializer of a
+    prototype loaded later). One reached in place (pushed into a
+    `@:persistent` array) is not: it cannot be frozen, so reading it ends a
+    speculation, but the domain owning it still changes it.
+  Cost: a copy of the statics a domain reads, once per compilation, then what
+  the expansions write; reading a static is not slower. `@:persistent`
+  statics are not copied, and keep the writes of a nested expansion (a build
+  macro of an interface run from the build of its implementer may give the
+  configuration, as in domkit). The interpreted program (`--interp`) is not
+  affected (`cases/macros/init-macro-static-base.hxtest`,
+  `cases/macros/macro-static-journal.hxtest`).
 - `haxe.macro.TypeCache<T>` (item 5): identity from the static variable whose
   initializer creates it; values by type path with the module of the type
   (a module typed again must give them again), `get` builds the type and
   records a dependency on its members and its module, `compute` is
   memoized for the compilation and its dependencies are recorded again for
   each reader, `all()` only once typing is done (`onAfterTyping`).
-- Detection: with isolation, an initialization macro (`--macro`) that leaves a
-  static it reset with a value different from its initial one (compared by
-  value signature, so writes in place to a map count) gets a
-  `WMacroStaticReset` warning: the configuration it gives is lost and the
-  static should be `@:persistent`. Only the initialization macro's own
-  expansion is checked (its nested expansions are not), and a static left as
-  it was initialized (a scratch counter) is not reported
-  (`cases/macros/init-macro-static-reset.hxtest`).
 - Whole-program APIs: `Context.getAllModuleTypes()` is an error until typing
   is done (like `TypeCache.all()`), and `Context.onTypeNotFound` can only be
   called from an initialization macro.

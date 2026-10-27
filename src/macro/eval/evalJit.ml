@@ -73,13 +73,11 @@ let shared_state exec env =
 (* [exec] reading the static variable at slot [i] of [proto] *)
 let static_read_state proto i exec env =
 	if is_shared_static proto i then shared_static_read proto i;
-	fresh_statics proto;
 	exec env
 
 (* [exec] changing it *)
 let static_write_state proto i exec env =
 	if is_shared_static proto i then shared_static_write proto i;
-	fresh_statics proto;
 	exec env
 
 let rec op_assign ctx jit e1 e2 = match e1.eexpr with

@@ -778,7 +778,6 @@ let emit_field_read_write exec1 p1 name exec2 fop prefix = fun env ->
 	| VPrototype proto ->
 		let i = get_proto_field_index proto name in
 		if is_shared_static proto i then shared_static_write proto i;
-		fresh_statics proto;
 		proto_field_read_write proto i exec2 fop prefix env
 	| _ ->
 		let vf = field v1 name in
