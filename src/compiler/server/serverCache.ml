@@ -343,6 +343,7 @@ let check_module sctx com m_path m_extra p =
 					v_failed = None;
 					v_assume = false;
 				} in
+				NodeGraph.macro_validation := Some (msign,vm);
 				msign,vm
 			) (NodeGraph.find_opt msign)
 		| _ ->

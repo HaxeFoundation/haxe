@@ -2273,14 +2273,22 @@ the module of the macro and everything it depends on:
   hxsl.Macros.buildFields (static)`); `HAXE_GRAPH_TRACE` says why the macro
   context found it changed.
 
-Heaps samples (server, `HAXE_GRAPH_TRACE` for the counts), modules typed again:
+Heaps samples (server, 4 domains), modules typed again (with `HAXE_GRAPH_TRACE`)
+and time of the compilation (without it), compared with the compiler before:
 
-| Edit | Before | After |
+| Edit | Modules | Time |
 |---|---|---|
-| static added to `hxsl.Tools` (`hxsl/Ast.hx`, read by the shader macros) | 90 | 0 (but the module of the file) |
-| static added to `hxd.Math` | 23 | 1 |
-| function added at the top of `hxsl.Macros` | 90–97 | 60: the shaders, whose code reifies expressions positioned in the file |
-| no change, body edits, domkit and hxbit classes | 0–3 | 0–3 |
+| static added to `hxsl.Tools` (`hxsl/Ast.hx`, read by the shader macros) | 90 → 0 (but the module of the file) | 1.50–1.59 s → 0.53–0.57 s |
+| static added to `hxd.Math` | 23 → 1 | 1.32–1.34 s → 0.47–0.62 s |
+| function added at the top of `hxsl.Macros` | 68 → 62: the shaders, whose code reifies expressions positioned in the file | 0.97–1.03 s → 0.93–0.97 s |
+| no change, body edits, domkit and hxbit classes, field added to `h2d.Object` | unchanged | unchanged (±0.1 s) |
+
+Found on the way: a computation whose macro code changed was checked after
+what it reads in the graph, and a cycle back to it found it valid while it was
+being checked (the shaders and `h3d.shader.SkinBase`): its module was kept, the
+assumption made on it failed after typing, and the compilation was done twice.
+A computation now checks first the edges that do not lead to other
+computations (declarations, lookups, the macro context).
 
 Not recorded: a class found by name (`Type.resolveClass`) and reflected on
 without being instantiated or named in the code; the positions of an

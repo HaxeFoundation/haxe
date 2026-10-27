@@ -152,12 +152,14 @@ let modules_only = ref false
 let display_request = ref false
 
 let clear_current = ref (fun () -> ())
+let clear_macro_validation = ref (fun () -> ())
 
 (* The files of the lexer at the end of the previous compilation: a position
    in a file the lexer did not read again is still right. *)
 let lexer_files : (string,Lexer.lexer_file) Hashtbl.t = Hashtbl.create 0
 
 let end_compilation () =
+	!clear_macro_validation ();
 	DepRecord.reused := [];
 	!clear_current ();
 	Hashtbl.reset lexer_files;
@@ -275,6 +277,10 @@ let uses_macro_positions e =
 
 (* Whether node [n] of the graph of the macro context [sign] was found valid
    by the validation of this compilation, with the fingerprint seen. *)
+(* The check of a node of the macro context not checked (or forgotten) by
+   the validation: set once the validation is defined. *)
+let check_macro_node : (string -> node -> int -> int -> bool) ref = ref (fun _ _ _ _ -> false)
+
 let macro_node_checked sign n a b =
 	match Hashtbl.find_opt graphs sign with
 	| None -> false
@@ -282,8 +288,9 @@ let macro_node_checked sign n a b =
 		same_fp n.n_fp a b &&
 		let p = if is_computation n then Some n else if n.n_by_known then n.n_by else None in
 		match p with
-		| Some p when is_computation p -> p.n_step = g.step && p.n_valid
-		| _ -> n.n_step = g.step && n.n_valid
+		| Some p when is_computation p && p.n_step = g.step -> p.n_valid
+		| None when n.n_step = g.step -> n.n_valid
+		| _ -> !check_macro_node sign n a b
 
 (* Prepares the storage of the nodes of the modules of [com] that were typed in
    this compilation (the computations recorded by [DepRecord]). [resolve path]
@@ -379,7 +386,7 @@ let prepare_store com resolve decls_of is_typed =
 				| None ->
 					Hashtbl.replace same_inputs_memo p.n_key true;
 					let edges = match p.n_edges with Some l -> l | None -> [||] in
-					let b = Array.for_all (function
+					let b = Array.for_all (fun e -> let r = (match e with
 						| Leaf (f,key,a,b) ->
 							f.f_step = g.step && (f.f_unchanged || same_fp (match f.f_current with Some h -> Hashtbl.find_opt h key | None -> None) a b)
 						| Lookup (l,seen) ->
@@ -394,7 +401,10 @@ let prepare_store com resolve decls_of is_typed =
 							!macro_module_checked sign path
 						| MacroNode (sign,n,a,b) ->
 							macro_node_checked sign n a b
-					) edges in
+					) in
+					if trace && not r then trace_line (Printf.sprintf "[graph] read changed by %s: %s" p.n_key (match e with Node (n,_,_) | MacroNode (_,n,_,_) | Absent (n,_,_) -> n.n_key | Leaf (_,k,_,_) -> k | _ -> "?"));
+					r) edges in
+					if trace && not b then trace_line (Printf.sprintf "[graph] read changed: %s" p.n_key);
 					Hashtbl.replace same_inputs_memo p.n_key b;
 					b
 			(* node [n] of a module not typed again keeps its fingerprint: it is
@@ -712,6 +722,17 @@ let macro_reason n =
 	| Some i when String.sub n.n_key i (String.length n.n_key - i) = "\texec" -> "executed " ^ String.sub n.n_key 0 i
 	| _ -> "macro " ^ n.n_key
 
+(* The validation of the graph of the macro context of the current
+   compilation, once made (see [check_macro_node]). *)
+let macro_validation : (string * validation) option ref = ref None
+let () = clear_macro_validation := (fun () -> macro_validation := None)
+
+(* The computations found valid while one being checked was assumed valid:
+   checked again (it was not). *)
+let forget_provisional_nodes v =
+	List.iter (fun n -> n.n_step <- -1) v.v_provisional;
+	v.v_provisional <- []
+
 let rec valid_node v n =
 	if not n.n_by_known then begin
 		n.n_by <- producer_of v.v_graph n.n_key;
@@ -739,7 +760,11 @@ and valid_computation v n =
 		(* assumed valid while it is checked *)
 		n.n_step <- v.v_graph.step;
 		n.n_valid <- true;
-		let b = Array.for_all (valid_edge v) edges in
+		(* what does not lead to other computations of the graph first: a
+		   computation found changed by them is not assumed valid while the ones
+		   it reads are checked (a cycle back to it would find it valid) *)
+		let local = function Leaf _ | Lookup _ | MacroNode _ | MacroModule _ -> true | Node _ | Module _ | Absent _ -> false in
+		let b = Array.for_all (fun e -> not (local e) || valid_edge v e) edges && Array.for_all (fun e -> local e || valid_edge v e) edges in
 		n.n_valid <- b;
 		if b then v.v_provisional <- n :: v.v_provisional;
 		b
@@ -774,8 +799,7 @@ and valid_edge v e =
 				vm.v_failed <- None;
 				let r = vm.v_owner_valid n.n_owner && valid_edge vm (Node (n,a,b)) in
 				(* what was found valid assuming a computation being checked was *)
-				if r then vm.v_provisional <- [] else List.iter (fun n -> n.n_step <- -1) vm.v_provisional;
-				if not r then vm.v_provisional <- [];
+				if r then vm.v_provisional <- [] else forget_provisional_nodes vm;
 				if trace && not r then trace_line (Printf.sprintf "[graph] macro node %s invalid: %s" n.n_key (Option.default "?" vm.v_failed));
 				if not r && v.v_failed = None then v.v_failed <- Some (macro_reason n);
 				vm.v_failed <- failed;
@@ -910,6 +934,18 @@ and assume v n seen =
 		v.v_graph.assumptions <- ANode (n,seen) :: v.v_graph.assumptions;
 		true
 	end
+
+let () = check_macro_node := (fun sign n a b ->
+	match !macro_validation with
+	| Some (s,vm) when s = sign ->
+		let failed = vm.v_failed in
+		let r = vm.v_owner_valid n.n_owner && valid_edge vm (Node (n,a,b)) in
+		if r then vm.v_provisional <- [] else forget_provisional_nodes vm;
+		vm.v_failed <- failed;
+		r
+	| _ ->
+		false
+)
 
 (* The validation of the current compilation, with the signature of its
    context, for [reusable]. *)
