@@ -3132,6 +3132,53 @@ a static or a method added, a signature changed), 0.7–0.9 s on these samples
 and probably most of the 2.1 s of SpaceCraft (whose fuzzing measured mostly
 such edits).
 
+**Status: declarations changed.** The context and the objects are now kept
+when the declarations change; only what depends on the change is built again
+(`memo_diff`, `memo_rebuild`):
+
+- *Diff.* The items of the declarations are grouped by type: the header (path,
+  flags, metadata, kind, super class, interfaces, parameters), each static,
+  each field, the constructor. A class whose header changed is built again
+  with all its members; otherwise the statics or fields that changed (or were
+  added, removed, moved) are listed by name. An enum that changed is built
+  again. A typedef or an abstract that changed, an extern class, a member with
+  `@:hlNative`, a type that changed kind still generate everything from
+  scratch. The overridden methods are compared as well (a method that becomes
+  virtual changes the class).
+- *Types built again in place.* The HL types of the classes that changed
+  (instances for the fields, statics for the statics and the constructor),
+  of their subclasses and sub-interfaces, and of the enums, are taken out of
+  the caches and built again **in the same records** (`class_proto`,
+  `virtual_proto`, `enum_proto`): the objects kept refer to these records, so
+  they see the new layout without being touched, and the linker writes the
+  new one. A record that cannot be reused (a class becoming a structure or an
+  interface) generates everything from scratch.
+- *Objects generated again.* Besides the classes whose body changed, an
+  object is generated again when it calls a function whose declaration
+  changed, or uses (in its registers, function types and `OType`s) a type
+  whose layout changed: the index and type of its fields and virtual methods,
+  its functions, interfaces, super class, and its members whose declaration
+  changed (those of its super classes included). A member added does not
+  change the layout (the code reading it was typed again), nor a member
+  removed; a field added shifts the fields of the subclasses, whose users are
+  generated again.
+- The fingerprints of the bodies of the modules typed again are compared on
+  the domains of the pool (0.23 s -> 0.06–0.1 s on the samples).
+
+Heaps samples (server, `-D hl-memo-check` on all of them: the same bytes as a
+generation from scratch): a static added to `hxd.Math` keeps 923 of 949
+classes, 0.25–0.31 s of HL generation instead of 0.9 s; a method added to
+`h2d.Object` keeps 905, 0.35 s instead of 0.7–0.9 s; a field added to
+`h2d.Object` keeps 825 (its 24 subclasses and their users), 0.37 s instead of
+0.7–0.9 s; a method added to a domkit component keeps 919. What remains of
+these 0.25–0.37 s: the writer (0.08–0.15 s), the comparison of the
+declarations (0.06 s), the link (0.05 s), the entry point (0.025 s). The
+fuzzer adds methods and static methods as well (`method`, `static-method`):
+three seeds on the samples (105 compilations, 26 such edits) found no
+difference, but for the order of a warning when a method with a body is added
+to an interface (`WExternWithExpr`, emitted earlier by the warm compilation
+than by the cold one; on the typing side, the compilation fails).
+
 ---
 
 ### Phase 11: cleanup

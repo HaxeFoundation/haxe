@@ -110,7 +110,7 @@ def mutate():
 	if random.random() < args.errors:
 		kind = random.choice(ERRORS)
 	else:
-		kind = random.choice(["comment", "literal", "field", "infer", "literal", "comment"])
+		kind = random.choice(["comment", "literal", "field", "infer", "literal", "comment", "method", "static-method"])
 	i = 0
 	fields = [i for i, l in enumerate(lines) if re.match(r"\s*(public |private |static |override |inline )*function ", l)]
 	bodies = [i for i, l in enumerate(lines) if re.match(METHOD, l)]
@@ -145,6 +145,12 @@ def mutate():
 		if not fields: return None
 		i = random.choice(fields)
 		lines.insert(i, "\tpublic var fuzzField%d : Int = 0;" % random.randrange(1000))
+	elif kind in ["method", "static-method"]:
+		# a member added: the declarations of the class change, not its other members
+		if not fields: return None
+		i = random.choice(fields)
+		n = random.randrange(1000)
+		lines.insert(i, ("\tpublic function fuzzMethod%d() return %d;" if kind == "method" else "\tpublic static function fuzzStatic%d() return %d;") % (n, n))
 	elif kind == "infer":
 		# a function returning a literal without a declared type: change the literal
 		idx = [i for i, l in enumerate(lines) if re.search(r"function \w+\([^)]*\)\s*\{?\s*return \d+", l)]
