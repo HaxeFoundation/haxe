@@ -2988,11 +2988,13 @@ module StdTls = struct
 
 	let get_value = vifun0 (fun vthis ->
 		ignore (this vthis);
+		let eval = get_eval (get_ctx()) in
 		try
-			let eval = get_eval (get_ctx()) in
 			TlsStorage.find eval.eval_storage vthis
 		with Not_found ->
-			vnull
+			match eval.eval_main_storage with
+			| Some s -> (try TlsStorage.find s vthis with Not_found -> vnull)
+			| None -> vnull
 	)
 
 	let set_value = vifun1 (fun vthis v ->

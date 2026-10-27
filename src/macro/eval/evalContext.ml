@@ -129,6 +129,11 @@ and eval = {
 	(* The debug channel used to synchronize with the debugger. *)
 	debug_channel : unit Event.channel;
 	eval_storage : value TlsStorage.t;
+	(* the storage of the main thread, for the evaluation state of a domain
+	   running macros: the macros run on the main thread of the macro context,
+	   whatever the domain (the values it gave, such as the event loop of
+	   [haxe.EventLoop.__init__], are the ones of every expansion) *)
+	eval_main_storage : value TlsStorage.t option;
 }
 
 and debug_state =

@@ -41,7 +41,7 @@ module Deque = struct
 		Mutex.unlock this.dmutex
 end
 
-let create_eval tthread =
+let create_eval ?main tthread =
 	let eval = {
 		env = None;
 		thread = tthread;
@@ -53,6 +53,7 @@ let create_eval tthread =
 		last_return = None;
 		caught_exception = vnull;
 		eval_storage = TlsStorage.create 0;
+		eval_main_storage = main;
 	} in
 	eval
 

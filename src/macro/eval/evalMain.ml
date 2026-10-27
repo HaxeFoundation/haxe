@@ -711,8 +711,12 @@ let get_api_call_pos () =
 (* Gives the current thread the evaluation state of the macro interpreter, when
    a macro is called from a domain typing bodies in parallel
    (docs/incremental-compilation.md, phase 3.5). *)
+(* the storage of the main thread, for the evaluation state of a domain *)
+let main_storage ctx =
+	try Some (ThreadSafeHashtbl.find ctx.evals 0).eval_storage with Not_found -> None
+
 let () = EvalContext.create_thread_eval := (fun ctx ->
-	EvalThread.create_eval (EvalThread.create_thread_info ctx.next_thread_id (Thread (Thread.self())))
+	EvalThread.create_eval ?main:(main_storage ctx) (EvalThread.create_thread_info ctx.next_thread_id (Thread (Thread.self())))
 )
 
 (* Freezes the @:persistent static variables of the macros (see
@@ -741,5 +745,5 @@ let ensure_thread_eval () =
 			()
 		| None ->
 			let thread = EvalThread.create_thread_info ctx.next_thread_id (Thread (Thread.self())) in
-			Thread_local_storage.set ctx.eval (EvalThread.create_eval thread)
+			Thread_local_storage.set ctx.eval (EvalThread.create_eval ?main:(main_storage ctx) thread)
 	end
