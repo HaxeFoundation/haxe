@@ -5942,10 +5942,24 @@ let make_context_sign com =
 
 let prev_sign = ref "" and prev_data = ref ""
 
+(* From bytecode 7, a header follows "HLB" and the version: the length of the
+   file (u32) and an id of the build (the digest of the rest), so that a VM
+   that watches the file for a hot reload tells a file still being written
+   (shorter than its length) and a file with the same code (same id) without
+   reading it all. *)
+let header_size = 4 + 16
+
 let write_bytecode com code =
 	let ch = IO.output_string() in
 	Parallel.run_with_pool com.pool (fun pool -> write_code ~timer:(Timer.start_timer com.timer_ctx) ?pool ch code (not (Gctx.raw_defined com "hl_no_debug")));
-	IO.close_out ch
+	let data = IO.close_out ch in
+	if code.version < 7 then data else begin
+		let len = String.length data + header_size in
+		let header = Bytes.create header_size in
+		Bytes.set_int32_le header 0 (Int32.of_int len);
+		Bytes.blit_string (Digest.string data) 0 header 4 16;
+		String.sub data 0 4 ^ Bytes.unsafe_to_string header ^ String.sub data 4 (String.length data - 4)
+	end
 
 let generate com =
 	let dump = Gctx.defined com Define.Dump in
