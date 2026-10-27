@@ -1,10 +1,13 @@
 # Macros in Haxe 6: a guide for macro authors
 
-Haxe 6 runs macros in parallel. Several macros can run at the same time on
-several threads, in any order, and the compilation server reuses what they
-produced when nothing they depend on has changed. The output of a compilation
-must stay the same whatever the order, the number of threads, and whether it
-went through the server.
+Haxe 6 runs macros in parallel: several macros can run at the same time on
+several threads, in any order. The compilation server reuses a module it typed
+before, with what its macros produced, as long as its file and what it depends
+on are unchanged (the modules it uses, the modules of the macros it calls and
+the types they read, the files they declared); otherwise the module is typed
+again and all its macros run again. The output of a compilation must stay the
+same whatever the order, the number of threads, and whether it went through
+the server.
 
 Most macros need no change. The ones that do are the macros that pass
 information to each other through static variables, or that depend on the
@@ -101,19 +104,34 @@ nor for counters shared across expansions. These use the APIs below.
   the module again when the file changes. Writing files is the macro's
   responsibility: the compiler does not track them.
 - **Other inputs** (time, environment variables, commands): call
-  `Context.setVolatile()`, optionally with a check function telling whether
-  the result must be computed again.
+  `Context.setVolatile()`. The server then types the module that called the
+  macro again on the next compilation, instead of reusing it. With a check
+  function (`Context.setVolatile(check)`), the server calls it before the next
+  compilation and types the module again only if it returns `true` (or
+  throws); the check runs before typing, so it can only use the system APIs
+  (files, environment, time), not `Context`.
 - **Console output** (`trace`, `Sys.println`) is printed immediately, in no
-  guaranteed order, and not printed again when the server reuses a result.
-  Use `Context.warning` / `Context.info` for messages that are part of the
-  compilation.
+  guaranteed order; it is not printed when the server reuses the module, and
+  can be printed twice when a macro is run again (§1.6). Use
+  `Context.warning` / `Context.info` for messages that are part of the
+  compilation: they are reported once.
 
-### 1.6 Typing the macro code
+### 1.6 A macro can be run again
 
-Haxe 6 types fields on demand and in parallel. The type of a field must not
-depend on the order of typing: a field whose type cannot be fully inferred from
-its own declaration is an error, and so is a cycle between fields whose types
-are inferred from each other. This applies to macro code too, see §2.10.
+To keep the threads busy, the compiler starts a macro without waiting to know
+whether it will conflict with the others, and lets it run as long as it only
+reads. If it turns out that the macro read something another macro changed
+meanwhile (a type it looked up and another macro defined, a `@:persistent`
+cache another macro filled), the run is abandoned and the macro is run again
+from the start, alone this time, and sees the change.
+
+An abandoned run has no effect on the compilation: it is stopped before it
+changes anything the compiler shares (defining a type, adding metadata,
+reporting a message...), and its changes to static variables are undone like
+those of any expansion. What it did outside of the compiler is not undone:
+console output is printed twice, a file it wrote is written twice. This is
+one more reason for macros to be functions of their inputs, and to write
+files in a way that does not depend on how many times they run.
 
 ## 2. Porting Haxe 4 macros
 
@@ -324,13 +342,14 @@ static function getProxy(name:String, fields:Array<Field>) {
 }
 ```
 
-Two expansions may try to define the type at the same time: the compiler
-keeps one definition and runs the other expansion again, which then finds the
-type. This only works if **the definition is the same whichever expansion
-makes it**: build its content from `name` and from what the macro reads
-through the API, not from the state of the expansion that happens to define
-it. Defining a type without checking first that it exists is an error the
-second time ("Cannot redefine module").
+Two expansions running at the same time can both fail to find the type. The
+first one to define it defines it; the other one is then run again (§1.6)
+before it defines anything, and finds the type. The type is defined once,
+by whichever expansion comes first: **its definition must be the same
+whichever expansion makes it**. Build its content from `name` and from what
+the macro reads through the API, not from the state of the expansion that
+defines it. Defining a type without checking first that it exists is an
+error the second time ("Cannot redefine module").
 
 ### 2.7 Reading a class built by other macros
 
@@ -368,12 +387,12 @@ public static macro function embed(file:String) {
 }
 
 public static macro function buildDate() {
-	Context.setVolatile(); // computed again on every compilation
+	Context.setVolatile(); // the module is typed again on every compilation
 	return macro $v{Date.now().toString()};
 }
 ```
 
-With a check, the server computes the macro again only when the check returns
+With a check, the server types the module again only when the check returns
 `true`:
 
 ```haxe
@@ -384,24 +403,6 @@ Context.setVolatile(() -> Sys.getEnv("ASSETS") != dir);
 A macro writing files must write the same files whatever the order of the
 expansions: write one file per expansion (named after its class), or write
 everything from `onAfterTyping` / `onAfterGenerate`.
-
-### 2.10 Type annotations in macro code
-
-Fields whose type is inferred from a later assignment, or from each other, need
-an annotation in Haxe 6:
-
-```haxe
-// Haxe 4: inferred from later uses
-static var list = [];
-static var current = null;
-
-// Haxe 6
-static var list:Array<String> = [];
-static var current:Null<ClassType> = null;
-```
-
-Recursive functions, and functions calling each other, need an explicit return
-type when their return type would be inferred from each other.
 
 ## 3. Checking a port
 
