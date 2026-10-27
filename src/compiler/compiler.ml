@@ -375,7 +375,7 @@ let compile com actx sctx =
 		let (tctx,display_file_dot_path) = try
 			Timer.time com.timer_ctx ["typing"] (do_type com mctx actx) display_file_dot_path
 		with e when e != NodeGraph.Retry ->
-			ServerCache.retry_if_assumed com;
+			ServerCache.retry_if_assumed ~stopped:true com;
 			raise e
 		in
 		(* also when typing reported errors, which stop the compilation here *)

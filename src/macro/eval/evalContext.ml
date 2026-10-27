@@ -130,9 +130,10 @@ and eval = {
 	debug_channel : unit Event.channel;
 	eval_storage : value TlsStorage.t;
 	(* the storage of the main thread, for the evaluation state of a domain
-	   running macros: the macros run on the main thread of the macro context,
-	   whatever the domain (the values it gave, such as the event loop of
-	   [haxe.EventLoop.__init__], are the ones of every expansion) *)
+	   running macros, which uses it instead of its own: the macros run on the
+	   main thread of the macro context, whatever the domain (a value given on
+	   one, such as the event loop of [haxe.EventLoop.__init__], which the base
+	   of the static variables runs once, is the one of every expansion) *)
 	eval_main_storage : value TlsStorage.t option;
 }
 

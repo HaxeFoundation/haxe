@@ -722,45 +722,68 @@ let assumed_graphs com =
 	List.filter (fun (g : NodeGraph.graph) -> g.assumptions <> []) (List.filter_map NodeGraph.find_opt
 		(CommonCache.get_cache_sign com :: (match com.get_macros () with Some mcom -> [CommonCache.get_cache_sign mcom] | None -> [])))
 
-(* Typing stopped on an error: it can come from a false assumption, which one
-   is not known, or from a computation the graph found valid (see
-   [NodeGraph.modules_only]). The compilation is done again with the modules
-   checked through their module dependencies only, without assumptions. *)
-let retry_if_assumed com =
+(* The preparation of the storage of the graphs of [com] and of its macro
+   context (see [NodeGraph.prepare_store]). *)
+let prepare_graphs com =
+	let store com =
+		let cc = CommonCache.get_cache com in
+		let decls_of m =
+			try Some (cc#find_file (com.part_scope.file_keys#get (Path.UniqueKey.lazy_path m.m_extra.m_file))).c_decls
+			with Not_found -> None
+		in
+		(* the version in the cache is the previous one, until the end of the compilation *)
+		let is_typed m = match cc#find_module_opt m.m_path with Some m' -> m' != m | None -> true in
+		NodeGraph.prepare_store com (resolve_for_graph com) decls_of is_typed
+	in
+	store com :: (match com.get_macros() with Some mcom -> [store mcom] | None -> [])
+
+(* The compilation is done again, knowing the new fingerprints of the nodes
+   [failed] assumed unchanged. *)
+let retry_with failed assumed =
+	List.iter (fun (key,fp) -> Hashtbl.replace NodeGraph.known_changed key fp) failed;
+	List.iter (fun g -> g.NodeGraph.assumptions <- []) assumed;
+	incr NodeGraph.attempts;
+	raise NodeGraph.Retry
+
+(* Typing reported errors. When it went to its end, the errors are the ones of
+   a cold compilation if the assumptions of early cutoff held (what was found
+   valid reads the same): they are checked as when the compilation succeeds,
+   and the compilation is done again, with the graph, if one failed. When
+   typing stopped in the middle ([stopped], an error raised), what it typed
+   before depends on what was found valid, and so do the errors: the
+   compilation is done again with the modules checked through their module
+   dependencies only ([NodeGraph.modules_only]), without assumptions. *)
+let retry_if_assumed ?(stopped=false) com =
 	if !NodeGraph.graph_used && not !NodeGraph.modules_only && not !NodeGraph.display_request && com.display.dms_kind = DMNone then begin
-		List.iter (fun g -> g.NodeGraph.assumptions <- []) (assumed_graphs com);
-		NodeGraph.modules_only := true;
-		NodeGraph.graph_used := false;
-		raise NodeGraph.Retry
+		let assumed = assumed_graphs com in
+		let failed = if stopped then None else if assumed = [] then Some [] else
+			try Some (List.concat_map (fun (failed,_) -> failed ()) (prepare_graphs com))
+			with NodeGraph.Retry as e -> raise e | _ -> None
+		in
+		match failed with
+		| Some [] ->
+			List.iter (fun g -> g.NodeGraph.assumptions <- []) assumed
+		| Some failed ->
+			retry_with failed assumed
+		| None ->
+			List.iter (fun g -> g.NodeGraph.assumptions <- []) assumed;
+			NodeGraph.modules_only := true;
+			NodeGraph.graph_used := false;
+			raise NodeGraph.Retry
 	end
 
 let store_graph com =
 	if Common.has_error_to_report com then retry_if_assumed com;
 	let assumed = assumed_graphs com in
 	if com.sctx.is_server && com.display.dms_full_typing && com.display.dms_populate_cache && not (Common.has_error_to_report com) then begin
-		let store com =
-			let cc = CommonCache.get_cache com in
-			let decls_of m =
-				try Some (cc#find_file (com.part_scope.file_keys#get (Path.UniqueKey.lazy_path m.m_extra.m_file))).c_decls
-				with Not_found -> None
-			in
-			(* the version in the cache is the previous one, until the end of the compilation *)
-			let is_typed m = match cc#find_module_opt m.m_path with Some m' -> m' != m | None -> true in
-			NodeGraph.prepare_store com (resolve_for_graph com) decls_of is_typed
-		in
 		DepRecord.last_typed := [];
 		Timer.time com.timer_ctx ["server";"query graph"] (fun () ->
-			let prepared = store com :: (match com.get_macros() with Some mcom -> [store mcom] | None -> []) in
+			let prepared = prepare_graphs com in
 			(* the graph is stored only if the assumptions held: otherwise the
 			   compilation is done again, knowing the new fingerprints of the
 			   nodes that changed, with the graph of the previous compilation *)
 			let failed = List.concat_map (fun (failed,_) -> failed ()) prepared in
-			if failed <> [] then begin
-				List.iter (fun (key,fp) -> Hashtbl.replace NodeGraph.known_changed key fp) failed;
-				List.iter (fun g -> g.NodeGraph.assumptions <- []) assumed;
-				incr NodeGraph.attempts;
-				raise NodeGraph.Retry
-			end;
+			if failed <> [] then retry_with failed assumed;
 			List.iter (fun (_,apply) -> apply ()) prepared
 		) ();
 		(* the edges, once the server answered (before the maintenance tasks,

@@ -2986,21 +2986,24 @@ module StdTls = struct
 		| VInstance {ikind = ITls i} -> i
 		| _ -> unexpected_value vthis "Thread"
 
+	(* the domains running macros share the storage of the main thread (see
+	   [eval_main_storage]) *)
+	let mutex = Mutex.create ()
+
+	let storage eval = match eval.eval_main_storage with
+		| Some s -> s
+		| None -> eval.eval_storage
+
 	let get_value = vifun0 (fun vthis ->
 		ignore (this vthis);
-		let eval = get_eval (get_ctx()) in
-		try
-			TlsStorage.find eval.eval_storage vthis
-		with Not_found ->
-			match eval.eval_main_storage with
-			| Some s -> (try TlsStorage.find s vthis with Not_found -> vnull)
-			| None -> vnull
+		let s = storage (get_eval (get_ctx())) in
+		Mutex.protect mutex (fun () -> try TlsStorage.find s vthis with Not_found -> vnull)
 	)
 
 	let set_value = vifun1 (fun vthis v ->
 		ignore (this vthis);
-		let eval = get_eval (get_ctx()) in
-		TlsStorage.replace eval.eval_storage vthis v;
+		let s = storage (get_eval (get_ctx())) in
+		Mutex.protect mutex (fun () -> TlsStorage.replace s vthis v);
 		v
 	)
 end

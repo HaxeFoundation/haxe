@@ -2224,6 +2224,35 @@ bodies kept by grafting, the variables of the bodies), or keep the failed
 compilation from typing modules found invalid only through the module
 dependencies.
 
+**Status: the compilation after an error.** Measured on the Heaps samples
+(a type error added to a body of `h2d.col.Polygon`, then removed): the attempt
+with the graph typed 10 modules and failed; the attempt done again through the
+module dependencies only typed 344 and failed with the same error; the
+compilation removing the error then typed 345 again (everything the failed
+one grafted), 5.1 s. When typing goes to its end with errors, the attempt is
+now kept: the assumptions of early cutoff are checked as when the compilation
+succeeds (what was found valid reads the same, so its errors are the ones of a
+cold compilation), and the compilation is done again with the graph if one
+failed, knowing the new fingerprints. The compilation removing the error types
+16 modules, 2.0 s. When typing stops in the middle (an error raised: a type
+not found in a signature), what was typed before depends on what was found
+valid, and so do the errors (the readers of the class typed first report
+errors the cold compilation never reaches): the compilation is still done
+again through the module dependencies.
+
+Found on the way, by the fuzzer: since the static variables of the macros are
+initialized once in a base (`Macro statics: per-domain copy of the base`), the
+values its initializers gave in a `sys.thread.Tls` (the event loop of
+`haxe.EventLoop.__init__`) were missing on the other domains running macros,
+and a macro using the event loop failed with parallel typing (Heaps,
+`hxd.res.FileTree`: every compilation with more than one domain). The domains
+running macros stand for the main thread of the macro context: they use its
+thread-local storage (under a lock), a thread made by `sys.thread.Thread`
+keeps its own. And an error while the interpreter added the types of the
+macro context left the types added before it without prototype (see
+`EvalPrototype.add_types`): every later compilation failed until the server
+restarted.
+
 **Next: the code of macros.** What is still typed again in the edits above
 comes from the edges to the module of a macro that ran (`MacroModule`): it is
 checked through its module dependencies in the macro context, so any change in
