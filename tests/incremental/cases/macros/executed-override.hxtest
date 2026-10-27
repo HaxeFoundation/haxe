@@ -1,0 +1,32 @@
+# A macro calls a method of an instance: a subclass overriding it changes the
+# method that runs.
+=== initial
+@expect-output base
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.name());
+	}
+}
+--- Macro.hx
+class Macro {
+	public static macro function name() {
+		var o:Base = new Sub();
+		return macro $v{o.name()};
+	}
+}
+--- Base.hx
+class Base {
+	public function new() {}
+	public function name() return "base";
+}
+--- Sub.hx
+class Sub extends Base {
+}
+
+=== the subclass overrides the method
+@expect-output sub
+--- Sub.hx
+class Sub extends Base {
+	override public function name() return "sub";
+}

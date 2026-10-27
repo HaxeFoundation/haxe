@@ -196,6 +196,25 @@ let resolve_for_graph com path =
 	try Path.get_full_path (TypeloadParse.resolve_module_file com path (ref (fst path)) null_pos).ClassPaths.file
 	with _ -> ""
 
+(* The common context of the macros of [com]: the one of the compilation, or
+   one made for the checks of the server, before the macros run. *)
+let macro_coms : (Common.context * Common.context option) list ref = ref []
+let macro_com com =
+	match com.get_macros () with
+	| Some mcom -> Some mcom
+	| None ->
+		match List.assq_opt com !macro_coms with
+		| Some m -> m
+		| None ->
+			let m = try Some (MacroContext.create_macro_com com) with _ -> None in
+			macro_coms := [com,m];
+			m
+
+(* The modules of the macro context checked through its graph in the current
+   compilation (its step): see [check_module]. *)
+let macro_checks = ref (-1,Hashtbl.create 0)
+let macro_checks_depth = ref 0
+
 (* Checks if module [m] can be reused from the cache and returns None in that case. Otherwise, returns
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
 let check_module sctx com m_path m_extra p =
@@ -256,25 +275,100 @@ let check_module sctx com m_path m_extra p =
 	if graph <> None then NodeGraph.graph_used := true;
 	let module_valid = ref (fun _ -> true) in
 	let macro_module_valid = ref (fun _ _ -> true) in
+	let current_decls com f =
+		if file_time f.NodeGraph.f_path = f.f_time then
+			f.f_decls
+		else
+			(* changed: parsed again, the parse is cached for typing *)
+			try
+				let rfile,_,_,parsed,_ = TypeloadParse.parse_module' com f.f_module p in
+				Some (NodeGraph.decl_table rfile.ClassPaths.file parsed)
+			with _ ->
+				None
+	in
+	(* Module [path] of the macro context [msign], checked through its graph:
+	   its file did not change, nor what its computations read. A module found
+	   valid while another one is being checked (a cycle) is not remembered. *)
+	let rec macro_graph_module_valid vm msign path =
+		if fst !macro_checks <> start_mark then macro_checks := (start_mark,Hashtbl.create 0);
+		let memo = snd !macro_checks in
+		match Hashtbl.find_opt memo (msign,path) with
+		| Some b -> b
+		| None ->
+			Hashtbl.replace memo (msign,path) true;
+			incr macro_checks_depth;
+			let b = Std.finally (fun () -> decr macro_checks_depth) (fun () ->
+				try
+					let m_extra = (com.cs#get_context msign)#find_module_extra path in
+					let file = Path.UniqueKey.lazy_path m_extra.m_file in
+					(* the module typed from the file: [path], or the module of the
+					   generic class of a @:generic instance *)
+					let traced = match Hashtbl.find_opt vm.NodeGraph.v_graph.NodeGraph.files (Path.get_full_path file) with
+						| Some f when m_extra.m_kind = MMacro && NodeGraph.is_traced vm.v_graph f.NodeGraph.f_module -> Some f.f_module
+						| _ -> None
+					in
+					match traced with
+					| Some mpath -> file_time file = m_extra.m_time && NodeGraph.module_valid vm mpath
+					| None when m_extra.m_kind = MFake ->
+						(* a @:generic instance: made from the modules it depends on *)
+						PMap.fold (fun mdep ok -> ok && (mdep.md_sign <> msign || macro_graph_module_valid vm msign mdep.md_path)) m_extra.m_deps true
+					| None -> !macro_module_valid msign path
+				with Not_found ->
+					false
+			) () in
+			if b && !macro_checks_depth > 0 then Hashtbl.remove memo (msign,path) else Hashtbl.replace memo (msign,path) b;
+			b
+	in
+	(* The graph of the macro context, for what the expansions executed: it is
+	   not typed again to check it, so nothing is assumed; a module of the
+	   macro context is valid when its file did not change and its
+	   computations are valid. *)
+	let make_macro_validation () = match (if graph = None || com.is_macro_context then None else macro_com com) with
+		| Some mcom ->
+			let msign = CommonCache.get_cache_sign mcom in
+			Option.map (fun gm ->
+				NodeGraph.begin_validation gm start_mark (fun () -> get_changed_directories sctx mcom <> []) (fun () -> mcom.class_paths#as_string_list);
+				let rec vm = {
+					NodeGraph.v_graph = gm;
+					v_decls = current_decls mcom;
+					v_resolve = resolve_for_graph mcom;
+					v_module_valid = (fun path -> macro_graph_module_valid vm msign path);
+					v_macro_module_valid = (fun sign path -> !macro_module_valid sign path);
+					v_macro = (fun _ -> None);
+					v_untracked = true;
+					v_owner_valid = (fun path ->
+						try (match ((com.cs#get_context msign)#find_module_extra path).m_cache_state with MSBad _ -> false | _ -> true)
+						with Not_found -> false);
+					v_provisional = [];
+					v_failed = None;
+					v_assume = false;
+				} in
+				msign,vm
+			) (NodeGraph.find_opt msign)
+		| _ ->
+			None
+	in
+	(* made when an edge of an expansion is checked: the common context of
+	   the macros is not made for a compilation without them *)
+	let macro_validation = ref None in
+	let macro_validation sign =
+		let mv = match !macro_validation with
+			| Some mv -> mv
+			| None -> let mv = make_macro_validation () in macro_validation := Some mv; mv
+		in
+		match mv with Some (s,vm) when s = sign -> Some vm | _ -> None
+	in
 	let validation = Option.map (fun g ->
 		NodeGraph.begin_validation g start_mark (fun () -> get_changed_directories sctx com <> []) (fun () -> com.class_paths#as_string_list);
-		let current_decls f =
-			if file_time f.NodeGraph.f_path = f.f_time then
-				f.f_decls
-			else
-				(* changed: parsed again, the parse is cached for typing *)
-				try
-					let rfile,_,_,parsed,_ = TypeloadParse.parse_module' com f.f_module p in
-					Some (NodeGraph.decl_table rfile.ClassPaths.file parsed)
-				with _ ->
-					None
-		in
 		{
 			NodeGraph.v_graph = g;
-			v_decls = current_decls;
+			v_decls = current_decls com;
 			v_resolve = resolve_for_graph com;
 			v_module_valid = (fun path -> !module_valid path);
 			v_macro_module_valid = (fun sign path -> !macro_module_valid sign path);
+			v_macro = macro_validation;
+			v_untracked = false;
+			v_owner_valid = (fun _ -> true);
 			v_provisional = [];
 			v_failed = None;
 			v_assume = !NodeGraph.attempts < 3 && com.display.dms_kind = DMNone;
@@ -378,6 +472,9 @@ let check_module sctx com m_path m_extra p =
 					die (Printf.sprintf "Could not find dependency %s of %s in the cache" (s_type_path mpath) (s_type_path m_path)) __LOC__;
 				in
 				if traced && sign = own_sign && m2_extra.m_kind = MCode then
+					()
+				(* the macros that ran: what they executed is in the graph *)
+				else if traced && sign <> own_sign && m2_extra.m_kind = MMacro then
 					()
 				else match check mpath m2_extra with
 				| None -> ()
@@ -578,6 +675,7 @@ let ensure_macro_setup sctx =
 	end
 
 let cleanup sctx =
+	macro_coms := [];
 	begin match !MacroContext.macro_interp_cache with
 	| Some interp ->
 		(* curapi holds a reference to the typing context which we don't want to persist. Replace it with a

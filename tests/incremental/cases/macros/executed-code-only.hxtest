@@ -1,0 +1,51 @@
+# An expression macro depends on the code it executed: a function of the
+# macro context it did not call can change without running it again, one it
+# called cannot.
+=== initial
+@expect-output used 1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.value());
+	}
+}
+--- Macro.hx
+class Macro {
+	public static macro function value() {
+		return macro $v{"used " + Helper.used()};
+	}
+}
+--- Helper.hx
+class Helper {
+	public static function used() return 1;
+	public static function unused() return 1;
+}
+
+=== a function the macro did not call changes
+@expect-output used 1
+@expect-retyped
+--- Helper.hx
+class Helper {
+	public static function used() return 1;
+	public static function unused() return 2;
+}
+
+=== a static is added to the class the macro calls
+@expect-output used 1
+@expect-retyped
+--- Helper.hx
+class Helper {
+	public static function added() return 3;
+	public static function used() return 1;
+	public static function unused() return 2;
+}
+
+=== the function the macro called changes
+@expect-output used 4
+@expect-retyped Helper Macro Main
+--- Helper.hx
+class Helper {
+	public static function added() return 3;
+	public static function used() return 4;
+	public static function unused() return 2;
+}

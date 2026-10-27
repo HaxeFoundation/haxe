@@ -38,12 +38,28 @@ let eval_expr ctx kind e =
 		Std.finally (fun _ -> pop_environment ctx env) f env
 	) e.Type.epos
 
+(* The recorder of the executions of field [cf] of [c] (macro context). An
+   inherited constructor is the one of the class declaring it. *)
+let exec_recorder ctx c cf =
+	if not ctx.is_macro then None else
+	let rec owner c cf = match c.cl_super with
+		| Some (csup,_) when has_class_field_flag cf CfInheritedConstructor ->
+			(match csup.cl_constructor with Some cf' -> owner csup cf' | None -> c,cf)
+		| _ -> c,cf
+	in
+	let c,cf = if DepRecord.is_constructor c cf then owner c cf else c,cf in
+	DepRecord.exec_recorder (DepRecord.field_key c cf) "exec"
+
 (* Creates constructor function for class [c], if it has a constructor. *)
 let create_constructor ctx c =
 	match c.cl_constructor with
-	| Some {cf_expr = Some {eexpr = TFunction tf; epos = pos}} when not (has_class_flag c CExtern) ->
+	| Some ({cf_expr = Some {eexpr = TFunction tf; epos = pos}} as cf) when not (has_class_flag c CExtern) ->
 		let key = path_hash c.cl_path in
-		let v = AtomicLazy.from_fun (fun () -> vfunction (jit_tfunction ctx key key_new tf false pos)) in
+		let f () = match exec_recorder ctx c cf with
+			| None -> jit_tfunction ctx key key_new tf false pos
+			| Some r -> let f = jit_tfunction ctx key key_new tf false pos in (fun vl -> r (DomainLocal.get current_epoch); f vl)
+		in
+		let v = AtomicLazy.from_fun (fun () -> vfunction (f ())) in
 		ctx.constructors <- IntMap.add key v ctx.constructors;
 	| _ ->
 		()
@@ -215,15 +231,18 @@ let create_static_prototype ctx mt =
 		if not (has_class_flag c CExtern) then List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
 			| Method _,Some {eexpr = TFunction tf; epos = pos} ->
 				let name = hash cf.cf_name in
-				PrototypeBuilder.add_proto_field pctx name (AtomicLazy.from_fun (fun () -> vstatic_function (jit_tfunction_lazy ctx key name tf true pos)));
+				let on_call = exec_recorder ctx c cf in
+				PrototypeBuilder.add_proto_field pctx name (AtomicLazy.from_fun (fun () -> vstatic_function (jit_tfunction_lazy ?on_call ctx key name tf true pos)));
 			| Var _,Some e ->
 				let name = hash cf.cf_name in
 				PrototypeBuilder.add_proto_field pctx name (AtomicLazy.from_val vnull);
 				let i = DynArray.length pctx.PrototypeBuilder.fields - 1 in
 				let persistent = is_persistent cf in
 				let field_path = s_type_path path ^ "." ^ cf.cf_name in
+				let record = exec_recorder ctx c cf in
 				(* when the types are added, then again for every expansion *)
 				let init set proto =
+					Option.may (fun r -> r (DomainLocal.get current_epoch)) record;
 					let old = DomainLocal.get DepRecord.current_static in
 					DomainLocal.set DepRecord.current_static (Some field_path);
 					set proto i (Std.finally (fun () -> DomainLocal.set DepRecord.current_static old) (fun () ->
@@ -246,7 +265,11 @@ let create_static_prototype ctx mt =
 		begin match TClass.get_cl_init c with
 			| None -> ()
 			| Some e ->
-				let init _ = ignore(eval_expr ctx (EKMethod(key,key___init__)) e) in
+				let record = if ctx.is_macro then DepRecord.exec_recorder (s_type_path c.cl_path) "exec-init" else None in
+				let init _ =
+					Option.may (fun r -> r (DomainLocal.get current_epoch)) record;
+					ignore(eval_expr ctx (EKMethod(key,key___init__)) e)
+				in
 				DynArray.add delays (false,-1,init,init)
 		end;
 		PrototypeBuilder.finalize pctx,(DynArray.to_list delays)
@@ -306,7 +329,8 @@ let create_instance_prototype ctx c =
 	else List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
 		| Method meth,Some {eexpr = TFunction tf; epos = pos} ->
 			let name = hash cf.cf_name in
-			let v = AtomicLazy.from_fun (fun () -> vfunction (jit_tfunction_lazy ctx key name tf false pos)) in
+			let on_call = exec_recorder ctx c cf in
+			let v = AtomicLazy.from_fun (fun () -> vfunction (jit_tfunction_lazy ?on_call ctx key name tf false pos)) in
 			(* an overriding dynamic method only changes the initial value of the parent's field *)
 			if meth = MethDynamic then
 				if has_class_field_flag cf CfOverride then PrototypeBuilder.override_instance_field pctx name v

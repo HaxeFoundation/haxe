@@ -811,10 +811,12 @@ let create_macro_interp api mctx =
 	mctx.g.macros <- Some (init,mctx);
 	(init, mint)
 
-let create_macro_context com =
+(* The common context of the macros of [com]: its defines and class paths
+   (also what the server needs to check the modules of the macro context,
+   before the macro context of the compilation exists). *)
+let create_macro_com com =
 	let com2 = Common.clone com true in
 	enter_stage com2 CInitMacrosDone;
-	com.get_macros <- (fun() -> Some com2);
 	com2.package_rules <- PMap.empty;
 	(* Inherit most display settings, but require normal typing. *)
 	com2.display <- {com.display with dms_kind = DMNone; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
@@ -840,6 +842,11 @@ let create_macro_context com =
 	com2.defines.defines_signature <- None;
 	com2.platform <- Eval;
 	Common.init_platform com2;
+	com2
+
+let create_macro_context com =
+	let com2 = create_macro_com com in
+	com.get_macros <- (fun() -> Some com2);
 	let mctx = !create_context_ref com2 None in
 	(* as the main context: no parallel typing in display mode *)
 	if com.display.dms_kind <> DMNone then mctx.g.run_parallel <- None;

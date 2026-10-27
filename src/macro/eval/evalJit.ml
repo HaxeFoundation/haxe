@@ -350,7 +350,11 @@ and jit_expr jit return e =
 	| TTypeExpr mt ->
 		let key = path_hash (t_infos mt).mt_path in
 		let proto = get_static_prototype_as_value jit.ctx key e.epos in
-		emit_type_expr proto
+		(* a type as a value: reflection can read its members *)
+		begin match (if ctx.is_macro then DepRecord.exec_recorder (s_type_path (t_infos mt).mt_path) "exec-members" else None) with
+		| Some r -> let f = emit_type_expr proto in (fun env -> r (DomainLocal.get current_epoch); f env)
+		| None -> emit_type_expr proto
+		end
 	| TFunction tf ->
 		let jit_closure = EvalJitContext.create ctx in
 		jit.num_closures <- jit.num_closures + 1;
@@ -667,7 +671,15 @@ and jit_expr jit return e =
 		with Not_found ->
 			let fnew = get_instance_constructor jit.ctx key e.epos in
 			let proto = get_instance_prototype jit.ctx key e.epos in
-			let v = AtomicLazy.from_fun (fun () -> match AtomicLazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
+			(* the expansion depends on the members of the classes it instantiates *)
+			let recorders = if not ctx.is_macro then [] else
+				let rec loop c = (match DepRecord.exec_recorder (s_type_path c.cl_path) "exec-members" with Some r -> [r] | None -> []) @ (match c.cl_super with Some (c,_) -> loop c | None -> []) in
+				loop c
+			in
+			let v = AtomicLazy.from_fun (fun () -> match AtomicLazy.force fnew with
+				| VFunction (f,_) ->
+					if recorders = [] then f else (fun vl -> let e = DomainLocal.get current_epoch in List.iter (fun r -> r e) recorders; f vl)
+				| v -> cannot_call v e.epos) in
 			emit_constructor_call ctx.max_stack_depth proto v ops e.epos
 		end
 	(* read *)
@@ -890,16 +902,19 @@ let jit_tfunction ctx key_type key_field tf static pos =
 (* The same, jitted on the first call of the function: the prototypes of the
    macro context hold every method of its types, most of which are never
    called. The function keeps its identity (the method value). *)
-let jit_tfunction_lazy ctx key_type key_field tf static pos =
+let jit_tfunction_lazy ?on_call ctx key_type key_field tf static pos =
 	let jitted = AtomicLazy.from_fun (fun () -> jit_tfunction ctx key_type key_field tf static pos) in
 	let cache = ref None in
-	(fun vl -> match !cache with
+	let call vl = match !cache with
 		| Some f -> f vl
 		| None ->
 			let f = AtomicLazy.force jitted in
 			cache := Some f;
 			f vl
-	)
+	in
+	match on_call with
+	| None -> call
+	| Some r -> (fun vl -> r (DomainLocal.get current_epoch); call vl)
 
 (* JITs expression [e] to a function. This is used for expressions that are not in a method. *)
 let jit_expr ctx e =

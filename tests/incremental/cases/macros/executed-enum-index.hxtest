@@ -1,0 +1,30 @@
+# A macro uses the index of an enum constructor: a constructor added before
+# it changes the index, the code of the macro does not change.
+=== initial
+@expect-output index 1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.index());
+	}
+}
+--- Macro.hx
+class Macro {
+	public static macro function index() {
+		return macro $v{"index " + Type.enumIndex(Kind.B)};
+	}
+}
+--- Kind.hx
+enum Kind {
+	A;
+	B;
+}
+
+=== a constructor is added before
+@expect-output index 2
+--- Kind.hx
+enum Kind {
+	A;
+	Z;
+	B;
+}

@@ -149,8 +149,8 @@ class ServerTests extends TestCase {
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("BuildMacro.hx")});
 		runHaxe(args);
 		// assertNotCacheModified("BuildMacro");
-		// its members ran the macro, whose module is invalid
-		assertSkipping("BuiltClass", ReadChanged("macro module BuildMacro"));
+		// its members ran the macro, whose module was invalidated
+		assertSkipping("BuiltClass", ReadChanged("executed BuildMacro.build (static)"));
 		assertSkipping("BuildMacro", Tainted("server/invalidate"));
 	}
 

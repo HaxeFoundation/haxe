@@ -14,8 +14,10 @@
 	it (early cutoff).
 
 	A computation that ran a macro also depends on every declaration of its
-	file, on its own module and on the module of the macro, in the macro
-	context (phase 7 traces macros precisely).
+	file, on its own module and on what the macro context executed for it: the
+	bodies of the functions, the members of the classes instantiated, checked
+	in the graph of the macro context (or, when it is not known, on the
+	module of the macro and its dependencies).
 
 	Nodes are records updated in place when their module is typed again, so
 	that edges refer to them directly: validating needs no lookup by key.
@@ -63,8 +65,13 @@ and edge =
 	(* a module that must not be typed again (it holds instances of @:generic
 	   methods made for the computation, or it ran macros) *)
 	| Module of path
-	(* the module of a macro that ran, in the macro context (its signature) *)
+	(* the module of a macro that ran, in the macro context (its signature):
+	   when what the expansion executed is not known *)
 	| MacroModule of string * path
+	(* a node of the macro context (its signature) and the fingerprint seen:
+	   the body of a function an expansion executed, the members of a class it
+	   instantiated (phase 7) *)
+	| MacroNode of string * node * int * int
 	(* the members of a class (its node) have no field of a name (a member,
 	   or a static): a field looked up and not found there *)
 	| Absent of node * string * bool
@@ -228,7 +235,7 @@ let producer_of g key =
 	| Some i ->
 		let k = String.sub key 0 i and node = String.sub key (i + 1) (String.length key - i - 1) in
 		match node with
-		| "inline" ->
+		| "inline" | "exec" ->
 			find [k ^ "\tbody";k ^ "\tsig"]
 		| "sig" ->
 			begin match String.rindex_opt k '(' with
@@ -255,6 +262,28 @@ let decl_table file decls =
 (* Whether this compilation found macro module [path] of the context of
    signature [sign] valid, without typing it again (set by the validation). *)
 let macro_module_checked : (string -> path -> bool) ref = ref (fun _ _ -> false)
+
+(* Whether expression [e] (of the macro context) makes values holding its
+   positions: reified expressions ([$__mk_pos__]), [haxe.PosInfos]. *)
+let uses_macro_positions e =
+	let rec loop e = match e.eexpr with
+		| TIdent "$__mk_pos__" -> raise Exit
+		| TObjectDecl fl when List.exists (fun ((n,_,_),_) -> n = "lineNumber") fl -> raise Exit
+		| _ -> Type.iter loop e
+	in
+	try loop e; false with Exit -> true
+
+(* Whether node [n] of the graph of the macro context [sign] was found valid
+   by the validation of this compilation, with the fingerprint seen. *)
+let macro_node_checked sign n a b =
+	match Hashtbl.find_opt graphs sign with
+	| None -> false
+	| Some g ->
+		same_fp n.n_fp a b &&
+		let p = if is_computation n then Some n else if n.n_by_known then n.n_by else None in
+		match p with
+		| Some p when is_computation p -> p.n_step = g.step && p.n_valid
+		| _ -> n.n_step = g.step && n.n_valid
 
 (* Prepares the storage of the nodes of the modules of [com] that were typed in
    this compilation (the computations recorded by [DepRecord]). [resolve path]
@@ -295,7 +324,9 @@ let prepare_store com resolve decls_of is_typed =
 					set "members" (TFingerprint.type_members mt)
 				| EntityKey.EField (c,cf) ->
 					set "sig" (TFingerprint.field_sig cf);
-					if TFingerprint.has_inline_body c cf then set "inline" (TFingerprint.field_inline_body cf)
+					if TFingerprint.has_inline_body c cf then set "inline" (TFingerprint.field_inline_body cf);
+					(* the code the expansions run *)
+					if com.is_macro_context then Option.may (fun e -> set "exec" (TFingerprint.with_state ~positions:false (fun h -> TFingerprint.add_expr h e))) cf.cf_expr
 				| EntityKey.EAnonField (_,cf) ->
 					set "sig" (TFingerprint.field_sig cf)
 				| EntityKey.EEnumField _ | EntityKey.ETypeParam _ ->
@@ -361,6 +392,8 @@ let prepare_store com resolve decls_of is_typed =
 							not (Hashtbl.mem typed_paths path)
 						| MacroModule (sign,path) ->
 							!macro_module_checked sign path
+						| MacroNode (sign,n,a,b) ->
+							macro_node_checked sign n a b
 					) edges in
 					Hashtbl.replace same_inputs_memo p.n_key b;
 					b
@@ -446,6 +479,11 @@ let prepare_store com resolve decls_of is_typed =
 		match c.DepRecord.c_field with
 		| Some cf when (match cf.cf_kind with Method MethInline | Var { v_read = AccInline } -> true | _ -> false) && (match cf.cf_expr with Some e -> TFingerprint.uses_line_numbers e | None -> false) ->
 			Hashtbl.replace uses_position (c.c_key ^ "\t" ^ c.c_node) ()
+		(* in the macro context, the body of a function whose values hold its
+		   positions (reified expressions, PosInfos): the expansions running it
+		   read them *)
+		| Some cf when com.is_macro_context && c.c_node = "body" && (match cf.cf_expr with Some e -> uses_macro_positions e | None -> false) ->
+			Hashtbl.replace uses_position (c.c_key ^ "\t" ^ c.c_node) ()
 		| _ -> ()
 	) cl) modules;
 	(* the lookups, resolved now: in the compilation's directory and class paths *)
@@ -464,6 +502,15 @@ let prepare_store com resolve decls_of is_typed =
 	let build_edges () =
 	(* each dependency read is converted once *)
 	let dep_nodes = DepRecord.DepTbl.create 0 in
+	(* the macro context: its graph, the module of a type *)
+	let mcom = match com.get_macros () with Some mcom -> mcom | None -> com in
+	let msign = CommonCache.get_cache_sign mcom in
+	let mgraph = get msign in
+	let macro_module ?(why="") tpath =
+		if trace && why <> "" then trace_line ("[graph] macro module of " ^ s_type_path tpath ^ ": " ^ why);
+		let mpath = try (mcom.module_lut#find_by_type tpath).m_path with Not_found -> tpath in
+		MacroModule (msign,mpath)
+	in
 	(* what their computations read *)
 	let resolve path = try Hashtbl.find lookups path with Not_found -> "" in
 	List.iter (fun (m,cl) ->
@@ -514,8 +561,13 @@ let prepare_store com resolve decls_of is_typed =
 			(* a macro can read every declaration of the file (build macros read
 			   the bodies of the fields), and what the module depends on besides
 			   code: the files the macros declared (registerModuleDependency) *)
-			let expansion = ref false in
-			DepRecord.iter_raw_deps (function DepRecord.DKey(_,"expansion") -> expansion := true | _ -> ()) c;
+			let expansion = ref false and executed = ref false in
+			DepRecord.iter_raw_deps (function
+				(* in the macro context, a macro is not run (macro-in-macro) *)
+				| DepRecord.DKey(_,"expansion") -> if not com.is_macro_context then expansion := true
+				| DepRecord.DKey(_,("exec" | "exec-members" | "exec-init")) -> executed := true
+				| _ -> ()
+			) c;
 			if !expansion then begin
 				edges := Module m.m_path :: !edges;
 				List.iter (fun e -> edges := e :: !edges) !all_decls
@@ -536,11 +588,35 @@ let prepare_store com resolve decls_of is_typed =
 					| "lookup" -> let path = path_of_key key in edges := Lookup (lookup g path,resolve path) :: !edges
 					| "generic" -> edges := Module (path_of_key key) :: !edges
 					| "expansion" ->
-						(* "macro pack.Type.field" *)
-						let tpath = path_of_key (match String.rindex_opt key '.' with Some j when String.length key > 6 -> String.sub key 6 (j - 6) | _ -> key) in
-						let mcom = match com.get_macros () with Some mcom -> mcom | None -> com in
-						let mpath = try (mcom.module_lut#find_by_type tpath).m_path with Not_found -> tpath in
-						edges := MacroModule (CommonCache.get_cache_sign mcom,mpath) :: !edges
+						(* "macro pack.Type.field": what it executed is known; a macro loaded
+						   and not run (the signature of a macro function) gives its
+						   signature *)
+						if not !executed && not com.is_macro_context then begin
+							let name = String.sub key 6 (String.length key - 6) in
+							let sig_node static = Hashtbl.find_opt mgraph.nodes (Printf.sprintf "%s (%s)\tsig" name (if static then "static" else "member")) in
+							edges := (match (match sig_node true with Some n -> Some n | None -> sig_node false) with
+								| Some n when n.n_fp <> None -> let a,b = fp_lanes n.n_fp in MacroNode (msign,n,a,b)
+								| _ -> macro_module ~why:("expansion " ^ key ^ " in " ^ self) (path_of_key (match String.rindex_opt key '.' with Some j when String.length key > 6 -> String.sub key 6 (j - 6) | _ -> key))
+							) :: !edges
+						end
+					| "exec" ->
+						(* "pack.Type.field (static)", "pack.Type (constructor)": its code,
+						   produced by its body (or its signature when its type is
+						   inferred) *)
+						edges := (match Hashtbl.find_opt mgraph.nodes (key ^ "\texec") with
+							| Some n when n.n_fp <> None -> let a,b = fp_lanes n.n_fp in MacroNode (msign,n,a,b)
+							| _ ->
+								let base = match String.rindex_opt key ' ' with Some j -> String.sub key 0 j | None -> key in
+								let tpath = if String.ends_with ~suffix:"(constructor)" key then base else match String.rindex_opt base '.' with Some j -> String.sub base 0 j | None -> base in
+								macro_module ~why:key (path_of_key tpath)
+						) :: !edges
+					| "exec-members" ->
+						edges := (match Hashtbl.find_opt mgraph.nodes (key ^ "\tmembers") with
+							| Some n when n.n_fp <> None -> let a,b = fp_lanes n.n_fp in MacroNode (msign,n,a,b)
+							| _ -> macro_module ~why:"members" (path_of_key key)
+						) :: !edges
+					| "exec-init" ->
+						edges := macro_module ~why:"init" (path_of_key key) :: !edges
 					| "signature" when key = "(defines)" -> DepRecord.DepTbl.add dep_nodes d None
 					| _ ->
 						let n = node g k in
@@ -569,6 +645,15 @@ type validation = {
 	(* whether a module checks as valid, in this context and in the macro context *)
 	v_module_valid : path -> bool;
 	v_macro_module_valid : string -> path -> bool;
+	(* the validation of the graph of the macro context of a signature *)
+	v_macro : string -> validation option;
+	(* whether a node without computation is valid when the declarations of
+	   its type did not change (the macro context, which is not typed again to
+	   check it) *)
+	v_untracked : bool;
+	(* whether a module still holds what its nodes were stored from (not
+	   invalidated by the server since) *)
+	v_owner_valid : path -> bool;
 	(* the computations found valid while the module being checked is not
 	   known to be valid (cycles): forgotten if it turns out invalid *)
 	mutable v_provisional : node list;
@@ -615,8 +700,17 @@ let s_edge v = function
 		"module " ^ s_type_path path
 	| MacroModule (_,path) ->
 		"macro module " ^ s_type_path path
+	| MacroNode (_,n,a,b) ->
+		Printf.sprintf "macro node %s (%s, now %s)" n.n_key (s_fp (if a = no_fp then None else Some (a,b))) (s_fp n.n_fp)
 	| Absent (n,name,static) ->
 		absent_key n name static
+
+(* What changed for an expansion: "executed pack.Type.field (static)" for the
+   code of a function, "macro pack.Type	members" for another node. *)
+let macro_reason n =
+	match String.index_opt n.n_key '\t' with
+	| Some i when String.sub n.n_key i (String.length n.n_key - i) = "\texec" -> "executed " ^ String.sub n.n_key 0 i
+	| _ -> "macro " ^ n.n_key
 
 let rec valid_node v n =
 	if not n.n_by_known then begin
@@ -628,6 +722,7 @@ let rec valid_node v n =
 		valid_computation v p
 	| _ ->
 		if n.n_fp = None then true
+		else if v.v_untracked && untracked_unchanged v n then true
 		else begin
 			let b = v.v_module_valid n.n_owner in
 			if trace then trace_line (Printf.sprintf "[graph] %s: owner %s %s" n.n_key (s_type_path n.n_owner) (if b then "valid" else "changed"));
@@ -672,10 +767,27 @@ and valid_edge v e =
 			v.v_module_valid path
 		| MacroModule (sign,path) ->
 			v.v_macro_module_valid sign path
+		| MacroNode (sign,n,a,b) ->
+			begin match v.v_macro sign with
+			| Some vm ->
+				let failed = vm.v_failed in
+				vm.v_failed <- None;
+				let r = vm.v_owner_valid n.n_owner && valid_edge vm (Node (n,a,b)) in
+				(* what was found valid assuming a computation being checked was *)
+				if r then vm.v_provisional <- [] else List.iter (fun n -> n.n_step <- -1) vm.v_provisional;
+				if not r then vm.v_provisional <- [];
+				if trace && not r then trace_line (Printf.sprintf "[graph] macro node %s invalid: %s" n.n_key (Option.default "?" vm.v_failed));
+				if not r && v.v_failed = None then v.v_failed <- Some (macro_reason n);
+				vm.v_failed <- failed;
+				r
+			| None ->
+				false
+			end
 		| Absent (n,name,static) ->
 			(Hashtbl.length known_changed = 0 || not (Hashtbl.mem known_changed (absent_key n name static))) &&
 			let failed = v.v_failed in
 			valid_node v n || (assume_absent v n name static && (v.v_failed <- failed; true))
+			|| (v.v_untracked && absent_in_decls v n name && (v.v_failed <- failed; true))
 	in
 	if not b then begin
 		if trace then trace_line ("[graph] changed: " ^ s_edge v e);
@@ -685,6 +797,7 @@ and valid_edge v e =
 			| Node (n,_,_) -> n.n_key
 			| Module path -> "module " ^ s_type_path path
 			| MacroModule (_,path) -> "macro module " ^ s_type_path path
+			| MacroNode (_,n,_,_) -> macro_reason n
 			| Absent (n,name,static) -> absent_key n name static)
 	end;
 	b
@@ -770,6 +883,21 @@ and untracked_decls_unchanged v n =
 	| _ ->
 		false
 
+(* The class of [n] (its members) has no declaration of a field [name] in its
+   file now (the macro context, where the classes are seldom built by macros:
+   an absence is checked on the declarations instead of typing again). *)
+and absent_in_decls v n name =
+	match Hashtbl.find_opt v.v_graph.module_files n.n_owner, String.index_opt n.n_key '\t' with
+	| Some f, Some i ->
+		let path = String.sub n.n_key 0 i in
+		let tname = match String.rindex_opt path '.' with Some j -> String.sub path (j + 1) (String.length path - j - 1) | None -> path in
+		begin match current_decls v f with
+		| Some cur -> Hashtbl.mem cur (tname ^ "\tdecls") && not (Hashtbl.mem cur (tname ^ "." ^ name ^ "\tdecls"))
+		| None -> false
+		end
+	| _ ->
+		false
+
 (* Early cutoff: node [n] keeps fingerprint [seen] if its computation, which
    is not valid, computes the same value again when its module is typed
    again; or, for a node without computation, if the declarations of its type
@@ -816,7 +944,7 @@ let rec strictly_valid v memo n =
 			| Lookup (l,seen) -> current_lookup v l = seen
 			| Node (n',a,b) -> same_fp n'.n_fp a b && valid_produced n'
 			| Absent (n',_,_) -> valid_produced n'
-			| Module _ | MacroModule _ -> false) in
+			| Module _ | MacroModule _ | MacroNode _ -> false) in
 			if not r && trace then trace_line ("[reuse] " ^ n.n_key ^ ": " ^ s_edge v e);
 			r
 		) edges in
@@ -830,13 +958,13 @@ let reusable v memo n =
 	match n.n_edges with
 	| None -> None
 	| Some edges ->
-		if Array.exists (function Module _ | MacroModule _ -> true | _ -> false) edges then None else begin
+		if Array.exists (function Module _ | MacroModule _ | MacroNode _ -> true | _ -> false) edges then None else begin
 			if not (strictly_valid v memo n) then None else begin
 				let paths = Hashtbl.create 8 in
 				Array.iter (function
 					| Node (n',_,_) | Absent (n',_,_) -> if n'.n_owner <> n.n_owner then Hashtbl.replace paths n'.n_owner ()
 					| Lookup (l,seen) -> if seen <> "" then Hashtbl.replace paths l.l_path ()
-					| Leaf _ | Module _ | MacroModule _ -> ()
+					| Leaf _ | Module _ | MacroModule _ | MacroNode _ -> ()
 				) edges;
 				Some (Hashtbl.fold (fun p () acc -> p :: acc) paths [])
 			end

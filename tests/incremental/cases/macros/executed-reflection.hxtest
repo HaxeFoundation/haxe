@@ -1,0 +1,28 @@
+# A macro lists the statics of a class by reflection: a static added changes
+# the result, although no code the macro ran changed.
+=== initial
+@expect-output fields 1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.count());
+	}
+}
+--- Macro.hx
+class Macro {
+	public static macro function count() {
+		return macro $v{"fields " + Type.getClassFields(Helper).length};
+	}
+}
+--- Helper.hx
+class Helper {
+	public static function a() return 1;
+}
+
+=== a static is added
+@expect-output fields 2
+--- Helper.hx
+class Helper {
+	public static function a() return 1;
+	public static function b() return 2;
+}

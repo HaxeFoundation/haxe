@@ -2227,6 +2227,68 @@ a macro carries the positions of the macro's file into its output). A change
 in the macro context that the expansion does not execute, or that only adds
 fields after the code it executes, then leaves it valid.
 
+**Status: the code of macros.** An expansion depends on the code the macro
+context executed for it, checked in the graph of the macro context, instead of
+the module of the macro and everything it depends on:
+
+- *Recording* (`EvalPrototype`, `EvalJit`, `DepRecord.exec_recorder`). Every
+  function of the macro context records itself once per expansion (the epoch
+  of the static isolation, unique per expansion), in the computation running
+  the macro: the methods and the constructors (an inherited constructor as
+  the one of its class), the initializers of the static variables it reads
+  (they run in the expansion), the `__init__` of a class. The classes it
+  instantiates record their members (the methods an instance dispatches to, an
+  override added changes them; the variables reflection lists), and so does a
+  type used as a value (`Type.getClassFields(C)`, `Std.isOfType`). The
+  recorders are made with the prototypes, which outlive the compilations,
+  whether recording is on or not.
+- *Edges* (`NodeGraph.MacroNode`). A function executed is an edge to its
+  `exec` node in the graph of the macro context: the fingerprint of its typed
+  code, produced by its body (or its signature when its type is inferred). A
+  body of the macro context whose values hold positions of its file (reified
+  expressions, through `$__mk_pos__`; `haxe.PosInfos`) also reads its position
+  in the file, so that a line added above it runs the expansions again. A class
+  instantiated is an edge to its members. Only what cannot be found falls back
+  to the module of the macro (`MacroModule`, checked through its dependencies
+  as before): the `__init__` of a class, a node the macro context did not
+  store. The signature of a macro function in the code context (the macro is
+  loaded, not run) reads the signature of the function in the macro context.
+  In the macro context, a macro is never run (`macro-in-macro`): a call to it
+  is not an expansion.
+- *Validation*. The graph of the macro context is checked with the common
+  context of the macros (its defines and class paths, made for the check when
+  the compilation has not made it yet: `MacroContext.create_macro_com`), only
+  when an edge of an expansion is checked. It is not typed again to check what
+  it assumes, so nothing is assumed: a node no computation produces (a header,
+  members made from the declarations) is valid when the declarations of its
+  type did not change, positions aside, and a field still missing from a class
+  when its file still has no declaration of that name. A module of the macro
+  context is valid when its file did not change and its computations are valid
+  (a `@:generic` instance, an `MFake` module, when the modules it depends on
+  are); a node of a module the server invalidated (`server/invalidate`) is not.
+  A module of the code context traced by the graph no longer checks the macro
+  modules it depends on through their module dependencies: its expansions do.
+- The reason a module is typed again because of an expansion
+  (`ReadChanged`) names the function it executed that changed (`executed
+  hxsl.Macros.buildFields (static)`); `HAXE_GRAPH_TRACE` says why the macro
+  context found it changed.
+
+Heaps samples (server, `HAXE_GRAPH_TRACE` for the counts), modules typed again:
+
+| Edit | Before | After |
+|---|---|---|
+| static added to `hxsl.Tools` (`hxsl/Ast.hx`, read by the shader macros) | 90 | 0 (but the module of the file) |
+| static added to `hxd.Math` | 23 | 1 |
+| function added at the top of `hxsl.Macros` | 90–97 | 60: the shaders, whose code reifies expressions positioned in the file |
+| no change, body edits, domkit and hxbit classes | 0–3 | 0–3 |
+
+Not recorded: a class found by name (`Type.resolveClass`) and reflected on
+without being instantiated or named in the code; the positions of an
+exception thrown by the code of a macro and reported as an error.
+`tests/incremental/cases/macros/executed-*` cover what is recorded (a function
+not called, a static added, the function called, an override, positions,
+static initializers, enum indexes, inherited constructors, reflection).
+
 #### Virtual file system
 
 **Status (first version, `src/core/vfs.ml`).** On macOS, directories are revalidated on every

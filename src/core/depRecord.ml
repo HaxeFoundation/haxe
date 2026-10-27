@@ -230,6 +230,23 @@ let collect f =
 
 let replay deps = List.iter add deps
 
+(* What an expansion executes (phase 7): the computation that runs a macro
+   depends on the code the macro context executed for it, not on the whole
+   module of the macro. Recorded once per expansion ([epoch], unique, 0 out of
+   an expansion) by each function: the body of a field ("exec", by its key),
+   the initializer of a class ("exec-init", by its path), the members of the
+   classes instantiated ("exec-members", by path: the methods an instance
+   dispatches to, the variables reflection lists). *)
+let exec_recorder key node =
+	(* made when the function is (the prototypes of the macro context outlive
+	   the compilations), whether recording is on or not *)
+	let last = ref 0 in
+	Some (fun epoch ->
+		if epoch <> 0 && epoch <> !last && !enabled then begin
+			last := epoch;
+			record key node
+		end)
+
 (* The static variable whose initializer runs (macro context): the identity
    of a [haxe.macro.TypeCache] (phase 7). *)
 let current_static : string option DomainLocal.t = DomainLocal.make (fun () -> None)

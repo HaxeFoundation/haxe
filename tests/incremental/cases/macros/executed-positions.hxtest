@@ -1,0 +1,26 @@
+# A macro returns an expression reified in the macro: its position is in the
+# file of the macro, which moves when lines are added above it.
+=== initial
+@expect-output Macro.hx:3: reified
+--- Main.hx
+class Main {
+	static function main() {
+		Macro.log();
+	}
+}
+--- Macro.hx
+class Macro {
+	public static macro function log() {
+		return macro trace("reified");
+	}
+}
+
+=== a line is added above the macro
+@expect-output Macro.hx:4: reified
+--- Macro.hx
+class Macro {
+	static var added = 1;
+	public static macro function log() {
+		return macro trace("reified");
+	}
+}
