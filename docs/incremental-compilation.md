@@ -1633,12 +1633,26 @@ shows what serializes it.
   load) may have read what it changed: a type not defined yet, which it would
   then define again. It runs again with the claim (counted by `--times`,
   `macros run again`). Generic build macros now speculate too (a
-  check-then-define macro that loses the race runs again), except when nested
-  in a speculation, where they take the claim.
+  check-then-define macro that loses the race runs again).
+- **Nested macros are validated too.** A macro nested in a speculation (run
+  by the typing of an API call of the macro that started it) may read what
+  another domain changes before the claim is taken, then define a type a
+  second time. Each one started while the domain speculated is a frame
+  (`Claims.frame`): it is checked at the first access to what the macros share
+  made by its own code (not by what an API call it made runs: the
+  initializers of a macro load, the typing; `Claims.api_depth`), or when it
+  ends if a macro nested in it took the claim, and if another domain changed
+  what the macros share since it started, it runs again alone, with the claim
+  (`Claims.Rerun`, raised and caught within its own interpretation: it never
+  crosses the typing running it). Its callers are checked the same way once
+  it is done, the macro that started the speculation as before. A nested
+  macro that ends without accessing what the macros share is not run again,
+  like the outer one (`cases/macros/nested-macro-define-race.hxtest`).
 Found on the way: an invalidation raised from a macro nested in the typing of
 another (a generic build macro forced by `Context.typeof`) left the lazy type it
 was building unresolved (hxbit schemas with `null` field types): nested macros
-are never stopped.
+are never stopped through the typing that runs them, nor is the macro that
+started a speculation while an API call it made runs.
 Measured (4 domains, median of 10, parallel typing stages before → after):
 a project of 300 hxbit classes (a third `NetworkSerializable`, the pattern of
 SpaceCraft) 1.31 s → 0.67 s (bodies 0.77 s → 0.24 s, the whole build 5.2 s →

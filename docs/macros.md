@@ -133,6 +133,13 @@ console output is printed twice, a file it wrote is written twice. This is
 one more reason for macros to be functions of their inputs, and to write
 files in a way that does not depend on how many times they run.
 
+The same holds for a macro run by another one, such as the build macro of a
+class that a macro reads with `Context.getType`: that macro alone is run
+again, and the macro that called it is checked once it is done, and run
+again too if what it read changed. What the inner macro did in its completed
+run (a type it defined, a class it built) stays: the outer macro finds it
+when it runs again.
+
 ## 2. Porting Haxe 4 macros
 
 ### 2.1 Configuration set by an initialization macro

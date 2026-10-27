@@ -295,6 +295,45 @@ let invalidated : bool Domain.DLS.key = Domain.DLS.new_key (fun () -> false)
    share may have read what they changed (a type not defined yet...) *)
 let speculation_epoch : (int * int) Domain.DLS.key = Domain.DLS.new_key (fun () -> (0,0))
 
+(* How many calls of the macro API the current domain is in: what such a call
+   runs (the typing of a module, the initializers of the classes a macro load
+   brings, the macros they run) is not the code of the macro that made it,
+   which cannot be stopped from there. *)
+let api_depth : int Domain.DLS.key = Domain.DLS.new_key (fun () -> 0)
+(* the API depth of the code of the macro that started the speculation *)
+let speculation_api : int Domain.DLS.key = Domain.DLS.new_key (fun () -> 0)
+
+let in_api f =
+	let d = Domain.DLS.get api_depth in
+	Domain.DLS.set api_depth (d + 1);
+	Std.finally (fun () -> Domain.DLS.set api_depth d) f ()
+
+(* The macros nested in the macro that started the speculation of the current
+   domain (run by the typing of an API call), innermost first. One that starts
+   while the domain speculates may read what another domain changes before
+   the claim is taken: it is checked at the first access to what the macros
+   share made by its own code, or when it ends if a macro nested in it took
+   the claim, and runs again (alone, with the claim) if another domain changed
+   what the macros share since it started. Its caller is checked the same way
+   once it is done (the macro that started the speculation by [invalidated]):
+   no macro is stopped through the typing that runs it. *)
+type frame = {
+	(* the effects when it started (see [speculation_epoch]) *)
+	fr_epoch : int * int;
+	(* the API depth of its code *)
+	fr_api : int;
+	(* whether it was checked, or started with the claim *)
+	mutable fr_checked : bool;
+}
+
+exception Rerun of frame
+
+let frames : frame list Domain.DLS.key = Domain.DLS.new_key (fun () -> [])
+
+(* Whether other domains changed what the macros share since [epoch]. *)
+let effects_since (e0,o0) =
+	Atomic.get effects_epoch - e0 > Domain.DLS.get own_effects - o0
+
 (* how many frozen variables were read speculating, and how many macros ran
    again *)
 let frozen_reads = Atomic.make 0
@@ -305,7 +344,7 @@ let reruns = Atomic.make 0
    that runs it, which is not undone; the macro that started the speculation
    runs again once it is done. *)
 let check_valid () =
-	if Domain.DLS.get speculation_depth = 0 then match Domain.DLS.get current_reader with
+	if Domain.DLS.get speculation_depth = 0 && Domain.DLS.get api_depth = Domain.DLS.get speculation_api then match Domain.DLS.get current_reader with
 	| Some r when Atomic.get r.r_invalid -> raise Invalidated
 	| _ -> if Domain.DLS.get invalidated then raise Invalidated
 
@@ -369,24 +408,55 @@ let end_speculation ?(reason=(fun () -> "other")) () =
 			Domain.DLS.set speculation_claim (Some (take_macro_claim ~reason:("speculation ended: " ^ reason ()) ()));
 			(* the groups it read cannot change while it holds the claim *)
 			stop_reading ();
-			let (e0,o0) = Domain.DLS.get speculation_epoch in
-			if Atomic.get effects_epoch - e0 > Domain.DLS.get own_effects - o0 then Domain.DLS.set invalidated true;
+			if effects_since (Domain.DLS.get speculation_epoch) then Domain.DLS.set invalidated true;
 			check_valid ()
 		end
 	end else if Domain.DLS.get speculation_claim <> None then
 		(* ended by a nested macro: the macro that started it is stopped
 		   before it changes anything *)
-		check_valid ()
+		check_valid ();
+	(* the innermost nested macro, if its own code accesses it *)
+	if not (Domain.DLS.get speculating) then match Domain.DLS.get frames with
+		| fr :: _ when not fr.fr_checked && Domain.DLS.get api_depth = fr.fr_api ->
+			fr.fr_checked <- true;
+			if effects_since fr.fr_epoch then raise (Rerun fr)
+		| _ ->
+			()
 
 (* Runs [f] speculating if [b] (see [speculating]), within the speculation
    of the current domain if any. A speculation invalidated by a writer of a
    frozen group it read runs [f] again with the claim of the macros. *)
 let speculate b f =
 	if in_speculation () then begin
-		(* nested in the macro that started the speculation *)
-		let depth = Domain.DLS.get speculation_depth in
+		(* nested in the macro that started the speculation (see [frame]) *)
+		let depth = Domain.DLS.get speculation_depth and old_frames = Domain.DLS.get frames in
+		let fr = {
+			fr_epoch = (Atomic.get effects_epoch,Domain.DLS.get own_effects);
+			fr_api = Domain.DLS.get api_depth;
+			fr_checked = not (Domain.DLS.get speculating);
+		} in
 		Domain.DLS.set speculation_depth (depth + 1);
-		Std.finally (fun () -> Domain.DLS.set speculation_depth depth) f ()
+		Domain.DLS.set frames (fr :: old_frames);
+		let rerun () =
+			Atomic.incr reruns;
+			TypingTrace.event (fun () -> "nested macro run again");
+			f ()
+		in
+		let run () = match f () with
+			| v ->
+				(* a macro nested in it took the claim: checked once it is done *)
+				if fr.fr_checked || Domain.DLS.get speculating then v
+				else begin
+					fr.fr_checked <- true;
+					if effects_since fr.fr_epoch then rerun () else v
+				end
+			| exception (Rerun fr') when fr' == fr ->
+				rerun ()
+		in
+		Std.finally (fun () ->
+			Domain.DLS.set speculation_depth depth;
+			Domain.DLS.set frames old_frames
+		) run ()
 	end else if not b then
 		f ()
 	else begin
@@ -396,7 +466,10 @@ let speculate b f =
 		Domain.DLS.set speculation_claim None;
 		Domain.DLS.set invalidated false;
 		Domain.DLS.set speculation_epoch (Atomic.get effects_epoch,Domain.DLS.get own_effects);
+		let old_api = Domain.DLS.get speculation_api in
+		Domain.DLS.set speculation_api (Domain.DLS.get api_depth);
 		let finish () =
+			Domain.DLS.set speculation_api old_api;
 			stop_reading ();
 			let invalid = Domain.DLS.get invalidated in
 			Domain.DLS.set invalidated false;
@@ -448,6 +521,10 @@ let lend_claim run_task f =
 let as_batch_task f =
 	let s = (Domain.DLS.get speculating,Domain.DLS.get speculation_claim,Domain.DLS.get current_reader,
 		Domain.DLS.get speculation_depth,Domain.DLS.get invalidated,Domain.DLS.get speculation_epoch,Domain.DLS.get in_batch) in
+	let s' = (Domain.DLS.get frames,Domain.DLS.get api_depth,Domain.DLS.get speculation_api) in
+	Domain.DLS.set frames [];
+	Domain.DLS.set api_depth 0;
+	Domain.DLS.set speculation_api 0;
 	Domain.DLS.set speculating false;
 	Domain.DLS.set speculation_claim None;
 	Domain.DLS.set current_reader None;
@@ -462,7 +539,11 @@ let as_batch_task f =
 		Domain.DLS.set speculation_depth d;
 		Domain.DLS.set invalidated e;
 		Domain.DLS.set speculation_epoch f;
-		Domain.DLS.set in_batch g
+		Domain.DLS.set in_batch g;
+		let (h,i,j) = s' in
+		Domain.DLS.set frames h;
+		Domain.DLS.set api_depth i;
+		Domain.DLS.set speculation_api j
 	in
 	Std.finally restore f ()
 

@@ -411,10 +411,10 @@ let create com macros =
 				Std.finally (fun () -> TypingTrace.event (fun () -> "macro done")) (fun () ->
 				(* a generic build macro too: one that defines the type it gives
 				   after not finding it, as another one may have meanwhile, runs
-				   again with the claim (see [Claims.speculate]), unless it is
-				   nested in a speculating macro (forced by its typing), which
-				   does not run again: it takes the claim *)
-				let speculate = mode <> MDisplay && !TypingLock.active && not (mode = MMacroType && Claims.in_speculation ()) in
+				   again with the claim (see [Claims.speculate]); nested in a
+				   speculating macro (forced by its typing), it runs again alone
+				   (see [Claims.frame]) *)
+				let speculate = mode <> MDisplay && !TypingLock.active in
 				if speculate then begin
 					(* without the typing lock: what the call types in the macro
 					   context is typed with the claim of the macros (loading the

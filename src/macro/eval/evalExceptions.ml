@@ -232,6 +232,8 @@ let catch_exceptions ctx ?(final=(fun() -> ())) f p =
 		final();
 		None
 	| exc ->
+		(* a macro stopped to run again (see [Claims.Rerun]) *)
+		eval.env <- env;
 		reset_ctx();
 		final();
 		raise exc

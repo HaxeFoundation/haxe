@@ -432,11 +432,12 @@ let lock_free_api = [
    [MacroContext.do_call_macro]). *)
 let shared_state_api n v =
 	match v with
-	| VFunction _ when List.mem n lock_free_api ->
-		v
+	| VFunction (f,static) when List.mem n lock_free_api ->
+		(* what the call runs is not the code of the macro (see [Claims.api_depth]) *)
+		VFunction ((fun vl -> Claims.in_api (fun () -> f vl)),static)
 	| VFunction (f,static) ->
 		let site = "api " ^ n in
-		let locked vl = TypingLock.protect ~site (fun () -> f vl) in
+		let locked vl = Claims.in_api (fun () -> TypingLock.protect ~site (fun () -> f vl)) in
 		(* a speculating macro whose reads were invalidated does nothing more
 		   (see [Claims.Invalidated]) *)
 		if List.mem n speculative_api then VFunction ((fun vl -> Claims.check_valid (); locked vl),static)
