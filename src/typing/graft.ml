@@ -39,7 +39,27 @@ type module_graft = {
 let grafts : (int,module_graft) Hashtbl.t = Hashtbl.create 0
 let mutex = Mutex.create ()
 
+(* The modules of the cache whose objects a compilation of the current request
+   changed (typed again, grafted), by id: they cannot be reused, even if the
+   compilation fails before storing their new version (see
+   [ServerCache.cleanup]). *)
+let touched : (int,unit) Hashtbl.t = Hashtbl.create 0
+
+let take_touched () =
+	Mutex.protect mutex (fun () ->
+		let t = Hashtbl.copy touched in
+		Hashtbl.reset touched;
+		t
+	)
+
+(* Whether the modules typed again are grafted: not when the compilation is
+   done again after an error through the module dependencies only (every
+   module depending on a module typed again is typed again, nothing reused
+   refers to its previous version), so that it leaves the cache as it was. *)
+let enabled = ref true
+
 let reset () =
+	enabled := true;
 	Mutex.protect mutex (fun () -> Hashtbl.reset grafts);
 	EntityKey.graft_reused := 0;
 	EntityKey.graft_created := 0
@@ -57,7 +77,8 @@ let copy_into (old : 'a) (fresh : 'a) =
 let begin_module com m =
 	let cc = CommonCache.get_cache com in
 	match cc#find_module_opt m.m_path with
-	| Some m_old when m_old != m ->
+	| Some m_old when m_old != m && !enabled ->
+		Mutex.protect mutex (fun () -> Hashtbl.replace touched m_old.m_id ());
 		(* Classes of the previous version may hold their post-processed
 		   (e.g. DCE-filtered) state: restore the typed one first. *)
 		List.iter (fun mt -> (t_infos mt).mt_restore ()) m_old.m_types;

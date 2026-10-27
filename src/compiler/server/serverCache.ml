@@ -279,12 +279,16 @@ let check_module sctx com m_path m_extra p =
 		if file_time f.NodeGraph.f_path = f.f_time then
 			f.f_decls
 		else
-			(* changed: parsed again, the parse is cached for typing *)
+			(* changed: parsed again, the parse is cached for typing; a syntax
+			   error is the error of the compilation, as when typing reads the
+			   file, before anything is typed (the modules typed before it would be
+			   typed again by the next compilation) *)
 			try
 				let rfile,_,_,parsed,_ = TypeloadParse.parse_module' com f.f_module p in
 				Some (NodeGraph.decl_table rfile.ClassPaths.file parsed)
-			with _ ->
-				None
+			with
+			| Parser.Error (msg,p) when com.display.dms_kind = DMNone -> Error.raise_typing_error (Parser.error_msg msg) p
+			| _ -> None
 	in
 	(* Module [path] of the macro context [msign], checked through its graph:
 	   its file did not change, nor what its computations read. A module found
@@ -512,7 +516,12 @@ let check_module sctx com m_path m_extra p =
 				| MSGood ->
 					(* Otherwise, run the checks *)
 					m_extra.m_cache_state <- MSUnknown;
-					check ()
+					(* a syntax error raised by the check (see [current_decls]) leaves
+					   the module unchecked *)
+					try check () with e ->
+						m_extra.m_cache_state <- MSGood;
+						m_extra.m_checked <- start_mark - 1;
+						raise e
 			in
 			(* Update the module now. It will use this dirty status for the remainder of this compilation. *)
 			begin match dirty with
@@ -534,7 +543,15 @@ let check_module sctx com m_path m_extra p =
 		try check path ((com.cs#get_context sign)#find_module_extra path) = None with Not_found -> false
 	);
 	let assumptions = Option.map (fun v -> v.NodeGraph.v_graph.assumptions) validation in
-	let state = check m_path m_extra in
+	let state = try check m_path m_extra with e ->
+		(* a syntax error raised by a check (see [current_decls]): the modules
+		   checked are checked again *)
+		List.iter (fun m_extra -> match m_extra.m_cache_state with
+			| MSUnknown -> m_extra.m_checked <- start_mark - 1; m_extra.m_cache_state <- MSGood
+			| MSGood | MSBad _ -> ()
+		) !unknown_state_modules;
+		raise e
+	in
 	Option.may (fun v ->
 		if state = None then v.NodeGraph.v_provisional <- []
 		else begin
@@ -675,8 +692,48 @@ let ensure_macro_setup sctx =
 		MacroContext.setup();
 	end
 
+(* The state of the modules of the cache after the previous request, and
+   whether the compilation of the current one failed (see [cleanup]). *)
+let module_states : (int,module_cache_state * int * int * (int,module_dep) PMap.t) Hashtbl.t = Hashtbl.create 0
+let request_failed = ref false
+(* the interpreter of the macros when the state was saved *)
+let state_interp : Obj.t option ref = ref None
+
 let cleanup sctx =
 	macro_coms := [];
+	(* After a compilation that failed, the modules it did not type again get
+	   back the state they had before (their validity, the mark of their check,
+	   whether they were post-processed, their dependencies): what it found
+	   invalid is checked again by the next compilation, where the error may be
+	   undone. A module whose objects it changed (typed again, grafted) cannot be
+	   reused. When the interpreter of the macros is not the one of the state
+	   saved, what the expansions of the modules kept left in it is lost: they
+	   keep the state the compilation left. The state is saved after every
+	   request. *)
+	let touched = Graft.take_touched () in
+	let interp = Option.map Obj.repr !MacroContext.macro_interp_cache in
+	let same_interp = match interp, !state_interp with Some a, Some b -> a == b | None, None -> true | _ -> false in
+	if !request_failed then
+		sctx.cs#iter_modules (fun m ->
+			if Hashtbl.mem touched m.m_id then begin
+				match m.m_extra.m_cache_state with
+				| MSBad _ -> ()
+				| MSGood | MSUnknown -> m.m_extra.m_cache_state <- MSBad (ReadChanged "typed by a compilation that failed")
+			end else if same_interp then match Hashtbl.find_opt module_states m.m_id with
+				| Some (state,checked,processed,deps) ->
+					m.m_extra.m_cache_state <- state;
+					m.m_extra.m_checked <- checked;
+					m.m_extra.m_processed <- processed;
+					m.m_extra.m_deps <- deps
+				| None ->
+					()
+		);
+	request_failed := false;
+	state_interp := interp;
+	Hashtbl.reset module_states;
+	sctx.cs#iter_modules (fun m ->
+		Hashtbl.replace module_states m.m_id (m.m_extra.m_cache_state,m.m_extra.m_checked,m.m_extra.m_processed,m.m_extra.m_deps)
+	);
 	begin match !MacroContext.macro_interp_cache with
 	| Some interp ->
 		(* curapi holds a reference to the typing context which we don't want to persist. Replace it with a
@@ -745,31 +802,33 @@ let retry_with failed assumed =
 	incr NodeGraph.attempts;
 	raise NodeGraph.Retry
 
-(* Typing reported errors. When it went to its end, the errors are the ones of
-   a cold compilation if the assumptions of early cutoff held (what was found
-   valid reads the same): they are checked as when the compilation succeeds,
-   and the compilation is done again, with the graph, if one failed. When
-   typing stopped in the middle ([stopped], an error raised), what it typed
-   before depends on what was found valid, and so do the errors: the
-   compilation is done again with the modules checked through their module
-   dependencies only ([NodeGraph.modules_only]), without assumptions. *)
+(* Typing reported errors. They can come from an assumption of early cutoff
+   that does not hold: when typing went to its end, the assumptions are
+   checked as when the compilation succeeds, and the compilation is done
+   again with the graph, knowing the new fingerprints, if one failed. They can
+   also come from a computation the graph finds valid that fails when typed
+   again, through what it does not record (a macro reading what another
+   expansion left), and a cold compilation reports the errors of what reads
+   it ([NodeGraph.modules_only]): the compilation is done again with the
+   modules checked through their module dependencies only, without
+   assumptions, and without grafting (every module depending on a module
+   typed again is typed again), so that it leaves the cache as it was when it
+   fails too, and the next compilation types what changed only ([stopped]:
+   typing stopped in the middle, the assumptions cannot be checked). *)
 let retry_if_assumed ?(stopped=false) com =
+	request_failed := true;
 	if !NodeGraph.graph_used && not !NodeGraph.modules_only && not !NodeGraph.display_request && com.display.dms_kind = DMNone then begin
 		let assumed = assumed_graphs com in
-		let failed = if stopped then None else if assumed = [] then Some [] else
-			try Some (List.concat_map (fun (failed,_) -> failed ()) (prepare_graphs com))
-			with NodeGraph.Retry as e -> raise e | _ -> None
+		let failed = if stopped || assumed = [] then [] else
+			try List.concat_map (fun (failed,_) -> failed ()) (prepare_graphs com)
+			with NodeGraph.Retry as e -> raise e | _ -> []
 		in
-		match failed with
-		| Some [] ->
-			List.iter (fun g -> g.NodeGraph.assumptions <- []) assumed
-		| Some failed ->
-			retry_with failed assumed
-		| None ->
-			List.iter (fun g -> g.NodeGraph.assumptions <- []) assumed;
-			NodeGraph.modules_only := true;
-			NodeGraph.graph_used := false;
-			raise NodeGraph.Retry
+		if failed <> [] then retry_with failed assumed;
+		List.iter (fun g -> g.NodeGraph.assumptions <- []) assumed;
+		NodeGraph.modules_only := true;
+		NodeGraph.graph_used := false;
+		Graft.enabled := false;
+		raise NodeGraph.Retry
 	end
 
 let store_graph com =
@@ -784,6 +843,7 @@ let store_graph com =
 			   nodes that changed, with the graph of the previous compilation *)
 			let failed = List.concat_map (fun (failed,_) -> failed ()) prepared in
 			if failed <> [] then retry_with failed assumed;
+			request_failed := false;
 			List.iter (fun (_,apply) -> apply ()) prepared
 		) ();
 		(* the edges, once the server answered (before the maintenance tasks,

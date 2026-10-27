@@ -798,9 +798,11 @@ let create_macro_interp api mctx =
 		   ones would not depends on when the error is reported (the order
 		   of typing, the number of domains). A macro whose function reported
 		   it does not run; one calling what failed to type fails when it
-		   calls it. The interpreter is not reused by the next compilation. *)
+		   calls it. The interpreter is reused by the next compilation: what
+		   the expansions of the modules it keeps left in it is still there,
+		   and the types that failed are added again (see
+		   [EvalPrototype.add_types]). *)
 		Mutex.protect macro_errors_mutex (fun () -> macro_errors := err.err_pos :: !macro_errors);
-		macro_interp_cache := None;
 		on_error err
 	);
 	com2.warning <- CompilerMessage.default_warning_handler com2;

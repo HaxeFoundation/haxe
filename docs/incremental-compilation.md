@@ -2229,16 +2229,43 @@ dependencies.
 with the graph typed 10 modules and failed; the attempt done again through the
 module dependencies only typed 344 and failed with the same error; the
 compilation removing the error then typed 345 again (everything the failed
-one grafted), 5.1 s. When typing goes to its end with errors, the attempt is
-now kept: the assumptions of early cutoff are checked as when the compilation
-succeeds (what was found valid reads the same, so its errors are the ones of a
-cold compilation), and the compilation is done again with the graph if one
-failed, knowing the new fingerprints. The compilation removing the error types
-16 modules, 2.0 s. When typing stops in the middle (an error raised: a type
-not found in a signature), what was typed before depends on what was found
-valid, and so do the errors (the readers of the class typed first report
-errors the cold compilation never reaches): the compilation is still done
-again through the module dependencies.
+one grafted), 5.1 s. That attempt is needed: the graph finds valid
+computations that fail when typed again (domkit: the component of a class is
+found through the `@:uiComp` that the build of another class gives it, and a
+class typed again before that build lost it; the compilations that succeed
+also go through it, for edits of `h2d.Flow`). What changed:
+
+- *No grafting when done again.* The attempt through the module dependencies
+  types again every module depending on one typed again: nothing it reuses
+  refers to the previous version of a module it types, and it does not graft
+  (`Graft.enabled`). When it fails, the cache is as it was.
+- *The state of the modules is restored.* The server saves the state of the
+  modules of the cache after each request (their validity, the mark of their
+  check, whether they were post-processed, their dependencies, which a failed
+  compilation changes: a module found invalid sticks to it). After a failed
+  compilation, the modules it did not type get it back: what it found invalid
+  is checked again by the next compilation, where the error may be undone. The
+  modules it typed with grafting (the first attempt, `Graft.touched`) stay
+  invalid. When the interpreter of the macros changed, what the expansions of
+  the modules kept left in it is lost: they keep the state the compilation
+  left (an error in the macro context no longer discards the interpreter: the
+  types that failed are added again, see `EvalPrototype.add_types`).
+- *A syntax error before typing.* The check of a module parses the files that
+  changed: a syntax error is now raised there, as typing raises it when it
+  reads the file, before the first attempt types (and grafts) the modules
+  reading the file.
+- *Metadata of another type.* A macro changing the metadata of a type of
+  another module than the one it builds (`baseClass.meta.add`) makes the
+  computation running it depend on that module not being typed again.
+
+Heaps samples, modules typed again by the compilation removing the error: a
+type error in a body of `h2d.col.Polygon` 343 → 41 (1.7 s); a syntax error in
+`h2d.Object` 325 → 0 (1.0 s), or 325 when the first attempt of the compilation
+removing it meets the domkit order above. Next: build the class giving the
+metadata before the classes reading it (record the change of metadata on the
+type, typed again, so that its readers build its writer first), which would
+spare the attempt through the module dependencies to the compilations that
+succeed.
 
 Found on the way, by the fuzzer: since the static variables of the macros are
 initialized once in a base (`Macro statics: per-domain copy of the base`), the

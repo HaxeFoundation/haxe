@@ -1133,7 +1133,7 @@ let vopt f v = match v with
 
 (* [local]: whether the metadata belongs to what the running expansion builds
    (changing it then touches nothing the macros share) *)
-let encode_meta ?(on_read=(fun () -> ())) ?(local=(fun () -> false)) m set =
+let encode_meta ?(on_read=(fun () -> ())) ?(local=(fun () -> false)) ?(on_write=(fun () -> ())) m set =
 	let meta = ref m in
 	encode_obj [
 		"get", vfun0 (fun() ->
@@ -1141,7 +1141,10 @@ let encode_meta ?(on_read=(fun () -> ())) ?(local=(fun () -> false)) m set =
 			encode_meta_content (!meta)
 		);
 		"add", vfun3 (fun k vl p ->
-			if not (local ()) then (!EvalValue.on_shared_state (fun () -> "metadata"));
+			if not (local ()) then begin
+				!EvalValue.on_shared_state (fun () -> "metadata");
+				on_write ()
+			end;
 			let el = List.map decode_expr (decode_array vl) in
 			meta := (Meta.from_string (decode_string k), el, decode_pos p) :: !meta;
 			set (!meta);
@@ -1153,7 +1156,10 @@ let encode_meta ?(on_read=(fun () -> ())) ?(local=(fun () -> false)) m set =
 			encode_and_map_array encode_meta_entry (List.filter (fun (m,_,_) -> m = k) (!meta))
 		);
 		"remove", vfun1 (fun k ->
-			if not (local ()) then (!EvalValue.on_shared_state (fun () -> "metadata"));
+			if not (local ()) then begin
+				!EvalValue.on_shared_state (fun () -> "metadata");
+				on_write ()
+			end;
 			let k = Meta.from_string (decode_string k) in
 			meta := List.filter (fun (m,_,_) -> m <> k) (!meta);
 			set (!meta);
@@ -1166,11 +1172,18 @@ let encode_meta ?(on_read=(fun () -> ())) ?(local=(fun () -> false)) m set =
 		);
 	]
 
-let rec encode_mtype ?meta t fields =
+(* The metadata of a type of another module than the one an expansion
+   builds, changed by the macro: typing that module again drops the change,
+   so the computation running the macro depends on it not being typed again
+   (domkit adds [@:uiComp] to the class of a component declaration). *)
+let rec meta_written m () =
+	if !DepRecord.enabled && m.m_extra.m_kind = MCode then DepRecord.record (s_type_path m.m_path) "generic"
+
+and encode_mtype ?meta t fields =
 	let i = t_infos t in
 	let meta = match meta with
 		| Some meta -> meta
-		| None -> encode_meta i.mt_meta (fun m -> i.mt_meta <- m)
+		| None -> encode_meta ~on_write:(meta_written i.mt_module) i.mt_meta (fun m -> i.mt_meta <- m)
 	in
 	encode_obj ([
 		"__t", 	encode_tdecl t;
@@ -1340,7 +1353,7 @@ and encode_tclass c =
 		| Some declared when not ((DomainLocal.get current_class_built_by_expansion) c) ->
 			(* additions and removals go to the class's metadata as well *)
 			let view = ref declared in
-			encode_meta ~on_read:(fun () -> (DomainLocal.get current_declared_meta_read) c) ~local:(fun () -> (DomainLocal.get current_is_local_class) c) declared (fun m ->
+			encode_meta ~on_read:(fun () -> (DomainLocal.get current_declared_meta_read) c) ~local:(fun () -> (DomainLocal.get current_is_local_class) c) ~on_write:(meta_written c.cl_module) declared (fun m ->
 				let added = List.filter (fun e -> not (List.memq e !view)) m in
 				let removed = List.filter (fun e -> not (List.memq e m)) !view in
 				let update l = added @ List.filter (fun e -> not (List.memq e removed)) l in
@@ -1349,7 +1362,7 @@ and encode_tclass c =
 				view := m
 			)
 		| _ ->
-			encode_meta ~local:(fun () -> (DomainLocal.get current_is_local_class) c) c.cl_meta (fun m -> c.cl_meta <- m)
+			encode_meta ~local:(fun () -> (DomainLocal.get current_is_local_class) c) ~on_write:(meta_written c.cl_module) c.cl_meta (fun m -> c.cl_meta <- m)
 	in
 	let members f = encode_lazy (AtomicLazy.from_fun (fun () -> build (); f ())) in
 	encode_mtype ~meta (TClassDecl c) [
