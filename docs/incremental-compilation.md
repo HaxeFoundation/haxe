@@ -2251,7 +2251,9 @@ the module of the macro and everything it depends on:
   of the static isolation, unique per expansion), in the computation running
   the macro: the methods and the constructors (an inherited constructor as
   the one of its class), the initializers of the static variables it reads
-  (they run in the expansion), the `__init__` of a class. The classes it
+  and the `__init__` of their class (which give the base it starts from: they
+  are recorded on its first access to the variables of the class,
+  `EvalValue.domain_values`). The classes it
   instantiates record their members (the methods an instance dispatches to, an
   override added changes them; the variables reflection lists), and so does a
   type used as a value (`Type.getClassFields(C)`, `Std.isOfType`). The
