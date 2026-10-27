@@ -378,6 +378,14 @@ let get_object_prototype ctx l =
 	proto,l
 
 let add_types ctx types ready =
+	(* The types are known by the interpreter once their prototypes are made: an
+	   error before (in [ready], or making a prototype) leaves the types of the
+	   call unknown, and the next compilation reusing the interpreter adds them
+	   again (it would skip a type of a module not typed again, whose prototype
+	   was never made). *)
+	let added = ref [] in
+	let forget () = List.iter (fun key -> ctx.type_cache <- IntMap.remove key ctx.type_cache) !added in
+	let fl_static_init = try
 	let new_types = List.filter (fun mt ->
 		let inf = Type.t_infos mt in
 		let key = path_hash inf.mt_path in
@@ -391,6 +399,7 @@ let add_types ctx types ready =
 			ctx.constructors <- IntMap.remove key ctx.constructors;
 			ready mt;
 			ctx.type_cache <- IntMap.add key (mt,inf.mt_module.m_id) ctx.type_cache;
+			added := key :: !added;
 			if ctx.debug.support_debugger then begin
 				let file_key = hash (Path.UniqueKey.lazy_path inf.mt_module.m_extra.m_file) in
 				if not (IntHashtbl.mem ctx.debug.breakpoints file_key) then begin
@@ -450,6 +459,11 @@ let add_types ctx types ready =
 					(Array.of_list (ExtList.List.filter_map (fun (persistent,i,_,_) -> if persistent && i >= 0 then Some i else None) delays))
 			end
 	) fl_static;
+	fl_static_init
+	with e ->
+		forget ();
+		raise e
+	in
 	(* 4. Initialize static fields. *)
 	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,_,first,_) -> first proto) delays) fl_static_init
 

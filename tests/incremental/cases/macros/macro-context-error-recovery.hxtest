@@ -1,0 +1,67 @@
+# A file of the macro context gets a syntax error, then it is fixed: the
+# next compilation reuses the interpreter, which must still know every type.
+# (On Heaps, the error was met while the interpreter added the types, typing
+# a method whose type is inferred in a module loaded by the filters: the
+# types added before it were left without prototype, and every later
+# compilation failed. This case does not reach that path.)
+=== initial
+@expect-output 3
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.count());
+	}
+}
+--- Macro.hx
+class Macro {
+	static var ALL = Kind.createAll();
+	public static macro function count() {
+		return macro $v{ALL.length + Helper.zero() + Late.VALUE};
+	}
+}
+--- Kind.hx
+enum Kind {
+	A;
+	B;
+	C;
+}
+--- Helper.hx
+class Helper {
+	public static function zero() return 0;
+}
+--- Late.hx
+class Late {
+	public static var VALUE = 0;
+	static function unused() {
+		return Other.zero();
+	}
+}
+--- Other.hx
+class Other {
+	public static function zero() {
+		return 0;
+	}
+}
+
+=== a syntax error in a file the macro context reads late
+@expect-error
+--- Helper.hx
+class Helper {
+	public static function zero() return 0 * 1;
+}
+--- Other.hx
+class Other {
+	public static function zero() {
+	public static function added() return 1;
+		return 0;
+	}
+}
+
+=== the error is fixed
+@expect-output 3
+--- Other.hx
+class Other {
+	public static function zero() {
+		return 0;
+	}
+}
