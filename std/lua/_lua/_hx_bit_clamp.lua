@@ -12,7 +12,7 @@ local _hx_bit_clamp_native = (function()
             if v > 0 then v = _G.math.floor(v)
             else v = _G.math.ceil(v)
             end
-            return (v & 0x7FFFFFFF) - (v & 0x80000000)
+            return (v & 0x7FFFFFFF) - math.abs(v & 0x80000000)
         end
     ]])
     if ok and fn then return fn() end

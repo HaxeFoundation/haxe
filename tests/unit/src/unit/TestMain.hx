@@ -3,7 +3,9 @@ package unit;
 import haxe.ds.List;
 import unit.Test.*;
 import utest.Runner;
+#if utest
 import utest.ui.Report;
+#end
 
 final asyncWaits = new Array<haxe.PosInfos>();
 final asyncCache = new Array<() -> Void>();
@@ -47,6 +49,7 @@ function main() {
 		new TestResource(),
 		new TestInt64(),
 		new TestUInt64(),
+		new TestDefaultArgs(),
 		new TestReflect(),
 		new TestSerialize(),
 		new TestSerializerCrossTarget(),
@@ -64,8 +67,7 @@ function main() {
 		new TestHashMap(),
 		new TestRest(),
 		#if (!php && !lua)
-		/* This is annoying and causes spurious CI failures. Let's just make an effort to
-			not break it! */
+		/// This is annoying and causes spurious CI failures. Let's just make an effort to not break it!
 		// new TestHttps(),
 		#end
 		#if !no_pattern_matching
@@ -97,6 +99,7 @@ function main() {
 		#end
 		new TestMapComprehension(),
 		new TestMacro(),
+		new TestGcFinalizer(),
 		new TestKeyValueIterator(),
 		new TestFieldVariance(),
 		new TestConstrainedMonomorphs(),
@@ -115,6 +118,7 @@ function main() {
 	for (c in classes) {
 		runner.addCase(c);
 	}
+	#if utest
 	var report = Report.create(runner);
 	report.displayHeader = AlwaysShowHeader;
 	report.displaySuccessResults = NeverShowSuccessResults;
@@ -140,6 +144,7 @@ function main() {
 		runner.onTestStart.add(function(test) {
 			Sys.println(' $test...'); // TODO: need utest success state for this
 		});
+	#end
 	#end
 	runner.run();
 
