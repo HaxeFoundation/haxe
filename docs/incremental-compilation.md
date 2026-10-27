@@ -2150,6 +2150,83 @@ found on Heaps, fixed:
   (`caml_globals`), with a search of the paths reaching the typers of the
   previous compilations.
 
+**Status: wide invalidations on a Heaps application (hot reload).** Measured
+on the Heaps samples compiled as one program (39 samples, with domkit and hxbit,
+HL, `-D hot-reload`), each edit made through the server, then undone. With
+`HAXE_GRAPH_TRACE` the validation takes several times longer (it formats every
+edge it checks): times are measured without it, the modules typed again with it.
+
+| Edit | Modules typed again (before → after) | Warm compilation (after) |
+|---|---|---|
+| body of a method of the application, of `h2d.Object` | 0, 3 | 0.4–1.0 s |
+| local function added in `h2d.Flow.sync` | 7 → 1 | 1.2 s |
+| empty line at the top of `hxsl/Ast.hx` | 148, and 105 failed assumptions in a variant (a second compilation) → 90 | 1.6–2.2 s |
+| static added to `hxsl.Tools` (read by the shader macros) | 172 → 90 | 1.6 s |
+| static added to `hxd.Math`, then removed | 24 → 23; the removal failed an assumption (compiled twice) → none | 1.4–2.0 s |
+| field added to `h2d.Object` | 28 → 24 | 2.6 s |
+| syntax error, then fixed | 2 → 0 | 1.3 s |
+
+Fixed:
+
+- *Nodes no computation produces.* The header and the members of a type are made
+  from its declarations when its module is loaded (`DepRecord.untracked`): when
+  its module was typed again, an edge to them was valid only if that module
+  was, never assumed to keep its fingerprint. Lines added in the file of an
+  enum typed again every reader of its constructors (`hxsl.Type`,
+  `hxsl.Component` for `hxsl/Ast.hx`). They are now assumed unchanged when the
+  declarations of their type did not change, positions aside
+  (`NodeGraph.untracked_unchanged`), checked after typing like the others.
+- *Lazy types in fingerprints.* A module typed again by the server can leave
+  lazy types unforced (the type hints of enum constructors, forced by the
+  modules reading them, which are not typed again), and a lazy hashes as such:
+  the members of `hxsl.ExprDef` got another fingerprint than the cold one, the
+  assumptions on them failed and the compilation was done again without
+  assumptions. The lazies the fingerprints read are forced on one domain
+  before the fingerprints are computed in parallel (`TFingerprint.force_lazies`).
+- *A removed field.* A computation reading a declaration that is gone (a field
+  removed) is not assumed to keep what it produces: the assumption always
+  failed, and the compilation was done twice.
+
+**Next: the compilation after an error.** A compilation that fails caches
+nothing, but it leaves the modules it found invalid invalid (a module found
+invalid sticks to it), and the attempt made after an error checks the modules
+through their module dependencies only (`NodeGraph.modules_only`), which
+finds many of them invalid and types them: undoing the error types them all
+again (a field added to an abstract of Heaps, then removed: 340-400 modules,
+3.4 s, where the edit itself typed 22; SpaceCraft's first compilation after an
+error takes 14–17 s). The modules typed by the failed compilation must be
+typed again: grafting wrote their new content into the objects of their
+previous versions. Tried: keeping a shallow copy of every object grafted
+(in `Graft.copy_into`) and putting it back when the compilation fails, then
+forgetting what the failed compilation found invalid. The compilation after
+the error then types one module, but the fuzzer finds warm outputs that
+differ from cold ones after an error is undone (`hxd.App.new` generated
+without the box of the local `engine` that its closure assigns: a body
+reused without the `VCaptured` mark that the filters set), so something the
+failed compilation changes is not in the copied objects. Not done: find what
+(the state the filters keep per class, `cl_restore`, the post-processed
+bodies kept by grafting, the variables of the bodies), or keep the failed
+compilation from typing modules found invalid only through the module
+dependencies.
+
+**Next: the code of macros.** What is still typed again in the edits above
+comes from the edges to the module of a macro that ran (`MacroModule`): it is
+checked through its module dependencies in the macro context, so any change in
+a file those reach (`hxsl/Ast.hx`, `hxd/Math.hx`) runs every build macro of
+`hxsl.Macros`, `domkit.Macros`, `h2d.domkit.InitComponents`,
+`hxd.fs.EmbedFileSystem` again and types again their modules (90 of the 90
+modules after a line added to `hxsl/Ast.hx`). This is the `wait: macros` /
+`macros run again` of SpaceCraft's 11–19 s compilations, where domkit builds
+every component. The lead is item 11 of phase 7: record, per expansion, the
+methods of the macro context it executes (every method goes through
+`EvalJit.jit_tfunction_lazy` with its type and field; one comparison with the
+epoch of the expansion per call), and replace the `MacroModule` edge by edges
+to their bodies in the graph of the macro context (`... body` computations, which
+record what the code read), with their absolute positions (code reified in
+a macro carries the positions of the macro's file into its output). A change
+in the macro context that the expansion does not execute, or that only adds
+fields after the code it executes, then leaves it valid.
+
 #### Virtual file system
 
 **Status (first version, `src/core/vfs.ml`).** On macOS, directories are revalidated on every

@@ -383,6 +383,49 @@ and add_function h tf =
 
 (* Fingerprints of the nodes of §3.2 *)
 
+(* Forces the lazy types that the fingerprints of the types of module [m]
+   read: a lazy not forced yet hashes as such ([add_type]), and the same type
+   forced as what it is. A module typed again in the compilation server can
+   leave some unforced (the type hints of enum constructors, forced by the
+   modules that read them, which are not typed again), while its previous
+   fingerprints were taken with them forced: the fingerprints would differ.
+   Done on one domain, once typing is done, before the fingerprints are
+   computed in parallel. *)
+let force_lazies m =
+	let anons = ref [] in
+	let rec force t =
+		match t with
+		| TLazy r -> force (lazy_type r)
+		| TMono { tm_type = Some t } -> force t
+		| TMono _ -> ()
+		| TEnum (_,tl) | TInst (_,tl) | TType (_,tl) | TAbstract (_,tl) -> List.iter force tl
+		| TFun (args,ret) -> List.iter (fun (_,_,t) -> force t) args; force ret
+		| TAnon an ->
+			if not (List.memq an !anons) then begin
+				anons := an :: !anons;
+				PMap.iter (fun _ cf -> force cf.cf_type) an.a_fields
+			end
+		| TDynamic (Some t) -> force t
+		| TDynamic None -> ()
+	in
+	let field cf = force cf.cf_type; List.iter (fun cf -> force cf.cf_type) cf.cf_overloads in
+	List.iter (function
+		| TClassDecl c ->
+			Option.may (fun (_,tl) -> List.iter force tl) c.cl_super;
+			List.iter (fun (_,tl) -> List.iter force tl) c.cl_implements;
+			List.iter field c.cl_ordered_statics;
+			List.iter field c.cl_ordered_fields;
+			Option.may field c.cl_constructor
+		| TEnumDecl en ->
+			PMap.iter (fun _ ef -> force ef.ef_type) en.e_constrs
+		| TTypeDecl td ->
+			force td.t_type
+		| TAbstractDecl a ->
+			force a.a_this;
+			List.iter force a.a_from;
+			List.iter force a.a_to
+	) m.m_types
+
 let with_state ?(origin=null_pos) ?(within_origin=false) ?(var_flags=default_var_flags) ~positions f =
 	let h = create ~positions in
 	h.origin <- origin;

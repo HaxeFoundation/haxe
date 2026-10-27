@@ -97,6 +97,8 @@ type graph = {
 	nodes : (string,node) Hashtbl.t;
 	module_nodes : (path,node list) Hashtbl.t;
 	files : (string,file) Hashtbl.t;
+	(* the file of each module stored *)
+	module_files : (path,file) Hashtbl.t;
 	lookups : (path,lookup) Hashtbl.t;
 	mutable step : int;
 	(* the nodes assumed to keep their fingerprint in the current compilation,
@@ -166,6 +168,7 @@ let get sign =
 			nodes = Hashtbl.create 0;
 			module_nodes = Hashtbl.create 0;
 			files = Hashtbl.create 0;
+			module_files = Hashtbl.create 0;
 			lookups = Hashtbl.create 0;
 			step = -1;
 			assumptions = [];
@@ -277,6 +280,7 @@ let prepare_store com resolve decls_of is_typed =
 	let modules = Hashtbl.fold (fun path cl acc -> (com.module_lut#find path,cl) :: acc) typed [] in
 	DepRecord.last_typed := List.fold_left (fun acc (m,_) -> s_type_path m.m_path :: acc) !DepRecord.last_typed modules;
 	let t_fps = Timer.start_timer com.timer_ctx ["server";"query graph";"fingerprints"] in
+	List.iter (fun (m,_) -> TFingerprint.force_lazies m) modules;
 	(* the fingerprints of their nodes and declarations, in parallel: the
 	   types are only read once typing is done *)
 	let computed = Parallel.run_with_pool com.sctx.pool (fun pool ->
@@ -428,6 +432,7 @@ let prepare_store com resolve decls_of is_typed =
 		Hashtbl.replace g.module_nodes m.m_path !nodes;
 		let f = file g file_path in
 		f.f_module <- m.m_path;
+		Hashtbl.replace g.module_files m.m_path f;
 		f.f_time <- m.m_extra.m_time;
 		f.f_decls <- decls;
 		f.f_step <- -1
@@ -721,11 +726,58 @@ and declaration_changed v p =
 			| _ -> false
 		) edges
 
+(* A declaration that computation [p] read is gone (a field removed): what it
+   produces changes, it is not assumed to keep its fingerprint. *)
+and declaration_removed v p =
+	match p.n_edges with
+	| None -> false
+	| Some edges ->
+		Array.exists (function
+			| Leaf (f,key,a,_) when a <> no_fp && (String.ends_with ~suffix:"\tdecls" key || String.ends_with ~suffix:"\tdecl signature" key) ->
+				(match current_decls v f with Some h -> not (Hashtbl.mem h key) | None -> false)
+			| _ -> false
+		) edges
+
+(* A node that no computation produces (the header and the members of a type,
+   made from its declarations when its module is loaded): the declarations of
+   its type did not change, its positions in the file aside (lines added
+   before it). *)
+and untracked_unchanged v n =
+	(* [n_step] and [n_valid] memoize it: they are the ones of a computation otherwise *)
+	if n.n_step <> v.v_graph.step then begin
+		n.n_step <- v.v_graph.step;
+		n.n_valid <- untracked_decls_unchanged v n
+	end;
+	n.n_valid
+
+and untracked_decls_unchanged v n =
+	match Hashtbl.find_opt v.v_graph.module_files n.n_owner, String.index_opt n.n_key '\t' with
+	| Some f, Some i ->
+		let path = String.sub n.n_key 0 i in
+		let tname = match String.rindex_opt path '.' with Some j -> String.sub path (j + 1) (String.length path - j - 1) | None -> path in
+		begin match f.f_decls, current_decls v f with
+		| Some old, Some cur ->
+			let lt = String.length tname in
+			let relevant key =
+				String.length key > lt && String.sub key 0 lt = tname && (key.[lt] = '\t' || key.[lt] = '.')
+				&& not (String.ends_with ~suffix:"\tposition" key)
+			in
+			let included tbl tbl' = Hashtbl.fold (fun key fp ok -> ok && (not (relevant key) || Hashtbl.find_opt tbl' key = Some fp)) tbl true in
+			included old cur && included cur old
+		| _ ->
+			false
+		end
+	| _ ->
+		false
+
 (* Early cutoff: node [n] keeps fingerprint [seen] if its computation, which
    is not valid, computes the same value again when its module is typed
-   again. This is checked after typing ([check_assumptions]). *)
+   again; or, for a node without computation, if the declarations of its type
+   did not change. This is checked after typing ([check_assumptions]). *)
 and assume v n seen =
-	v.v_assume && (match n.n_by with Some p -> is_computation p && not (is_members n && declaration_changed v p) | None -> false) && begin
+	v.v_assume && (match n.n_by with
+		| Some p -> is_computation p && not (is_members n && declaration_changed v p) && not (declaration_removed v p)
+		| None -> seen <> None && untracked_unchanged v n) && begin
 		if trace then trace_line ("[graph] assumed unchanged: " ^ n.n_key);
 		v.v_graph.assumptions <- ANode (n,seen) :: v.v_graph.assumptions;
 		true

@@ -43,6 +43,8 @@ ap.add_argument("--port", default="7000")
 ap.add_argument("--errors", type=float, default=0.3, help="probability that an edit introduces an error")
 ap.add_argument("--mem", action="store_true", help="measure the memory kept alive by the server")
 ap.add_argument("--leak-mb", type=float, default=100, help="growth of the live memory reported as a leak")
+ap.add_argument("--ignore", default=None, help="regular expression of the lines of the messages not compared: console output of macros, which the server does not replay")
+ap.add_argument("--stop", action="store_true", help="stop at the first difference and leave the project as it is then")
 ap.add_argument("--haxe", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "haxe"))
 args = ap.parse_args()
 
@@ -162,7 +164,9 @@ def compare(label):
 		cold_args += ["-D", "typer-shuffle=%d" % random.randrange(1 << 30)]
 	crc, cout, _ = run([args.hxml] + cold_args)
 	cold_file = read_out()
-	same = rc == crc and out == cout and (rc != 0 or warm_file == cold_file)
+	def messages(s):
+		return s if args.ignore is None else "\n".join(l for l in s.split("\n") if not re.search(args.ignore, l))
+	same = rc == crc and messages(out) == messages(cout) and (rc != 0 or warm_file == cold_file)
 	mem = live_mb() if args.mem else -1
 	if mem >= 0 and rc == 0: live.append(mem)
 	# the server does not write an output that it believes unchanged: put its
@@ -193,12 +197,14 @@ try:
 		k += 1
 		same, rc = compare(m)
 		if not same: fails += 1
+		if not same and args.stop: break
 		if rc != 0:
 			# back to a compiling state
 			time.sleep(1.05)
 			open(last[0], "w").write(last[1])
 			same, rc = compare("undo")
 			if not same: fails += 1
+			if not same and args.stop: break
 	if args.mem and len(live) >= 6:
 		# the first compilations fill the caches
 		n = max(3, len(live) // 4)
@@ -208,6 +214,9 @@ try:
 finally:
 	server.kill()
 	server.wait()
-	subprocess.run(["git", "-C", D, "checkout", "-q", "--force", "HEAD"])
+	if fails and args.stop:
+		print("stopped at the first difference: the project is left as it was compiled", flush=True)
+	else:
+		subprocess.run(["git", "-C", D, "checkout", "-q", "--force", "HEAD"])
 print("fails", fails)
 sys.exit(1 if fails else 0)
