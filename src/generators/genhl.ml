@@ -3969,9 +3969,13 @@ let memo_same_meta l1 l2 =
 		| _ -> false
 	in
 	l1 == l2 || entries l1 l2 ||
-	(* the positions in the entries are not read by the generator *)
-	let fp l = TFingerprint.with_state ~positions:false (fun h -> TFingerprint.add_meta h l) in
-	fp l1 = fp l2
+	(* the positions in the entries are not read by the generator, nor an entry
+	   repeated: a macro adding metadata to a class of another module (domkit
+	   adds `@:uiComp` to the class of a component declaration) adds it again
+	   when it runs again on the cached class *)
+	let entry_fp e = TFingerprint.with_state ~positions:false (fun h -> TFingerprint.add_meta h [e]) in
+	let distinct l = List.rev (List.fold_left (fun acc e -> let fp = entry_fp e in if List.mem fp acc then acc else fp :: acc) [] l) in
+	distinct l1 = distinct l2
 
 let fp_types tl = TFingerprint.with_state ~positions:false (fun h -> List.iter (TFingerprint.add_type h) tl)
 
@@ -4076,7 +4080,12 @@ let same_struct prev items =
 			if not same then begin
 				if !memo_trace then begin
 					let rec path j = if j < 0 then "?" else match items.(j) with SValue v when Obj.is_block v && Obj.tag v = 0 && Obj.size v = 2 && (try ignore (s_type_path (Obj.obj v)); true with _ -> false) -> s_type_path (Obj.obj v) | _ -> path (j - 1) in
-					prerr_endline (Printf.sprintf "hl memo: declarations differ at %d (%s) near %s" i (match item with SPhys _ -> "object" | SValue _ -> "value" | SMeta _ -> "meta" | SFuzzy _ -> "fuzzy") (path i))
+					prerr_endline (Printf.sprintf "hl memo: declarations differ at %d (%s) near %s" i (match item with SPhys _ -> "object" | SValue _ -> "value" | SMeta _ -> "meta" | SFuzzy _ -> "fuzzy") (path i));
+					(match prev.m_struct.(i), item with
+					| SMeta a, SMeta b ->
+						let names l = String.concat " " (List.map (fun (m,_,_) -> Meta.to_string m) l) in
+						prerr_endline (Printf.sprintf "hl memo: metadata %s -> %s" (names a) (names b))
+					| _ -> ())
 				end;
 				raise Exit
 			end

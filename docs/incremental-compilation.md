@@ -3118,6 +3118,20 @@ Heaps (`-D apicheck`, cold, 4 cores): `generate;hl;functions` takes
 measurements above). A leaf edit in the server generates 3 classes, below the
 16 classes from which the generation goes parallel.
 
+**Status: metadata added again by macros.** The objects are kept only when
+the declarations are the same, metadata included: domkit adds `@:uiComp` to
+the class of a component declaration (`FlowComp implements
+ComponentDecl<h2d.Flow>` gives it to `h2d.Flow`) each time its build macro
+runs, so a class kept in the cache got the entry once more at every other
+compilation, and every class was generated again (the Heaps samples with
+domkit: 0.7–0.9 s of HL generation for a body edit, 0.19–0.22 s now). The
+metadata of the declarations is compared without its repeated entries
+(`memo_same_meta`); `-D hl-memo-trace` prints the metadata that differs.
+Still generated from scratch: any edit that changes the declarations (a field,
+a static or a method added, a signature changed), 0.7–0.9 s on these samples
+and probably most of the 2.1 s of SpaceCraft (whose fuzzing measured mostly
+such edits).
+
 ---
 
 ### Phase 11: cleanup
