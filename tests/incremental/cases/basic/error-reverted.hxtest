@@ -1,0 +1,59 @@
+# A compilation that fails after typing again the modules depending on a
+# changed one leaves them as they were: going back to the sources of the last
+# compilation that succeeded types nothing again.
+=== initial
+@expect-output 3
+--- Main.hx
+class Main {
+	static function main() {
+		trace(new User().total() + Other.get());
+	}
+}
+--- Base.hx
+class Base {
+	public var a = 1;
+	public function new() {}
+}
+--- User.hx
+class User extends Base {
+	public function total() return a + 1;
+}
+--- Other.hx
+class Other {
+	public static function get() return 0;
+}
+
+=== a field added to Base, an error elsewhere
+@expect-error String should be Int
+--- Base.hx
+class Base {
+	public var a = 1;
+	public var b = 2;
+	public function new() {}
+}
+--- Other.hx
+class Other {
+	public static function get():Int return "0";
+}
+
+=== back to the sources of the initial step
+@expect-output 3
+@expect-retyped
+--- Base.hx
+class Base {
+	public var a = 1;
+	public function new() {}
+}
+--- Other.hx
+class Other {
+	public static function get() return 0;
+}
+
+=== the field added again, without the error
+@expect-output 3
+--- Base.hx
+class Base {
+	public var a = 1;
+	public var b = 2;
+	public function new() {}
+}

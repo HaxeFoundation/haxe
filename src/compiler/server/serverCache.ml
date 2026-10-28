@@ -705,17 +705,21 @@ let cleanup sctx =
 	   back the state they had before (their validity, the mark of their check,
 	   whether they were post-processed, their dependencies): what it found
 	   invalid is checked again by the next compilation, where the error may be
-	   undone. A module whose objects it changed (typed again, grafted) cannot be
-	   reused. When the interpreter of the macros is not the one of the state
+	   undone. The modules it typed again (grafted) get the content of their
+	   objects back too (see [Graft.saved]); one whose objects could not be
+	   saved cannot be reused. When the interpreter of the macros is not the one of the state
 	   saved, what the expansions of the modules kept left in it is lost: they
 	   keep the state the compilation left. The state is saved after every
 	   request. *)
 	let touched = Graft.take_touched () in
 	let interp = Option.map Obj.repr !MacroContext.macro_interp_cache in
 	let same_interp = match interp, !state_interp with Some a, Some b -> a == b | None, None -> true | _ -> false in
+	(* the modules typed again whose objects got their content back (see
+	   [Graft.saved]) are reused as the others *)
+	let restored = if !request_failed then Graft.undo () else (Graft.forget (); Hashtbl.create 0) in
 	if !request_failed then
 		sctx.cs#iter_modules (fun m ->
-			if Hashtbl.mem touched m.m_id then begin
+			if Hashtbl.mem touched m.m_id && not (same_interp && Hashtbl.mem restored m.m_id) then begin
 				match m.m_extra.m_cache_state with
 				| MSBad _ -> ()
 				| MSGood | MSUnknown -> m.m_extra.m_cache_state <- MSBad (ReadChanged "typed by a compilation that failed")

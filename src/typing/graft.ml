@@ -52,6 +52,59 @@ let take_touched () =
 		t
 	)
 
+(* The objects of the previous versions of the modules grafted by the current
+   request, each with a copy of its content before the request, by module id:
+   a compilation that fails gives them their content back ([undo]), so that
+   these modules are reused as they were (a module whose objects could not be
+   listed is not there). *)
+let saved : (int,(EntityKey.t,Obj.t * Obj.t) Hashtbl.t) Hashtbl.t = Hashtbl.create 0
+(* the modules grafted by the request whose objects could not be listed *)
+let unsaved : (int,unit) Hashtbl.t = Hashtbl.create 0
+
+let entity_objects e = match e with
+	| EType (TClassDecl c) -> [Obj.repr c]
+	| EType (TEnumDecl en) -> [Obj.repr en]
+	| EType (TTypeDecl td) -> [Obj.repr td]
+	| EType (TAbstractDecl a) -> [Obj.repr a]
+	| EField(_,cf) | EAnonField(_,cf) -> [Obj.repr cf]
+	| EEnumField(_,ef) -> [Obj.repr ef]
+	| ETypeParam ttp -> [Obj.repr ttp; Obj.repr ttp.ttp_class]
+
+(* Saves the content of the objects of [m_old] not saved yet by the request. *)
+let save_objects m_old index =
+	let h = match Hashtbl.find_opt saved m_old.m_id with
+		| Some h -> h
+		| None -> let h = Hashtbl.create 0 in Hashtbl.add saved m_old.m_id h; h
+	in
+	Hashtbl.iter (fun key e ->
+		List.iteri (fun i o ->
+			let key = if i = 0 then key else { key with ek_name = key.ek_name ^ "#class" } in
+			match Hashtbl.find_opt h key with
+			| Some (o',_) when o' == o -> ()
+			| Some _ -> Hashtbl.replace h { key with ek_name = key.ek_name ^ "#" ^ string_of_int (Hashtbl.length h) } (o,Obj.dup o)
+			| None -> Hashtbl.add h key (o,Obj.dup o)
+		) (entity_objects e)
+	) index
+
+(* After a compilation that failed: the objects of the previous versions of
+   the modules grafted get their content back. Gives the ids of these modules. *)
+let undo () =
+	Mutex.protect mutex (fun () ->
+		let ids = Hashtbl.create 0 in
+		Hashtbl.iter (fun id h ->
+			Hashtbl.iter (fun _ (o,copy) ->
+				for i = 0 to Obj.size o - 1 do Obj.set_field o i (Obj.field copy i) done
+			) h;
+			Hashtbl.replace ids id ()
+		) saved;
+		Hashtbl.reset saved;
+		Hashtbl.reset unsaved;
+		ids
+	)
+
+(* After a compilation that succeeded: the previous versions are not needed. *)
+let forget () = Mutex.protect mutex (fun () -> Hashtbl.reset saved; Hashtbl.reset unsaved)
+
 (* Whether the modules typed again are grafted: not when the compilation is
    done again after an error through the module dependencies only (every
    module depending on a module typed again is typed again, nothing reused
@@ -60,7 +113,7 @@ let enabled = ref true
 
 let reset () =
 	enabled := true;
-	Mutex.protect mutex (fun () -> Hashtbl.reset grafts);
+	Mutex.protect mutex (fun () -> Hashtbl.reset grafts; Hashtbl.reset saved; Hashtbl.reset unsaved);
 	EntityKey.graft_reused := 0;
 	EntityKey.graft_created := 0
 
@@ -79,10 +132,23 @@ let begin_module com m =
 	match cc#find_module_opt m.m_path with
 	| Some m_old when m_old != m && !enabled ->
 		Mutex.protect mutex (fun () -> Hashtbl.replace touched m_old.m_id ());
+		(* their content before the request, post-processed (see [saved]), unless
+		   an attempt of the request grafted it already *)
+		let first = Mutex.protect mutex (fun () -> not (Hashtbl.mem saved m_old.m_id || Hashtbl.mem unsaved m_old.m_id)) in
+		let saved_before = first && Mutex.protect mutex (fun () ->
+			match EntityKey.index_module m_old with
+			| index -> save_objects m_old index; true
+			| exception Failure _ -> Hashtbl.replace unsaved m_old.m_id (); false
+		) in
 		(* Classes of the previous version may hold their post-processed
 		   (e.g. DCE-filtered) state: restore the typed one first. *)
 		List.iter (fun mt -> (t_infos mt).mt_restore ()) m_old.m_types;
 		let index = try Some (EntityKey.index_module m_old) with Failure _ -> None in
+		(* the fields that only the typed state has (removed by DCE) *)
+		if first then Mutex.protect mutex (fun () -> match index with
+			| Some index when saved_before -> save_objects m_old index
+			| _ -> Hashtbl.remove saved m_old.m_id; Hashtbl.replace unsaved m_old.m_id ()
+		);
 		Option.may (fun index ->
 			Mutex.protect mutex (fun () ->
 				Hashtbl.replace grafts m.m_id { index; reused = Hashtbl.create 0; overloads = Hashtbl.create 0; field_keys = []; old_bodies = [] }

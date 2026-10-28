@@ -2244,9 +2244,23 @@ also go through it, for edits of `h2d.Flow`). What changed:
   check, whether they were post-processed, their dependencies, which a failed
   compilation changes: a module found invalid sticks to it). After a failed
   compilation, the modules it did not type get it back: what it found invalid
-  is checked again by the next compilation, where the error may be undone. The
-  modules it typed with grafting (the first attempt, `Graft.touched`) stay
-  invalid. When the interpreter of the macros changed, what the expansions of
+  is checked again by the next compilation, where the error may be undone.
+- *The modules typed with grafting are restored.* Before the first attempt
+  grafts a module of the cache (`Graft.begin_module`), a shallow copy of every
+  object of its previous version (types, fields, enum constructors, fields of
+  structures, type parameters and their classes) is saved, before `mt_restore`:
+  the content the cache had after the previous request, post-processed. When
+  the compilation fails, the objects get that content back (`Graft.undo`) and
+  the modules get their state back as the others; a module whose objects could
+  not be listed (`EntityKey.index_module` failed) stays invalid
+  (`Graft.touched`). Unlike the copy made in `Graft.copy_into` tried before
+  (above), the copy is taken before the typed state is restored, and covers the
+  objects DCE removed (listed again after `mt_restore`). SpaceCraft, a field
+  added to `st.State` with an error in the same file, then the error undone:
+  going back to the sources of the last success types nothing (1.0 s, was 9.1 s,
+  same output); keeping the field types its dependents again from the restored
+  versions, with the output of a cold compilation. Test:
+  `tests/incremental/cases/basic/error-reverted.hxtest`. When the interpreter of the macros changed, what the expansions of
   the modules kept left in it is lost: they keep the state the compilation
   left (an error in the macro context no longer discards the interpreter: the
   types that failed are added again, see `EvalPrototype.add_types`).
