@@ -66,6 +66,8 @@ class BytesBuffer {
 		return untyped __dollar__ssize(StringBuf.__to_string(b));
 		#elseif java
 		return b.size();
+		#elseif flash
+		return b.length.toInt();
 		#else
 		return b.length;
 		#end
@@ -196,7 +198,7 @@ class BytesBuffer {
 			var str = StringBuf.__to_string(b);
 			var bytes = new Bytes(__dollar__ssize(str), str);
 			#elseif flash
-			var bytes = new Bytes(b.length, b);
+			var bytes = new Bytes(b.length.toInt(), b);
 			b.position = 0;
 			#elseif java
 			var buf = b.toByteArray();

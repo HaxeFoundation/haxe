@@ -42,6 +42,17 @@ class TestJs {
 	//Std.string(x);
 	//}
 
+	// Verify that Std.string(local:UInt32) uses the unsigned utoString logic
+	// (not the signed "" + v optimization, which would give wrong results for
+	// values >= 2^31). The utoString conditional is inlined from UInt32.toString().
+	@:js('var x = 10;var v = x;TestJs.use(v >= 0 ? Std.string(v) : Std.string(4294967296 + v));')
+	@:analyzer(no_const_propagation)
+	@:analyzer(no_copy_propagation)
+	static function testUInt32StdString() {
+		var x:haxe.UInt32 = 10;
+		use(Std.string(x));
+	}
+
 	@:js("var a = new haxe_ds_List();var _g_head = a.h;while(_g_head != null) _g_head = _g_head.next;")
 	static function testListIteratorInline() {
 		var a = new List();

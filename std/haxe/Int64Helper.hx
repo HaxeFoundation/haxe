@@ -34,9 +34,9 @@ class Int64Helper {
 		Create `Int64` from given string.
 	**/
 	public static function parseString(sParam:String):Int64 {
-		var base = Int64.ofInt(10);
-		var current = Int64.ofInt(0);
-		var multiplier = Int64.ofInt(1);
+		var base = Int64.fromInt(10);
+		var current = Int64.fromInt(0);
+		var multiplier = Int64.fromInt(1);
 		var sIsNegative = false;
 
 		var s = StringTools.trim(sParam);
@@ -54,15 +54,15 @@ class Int64Helper {
 			}
 
 			if (digitInt != 0) {
-				var digit:Int64 = Int64.ofInt(digitInt);
+				var digit:Int64 = Int64.fromInt(digitInt);
 				if (sIsNegative) {
 					current = Int64.sub(current, Int64.mul(multiplier, digit));
-					if (!Int64.isNeg(current)) {
+					if (!current.isNeg()) {
 						throw "NumberFormatError: Underflow";
 					}
 				} else {
 					current = Int64.add(current, Int64.mul(multiplier, digit));
-					if (Int64.isNeg(current)) {
+					if (current.isNeg()) {
 						throw "NumberFormatError: Overflow";
 					}
 				}
@@ -94,7 +94,7 @@ class Int64Helper {
 			throw "Conversion underflow";
 		}
 
-		var result = Int64.ofInt(0);
+		var result = Int64.fromInt(0);
 		var neg = noFractions < 0;
 		var rest = neg ? -noFractions : noFractions;
 
@@ -103,7 +103,7 @@ class Int64Helper {
 			var curr = rest % 2;
 			rest = rest / 2;
 			if (curr >= 1) {
-				result = Int64.add(result, Int64.shl(Int64.ofInt(1), i));
+				result = Int64.add(result, Int64.shl(Int64.fromInt(1), i));
 			}
 			i++;
 		}
@@ -119,12 +119,7 @@ class Int64Helper {
 
 		Loss of precision may occur for values whose magnitude exceeds 2^53.
 	**/
-	public static function toFloat(x:Int64):Float {
-		var high = x.high;
-		var low = x.low;
-		// `low` is treated as an unsigned 32-bit word; both terms are exactly
-		// representable as Float, so the single addition yields the correctly
-		// rounded result.
-		return high * 4294967296. + (low < 0 ? 4294967296. + low : low);
+	public static inline function toFloat(x:Int64):Float {
+		return x.toFloat();
 	}
 }

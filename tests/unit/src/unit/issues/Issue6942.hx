@@ -8,14 +8,9 @@ class Issue6942 extends unit.Test {
 		eq(1, -IntEnum);
 		eq(2, 1 - IntEnum);
 
-		//these targets have actual UInt type at runtime
-		#if flash
-		eq(-4294967295, -UIntEnum);
-		eq(2, 1 - UIntEnum);
-		#else
-		eq(1, -UIntEnum);
-		eq(2, 1 - UIntEnum);
-		#end
+		// With UInt32, negation via Int cast (two's complement)
+		eq(1, -(cast UIntEnum : Int));
+		eq(2, 1 - (cast UIntEnum : Int));
 
 		eq(1, -INT_INLINE);
 		eq(2, 1 - INT_INLINE);
@@ -37,6 +32,6 @@ enum abstract IntTest(Int) from Int to Int {
 	var IntEnum = -1;
 }
 
-enum abstract UIntTest(UInt) from UInt to UInt {
-	var UIntEnum = -1;
+enum abstract UIntTest(haxe.UInt32) from haxe.UInt32 to haxe.UInt32 {
+	var UIntEnum = cast 0xFFFFFFFF; // represents -1 in two's complement
 }

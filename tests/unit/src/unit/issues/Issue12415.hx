@@ -13,7 +13,7 @@ class Issue12415 extends Test {
 		eq(true, (cast value) == 0);
 
 		#if !flash
-		eq(true, haxe.Int64.isZero((null:Issue12415Abstract)));
+		eq(true, ((null:Issue12415Abstract) : haxe.Int64).isZero());
 		#end
 		#end
 	}

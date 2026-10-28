@@ -29,7 +29,7 @@ class ArrayObjIterator<T> extends ArrayIterator<T> {
 	var arr:ArrayObj<T>;
 
 	public inline function new(arr:ArrayObj<T>) {
-		super((null:Dynamic));
+		super((null : Dynamic));
 		this.arr = arr;
 	}
 
@@ -324,15 +324,15 @@ class ArrayObj<T> extends ArrayBase {
 	}
 
 	override function getDyn(pos:Int):Dynamic {
-		var pos:UInt = pos;
-		if (pos >= (length : UInt))
+		// var pos:haxe.UInt32 = pos;
+		if (pos >= (length : haxe.UInt32))
 			return null;
 		return array[pos];
 	}
 
 	override function setDyn(pos:Int, v:Dynamic) {
-		var pos:UInt = pos;
-		if (pos >= (length : UInt))
+		// var pos:haxe.UInt32 = pos;
+		if (pos >= (length : haxe.UInt32))
 			__expand(pos);
 		array[pos] = Api.safeCast(v, array.getType());
 	}

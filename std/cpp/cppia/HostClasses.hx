@@ -120,7 +120,7 @@ class HostClasses {
 		"haxe.NativeStackTrace",
 		"haxe.Resource",
 		"haxe.Utf8",
-		"haxe.Int64",
+		"haxe.numeric.Int64Native",
 		"haxe.Int32",
 		"haxe.Serializer",
 		"haxe.Unserializer",
@@ -173,17 +173,13 @@ class HostClasses {
 		externs.set("Sys", true);
 		externs.set("haxe.IMap", true);
 		externs.set("haxe.crypto.HashMethod", true);
-		externs.set("haxe._Int64.Int64_Impl_", true);
-		externs.set("haxe._Int64.___Int64", true);
-		externs.set("haxe._Int32.Int32_Impl_", true);
-		externs.set("haxe._Int32.___Int32", true);
 		// Hidden in implementation classes
 		// externs.set("sys.db.RecordType",true);
 		externs.set("sys.net._Socket.SocketInput", true);
 		externs.set("sys.net._Socket.SocketOutput", true);
 		externs.set("sys.ssl._Socket.SocketInput", true);
 		externs.set("sys.ssl._Socket.SocketOutput", true);
-		externs.set("sys.thread._Thread.HaxeThread",true);
+		externs.set("sys.thread._Thread.HaxeThread", true);
 		externs.set("haxe.ds.TreeNode", true);
 		externs.set("haxe.xml.XmlParserException", true);
 		for (e in classes)
@@ -229,8 +225,6 @@ class HostClasses {
 		Compiler.keep("haxe.crypto.HashMethod");
 		Compiler.keep("haxe._Int64.Int64_Impl_");
 		Compiler.keep("haxe._Int32.Int32_Impl_");
-		Compiler.keep("haxe._Int64.___Int64");
-		Compiler.keep("haxe._Int32.___Int32");
 		for (cls in classes) {
 			Context.getModule(cls);
 			Compiler.keep(cls);

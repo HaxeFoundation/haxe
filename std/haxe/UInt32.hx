@@ -22,303 +22,194 @@
 
 package haxe;
 
-#if ((flash || flash9doc || hl) && !doc_gen)
-/**
-	The unsigned `Int` type is only defined for Flash. It's currently
-	handled the same as a normal Int.
-
-	@see https://haxe.org/manual/types-basic-types.html
-**/
-@:coreType
-@:notNull
-@:runtimeValue
-@:analyzer(no_const_propagation)
-abstract UInt32 to Int from Int {
-	@:commutative @:op(A + B) private static function addI(lhs:UInt32, rhs:Int):UInt32;
-
-	@:commutative @:op(A + B) private static function addF(lhs:UInt32, rhs:Float):Float;
-
-	@:op(A + B) private static function add(lhs:UInt32, rhs:UInt32):UInt32;
-
-	@:commutative @:op(A * B) private static function mulI(lhs:UInt32, rhs:Int):UInt32;
-
-	@:commutative @:op(A * B) private static function mulF(lhs:UInt32, rhs:Float):Float;
-
-	@:op(A * B) private static function mul(lhs:UInt32, rhs:UInt32):UInt32;
-
-	@:op(A % B) private static function modI(lhs:UInt32, rhs:Int):UInt32;
-
-	@:op(A % B) private static function modF(lhs:UInt32, rhs:Float):Float;
-
-	@:op(A % B) private static function mod(lhs:UInt32, rhs:UInt32):UInt32;
-
-	@:op(A - B) private static function subI(lhs:UInt32, rhs:Int):UInt32;
-
-	@:op(A - B) private static function subF(lhs:UInt32, rhs:Float):Float;
-
-	@:op(A - B) private static function sub(lhs:UInt32, rhs:UInt32):UInt32;
-
-	@:op(A / B) private static function divI(lhs:UInt32, rhs:Int):Float;
-
-	@:op(A / B) private static function divF(lhs:UInt32, rhs:Float):Float;
-
-	@:op(A / B) private static function div(lhs:UInt32, rhs:UInt32):Float;
-
-	@:commutative @:op(A | B) private static function orI(lhs:UInt32, rhs:Int):UInt32;
-
-	@:op(A | B) private static function or(lhs:UInt32, rhs:UInt32):UInt32;
-
-	@:commutative @:op(A ^ B) private static function xorI(lhs:UInt32, rhs:Int):UInt32;
-
-	@:op(A ^ B) private static function xor(lhs:UInt32, rhs:UInt32):UInt32;
-
-	@:commutative @:op(A & B) private static function andI(lhs:UInt32, rhs:Int):UInt32;
-
-	@:op(A & B) private static function and(lhs:UInt32, rhs:UInt32):UInt32;
-
-	@:op(A << B) private static function shl(lhs:UInt32, rhs:Int):UInt32;
-
-	@:op(A >> B) private static inline function shr(lhs:UInt32, rhs:Int):UInt32
-		return lhs >>> rhs;
-
-	@:op(A >>> B) private static function ushr(lhs:UInt32, rhs:Int):UInt32;
-
-	@:op(A > B) private static function gt(lhs:UInt32, rhs:UInt32):Bool;
-
-	@:op(A >= B) private static function gte(lhs:UInt32, rhs:UInt32):Bool;
-
-	@:op(A < B) private static function lt(lhs:UInt32, rhs:UInt32):Bool;
-
-	@:op(A <= B) private static function lte(lhs:UInt32, rhs:UInt32):Bool;
-
-	@:op(A > B) private static function gtf(lhs:UInt32, rhs:Float):Bool;
-
-	@:op(A > B) private static function gtf2(lhs:Float, rhs:UInt32):Bool;
-
-	@:op(A >= B) private static function gtef(lhs:UInt32, rhs:Float):Bool;
-
-	@:op(A >= B) private static function gtef2(lhs:Float, rhs:UInt32):Bool;
-
-	@:op(A < B) private static function ltf(lhs:UInt32, rhs:Float):Bool;
-
-	@:op(A < B) private static function ltf2(lhs:Float, rhs:UInt32):Bool;
-
-	@:op(A <= B) private static function ltef(lhs:UInt32, rhs:Float):Bool;
-
-	@:op(A <= B) private static function ltef2(lhs:Float, rhs:UInt32):Bool;
-
-	@:op(~A) private static function bneg(t:UInt32):UInt32;
-
-	@:commutative @:op(A == B) private static function equalsInt<T:Int>(a:UInt32, b:T):Bool;
-
-	@:commutative @:op(A != B) private static function notEqualsInt<T:Int>(a:UInt32, b:T):Bool;
-
-	@:commutative @:op(A == B) private static function equalsFloat<T:Float>(a:UInt32, b:T):Bool;
-
-	@:commutative @:op(A != B) private static function notEqualsFloat<T:Float>(a:UInt32, b:T):Bool;
-
-	@:op(++A) private function prefixIncrement():UInt32;
-
-	@:op(A++) private function postfixIncrement():UInt32;
-
-	@:op(--A) private function prefixDecrement():UInt32;
-
-	@:op(A--) private function postfixDecrement():UInt32;
-}
-#else
+import haxe.numeric.Int32Native;
 
 /**
-	The unsigned `Int` type is only defined for Flash.
-	Simulate it for other platforms.
+	A cross-platform unsigned 32-bit integer type.
 
-	@see https://haxe.org/manual/types-basic-types.html
+	Built on top of `haxe.numeric.Int32Native`, sharing the same backing
+	representation as `haxe.Int32`. Arithmetic and bitwise operations are
+	identical at the bit level; operations that differ for unsigned interpretation
+	(comparison, division, modulo, right shift, `toString`) use unsigned-specific
+	implementations.
+
+	On targets where `Int` is natively 32-bit (C++, JVM, HashLink), no masking
+	overhead is incurred. On scripting targets, values are masked to 32 bits after
+	each operation that may overflow.
 **/
-@:transitive
-abstract UInt32(Int) from Int to Int {
-	@:op(A + B) private static inline function add(a:UInt32, b:UInt32):UInt32 {
-		return a.toInt() + b.toInt();
+abstract UInt32(Int32Native) from Int32Native to Int32Native {
+	private inline function new(x:Int32Native)
+		this = x;
+
+	/** The greatest representable UInt32 value: `2^32 - 1` (= `4294967295`). **/
+	public static final MAX:UInt32 = cast 0xFFFFFFFF;
+
+	/** The smallest representable UInt32 value: `0`. **/
+	public static final MIN:UInt32 = cast 0;
+
+	/**
+		Makes a copy of `this` UInt32.
+	**/
+	public inline function copy():UInt32
+		return new UInt32(this);
+
+	/**
+		Returns a UInt32 with the value of the Int `x`.
+		Only the low 32 bits of `x` are used (masking applied if necessary).
+	**/
+	@:from public static inline function fromInt(x:Int):UInt32
+		return new UInt32(Int32Native.clamp(x));
+
+	/** @deprecated Use `fromInt` instead. **/
+	@:deprecated("Use fromInt instead")
+	public static inline function ofInt(x:Int):UInt32
+		return fromInt(x);
+
+	/**
+		Returns the value of this UInt32 as an Int (same bit pattern,
+		may appear negative for values ≥ `2^31`).
+	**/
+	public inline function toInt():Int {
+		return ((this : Int32Native) : Int);
 	}
 
-	@:op(A / B) private static inline function div(a:UInt32, b:UInt32):Float {
-		return a.toFloat() / b.toFloat();
+	/**
+		Compare `a` and `b` in unsigned mode.
+		Returns a negative value if `a < b`, positive if `a > b`, or 0 if `a == b`.
+	**/
+	public static inline function compare(a:UInt32, b:UInt32):Int
+		return Int32Native.ucompare(a, b);
+
+	/**
+		Compare `a` and `b` in unsigned mode.
+	**/
+	public static inline function ucompare(a:UInt32, b:UInt32):Int
+		return Int32Native.ucompare(a, b);
+
+	/**
+		Returns `true` if `this` is zero (i.e. the minimum value).
+	**/
+	public inline function isZero():Bool {
+		return ((this : Int32Native) : Int) == 0;
 	}
 
-	@:op(A * B) private static inline function mul(a:UInt32, b:UInt32):UInt32 {
-		return a.toInt() * b.toInt();
+	/**
+		Returns an unsigned decimal String representation of this UInt32.
+	**/
+	public inline function toString():String
+		return Int32Native.utoString(this);
+
+	/**
+		Parses an unsigned decimal string into a `UInt32`.
+		Throws `NumberFormatError` on invalid input or out-of-range values.
+	**/
+	public static inline function parseString(sParam:String):UInt32
+		return new UInt32(Int32Native.uparseString(sParam));
+
+	/**
+		Converts a Float to UInt32.
+		The fractional part is truncated. Values outside [0, 2^32-1] result
+		in platform-dependent behavior.
+	**/
+	public static inline function fromFloat(f:Float):UInt32
+		return new UInt32(Int32Native.clamp(Std.int(f)));
+
+	/**
+		Converts this UInt32 to a Float.
+		All UInt32 values (including those above 2^31) are exactly representable.
+	**/
+	public inline function toFloat():Float
+		return Int32Native.utoFloat(this);
+
+	/**
+		Implicit conversion to Int32 (same bit pattern, same size).
+	**/
+	@:to private inline function toInt32():Int32
+		return cast this;
+
+	/**
+		Implicit widening conversion to UInt64 (zero-extended to 64 bits).
+	**/
+	@:to private inline function toUInt64():UInt64 {
+		return UInt64.make(0, this);
 	}
 
-	@:op(A - B) private static inline function sub(a:UInt32, b:UInt32):UInt32 {
-		return a.toInt() - b.toInt();
+	@:op(-A) private static inline function neg(x:UInt32):UInt32
+		return Int32Native.neg(x);
+
+	@:op(++A) private inline function preIncrement():UInt32 {
+		return this = Int32Native.add(this, 1);
 	}
 
-	@:op(A > B)
-	private static #if !js inline #end function gt(a:UInt32, b:UInt32):Bool {
-		var aNeg = a.toInt() < 0;
-		var bNeg = b.toInt() < 0;
-		return if (aNeg != bNeg) aNeg; else a.toInt() > b.toInt();
+	@:op(A++) private inline function postIncrement():UInt32 {
+		var ret = this;
+		this = Int32Native.add(this, 1);
+		return ret;
 	}
 
-	@:op(A >= B)
-	private static #if !js inline #end function gte(a:UInt32, b:UInt32):Bool {
-		var aNeg = a.toInt() < 0;
-		var bNeg = b.toInt() < 0;
-		return if (aNeg != bNeg) aNeg; else a.toInt() >= b.toInt();
+	@:op(--A) private inline function preDecrement():UInt32 {
+		return this = Int32Native.sub(this, 1);
 	}
 
-	@:op(A < B) private static inline function lt(a:UInt32, b:UInt32):Bool {
-		return gt(b, a);
+	@:op(A--) private inline function postDecrement():UInt32 {
+		var ret = this;
+		this = Int32Native.sub(this, 1);
+		return ret;
 	}
 
-	@:op(A <= B) private static inline function lte(a:UInt32, b:UInt32):Bool {
-		return gte(b, a);
+	@:op(A + B) private static inline function add(a:UInt32, b:UInt32):UInt32
+		return Int32Native.add(a, b);
+
+	@:op(A - B) private static inline function sub(a:UInt32, b:UInt32):UInt32
+		return Int32Native.sub(a, b);
+
+	@:op(A * B) private static inline function mul(a:UInt32, b:UInt32):UInt32
+		return Int32Native.mul(a, b);
+
+	@:op(A / B) private static inline function div(a:UInt32, b:UInt32):UInt32
+		return Int32Native.udivMod(a, b).quotient;
+
+	@:op(A % B) private static inline function mod(a:UInt32, b:UInt32):UInt32
+		return Int32Native.udivMod(a, b).modulus;
+
+	@:op(A == B) private static inline function eq(a:UInt32, b:UInt32):Bool {
+		return a.toInt() == b.toInt();
 	}
 
-	@:op(A & B) private static inline function and(a:UInt32, b:UInt32):UInt32 {
-		return a.toInt() & b.toInt();
+	@:op(A != B) private static inline function neq(a:UInt32, b:UInt32):Bool {
+		return a.toInt() != b.toInt();
 	}
 
-	@:op(A | B) private static inline function or(a:UInt32, b:UInt32):UInt32 {
-		return a.toInt() | b.toInt();
-	}
+	@:op(A < B) private static inline function lt(a:UInt32, b:UInt32):Bool
+		return Int32Native.ult(a, b);
 
-	@:op(A ^ B) private static inline function xor(a:UInt32, b:UInt32):UInt32 {
-		return a.toInt() ^ b.toInt();
-	}
+	@:op(A <= B) private static inline function lte(a:UInt32, b:UInt32):Bool
+		return Int32Native.ulte(a, b);
 
-	@:op(A << B) private static inline function shl(a:UInt32, b:Int):UInt32 {
-		return a.toInt() << b;
-	}
+	@:op(A > B) private static inline function gt(a:UInt32, b:UInt32):Bool
+		return Int32Native.ugt(a, b);
 
-	@:op(A >> B) private static inline function shr(a:UInt32, b:Int):UInt32 {
-		return a.toInt() >>> b;
-	}
+	@:op(A >= B) private static inline function gte(a:UInt32, b:UInt32):Bool
+		return Int32Native.ugte(a, b);
 
-	@:op(A >>> B) private static inline function ushr(a:UInt32, b:Int):UInt32 {
-		return a.toInt() >>> b;
-	}
+	@:op(~A) private static inline function complement(a:UInt32):UInt32
+		return Int32Native.complement(a);
 
-	@:op(A % B) private static inline function mod(a:UInt32, b:UInt32):UInt32 {
-		return Std.int(a.toFloat() % b.toFloat());
-	}
+	@:op(A & B) private static inline function and(a:UInt32, b:UInt32):UInt32
+		return Int32Native.and(a, b);
 
-	@:commutative @:op(A + B) private static inline function addWithFloat(a:UInt32, b:Float):Float {
-		return a.toFloat() + b;
-	}
+	@:op(A | B) private static inline function or(a:UInt32, b:UInt32):UInt32
+		return Int32Native.or(a, b);
 
-	@:commutative @:op(A * B) private static inline function mulWithFloat(a:UInt32, b:Float):Float {
-		return a.toFloat() * b;
-	}
+	@:op(A ^ B) private static inline function xor(a:UInt32, b:UInt32):UInt32
+		return Int32Native.xor(a, b);
 
-	@:op(A / B) private static inline function divFloat(a:UInt32, b:Float):Float {
-		return a.toFloat() / b;
-	}
+	@:op(A << B) private static inline function shl(a:UInt32, b:Int):UInt32
+		return Int32Native.shl(a, b);
 
-	@:op(A / B) private static inline function floatDiv(a:Float, b:UInt32):Float {
-		return a / b.toFloat();
-	}
+	@:op(A >> B) private static inline function shr(a:UInt32, b:Int):UInt32
+		return Int32Native.ushr(a, b);
 
-	@:op(A - B) private static inline function subFloat(a:UInt32, b:Float):Float {
-		return a.toFloat() - b;
-	}
-
-	@:op(A - B) private static inline function floatSub(a:Float, b:UInt32):Float {
-		return a - b.toFloat();
-	}
-
-	@:op(A > B) private static inline function gtFloat(a:UInt32, b:Float):Bool {
-		return a.toFloat() > b;
-	}
-
-	@:commutative @:op(A == B) private static inline function equalsInt<T:Int>(a:UInt32, b:T):Bool {
-		return a.toInt() == b;
-	}
-
-	@:commutative @:op(A != B) private static inline function notEqualsInt<T:Int>(a:UInt32, b:T):Bool {
-		return a.toInt() != b;
-	}
-
-	@:commutative @:op(A == B) private static inline function equalsFloat<T:Float>(a:UInt32, b:T):Bool {
-		return a.toFloat() == b;
-	}
-
-	@:commutative @:op(A != B) private static inline function notEqualsFloat<T:Float>(a:UInt32, b:T):Bool {
-		return a.toFloat() != b;
-	}
-
-	@:op(A >= B) private static inline function gteFloat(a:UInt32, b:Float):Bool {
-		return a.toFloat() >= b;
-	}
-
-	@:op(A > B) private static inline function floatGt(a:Float, b:UInt32):Bool {
-		return a > b.toFloat();
-	}
-
-	@:op(A >= B) private static inline function floatGte(a:Float, b:UInt32):Bool {
-		return a >= b.toFloat();
-	}
-
-	@:op(A < B) private static inline function ltFloat(a:UInt32, b:Float):Bool {
-		return a.toFloat() < b;
-	}
-
-	@:op(A <= B) private static inline function lteFloat(a:UInt32, b:Float):Bool {
-		return a.toFloat() <= b;
-	}
-
-	@:op(A < B) private static inline function floatLt(a:Float, b:UInt32):Bool {
-		return a < b.toFloat();
-	}
-
-	@:op(A <= B) private static inline function floatLte(a:Float, b:UInt32):Bool {
-		return a <= b.toFloat();
-	}
-
-	@:op(A % B) private static inline function modFloat(a:UInt32, b:Float):Float {
-		return a.toFloat() % b;
-	}
-
-	@:op(A % B) private static inline function floatMod(a:Float, b:UInt32):Float {
-		return a % b.toFloat();
-	}
-
-	@:op(~A) private inline function negBits():UInt32 {
-		return ~this;
-	}
-
-	@:op(++A) private inline function prefixIncrement():UInt32 {
-		return ++this;
-	}
-
-	@:op(A++) private inline function postfixIncrement():UInt32 {
-		return this++;
-	}
-
-	@:op(--A) private inline function prefixDecrement():UInt32 {
-		return --this;
-	}
-
-	@:op(A--) private inline function postfixDecrement():UInt32 {
-		return this--;
-	}
-
-	// TODO: radix is just defined to deal with doc_gen issues
-	private inline function toString(?radix:Int):String {
-		return Std.string(toFloat());
-	}
-
-	private inline function toInt():Int {
-		return this;
-	}
-
-	@:to private #if (!js || analyzer) inline #end function toFloat():Float {
-		var int = toInt();
-		if (int < 0) {
-			return 4294967296.0 + int;
-		} else {
-			// + 0.0 here to make sure we promote to Float on some platforms
-			// In particular, PHP was having issues when comparing to Int in the == op.
-			return int + 0.0;
-		}
-	}
+	@:op(A >>> B) private static inline function ushr(a:UInt32, b:Int):UInt32
+		return Int32Native.ushr(a, b);
 }
-#end
