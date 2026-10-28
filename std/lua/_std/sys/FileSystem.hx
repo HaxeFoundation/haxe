@@ -83,6 +83,7 @@ class FileSystem {
 			uid: l.uid,
 			rdev: l.rdev,
 			size: l.size,
+			size64: haxe.Int64.fromFloat(l.size),
 			nlink: l.nlink,
 			mtime: Date.fromTime(l.mtime.sec * 1000 + l.mtime.nsec / 1000000),
 			mode: l.mode,

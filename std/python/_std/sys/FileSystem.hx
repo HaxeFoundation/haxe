@@ -40,6 +40,7 @@ class FileSystem {
 			mtime: Date.fromTime(1000 * s.st_mtime),
 			ctime: Date.fromTime(1000 * s.st_ctime),
 			size: s.st_size,
+			size64: haxe.Int64.fromFloat(s.st_size),
 			dev: s.st_dev,
 			ino: s.st_ino,
 			nlink: s.st_nlink,

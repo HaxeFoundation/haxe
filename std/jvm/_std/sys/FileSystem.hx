@@ -44,6 +44,7 @@ class FileSystem {
 		try {
 			final pathObject = java.nio.file.Paths.get(path);
 			final attributes = java.nio.file.Files.readAttributes(pathObject, "unix:*");
+			final size:java.lang.Long = attributes.get("size");
 
 			return {
 				atime: Date.fromTime(cast(attributes.get("lastAccessTime").toMillis(), Float)),
@@ -55,7 +56,8 @@ class FileSystem {
 				mtime: Date.fromTime(cast(attributes.get("lastModifiedTime").toMillis(), Float)),
 				nlink: attributes.get("nlink"),
 				rdev: cast(attributes.get("rdev"), Int),
-				size: cast(attributes.get("size"), Int),
+				size: size.intValue(),
+				size64: size.longValue(),
 				uid: attributes.get("uid"),
 			};
 		} catch (e) {
@@ -65,7 +67,8 @@ class FileSystem {
 				atime: Date.now(), // same
 				mtime: Date.fromTime(cast(f.lastModified(), Float)),
 				ctime: Date.fromTime(cast(f.lastModified(), Float)), // same
-				size: cast(f.length(), Int), // TODO: maybe change to Int64 for Haxe 3?
+				size: cast(f.length(), Int),
+				size64: f.length(),
 				dev: 0, // FIXME: not sure what that is
 				ino: 0, // FIXME: not sure what that is
 				nlink: 0, // FIXME: not sure what that is

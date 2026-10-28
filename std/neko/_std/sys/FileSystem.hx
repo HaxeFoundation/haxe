@@ -43,6 +43,7 @@ class FileSystem {
 		s.atime = untyped Date.new1(s.atime);
 		s.mtime = untyped Date.new1(s.mtime);
 		s.ctime = untyped Date.new1(s.ctime);
+		s.size64 = haxe.Int64.ofInt(s.size);
 		return s;
 	}
 
