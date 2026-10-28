@@ -201,7 +201,7 @@ class Timer {
 		#if (python_version >= 3.7)
 		return python.lib.Time.perf_counter_ns() / 1000000i64;
 		#else
-		return Std.int(stamp() * 1000);
+		return Int64.fromFloat(stamp() * 1000);
 		#end
 		#elseif (hl && hl_ver >= version("1.16.0") && !hl_legacy32)
 		return hl.Api.timestampMs();
