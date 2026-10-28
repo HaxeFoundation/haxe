@@ -552,7 +552,7 @@ class RunIncremental {
 		if (fp != null)
 			return fp;
 		for (k => v in m)
-			if (k.endsWith("/" + key + "\t" + node))
+			if (k.endsWith("/" + key + "\t" + node) || k.endsWith("\\" + key + "\t" + node))
 				return v;
 		return null;
 	}
@@ -650,11 +650,16 @@ class RunIncremental {
 		return l;
 	}
 
+	static function withoutDir(s:String, dir:String) {
+		return s.split(dir).join("<dir>").split(dir.split("/").join("\\")).join("<dir>");
+	}
+
 	public static function compare(warm:CompileResult, cold:CompileResult, warmDir:String, coldDir:String):Array<String> {
 		var errors = [];
 		if (warm.code != cold.code)
 			errors.push('exit code differs: warm ${warm.code}, cold ${cold.code}');
-		var wl = lines(warm.out), cl = lines(cold.out);
+		// the paths of the files of the case in the messages, with either separator (Windows)
+		var wl = lines(withoutDir(warm.out, warmDir)), cl = lines(withoutDir(cold.out, coldDir));
 		if (wl.join("\n") != cl.join("\n"))
 			errors.push('compiler output differs\n' + diff(cl, wl));
 		if (warm.run != cold.run)
