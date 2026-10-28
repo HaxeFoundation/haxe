@@ -70,6 +70,20 @@ private class NothrowCoroutines {
 	}
 }
 
+private class HoistedNames {
+	// `result` clashes with an inherited field, the inner `total` with the outer one.
+	@:coroutine public static function run(sus:Suspender<haxe.Unit>, count:Int, result:String) {
+		var total = count;
+		{
+			var total = "shadow";
+			sus.suspend();
+			total += "ed";
+		}
+		sus.suspend();
+		return '$result $total';
+	}
+}
+
 private class SimpleCont<T> implements IContinuation<T> {
 	public var context(get, never):Context;
 
@@ -395,6 +409,20 @@ class TestCoroutines extends Test {
 		sus.cont.resume(null, null);
 		t(resumed); // now resumed
 		eq(null, cont.lastError);
+	}
+
+	// Hoisted fields are named after their variables so that debuggers show recognizable names.
+	function testHoistedFieldNames() {
+		final sus = new Suspender<haxe.Unit>();
+		final cont = new TrackingCont<String>();
+		HoistedNames.run(cont, sus, 3, "result");
+		final fields = Type.getInstanceFields(Type.getClass(sus.cont));
+		for (name in ["sus", "count", "result1", "total", "total1"]) {
+			t(fields.contains(name));
+		}
+		sus.cont.resume(null, null);
+		sus.cont.resume(null, null);
+		eq("result 3", cont.lastResult);
 	}
 
 	// Regression test for hxcoro#95: overriding a coroutine method used to cause infinite

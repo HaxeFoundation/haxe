@@ -92,16 +92,50 @@ let handle_locals ctx cls params states tf_args econtinuation =
 			false
 	in
 
+	(* Hoisted fields are named after their variable so that debuggers show recognizable names.
+	   Generated variables get the same "_g" prefix that renameVars gives them, and a numeric suffix
+	   avoids clashes with other hoisted fields (e.g. from shadowed variables) and inherited fields. *)
+	let used_field_names = Hashtbl.create 0 in
+	(* Added to the class later, see Coro.create_continuation_class. *)
+	Hashtbl.replace used_field_names "_hx_captured" ();
+	let rec is_inherited_field c name =
+		PMap.mem name c.cl_fields || match c.cl_super with
+			| Some (csup, _) -> is_inherited_field csup name
+			| None -> false
+	in
+	let field_name_of_var v =
+		let base =
+			if String.length v.v_name > 0 && String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0 then
+				"_g" ^ String.sub v.v_name 1 (String.length v.v_name - 1)
+			else
+				v.v_name
+		in
+		let is_taken name = Hashtbl.mem used_field_names name || is_inherited_field cls name in
+		let rec loop count =
+			let name = base ^ string_of_int count in
+			if is_taken name then loop (count + 1) else name
+		in
+		let name = if is_taken base then loop 1 else base in
+		Hashtbl.replace used_field_names name ();
+		name
+	in
+	let add_field v =
+		if not (Hashtbl.mem fields v.v_id) then
+			Hashtbl.replace fields v.v_id (mk_field (field_name_of_var v) v.v_type v.v_pos v.v_pos)
+	in
+	(* The restored locals keep the name and kind of their variable, which makes them show up in debuggers. *)
+	let alloc_restored_var v =
+		alloc_var v.v_kind v.v_name v.v_type v.v_pos
+	in
+
 	let force_hoisted_ids = Hashtbl.create 0 in
 	List.iter (fun (v, _) ->
 		begin
-			let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type v.v_pos v.v_pos in
-
-			Hashtbl.replace fields v.v_id field;
+			add_field v;
 			(* Create a fresh restored var rather than reusing the original argument variable.
 			   This prevents the same v_id appearing as both an outer function parameter and
 			   a TVar declaration inside the state machine body (which confuses renameVars). *)
-			let restored_var = alloc_var VGenerated (Printf.sprintf "_hx_restored%i" v.v_id) v.v_type v.v_pos in
+			let restored_var = alloc_restored_var v in
 			Hashtbl.replace fst_state.cs_mapped_local v.v_id restored_var;
 			Hashtbl.replace force_hoisted_ids v.v_id ();
 		end) tf_args;
@@ -112,7 +146,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 			match Hashtbl.find_opt state.cs_mapped_local v.v_id with
 			| Some v -> v
 			| None ->
-				let new_v = alloc_var VGenerated (Printf.sprintf "_hx_restored%i" v.v_id) v.v_type v.v_pos in
+				let new_v = alloc_restored_var v in
 				Hashtbl.replace state.cs_mapped_local v.v_id new_v;
 				new_v
 		in
@@ -123,9 +157,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 				if Option.is_some eo then
 					state.cs_writes <- IntSet.add v.v_id state.cs_writes;
 
-				let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type v.v_pos v.v_pos in
-
-				Hashtbl.replace fields v.v_id field;
+				add_field v;
 				Hashtbl.replace state.cs_mapped_local v.v_id v;
 
 				{ e with eexpr = TVar (v, Option.map mapper eo) }
@@ -204,7 +236,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 		states;
 
 	fields
-	|> Hashtbl.to_seq_values
+	|> Hashtbl.to_seq
 	|> List.of_seq
 
 (* These fields only exist when BaseContinuation is compiled with coro.stack-traces, which may
