@@ -288,7 +288,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	if not ctx.typer.com.debug then
 		check_assertions ctx.config.assert_config num_states (List.length fields) coro_class.name_pos;
 	(* update cf_type to use inside type parameters *)
-	List.iter (fun cf ->
+	List.iter (fun (_, cf) ->
 		cf.cf_type <- substitute_type_params coro_class.type_param_subst cf.cf_type;
 		TClass.add_field coro_class.cls cf
 	) fields;
@@ -315,8 +315,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 	   into continuation fields.  These become constructor parameters for both the inline
 	   and thunk paths, so the constructor can assign them in one place. *)
 	let hoisted_args = List.filter_map (fun (v, _) ->
-		let field_name = Printf.sprintf "_hx_hoisted%i" v.v_id in
-		match (try Some (PMap.find field_name coro_class.ContinuationClassBuilder.cls.cl_fields) with Not_found -> None) with
+		match List.assoc_opt v.v_id fields with
 		| Some field -> Some (v.v_name, b#local v v.v_pos, field)
 		| None -> None
 	) args in
