@@ -96,6 +96,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 	   Generated variables get the same "_g" prefix that renameVars gives them, and a numeric suffix
 	   avoids clashes with other hoisted fields (e.g. from shadowed variables) and inherited fields. *)
 	let used_field_names = Hashtbl.create 0 in
+	let next_field_suffix = Hashtbl.create 0 in
 	(* Added to the class later, see Coro.create_continuation_class. *)
 	Hashtbl.replace used_field_names "_hx_captured" ();
 	let rec is_inherited_field c name =
@@ -111,11 +112,16 @@ let handle_locals ctx cls params states tf_args econtinuation =
 				v.v_name
 		in
 		let is_taken name = Hashtbl.mem used_field_names name || is_inherited_field cls name in
+		(* Continue counting where the previous clash on this base name stopped. Generated variables
+		   all share the base name _g, so starting at 1 every time would be quadratic. *)
 		let rec loop count =
 			let name = base ^ string_of_int count in
-			if is_taken name then loop (count + 1) else name
+			if is_taken name then loop (count + 1) else begin
+				Hashtbl.replace next_field_suffix base (count + 1);
+				name
+			end
 		in
-		let name = if is_taken base then loop 1 else base in
+		let name = if is_taken base then loop (try Hashtbl.find next_field_suffix base with Not_found -> 1) else base in
 		Hashtbl.replace used_field_names name ();
 		name
 	in
@@ -123,9 +129,11 @@ let handle_locals ctx cls params states tf_args econtinuation =
 		if not (Hashtbl.mem fields v.v_id) then
 			Hashtbl.replace fields v.v_id (mk_field (field_name_of_var v) v.v_type v.v_pos v.v_pos)
 	in
-	(* The restored locals keep the name and kind of their variable, which makes them show up in debuggers. *)
+	(* The restored locals keep the name of their variable. With -debug they also keep its kind, which makes
+	   them show up in debuggers. Otherwise they stay generated, so the analyzer can still fuse them. *)
 	let alloc_restored_var v =
-		alloc_var v.v_kind v.v_name v.v_type v.v_pos
+		let kind = if ctx.typer.com.debug then v.v_kind else VGenerated in
+		alloc_var kind v.v_name v.v_type v.v_pos
 	in
 
 	let force_hoisted_ids = Hashtbl.create 0 in
