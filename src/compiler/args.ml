@@ -96,6 +96,19 @@ let adv_args_descriptions = [
 	("Compilation",           ["-w"],                  [],                 Arg.Unit ignore, "<warning list>",     "enable or disable specific warnings");
 ]
 
+(** Expand [%VAR%] environment variable references in compiler arguments.
+    The [--display] argument is left alone, and so is everything after
+    [--run <module>] because those are runtime arguments for the program. *)
+let rec expand_env_args = function
+	| [] ->
+		[]
+	| "--display" :: arg :: rest ->
+		"--display" :: arg :: expand_env_args rest
+	| "--run" :: cl :: rest ->
+		"--run" :: Helper.expand_env cl :: rest
+	| arg :: rest ->
+		Helper.expand_env arg :: expand_env_args rest
+
 (** Pre-parse a flat string list into a [parsed_arg list].
     This does NOT expand hxml files (they become [HxmlFile] markers) and does
     NOT call out to haxelib (libraries become [AddLib] markers). Both are
@@ -253,16 +266,7 @@ let parse_args args =
 					add (IncludeModule arg)));
 			loop rest
 	in
-	let rec hack_loop acc args = match args with
-		| "--run" :: _ ->
-			(List.rev acc) @ args
-		| [] ->
-			List.rev acc
-		| arg :: args ->
-			hack_loop (Helper.expand_env arg :: acc) args
-	in
-	let args = hack_loop [] args in (* TODO: test this *)
-	loop args;
+	loop (expand_env_args args);
 	DynArray.to_list parsed
 
 (** Apply a single-part [parsed_arg list] to [com], returning the populated

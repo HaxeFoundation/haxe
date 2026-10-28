@@ -1,0 +1,4 @@
+-D path_define=%PATH%
+-D unknown_define=%HAXE_ISSUE_13035_UNDEFINED%
+--run Main
+%PATH%
