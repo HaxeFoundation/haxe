@@ -22,15 +22,25 @@
 
 import hl.Ref;
 
+#if (hl_ver >= version("2.0.0"))
+private typedef DateT = Float; // milliseconds since epoch
+#else
+private typedef DateT = Int; // seconds since epoch, read as unsigned
+#end
+
 @:coreApi final class Date {
-	private var t:Int;
+	private var t:DateT;
 
 	public function new(year:Int, month:Int, day:Int, hour:Int, min:Int, sec:Int):Void {
 		t = date_new(year, month, day, hour, min, sec);
 	}
 
 	public function getTime():Float {
+		#if (hl_ver >= version("2.0.0"))
+		return t;
+		#else
 		return date_get_time(t);
+		#end
 	}
 
 	public function getFullYear():Int {
@@ -125,7 +135,11 @@ import hl.Ref;
 		var m = 0;
 		var s = 0;
 		date_get_utc_inf(t, y, mo, d, h, m, s, null);
+		#if (hl_ver >= version("2.0.0"))
+		return Std.int((date_new(y, mo, d, h, m, s) - Math.ffloor(t / 1000) * 1000) / 60000);
+		#else
 		return Std.int((date_new(y, mo, d, h, m, s) - t) / 60);
+		#end
 	}
 
 	@:keep public function toString():String {
@@ -141,14 +155,22 @@ import hl.Ref;
 	}
 
 	static function fromInt(t:Int):Date {
+		#if (hl_ver >= version("2.0.0"))
+		return fromTime((t : haxe.UInt32) * 1000.);
+		#else
 		var d:Date = untyped $new(Date);
 		d.t = t;
 		return d;
+		#end
 	}
 
 	public static function fromTime(t:Float):Date {
 		var d:Date = untyped $new(Date);
+		#if (hl_ver >= version("2.0.0"))
+		d.t = t;
+		#else
 		d.t = date_from_time(t);
+		#end
 		return d;
 	}
 
@@ -158,23 +180,19 @@ import hl.Ref;
 		return d;
 	}
 
-	@:hlNative
-	static function date_new(year:Int, month:Int, day:Int, hours:Int, minutes:Int, seconds:Int):Int {
+	#if (hl_ver >= version("2.0.0")) @:hlNative("std", "date_new2") #else @:hlNative #end
+	static function date_new(year:Int, month:Int, day:Int, hours:Int, minutes:Int, seconds:Int):DateT {
 		return 0;
 	}
 
-	@:hlNative
-	static function date_now():Int {
+	#if (hl_ver >= version("2.0.0")) @:hlNative("std", "date_now2") #else @:hlNative #end
+	static function date_now():DateT {
 		return 0;
 	}
 
+	#if (hl_ver < version("2.0.0"))
 	@:hlNative
 	static function date_from_time(t:Float):Int {
-		return 0;
-	}
-
-	@:hlNative
-	static function date_from_string(b:hl.Bytes, len:Int):Int {
 		return 0;
 	}
 
@@ -182,15 +200,21 @@ import hl.Ref;
 	static function date_get_time(t:Int):Float {
 		return 0.;
 	}
+	#end
 
-	@:hlNative
-	static function date_get_inf(t:Int, year:Ref<Int>, month:Ref<Int>, day:Ref<Int>, hours:Ref<Int>, minutes:Ref<Int>, seconds:Ref<Int>, wday:Ref<Int>):Void {}
+	#if (hl_ver >= version("2.0.0")) @:hlNative("std", "date_from_string2") #else @:hlNative #end
+	static function date_from_string(b:hl.Bytes, len:Int):DateT {
+		return 0;
+	}
 
-	@:hlNative(1.11)
-	static function date_get_utc_inf(t:Int, year:Ref<Int>, month:Ref<Int>, day:Ref<Int>, hours:Ref<Int>, minutes:Ref<Int>, seconds:Ref<Int>, wday:Ref<Int>):Void {}
+	#if (hl_ver >= version("2.0.0")) @:hlNative("std", "date_get_inf2") #else @:hlNative #end
+	static function date_get_inf(t:DateT, year:Ref<Int>, month:Ref<Int>, day:Ref<Int>, hours:Ref<Int>, minutes:Ref<Int>, seconds:Ref<Int>, wday:Ref<Int>):Void {}
 
-	@:hlNative
-	static function date_to_string(t:Int, outLen:Ref<Int>):hl.Bytes {
+	#if (hl_ver >= version("2.0.0")) @:hlNative("std", "date_get_utc_inf2") #else @:hlNative(1.11) #end
+	static function date_get_utc_inf(t:DateT, year:Ref<Int>, month:Ref<Int>, day:Ref<Int>, hours:Ref<Int>, minutes:Ref<Int>, seconds:Ref<Int>, wday:Ref<Int>):Void {}
+
+	#if (hl_ver >= version("2.0.0")) @:hlNative("std", "date_to_string2") #else @:hlNative #end
+	static function date_to_string(t:DateT, outLen:Ref<Int>):hl.Bytes {
 		return null;
 	}
 }
