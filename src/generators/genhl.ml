@@ -86,7 +86,6 @@ type method_context = {
 	mutable massign : lassign list;
 	(* lookup into massign by variable id, so we can set the scope end when the block closes *)
 	mvar_assigns : (int, lassign) Hashtbl.t;
-	(* the names of the local functions of the method (see local_function_names) *)
 	mutable mlocal : string;
 	mutable mlnames : (texpr * string) list;
 	mutable mlcount : (string, int) Hashtbl.t;
@@ -149,6 +148,7 @@ type context = {
 	cfids : (string * path, string * path) lookup;
 	cconstants : (constval, (global * int array)) lookup;
 	hl_ver : string;
+	hl2 : bool;
 	optimize : bool;
 	w_null_compare : bool;
 	overrides : (string * path, bool) Hashtbl.t;
@@ -430,11 +430,6 @@ let method_context id t captured hasthis =
 		mlcount = Hashtbl.create 0;
 	}
 
-(* The names of the local functions of a method body: the variable, field or
-   function that receives them. The hot reload of HL 2.0 identifies a local
-   function by the name of its path in its method (with the rank of the
-   functions of the same path), so that adding one does not change which body
-   the live closures of the others run. *)
 let local_function_names e =
 	let names = ref [] in
 	let rec strip e = match e.eexpr with
@@ -1106,8 +1101,7 @@ and enum_type_locked tref ctx e key_path =
 			) in
 			(f.ef_name, alloc_string ctx f.ef_name, args)
 		) e.e_names);
-		(* the hot reload of HL 2.0 matches the parameters of a constructor by name *)
-		if compare_version ctx.hl_ver "2.0.0" >= 0 then
+		if ctx.hl2 then
 			et.eparams <- Array.of_list (List.map (fun f ->
 				match (PMap.find f e.e_constrs).ef_type with
 				| TFun (args,_) -> Array.of_list (List.map (fun (n,_,_) -> alloc_string ctx n) args)
@@ -3688,14 +3682,13 @@ and make_fun ?gen_content ?lname ctx name fidx f cthis cparent =
 	) in
 
 	ctx.m <- method_context fidx (to_type ctx f.tf_type) capt (cthis <> None);
-	let hot_names = compare_version ctx.hl_ver "2.0.0" >= 0 in
 	(match lname with
 	| Some n ->
 		ctx.m.mlocal <- n;
 		ctx.m.mlnames <- old.mlnames;
 		ctx.m.mlcount <- old.mlcount
 	| None ->
-		if hot_names then ctx.m.mlnames <- local_function_names f.tf_expr);
+		if ctx.hl2 then ctx.m.mlnames <- local_function_names f.tf_expr);
 
 	set_curpos ctx f.tf_expr.epos;
 
@@ -3849,7 +3842,7 @@ and make_fun ?gen_content ?lname ctx name fidx f cthis cparent =
 		debug = make_debug ctx ctx.m.mdebug;
 		assigns = make_assigns ~sorted:true ctx.m.massign;
 		need_opt = (gen_content = None || name <> ("",""));
-		flocal = (match lname with Some n when hot_names -> alloc_string ctx n | _ -> -1);
+		flocal = (match lname with Some n when ctx.hl2 -> alloc_string ctx n | _ -> -1);
 	} in
 	ctx.m <- old;
 	DynArray.add ctx.cur.g_funs hlf;
@@ -4784,7 +4777,7 @@ let link ctx objects enum_objects entry =
 	let gnames = Array.make (DynArray.length gorder) "" in
 	Hashtbl.iter (fun name g -> if gmap.(g) >= 0 then gnames.(gmap.(g)) <- name) ctx.cglobals.map;
 	let code = {
-		version = if compare_version ctx.hl_ver "2.0.0" >= 0 then 7 else if Array.length bytes = 0 then 4 else 5;
+		version = if ctx.hl2 then 7 else if Array.length bytes = 0 then 4 else 5;
 		entrypoint = fidmap.(entry);
 		strings = table sorder (DynArray.get ctx.cstrings.arr);
 		bytes = bytes;
@@ -4802,10 +4795,9 @@ let link ctx objects enum_objects entry =
 	} in
 	code, gnames
 
-(* What the entry point runs after the types are initialized, in order. *)
 type init_item =
-	| IClassInit of tclass * texpr (* __init__ *)
-	| IStatic of tclass * tclass_field * texpr (* the assignment of its initial value *)
+	| IClassInit of tclass * texpr
+	| IStatic of tclass * tclass_field * texpr
 	| IMain of texpr
 
 let generate_static_content ctx types f items =
@@ -4998,22 +4990,13 @@ let generate_static_content ctx types f items =
 
 	) types;
 
-	if compare_version ctx.hl_ver "2.0.0" < 0 || Path.file_extension ctx.com.file = "c" then begin
-		(* before HL 2.0, and with HL/C, no hot reload of the statics : they are initialized only when the program starts *)
+	if not ctx.hl2 || Path.file_extension ctx.com.file = "c" then begin
 		let j = jump ctx (fun d -> OJTrue (is_init,d)) in
 		op ctx (ORet (alloc_tmp ctx HVoid));
 		j();
 		free ctx is_init;
 		ignore(eval_expr ctx f.tf_expr);
 	end else begin
-		(*
-			The entry point runs again after a hot reload (is_init is then false) : it initializes the
-			statics the reload added, either in a new class or in an existing one, and the __init__ of
-			the new classes. The static finals are set again by every reload : they are constants of
-			the code (a shader source for example). The VM tells which ones by words of 32 bits, bit k of word w being the own
-			field w * 32 + k of the class object, word -1 telling whether the class is new. When the
-			program starts, every bit is set and the VM is not called.
-		*)
 		let native = lookup ctx.cnatives ("$hot_init_bits@?std", -1) (fun() ->
 			let fid = alloc_fun_path ctx ([],"std") "hot_init_bits" in
 			(alloc_string ctx "?std", alloc_string ctx "hot_init_bits", HFun ([HType;HI32],HI32), fid)
@@ -5043,7 +5026,6 @@ let generate_static_content ctx types f items =
 			f();
 			j()
 		in
-		(* the bits of the statics are loaded once per class and per word *)
 		let cur_class = ref None and words = ref [] in
 		let flush() =
 			List.iter (fun (_,r) -> free ctx r) !words;
@@ -5071,7 +5053,6 @@ let generate_static_content ctx types f items =
 			| IClassInit (c,e) ->
 				guard (bits c (-1)) (-1l) (fun() -> ignore(eval_expr ctx e))
 			| IStatic (_,cf,e) when has_meta Meta.HotReload cf.cf_meta ->
-				(* @:hotReload : a value of the code (a shader source), set again by every reload *)
 				ignore(eval_expr ctx e)
 			| IStatic (c,cf,e) ->
 				(match field_index c cf with
@@ -5537,6 +5518,7 @@ let create_context ?prev ?(quiet=false) com overrides =
 		{ prev with
 			com = com;
 			hl_ver = hl_ver;
+			hl2 = compare_version hl_ver "2.0.0" >= 0;
 			optimize = not (Gctx.raw_defined com "hl_no_opt");
 			w_null_compare = Gctx.raw_defined com "hl_w_null_compare";
 			overrides = overrides;
@@ -5560,6 +5542,7 @@ let create_context ?prev ?(quiet=false) com overrides =
 	let ctx = {
 		com = com;
 		hl_ver = hl_ver;
+		hl2 = compare_version hl_ver "2.0.0" >= 0;
 		optimize = not (Gctx.raw_defined com "hl_no_opt");
 		w_null_compare = Gctx.raw_defined com "hl_w_null_compare";
 		m = method_context 0 HVoid null_capture false;
@@ -5942,11 +5925,6 @@ let make_context_sign com =
 
 let prev_sign = ref "" and prev_data = ref ""
 
-(* From bytecode 7, a header follows "HLB" and the version: the length of the
-   file (u32) and an id of the build (the digest of the rest), so that a VM
-   that watches the file for a hot reload tells a file still being written
-   (shorter than its length) and a file with the same code (same id) without
-   reading it all. *)
 let header_size = 4 + 16
 
 let write_bytecode com code =

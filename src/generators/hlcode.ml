@@ -71,7 +71,6 @@ and enum_proto = {
 	eid : int;
 	mutable eglobal : int option;
 	mutable efields : (string * string index * ttype array) array;
-	(* the names of the parameters of each constructor, from HL 2.0 (empty before) *)
 	mutable eparams : string index array array;
 }
 
@@ -224,7 +223,6 @@ type fundecl = {
 	debug : (int * int * Globals.pos) array;
 	assigns : (string index * int * int) array;
 	need_opt : bool;
-	(* the name of a local function in its method, from HL 2.0 (-1 if none) *)
 	flocal : string index;
 }
 

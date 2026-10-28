@@ -78,8 +78,6 @@ class Type {
 	@:keep static function initEnum(et:hl.Type, t:hl.Type):hl.BaseType.Enum@:privateAccess {
 		var e:hl.BaseType.Enum = cast t.getGlobal();
 		if( e != null ) {
-			// the entry point runs again after a hot reload : the constructors may have changed
-			// (the VM upgraded the live values and __evalues__)
 			var cl = t.getEnumFields();
 			var same = cl.length == e.__constructs__.length;
 			for (i in 0...cl.length)

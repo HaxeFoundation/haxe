@@ -113,10 +113,6 @@ class EnumValueMap<K:EnumValue, V> extends haxe.ds.BalancedTree<K, V> implements
 	}
 
 	#if hl
-	/**
-		Called by the hot reload of HashLink when it upgraded live values : the constructors of an
-		enum can have other indexes, the tree is sorted again.
-	**/
 	@:ifFeature("haxe.ds.EnumValueMap.*") function onHotReload() {
 		var nodes = [];
 		function collect(n:haxe.ds.BalancedTree.TreeNode<K, V>) {
