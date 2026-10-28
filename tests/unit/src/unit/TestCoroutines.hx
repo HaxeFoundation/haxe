@@ -208,6 +208,23 @@ private abstract CoroAbstract(Int) {
 		return this;
 }
 
+// Abstract type with a @:coroutine method that uses `this` across a suspension point, so
+// `this` is hoisted into a field of the continuation class (#13091).
+private abstract HoistedThisAbstract(Array<Int>) {
+	public function new() {
+		this = [];
+	}
+
+	@:coroutine public function pushSuspended(sus:AlwaysSuspender<Int>):Int {
+		final v = sus.suspend();
+		this.push(v);
+		return this.length;
+	}
+
+	public function toArray():Array<Int>
+		return this;
+}
+
 class TestCoroutines extends Test {
 	// Tests that @:coroutine is allowed on abstract constructors and works correctly.
 	function testAbstractConstructor() {
@@ -686,6 +703,21 @@ class TestCoroutines extends Test {
 		eq(1, cont.resumeCount);
 		eq("oops", cont.lastResult.message);
 		eq(null, cont.lastError);
+	}
+
+	function testIssue13091() {
+		final a = new HoistedThisAbstract();
+		final sus = new AlwaysSuspender<Int>();
+		var cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, @:coroutine function() {
+			return a.pushSuspended(sus);
+		});
+		eq(0, cont.resumeCount);
+		sus.cont.resume(5, null);
+		eq(1, cont.resumeCount);
+		eq(1, cont.lastResult);
+		eq(null, cont.lastError);
+		aeq([5], a.toArray());
 	}
 
 	#if jvm

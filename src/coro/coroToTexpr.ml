@@ -93,7 +93,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 	in
 
 	(* Hoisted fields are named after their variable so that debuggers show recognizable names.
-	   Generated variables get the same "_g" prefix that renameVars gives them, and a numeric suffix
+	   Naming.field_name_of_var_name turns the variable name into a valid field name, and a numeric suffix
 	   avoids clashes with other hoisted fields (e.g. from shadowed variables) and inherited fields. *)
 	let used_field_names = Hashtbl.create 0 in
 	let next_field_suffix = Hashtbl.create 0 in
@@ -105,12 +105,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 			| None -> false
 	in
 	let field_name_of_var v =
-		let base =
-			if String.length v.v_name > 0 && String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0 then
-				"_g" ^ String.sub v.v_name 1 (String.length v.v_name - 1)
-			else
-				v.v_name
-		in
+		let base = Naming.field_name_of_var_name v.v_name in
 		let is_taken name = Hashtbl.mem used_field_names name || is_inherited_field cls name in
 		(* Continue counting where the previous clash on this base name stopped. Generated variables
 		   all share the base name _g, so starting at 1 every time would be quadratic. *)
