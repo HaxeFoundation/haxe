@@ -40,17 +40,17 @@ class FileSystem {
 		if (values == null)
 			throw new Sys.SysError("Failed to stat " + path);
 		return {
-			gid: Std.int(values[0]),
-			uid: Std.int(values[1]),
-			atime: Date.fromTime(values[2]),
-			mtime: Date.fromTime(values[3]),
-			ctime: Date.fromTime(values[4]),
-			size: haxe.Int64.fromFloat(values[5]).low,
-			dev: haxe.Int64.fromFloat(values[6]).low,
-			ino: haxe.Int64.fromFloat(values[7]).low,
-			nlink: Std.int(values[8]),
-			rdev: haxe.Int64.fromFloat(values[9]).low,
-			mode: Std.int(values[10]),
+			gid: values[0].toInt(),
+			uid: values[1].toInt(),
+			atime: @:privateAccess Date.fromI64(values[2]),
+			mtime: @:privateAccess Date.fromI64(values[3]),
+			ctime: @:privateAccess Date.fromI64(values[4]),
+			size: values[5].toInt(),
+			dev: values[6].toInt(),
+			ino: values[7].toInt(),
+			nlink: values[8].toInt(),
+			rdev: values[9].toInt(),
+			mode: values[10].toInt(),
 		};
 		#else
 		var values = sys_stat(Sys.getPath(makeCompatiblePath(path)));
@@ -145,7 +145,7 @@ class FileSystem {
 	}
 
 	#if (hl_ver >= version("2.0.0"))
-	@:hlNative("std", "sys_stat2") static function sys_stat2(path:hl.Bytes):hl.NativeArray<Float> {
+	@:hlNative("std", "sys_stat2") static function sys_stat2(path:hl.Bytes):hl.NativeArray<hl.I64> {
 		return null;
 	}
 	#end

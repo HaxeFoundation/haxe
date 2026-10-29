@@ -37,6 +37,14 @@ class Issue13086 extends unit.Test {
 		eq(date.getTime(), 405781340123.);
 		eq(date.getUTCSeconds(), 20);
 		eq(Date.fromTime(date.getTime()).getTime(), 405781340123.);
+
+		// timezone offset matches local - UTC, also right after epoch
+		for (time in [0., 1800000., 1718459130000.]) {
+			var date = Date.fromTime(time);
+			var local = date.getHours() * 60 + date.getMinutes();
+			var utc = date.getUTCHours() * 60 + date.getUTCMinutes();
+			eq((local - utc + date.getTimezoneOffset() + 1440) % 1440, 0);
+		}
 	}
 	#end
 }

@@ -23,7 +23,7 @@
 import hl.Ref;
 
 #if (hl_ver >= version("2.0.0"))
-private typedef DateT = Float; // milliseconds since epoch
+private typedef DateT = hl.I64; // microseconds since epoch
 #else
 private typedef DateT = Int; // seconds since epoch, read as unsigned
 #end
@@ -36,11 +36,7 @@ private typedef DateT = Int; // seconds since epoch, read as unsigned
 	}
 
 	public function getTime():Float {
-		#if (hl_ver >= version("2.0.0"))
-		return t;
-		#else
 		return date_get_time(t);
-		#end
 	}
 
 	public function getFullYear():Int {
@@ -128,6 +124,9 @@ private typedef DateT = Int; // seconds since epoch, read as unsigned
 	}
 
 	public function getTimezoneOffset():Int {
+		#if (hl_ver >= version("2.0.0"))
+		return -Std.int(date_get_tz_offset(t) / 60);
+		#else
 		var y = 0;
 		var mo = 0;
 		var d = 0;
@@ -135,9 +134,6 @@ private typedef DateT = Int; // seconds since epoch, read as unsigned
 		var m = 0;
 		var s = 0;
 		date_get_utc_inf(t, y, mo, d, h, m, s, null);
-		#if (hl_ver >= version("2.0.0"))
-		return Std.int((date_new(y, mo, d, h, m, s) - Math.ffloor(t / 1000) * 1000) / 60000);
-		#else
 		return Std.int((date_new(y, mo, d, h, m, s) - t) / 60);
 		#end
 	}
@@ -154,23 +150,19 @@ private typedef DateT = Int; // seconds since epoch, read as unsigned
 		return d;
 	}
 
+	#if (hl_ver >= version("2.0.0"))
+	static function fromI64(t:hl.I64):Date {
+	#else
 	static function fromInt(t:Int):Date {
-		#if (hl_ver >= version("2.0.0"))
-		return fromTime((t : haxe.UInt32) * 1000.);
-		#else
+	#end
 		var d:Date = untyped $new(Date);
 		d.t = t;
 		return d;
-		#end
 	}
 
 	public static function fromTime(t:Float):Date {
 		var d:Date = untyped $new(Date);
-		#if (hl_ver >= version("2.0.0"))
-		d.t = t;
-		#else
 		d.t = date_from_time(t);
-		#end
 		return d;
 	}
 
@@ -190,21 +182,19 @@ private typedef DateT = Int; // seconds since epoch, read as unsigned
 		return 0;
 	}
 
-	#if (hl_ver < version("2.0.0"))
-	@:hlNative
-	static function date_from_time(t:Float):Int {
+	#if (hl_ver >= version("2.0.0")) @:hlNative("std", "date_from_time2") #else @:hlNative #end
+	static function date_from_time(t:Float):DateT {
 		return 0;
 	}
-
-	@:hlNative
-	static function date_get_time(t:Int):Float {
-		return 0.;
-	}
-	#end
 
 	#if (hl_ver >= version("2.0.0")) @:hlNative("std", "date_from_string2") #else @:hlNative #end
 	static function date_from_string(b:hl.Bytes, len:Int):DateT {
 		return 0;
+	}
+
+	#if (hl_ver >= version("2.0.0")) @:hlNative("std", "date_get_time2") #else @:hlNative #end
+	static function date_get_time(t:DateT):Float {
+		return 0.;
 	}
 
 	#if (hl_ver >= version("2.0.0")) @:hlNative("std", "date_get_inf2") #else @:hlNative #end
@@ -212,6 +202,13 @@ private typedef DateT = Int; // seconds since epoch, read as unsigned
 
 	#if (hl_ver >= version("2.0.0")) @:hlNative("std", "date_get_utc_inf2") #else @:hlNative(1.11) #end
 	static function date_get_utc_inf(t:DateT, year:Ref<Int>, month:Ref<Int>, day:Ref<Int>, hours:Ref<Int>, minutes:Ref<Int>, seconds:Ref<Int>, wday:Ref<Int>):Void {}
+
+	#if (hl_ver >= version("2.0.0"))
+	@:hlNative("std", "date_get_tz_offset2")
+	static function date_get_tz_offset(t:DateT):Int {
+		return 0;
+	}
+	#end
 
 	#if (hl_ver >= version("2.0.0")) @:hlNative("std", "date_to_string2") #else @:hlNative #end
 	static function date_to_string(t:DateT, outLen:Ref<Int>):hl.Bytes {
