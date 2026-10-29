@@ -410,7 +410,8 @@ let build_module_def ctx mt meta fvars fbuild =
 				(match r with
 				| MError | MMacroInMacro ->
 					let msg = Printf.sprintf "Build failure (%s.%s)" (s_type_path cpath) meth in
-					if can_recover_in_display ctx.com then display_error ctx.com msg p else raise_typing_error msg p
+					(* if this build was triggered from another macro, raise so that the error reaches that macro *)
+					if display_recovery_enabled ctx.com && ctx.com.part_scope.running_macros = 0 then display_error ctx.com msg p else raise_typing_error msg p
 				| MSuccess e -> fbuild e)
 			) :: f_build
 		| _ ->

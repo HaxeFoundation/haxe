@@ -85,7 +85,9 @@ let find_type_in_module m tname =
 	) m.m_types
 
 let can_recover_from_missing_type ctx err =
-	can_recover_in_display ctx.com && not (ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in err.err_pos)
+	display_recovery_enabled ctx.com
+	&& ctx.com.part_scope.running_macros = 0
+	&& not (ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in err.err_pos)
 
 (* raises Type_not_found *)
 let find_type_in_module_raise ctx m tname p =

@@ -978,8 +978,10 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		part_scope.running_macros <- part_scope.running_macros + 1;
 		let r = try
 			Std.finally (fun () -> part_scope.running_macros <- part_scope.running_macros - 1) call_macro args
-		with Error err when can_recover_in_display ctx.com ->
-			(* a typing error escaped the macro: report it and treat the macro as failed instead of aborting the request *)
+		with Error err when display_recovery_enabled ctx.com && part_scope.running_macros = 0 ->
+			(* A typing error escaped the outermost macro: report it and treat the macro as failed instead of aborting
+			   the request. For a nested macro, the error keeps propagating into the API call of the enclosing macro,
+			   which turns it into an exception that macro can catch. *)
 			display_error_ext ctx.com err;
 			None
 		in
