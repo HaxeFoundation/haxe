@@ -6,7 +6,6 @@ import runci.Config.*;
 
 class Cpp {
 	static public var gotCppDependencies = false;
-	static final isLinuxArm64 = systemName == 'Linux' && System.arch == Arm64;
 	static var testCppia = false;
 
 	static public function getCppDependencies() {
@@ -63,11 +62,9 @@ class Cpp {
 			args = [];
 		}
 		run(cmd, args.concat([script]));
-		if (!isLinuxArm64) { // FIXME
-			Sys.putEnv("CPPIA_IS_JIT", "1");
-			run(cmd, args.concat([script, "-jit"]));
-			Sys.putEnv("CPPIA_IS_JIT", null);
-		}
+		Sys.putEnv("CPPIA_IS_JIT", "1");
+		run(cmd, args.concat([script, "-jit"]));
+		Sys.putEnv("CPPIA_IS_JIT", null);
 	}
 
 	static public function run(args:Array<String>, testCompiled:Bool, testCppia:Bool) {
