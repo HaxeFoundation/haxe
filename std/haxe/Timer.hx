@@ -210,7 +210,7 @@ class Timer {
 		#elseif eval
 		return @:privateAccess Sys.timestamp_ms();
 		#else
-		return Int64.mul(Int64.fromFloat(stamp()), 1000);
+		return Int64.fromFloat(stamp() * 1000);
 		#end
 	}
 }
