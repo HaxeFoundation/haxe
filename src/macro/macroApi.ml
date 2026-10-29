@@ -233,6 +233,8 @@ module type InterpApi = sig
 
 	val get_api_call_pos : unit -> pos
 
+	val get_current_com : unit -> Common.context
+
 	val associate_enum_value_pos : value -> pos -> unit
 end
 
@@ -265,6 +267,16 @@ open InterpImpl
 let null f = function
 	| None -> vnull
 	| Some v -> f v
+
+(* In display and diagnostics, typing errors raised while building or forcing types lazily from a macro
+   are reported and become exceptions the macro can catch, so that they don't abort the whole request.
+   In compilation, they are raised as before so that a macro catching them cannot hide them. *)
+let protect_typing f =
+	try
+		f ()
+	with Error err when not (is_compilation (get_current_com ())) ->
+		display_error_ext (get_current_com ()) err;
+		compiler_error err
 
 let encode_enum ?(pos=None) k tag vl = encode_enum k pos tag vl
 
@@ -1221,7 +1233,7 @@ and encode_class_kind k =
 	encode_enum IClassKind tag pl
 
 and encode_tclass c =
-	ignore(c.cl_build());
+	protect_typing (fun () -> ignore(c.cl_build()));
 	encode_mtype (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
 		"isExtern", vbool (has_class_flag c CExtern);
@@ -1309,7 +1321,7 @@ and encode_type t =
 		| TDynamic (Some tsub) ->
 			6, [encode_type tsub]
 		| TLazy f ->
-			loop (lazy_type f)
+			loop (protect_typing (fun () -> lazy_type f))
 		| TAbstract (a, pl) ->
 			8, [encode_abref a; encode_tparams pl]
 	in
@@ -1332,7 +1344,7 @@ and encode_lazy_type t =
 					| LAvailable t ->
 						encode_type t
 					| LWait _ ->
-						encode_type (lazy_type f)
+						encode_type (protect_typing (fun () -> lazy_type f))
 					| LProcessing _ ->
 						(* our type in on the processing stack, error instead of returning most likely an unbound mono *)
 						error_message "Accessing a type while it's being typed");
@@ -2233,11 +2245,11 @@ let macro_api ccom get_api =
 				| TLazy f ->
 					lazy_type f
 			in
-			encode_type (if decode_opt_bool once then follow_once t else Abstract.follow_with_abstracts t)
+			encode_type (protect_typing (fun () -> if decode_opt_bool once then follow_once t else Abstract.follow_with_abstracts t))
 		);
 		"follow", vfun2 (fun v once ->
 			let t = decode_type v in
-			encode_type (if decode_opt_bool once then follow_once t else follow t)
+			encode_type (protect_typing (fun () -> if decode_opt_bool once then follow_once t else follow t))
 		);
 		"get_build_fields", vfun0 (fun() ->
 			(get_api()).get_build_fields()

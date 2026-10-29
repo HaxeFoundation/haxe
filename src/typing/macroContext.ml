@@ -976,7 +976,13 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	let call() =
 		let part_scope = ctx.com.part_scope in
 		part_scope.running_macros <- part_scope.running_macros + 1;
-		let r = Std.finally (fun () -> part_scope.running_macros <- part_scope.running_macros - 1) call_macro args in
+		let r = try
+			Std.finally (fun () -> part_scope.running_macros <- part_scope.running_macros - 1) call_macro args
+		with Error err when can_recover_in_display ctx.com ->
+			(* a typing error escaped the macro: report it and treat the macro as failed instead of aborting the request *)
+			display_error_ext ctx.com err;
+			None
+		in
 		match r with
 		| None ->
 			MError

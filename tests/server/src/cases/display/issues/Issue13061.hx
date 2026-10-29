@@ -462,6 +462,40 @@ interface Obj {}");
 
 	/**
 		function main() {
+			var c = new Child();
+		}
+	**/
+	function testMacroCatchingLazyTypeErrorStillFailsCompilation(_) {
+		// The macro builds BrokenClass by reading its fields and catches the resulting error,
+		// which must not hide that error from the compilation.
+		put("M.hx", "import haxe.macro.Context;
+import haxe.macro.Expr;
+class M {
+	public static function build():Array<Field> {
+		try {
+			switch Context.getLocalClass().get().superClass.t.get().fields.get()[0].type {
+				case TInst(c, _): c.get().fields.get();
+				case _:
+			}
+		} catch (e:Dynamic) {}
+		return null;
+	}
+}");
+		put("Obj.hx", "@:autoBuild(M.build())
+interface Obj {}");
+		put("Other.hx", "class Other {}");
+		put("BrokenClass.hx", "class BrokenClass { public var x:Other.Missing; }");
+		put("Base.hx", "class Base {
+	public var c:BrokenClass;
+	public function new() {}
+}");
+		put("Child.hx", "class Child extends Base implements Obj {}");
+		runHaxe(["-main", "Main", "--no-output", "-js", "no.js"]);
+		assertErrorMessage("Module Other does not define type Missing");
+	}
+
+	/**
+		function main() {
 			var a = new A();
 			a.hel{-1-}lo();
 			var b = new B();

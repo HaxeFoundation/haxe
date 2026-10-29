@@ -651,3 +651,6 @@ let get_api_call_pos () =
 		| Some env -> env
 	in
 	{ pfile = rev_hash env.env_info.pfile; pmin = env.env_leave_pmin; pmax = env.env_leave_pmax }
+
+let get_current_com () =
+	(get_ctx()).curapi.MacroApi.get_com()
