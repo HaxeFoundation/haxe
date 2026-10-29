@@ -821,11 +821,15 @@ let is_diagnostics com = match com.part_scope.report_mode with
 
 let is_compilation com = com.display.dms_kind = DMNone && not (is_diagnostics com)
 
-(* Whether a typing error (e.g. a missing type) may be reported and recovered from instead of raised:
-   in diagnostics, in display requests without full typing and in the macro context of display requests.
-   Never while a macro is running, so that the macro sees the same error as in a compilation. *)
+(* Whether typing errors (e.g. missing types) may be reported instead of aborting the request:
+   in diagnostics, in display requests without full typing and in the macro context of display requests. *)
+let display_recovery_enabled com =
+	is_diagnostics com || (com.display.dms_error_policy = EPIgnore && (not com.display.dms_full_typing || com.is_macro_context))
+
+(* Whether a typing error may be recovered from, e.g. by using Dynamic for a missing type. Never while a macro
+   is running, so that the macro sees the same error as in a compilation. *)
 let can_recover_in_display com =
-	com.part_scope.running_macros = 0 && (is_diagnostics com || (com.display.dms_error_policy = EPIgnore && (not com.display.dms_full_typing || com.is_macro_context)))
+	com.part_scope.running_macros = 0 && display_recovery_enabled com
 
 let has_error_to_report com =
 	com.part_scope.has_error && (is_compilation com || com.part_scope.messages <> [])

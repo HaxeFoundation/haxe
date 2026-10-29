@@ -268,13 +268,13 @@ let null f = function
 	| None -> vnull
 	| Some v -> f v
 
-(* In display and diagnostics, typing errors raised while building or forcing types lazily from a macro
+(* Where display recovery is enabled, typing errors raised while building or forcing types lazily from a macro
    are reported and become exceptions the macro can catch, so that they don't abort the whole request.
-   In compilation, they are raised as before so that a macro catching them cannot hide them. *)
+   Otherwise, e.g. in compilation, they are raised as before so that a macro catching them cannot hide them. *)
 let protect_typing f =
 	try
 		f ()
-	with Error err when not (is_compilation (get_current_com ())) ->
+	with Error err when display_recovery_enabled (get_current_com ()) ->
 		display_error_ext (get_current_com ()) err;
 		compiler_error err
 
