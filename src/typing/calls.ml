@@ -447,9 +447,9 @@ let array_access ctx e1 e2 mode p =
 	let has_abstract_array_access = ref false in
 	try
 		(match follow e1.etype with
-		| TAbstract ({a_impl = Some c} as a,pl) when a.a_array <> [] ->
+		| TAbstract ({a_impl = Some c} as a,pl) when a.a_array_write <> [] || a.a_array_read <> [] ->
 			begin match mode with
-			| MSet _ ->
+			| MSet _ when a.a_array_write <> [] ->
 				(* resolve later *)
 				AKAccess (a,pl,c,e1,e2)
 			| _ ->
@@ -487,13 +487,12 @@ let array_access ctx e1 e2 mode p =
 					unify_raise et t p
 				with Error { err_message = Unify _ } ->
 					if not ctx.f.untyped then begin
-						let msg = if !has_abstract_array_access then
-							"No @:arrayAccess function accepts an argument of " ^ (s_type (print_context()) e2.etype)
-						else
-							"Array access is not allowed on " ^ (s_type (print_context()) e1.etype)
-						in
 						base_ok := false;
-						raise_or_display_message ctx msg e1.epos;
+						let s_type = s_type (print_context()) in
+						if !has_abstract_array_access then
+							raise_or_display_message ctx (Printf.sprintf "No @:arrayAccess function for %s accepts argument of %s" (s_type (follow e1.etype)) (s_type e2.etype)) p
+						else
+							raise_or_display_message ctx ("Array access is not allowed on " ^ (s_type e1.etype)) e1.epos;
 					end
 				end;
 				pt
