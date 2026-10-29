@@ -254,6 +254,7 @@ type part_scope = {
 	has_next : bool;
 	mutable messages : Message.t list;
 	mutable has_error : bool;
+	mutable running_macros : int;
 	mutable report_mode : report_mode;
 	mutable message_capture : Message.t list ref option;
 	compilation_step : int;
@@ -395,9 +396,6 @@ let ignore_error com =
 	let b = com.display.dms_error_policy = EPIgnore in
 	if b then com.part_scope.has_error <- true;
 	b
-
-let can_recover_in_display com =
-	com.display.dms_error_policy = EPIgnore && not com.display.dms_full_typing
 
 let module_warning com m w options msg p =
 	if com.display.dms_full_typing then begin
@@ -822,6 +820,13 @@ let is_diagnostics com = match com.part_scope.report_mode with
 	| _ -> false
 
 let is_compilation com = com.display.dms_kind = DMNone && not (is_diagnostics com)
+
+(* Whether typing errors (e.g. missing types) may be reported instead of aborting the request:
+   in diagnostics, in display requests without full typing and in the macro context of display requests.
+   While a macro is running (part_scope.running_macros > 0), callers should not recover from an error,
+   e.g. by using Dynamic for a missing type, but let it reach the macro as in a compilation. *)
+let display_recovery_enabled com =
+	is_diagnostics com || (com.display.dms_error_policy = EPIgnore && (not com.display.dms_full_typing || com.is_macro_context))
 
 let has_error_to_report com =
 	com.part_scope.has_error && (is_compilation com || com.part_scope.messages <> [])
