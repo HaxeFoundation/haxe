@@ -1108,7 +1108,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		if fctx.is_inline then missing_expression ctx.com fctx "Inline functions must have an expression" cf.cf_pos;
 		if fd.f_type = None then raise_typing_error ("Functions without expressions must have an explicit return type") cf.cf_pos;
 		if !allows_no_expr then begin
-			cf.cf_meta <- (Meta.NoExpr,[],null_pos) :: cf.cf_meta;
+			add_class_field_flag cf CfNoExpr;
 			fctx.do_bind <- false;
 		end
 	end

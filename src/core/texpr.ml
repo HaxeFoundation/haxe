@@ -522,6 +522,9 @@ module Builder = struct
 	let make_local v p =
 		mk (TLocal v) v.v_type p
 
+	let make_array_access arr iexpr pt p =
+		mk (TArray (arr,iexpr)) pt p
+
 	let make_const_texpr basic ct p = match ct with
 		| TString s -> mk (TConst (TString s)) basic.tstring p
 		| TInt i -> mk (TConst (TInt i)) basic.tint p

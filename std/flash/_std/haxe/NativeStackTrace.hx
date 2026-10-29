@@ -53,6 +53,10 @@ class NativeStackTrace {
 	}
 
 	static function normalize(stack:NativeTrace, skipItems:Int = 0):NativeTrace {
+		// getStackTrace() is null outside debug players.
+		if (stack == null) {
+			return '';
+		}
 		switch (stack:String).substring(0, 6) {
 			case 'Error:' | 'Error\n': skipItems += 1;
 			case _:

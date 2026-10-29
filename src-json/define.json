@@ -40,6 +40,11 @@
 		"doc": "Defined in the core API context."
 	},
 	{
+		"name": "CoroStackTraces",
+		"define": "coro.stack-traces",
+		"doc": "Generate the information required to build coroutine stack traces. Combine with `-debug` to also keep frames of coroutines that end in a tail call."
+	},
+	{
 		"name": "Cppia",
 		"define": "cppia",
 		"doc": "Generate cpp instruction assembly."
@@ -540,6 +545,7 @@
 		"name": "SourceMap",
 		"define": "source-map",
 		"doc": "Generate source map for compiled files.",
+		"params": ["mode: inline"],
 		"platforms": ["php", "js"]
 	},
 	{

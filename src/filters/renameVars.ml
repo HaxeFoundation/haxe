@@ -80,50 +80,36 @@ let init config types =
 	ri
 
 module Overlaps = struct
+	(* Both fields are persistent, so copies share their contents with the original. Every variable
+	   declared in a loop gets a copy of the loop's variables, which would otherwise be quadratic. *)
 	type t = {
 		mutable ov_vars : tvar list;
-		mutable ov_lut : bool IntHashtbl.t;
-		mutable ov_name_cache : bool StringMap.t option;
+		mutable ov_lut : bool IntMap.t;
 	}
 
 	let create () = {
 		ov_vars = [];
-		ov_lut = IntHashtbl.create 0;
-		ov_name_cache = None;
+		ov_lut = IntMap.empty;
 	}
 
 	let copy ov = {
 		ov_vars = ov.ov_vars;
-		ov_lut = IntHashtbl.copy ov.ov_lut;
-		ov_name_cache = ov.ov_name_cache;
+		ov_lut = ov.ov_lut;
 	}
 
 	let add v ov =
 		ov.ov_vars <- v :: ov.ov_vars;
-		IntHashtbl.add ov.ov_lut v.v_id true;
-		ov.ov_name_cache <- None
-
-	let get_cache ov = match ov.ov_name_cache with
-		| Some cache ->
-			cache
-		| None ->
-			let cache = List.fold_left (fun acc v -> StringMap.add v.v_name true acc) StringMap.empty ov.ov_vars in
-			ov.ov_name_cache <- Some cache;
-			cache
-
-	let has_name name ov =
-		StringMap.mem name (get_cache ov)
+		ov.ov_lut <- IntMap.add v.v_id true ov.ov_lut
 
 	let iter f ov =
 		List.iter f ov.ov_vars
 
 	let mem id ov =
-		IntHashtbl.mem ov.ov_lut id
+		IntMap.mem id ov.ov_lut
 
 	let reset ov =
 		ov.ov_vars <- [];
-		IntHashtbl.clear ov.ov_lut;
-		ov.ov_name_cache <- None
+		ov.ov_lut <- IntMap.empty
 
 	let is_empty ov = match ov.ov_vars with
 		| [] ->
@@ -347,13 +333,41 @@ and collect_ignore_block ?(in_block=false) rc scope e =
 	| _ -> collect_vars ~in_block rc scope e
 
 (**
+	All variables by their current name. This allows checking whether a variable overlaps with a
+	variable of a given name without collecting the names of everything it overlaps with.
+*)
+module VarsByName = struct
+	type t = (string, tvar IntMap.t) Hashtbl.t
+
+	let find vars name =
+		try Hashtbl.find vars name with Not_found -> IntMap.empty
+
+	let add vars v =
+		Hashtbl.replace vars v.v_name (IntMap.add v.v_id v (find vars v.v_name))
+
+	let remove vars v =
+		Hashtbl.replace vars v.v_name (IntMap.remove v.v_id (find vars v.v_name))
+
+	let has_overlap vars name overlaps =
+		IntMap.exists (fun id _ -> Overlaps.mem id overlaps) (find vars name)
+
+	let rec add_scope vars scope =
+		List.iter (fun (v,_) -> add vars v) scope.own_vars;
+		List.iter (add_scope vars) scope.children
+end
+
+(**
 	Rename `v` if needed
 *)
 let trailing_numbers = Str.regexp "[0-9]+$"
-let maybe_rename_var rc reserved (v,overlaps) =
+let maybe_rename_var rc vars reserved (v,overlaps) =
 	let commit name =
 		v.v_meta <- (Meta.RealPath,[EConst (String(v.v_name,SDoubleQuotes)),null_pos],null_pos) :: v.v_meta;
-		v.v_name <- name
+		(* removes v under its old name *)
+		VarsByName.remove vars v;
+		v.v_name <- name;
+		(* adds v under its new name *)
+		VarsByName.add vars v
 	in
 	(* chop escape char for all local variables generated *)
 	if String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0 then begin
@@ -361,7 +375,7 @@ let maybe_rename_var rc reserved (v,overlaps) =
 		commit ("_g" ^ (Str.replace_first trailing_numbers "" name))
 	end;
 	let rec loop name count =
-		if StringMap.mem name !reserved || Overlaps.has_name name overlaps then begin
+		if StringMap.mem name !reserved || VarsByName.has_overlap vars name overlaps then begin
 			let count = count + 1 in
 			loop (v.v_name ^ (string_of_int count)) count
 		end else
@@ -374,12 +388,12 @@ let maybe_rename_var rc reserved (v,overlaps) =
 (**
 	Rename variables found in `scope`
 *)
-let rec rename_vars rc scope =
+let rec rename_vars rc vars scope =
 	let reserved = ref rc.rc_reserved in
 	if (rc.rc_hoisting || rc.rc_no_shadowing) && not (Overlaps.is_empty scope.foreign_vars) then
 		Overlaps.iter (fun v -> reserve reserved v.v_name) scope.foreign_vars;
-	List.iter (maybe_rename_var rc reserved) (List.rev scope.own_vars);
-	List.iter (rename_vars rc) scope.children
+	List.iter (maybe_rename_var rc vars reserved) (List.rev scope.own_vars);
+	List.iter (rename_vars rc vars) scope.children
 
 (**
 	Rename local variables in `e` expression if needed.
@@ -400,5 +414,7 @@ let run cl_path ri e =
 	end;
 	let scope = create_scope None in
 	collect_vars rc scope e;
-	rename_vars rc scope;
+	let vars = Hashtbl.create 0 in
+	VarsByName.add_scope vars scope;
+	rename_vars rc vars scope;
 	e

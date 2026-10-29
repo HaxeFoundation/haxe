@@ -18,17 +18,19 @@ class Test {
 			Sys.println('[Testing ${target.getName()}]');
 			collectCases().iter(module -> success = runCase(module, target) && success);
 		}
+		// the same cases with the map inside the JS output, as a data: URL
+		Sys.println('[Testing Js with -D source-map=inline]');
+		collectCases().iter(module -> success = runCase(module, Js, ['-D', 'source-map=inline'], false) && success);
 
 		Sys.exit(success ? 0 : 1);
 	}
 
-	static function runCase(module:String, target:Target):Bool {
+	static function runCase(module:String, target:Target, ?extraFlags:Array<String>, sourceMap:Bool = true):Bool {
 		var proc = new Process(
 			'haxe',
-			targetCompilerFlags(target).concat([
+			targetCompilerFlags(target, extraFlags != null).concat(extraFlags == null ? [] : extraFlags).concat(sourceMap ? ['-D', 'source-map'] : []).concat([
 				'-cp', 'src',
 				'-lib', 'sourcemap',
-				'-D', 'source-map',
 				'-D', 'analyzer-optimize',
 				'-dce', 'full',
 				'-main', module
@@ -58,9 +60,9 @@ class Test {
 		return report.success;
 	}
 
-	static function targetCompilerFlags(target:Target):Array<String> {
+	static function targetCompilerFlags(target:Target, inlineMap:Bool = false):Array<String> {
 		return switch(target) {
-			case Js: ['-js', 'bin/test.js'];
+			case Js: ['-js', inlineMap ? 'bin/test-inline.js' : 'bin/test.js'];
 			case Php: ['-php', 'bin/php'];
 		}
 	}

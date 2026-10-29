@@ -531,10 +531,11 @@ type flag_tclass_field =
 	| CfMaybeUsed (* Marker for DCE *)
 	| CfNoLookup (* Field cannot be accessed by-name. *)
 	| CfAbstractConstructor
+	| CfNoExpr (* Marker for abstract fields which have no expression *)
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [
-	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed";"CfNoLookup";"CfAbstractConstructor"
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed";"CfNoLookup";"CfAbstractConstructor";"CfNoExpr"
 ]
 
 type flag_tenum =

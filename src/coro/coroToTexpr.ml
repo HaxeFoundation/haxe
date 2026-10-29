@@ -92,16 +92,53 @@ let handle_locals ctx cls params states tf_args econtinuation =
 			false
 	in
 
+	(* Hoisted fields are named after their variable so that debuggers show recognizable names.
+	   Naming.field_name_of_var_name turns the variable name into a valid field name, and a numeric suffix
+	   avoids clashes with other hoisted fields (e.g. from shadowed variables) and inherited fields. *)
+	let used_field_names = Hashtbl.create 0 in
+	let next_field_suffix = Hashtbl.create 0 in
+	(* Added to the class later, see Coro.create_continuation_class. *)
+	Hashtbl.replace used_field_names "_hx_captured" ();
+	let rec is_inherited_field c name =
+		PMap.mem name c.cl_fields || match c.cl_super with
+			| Some (csup, _) -> is_inherited_field csup name
+			| None -> false
+	in
+	let field_name_of_var v =
+		let base = Naming.field_name_of_var_name v.v_name in
+		let is_taken name = Hashtbl.mem used_field_names name || is_inherited_field cls name in
+		(* Continue counting where the previous clash on this base name stopped. Generated variables
+		   all share the base name _g, so starting at 1 every time would be quadratic. *)
+		let rec loop count =
+			let name = base ^ string_of_int count in
+			if is_taken name then loop (count + 1) else begin
+				Hashtbl.replace next_field_suffix base (count + 1);
+				name
+			end
+		in
+		let name = if is_taken base then loop (try Hashtbl.find next_field_suffix base with Not_found -> 1) else base in
+		Hashtbl.replace used_field_names name ();
+		name
+	in
+	let add_field v =
+		if not (Hashtbl.mem fields v.v_id) then
+			Hashtbl.replace fields v.v_id (mk_field (field_name_of_var v) v.v_type v.v_pos v.v_pos)
+	in
+	(* The restored locals keep the name of their variable. With -debug they also keep its kind, which makes
+	   them show up in debuggers. Otherwise they stay generated, so the analyzer can still fuse them. *)
+	let alloc_restored_var v =
+		let kind = if ctx.typer.com.debug then v.v_kind else VGenerated in
+		alloc_var kind v.v_name v.v_type v.v_pos
+	in
+
 	let force_hoisted_ids = Hashtbl.create 0 in
 	List.iter (fun (v, _) ->
 		begin
-			let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type v.v_pos v.v_pos in
-
-			Hashtbl.replace fields v.v_id field;
+			add_field v;
 			(* Create a fresh restored var rather than reusing the original argument variable.
 			   This prevents the same v_id appearing as both an outer function parameter and
 			   a TVar declaration inside the state machine body (which confuses renameVars). *)
-			let restored_var = alloc_var VGenerated (Printf.sprintf "_hx_restored%i" v.v_id) v.v_type v.v_pos in
+			let restored_var = alloc_restored_var v in
 			Hashtbl.replace fst_state.cs_mapped_local v.v_id restored_var;
 			Hashtbl.replace force_hoisted_ids v.v_id ();
 		end) tf_args;
@@ -112,7 +149,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 			match Hashtbl.find_opt state.cs_mapped_local v.v_id with
 			| Some v -> v
 			| None ->
-				let new_v = alloc_var VGenerated (Printf.sprintf "_hx_restored%i" v.v_id) v.v_type v.v_pos in
+				let new_v = alloc_restored_var v in
 				Hashtbl.replace state.cs_mapped_local v.v_id new_v;
 				new_v
 		in
@@ -123,9 +160,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 				if Option.is_some eo then
 					state.cs_writes <- IntSet.add v.v_id state.cs_writes;
 
-				let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type v.v_pos v.v_pos in
-
-				Hashtbl.replace fields v.v_id field;
+				add_field v;
 				Hashtbl.replace state.cs_mapped_local v.v_id v;
 
 				{ e with eexpr = TVar (v, Option.map mapper eo) }
@@ -204,18 +239,26 @@ let handle_locals ctx cls params states tf_args econtinuation =
 		states;
 
 	fields
-	|> Hashtbl.to_seq_values
+	|> Hashtbl.to_seq
 	|> List.of_seq
 
+(* These fields only exist when BaseContinuation is compiled with coro.stack-traces, which may
+   not be the case if it was loaded from a cache built with different defines. *)
+let find_stack_trace_field cont name p =
+	try
+		PMap.find name cont.base_continuation_class.cl_fields
+	with Not_found ->
+		Error.raise_typing_error (Printf.sprintf "haxe.coro.BaseContinuation has no field %s, was it compiled without -D coro.stack-traces?" name) p
+
 let build_call_stack ctx cont econtinuation p =
-	let b = ctx.builder in
-	if not ctx.typer.com.debug then
-		b#void_block_at [] p
+	if not ctx.stack_traces then
+		[]
 	else begin
+		let b = ctx.builder in
 		let basic = ctx.typer.t in
-		let build_cf = PMap.find "buildCallStack" cont.base_continuation_class.cl_fields in
+		let build_cf = find_stack_trace_field cont "buildCallStack" p in
 		let eaccess = b#instance_field econtinuation cont.base_continuation_class [basic.tany] build_cf build_cf.cf_type in
-		mk (TCall (eaccess, [])) basic.tvoid p
+		[mk (TCall (eaccess, [])) basic.tvoid p]
 	end
 
 module SuspensionCalls = struct
@@ -322,14 +365,13 @@ module SuspensionCalls = struct
 				if ctx.num_states = 1 then begin
 					(* Single-state: no while loop to break out of.
 					   Emit the error handler directly (equivalent to eexchandle). *)
-					let ewrapped_call = build_call_stack ctx cont econtinuation p in
-					b#void_block [
+					b#void_block ([
 						b#assign etmp_error eerr_field;
 						b#assign eerror etmp_error;
-						ewrapped_call;
+					] @ build_call_stack ctx cont econtinuation p @ [
 						b#assign exprs.estate (b#int (Obj.magic CoroThrown) p);
 						b#return econtinuation;
-					]
+					])
 				end else
 					b#void_block [
 						b#assign etmp_error eerr_field;
@@ -439,10 +481,10 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 		match cb.cb_next with
 		| NextSuspend (call, None) ->
 			let ecallcoroutine, eret = SuspensionCalls.make_suspending_tail_call ctx cont exprs call in
-			add_state None [ stack_item_inserter call.cs_pos ] (Some [ ecallcoroutine; eret ]);
+			add_state None (stack_item_inserter call.cs_pos) (Some [ ecallcoroutine; eret ]);
 		| NextSuspend (call, Some cb_next) ->
 			let ecallcoroutine, estateswitch = SuspensionCalls.make_suspending_call ctx cont exprs call in
-			add_state (Some cb_next.cb_id) [ stack_item_inserter call.cs_pos ] (Some [ ecallcoroutine; estateswitch ]);
+			add_state (Some cb_next.cb_id) (stack_item_inserter call.cs_pos) (Some [ ecallcoroutine; estateswitch ]);
 		| NextUnknown ->
 			add_state (Some (-1)) [set_control CoroReturned; ereturn] None
 		| NextFallThrough cb_next | NextGoto cb_next | NextBreak cb_next | NextContinue cb_next ->
@@ -457,7 +499,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 			   is needed — the error handler follows the body naturally. *)
 			let tail = if single_state then None else Some [ b#break p ] in
 			let etmp_error = {etmp_error with epos = e1.epos } in
-			add_state None ([b#assign etmp_error (get_caught e1); stack_item_inserter e1.epos; b#assign etmp_error (start_exception etmp_error); ]) tail
+			add_state None ([b#assign etmp_error (get_caught e1)] @ stack_item_inserter e1.epos @ [b#assign etmp_error (start_exception etmp_error)]) tail
 		| NextIfThen (econd,cb_then,cb_next) ->
 			let eif = b#if_then_else econd (set_state cb_then.cb_id) (set_state cb_next.cb_id) com.basic.tint in
 			add_state None [eif] None
@@ -499,6 +541,8 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 				List.fold_left (fun enext (vcatch,cb_catch) ->
 					match follow vcatch.v_type with
 					| TDynamic _ ->
+						set_state cb_catch.cb_id (* no next *)
+					| TInst({ cl_path = path },_) when List.mem path ctx.wildcard_catches ->
 						set_state cb_catch.cb_id (* no next *)
 					| t ->
 						let etypecheck = std_is (AtomicLazy.force etmp_error_unwrapped) vcatch.v_type in
@@ -576,10 +620,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 				DynArray.add cases {case_patterns = patterns; case_expr = expr};
 		) exc_state_map;
 		let el =
-			let ewrapped_call = build_call_stack ctx cont econtinuation p in
-			[
-				b#assign eerror etmp_error;
-				ewrapped_call;
+			[b#assign eerror etmp_error] @ build_call_stack ctx cont econtinuation p @ [
 				set_control CoroThrown;
 				ereturn;
 			]
