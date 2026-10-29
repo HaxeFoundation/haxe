@@ -1825,12 +1825,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		in
 		let e1_null_t = ctx.t.tnull e1.etype in
 		let var_name = match WithType.get_expected_name with_type with
-			| None
-			(* TODO: why does this happen? *)
-			| Some "" ->
-				"tmp"
-			| Some name ->
-				name
+			| Some name when Lexer.is_valid_identifier name -> name
+			| _ -> "tmp"
 		in
 		let e1 = vr#as_var var_name {e1 with etype = e1_null_t} in
 		let e_null = Builder.make_null e1_null_t e1.epos in
