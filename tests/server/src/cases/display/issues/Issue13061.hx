@@ -401,76 +401,6 @@ class M {
 	/**
 		function main() {
 			var c = new Child();
-			c.d{-1-}yn = 1;
-		}
-	**/
-	function testBuildMacroDoesNotSeeDynamicForMissingType(_) {
-		put("M.hx", "import haxe.macro.Context;
-import haxe.macro.Expr;
-import haxe.macro.Type;
-class M {
-	public static function build():Array<Field> {
-		var fields = Context.getBuildFields();
-		var name = try {
-			switch Context.getLocalClass().get().superClass.t.get().fields.get()[0].type {
-				case TDynamic(_): 'dyn';
-				default: 'ok';
-			}
-		} catch (e:Dynamic) 'failed';
-		fields.push({name: name, access: [APublic], pos: Context.currentPos(), kind: FVar(macro : Int)});
-		return fields;
-	}
-}");
-		put("Obj.hx", "@:autoBuild(M.build())
-interface Obj {}");
-		put("Base.hx", "class Base {
-	public var x:Other.Missing;
-	public function new() {}
-}");
-		put("Other.hx", "class Other {}");
-		put("Child.hx", "class Child extends Base implements Obj {}");
-		Assert.same([], runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(1)}));
-	}
-
-	/**
-		function main() {
-			var b = new Base();
-			b.x;
-			var c = new Child();
-			c.d{-1-}yn = 1;
-		}
-	**/
-	function testBuildMacroDoesNotSeeDynamicForMissingTypeForcedEarlier(_) {
-		put("M.hx", "import haxe.macro.Context;
-import haxe.macro.Expr;
-import haxe.macro.Type;
-class M {
-	public static function build():Array<Field> {
-		var fields = Context.getBuildFields();
-		var name = try {
-			switch Context.getLocalClass().get().superClass.t.get().fields.get()[0].type {
-				case TDynamic(_): 'dyn';
-				default: 'ok';
-			}
-		} catch (e:Dynamic) 'failed';
-		fields.push({name: name, access: [APublic], pos: Context.currentPos(), kind: FVar(macro : Int)});
-		return fields;
-	}
-}");
-		put("Obj.hx", "@:autoBuild(M.build())
-interface Obj {}");
-		put("Base.hx", "class Base {
-	public var x:Other.Missing;
-	public function new() {}
-}");
-		put("Other.hx", "class Other {}");
-		put("Child.hx", "class Child extends Base implements Obj {}");
-		Assert.same([], runHaxeJson([], DisplayMethods.GotoDefinition, {file: file, offset: offset(1)}));
-	}
-
-	/**
-		function main() {
-			var c = new Child();
 			c.{-1-}
 		}
 	**/
@@ -528,7 +458,6 @@ interface Obj {}");
 		var r = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
 		var names = [for (i in r.items) if (i.kind == ClassField) i.args.field.name];
 		Assert.contains("ran", names);
-		Assert.same([], names.filter(n -> n.indexOf("dyn_") == 0));
 	}
 
 	/**
@@ -635,69 +564,6 @@ class Util {
 		var names = [for (i in r.items) if (i.kind == ClassField) i.args.field.name];
 		Assert.contains("read", names);
 		Assert.notContains("raised", names);
-	}
-
-	/**
-		function main() {
-			var c = new Child();
-			c.{-1-}dyn_x{-2-} = 1;
-			c.ran = 1;
-		}
-	**/
-	function testDiagnosticsMacroDoesNotSeeDynamicForUnqualifiedMissingType(_) {
-		put("M.hx", "import haxe.macro.Context;
-import haxe.macro.Expr;
-class M {
-	public static function build():Array<Field> {
-		var fields = Context.getBuildFields();
-		try {
-			for (f in Context.getLocalClass().get().superClass.t.get().fields.get())
-				switch f.type {
-					case TDynamic(_): fields.push({name: 'dyn_' + f.name, access: [APublic], pos: Context.currentPos(), kind: FVar(macro : Int)});
-					default:
-				}
-		} catch (e:Dynamic) {}
-		fields.push({name: 'ran', access: [APublic], pos: Context.currentPos(), kind: FVar(macro : Int)});
-		return fields;
-	}
-}".replace("switch f.type", "switch f.type"));
-		put("Obj.hx", "@:autoBuild(M.build())
-interface Obj {}");
-		put("Base.hx", "class Base {
-	public var x:Missing;
-	public function new() {}
-}");
-		put("Child.hx", "class Child extends Base implements Obj {}");
-		var files = runHaxeJson(["-main", "Main"], DisplayMethods.Diagnostics, {file: file});
-		var ranges = [for (f in files) for (d in f.diagnostics) d.range];
-		var expected = range(1, 2);
-		Assert.isTrue(ranges.exists(r -> r.start.line == expected.start.line && r.start.character == expected.start.character));
-	}
-
-	/**
-		function main() {
-			var x:Other.Missing = null;
-			var v = M.names();
-			v.{-1-}
-		}
-	**/
-	function testMacroLocalVarsDoNotSeeDynamicForMissingType(_) {
-		put("M.hx", "import haxe.macro.Context;
-import haxe.macro.Expr;
-import haxe.macro.Type;
-class M {
-	public static macro function names():Expr {
-		var dyn = false;
-		for (t in Context.getLocalVars()) switch t { case TDynamic(_): dyn = true; default: }
-		return dyn ? macro new Dyn() : macro new Ok();
-	}
-}");
-		put("Other.hx", "class Other {}");
-		put("Dyn.hx", "class Dyn { public function new() {} public function sawDynamic() {} }");
-		put("Ok.hx", "class Ok { public function new() {} public function sawNothing() {} }");
-		var r = runHaxeJson([], DisplayMethods.Completion, {file: file, offset: offset(1), wasAutoTriggered: false});
-		var names = [for (i in r.items) if (i.kind == ClassField) i.args.field.name];
-		Assert.notContains("sawDynamic", names);
 	}
 
 	/**

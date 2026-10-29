@@ -976,8 +976,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	let call() =
 		let part_scope = ctx.com.part_scope in
 		part_scope.running_macros <- part_scope.running_macros + 1;
-		let r = try call_macro args with e -> part_scope.running_macros <- part_scope.running_macros - 1; raise e in
-		part_scope.running_macros <- part_scope.running_macros - 1;
+		let r = Std.finally (fun () -> part_scope.running_macros <- part_scope.running_macros - 1) call_macro args in
 		match r with
 		| None ->
 			MError
