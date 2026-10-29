@@ -103,11 +103,11 @@ class Completion extends DisplayTestCase {
 
 	/**
 		class Main {
-			extern inline overload static function foo(a:haxe.ds.Option<Bool>, cb:() -> {}) {};
-			extern inline overload static function foo(a:Int, cb:() -> {}) {};
+			extern inline overload static function foo(a:haxe.ds.Option<Bool>, cb:() -> Void) {};
+			extern inline overload static function foo(a:Int, cb:() -> Void) {};
 
-			extern inline overload static function foo2(a:Int, cb:() -> {}) {};
-			extern inline overload static function foo2(a:haxe.ds.Option<Bool>, cb:() -> {}) {};
+			extern inline overload static function foo2(a:Int, cb:() -> Void) {};
+			extern inline overload static function foo2(a:haxe.ds.Option<Bool>, cb:() -> Void) {};
 
 			static function main() {
 				foo({-1-}
@@ -133,8 +133,8 @@ class Completion extends DisplayTestCase {
 
 	/**
 		class Main {
-			@:overload(function(a:Int, cb:() -> {}):Void {})
-			static function foo(a:haxe.ds.Option<Bool>, cb:() -> {}) {};
+			@:overload(function(a:Int, cb:() -> Void):Void {})
+			static function foo(a:haxe.ds.Option<Bool>, cb:() -> Void) {};
 
 			static function main() {
 				foo({-1-}
