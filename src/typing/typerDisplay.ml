@@ -241,6 +241,8 @@ let rec handle_signature_display ctx e_ast with_type =
 			| Some c -> can_access ctx c cf stat
 			| None -> true
 		in
+		(* Keep declaration order: @:overload metadata is stored in source order and precedes the main field,
+		   while proper overloads are prepended to the main field's cf_overloads in typeloadFields. *)
 		let l = if is_wacky_overload then
 			(List.map (fun cf' -> map cf'.cf_type,cf') cf.cf_overloads) @ [t,cf]
 		else

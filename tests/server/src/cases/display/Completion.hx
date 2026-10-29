@@ -117,12 +117,14 @@ class Completion extends DisplayTestCase {
 			}
 		}
 	**/
-	function testIssueOverloadCompletion(_) {
+	function testIssue13012(_) {
 		eq(true, hasField(fields(1), "Some", null, "enum"));
 		eq(true, hasField(fields(1), "None", null, "enum"));
 		eq(true, hasField(fields(2), "Some", null, "enum"));
 		eq(true, hasField(fields(2), "None", null, "enum"));
 
+		// This is not a specification, just the current state: the first overload that is tried
+		// determines the completion, so the Option overload's enum constructors are not offered.
 		eq(false, hasField(fields(3), "Some", null, "enum"));
 		eq(false, hasField(fields(3), "None", null, "enum"));
 		eq(false, hasField(fields(4), "Some", null, "enum"));
@@ -140,7 +142,7 @@ class Completion extends DisplayTestCase {
 			}
 		}
 	**/
-	function testIssueMetadataOverloadCompletion(_) {
+	function testIssue13012_metadata(_) {
 		eq(true, hasField(fields(1), "Some", null, "enum"));
 		eq(true, hasField(fields(1), "None", null, "enum"));
 		eq(true, hasField(fields(2), "Some", null, "enum"));

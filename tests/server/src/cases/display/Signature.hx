@@ -307,7 +307,7 @@ class Signature extends DisplayTestCase {
 			}
 		}
 	**/
-	function testIssueOverloadSignature(_) {
+	function testIssue13012(_) {
 		sigEq(0, [["a:String", "cb:(() -> Void)"], ["a:Int", "cb:(() -> Void)"]], signature(1));
 	}
 }
