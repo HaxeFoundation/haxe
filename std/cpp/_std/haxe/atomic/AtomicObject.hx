@@ -21,20 +21,24 @@ abstract AtomicObject<T: {}>(AtomicObjectData<T>) {
 		this = untyped __global__.__hxcpp_atomic_object_create(value);
 	}
 
+	// The `cast` makes hxcpp convert the `hx::Object` returned by the untyped calls to `T`.
+	// Without it, a field access directly on the inlined result, like `a.load().field`,
+	// generates a member access on `hx::Object` that doesn't compile.
+
 	public #if !scriptable inline #end function compareExchange(expected:T, replacement:T):T {
-		return untyped __global__.__hxcpp_atomic_object_compare_exchange(this, expected, replacement);
+		return cast (untyped __global__.__hxcpp_atomic_object_compare_exchange(this, expected, replacement));
 	}
 
 	public #if !scriptable inline #end function exchange(value:T):T {
-		return untyped __global__.__hxcpp_atomic_object_exchange(this, value);
+		return cast (untyped __global__.__hxcpp_atomic_object_exchange(this, value));
 	}
 
 	public #if !scriptable inline #end function load():T {
-		return untyped __global__.__hxcpp_atomic_object_load(this);
+		return cast (untyped __global__.__hxcpp_atomic_object_load(this));
 	}
 
 	public #if !scriptable inline #end function store(value:T):T {
-		return untyped __global__.__hxcpp_atomic_object_store(this, value);
+		return cast (untyped __global__.__hxcpp_atomic_object_store(this, value));
 	}
 	#end
 }
