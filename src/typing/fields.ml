@@ -137,6 +137,8 @@ let field_access ctx mode f fh e pfield =
 				normal()
 		in
 		let check_no_expr a =
+			(* TODO: CfNoExpr is also set on all expression-less fields of @:coreType abstracts, which is why we
+			   have to exclude those here. See https://github.com/HaxeFoundation/haxe/pull/13078#discussion_r4409517071 *)
 			if has_class_field_flag f CfNoExpr && not (Meta.has Meta.CoreType a.a_meta) then
 				display_error ctx.com ("Field " ^ f.cf_name ^ " cannot be called directly because it has no expression") pfield
 		in
