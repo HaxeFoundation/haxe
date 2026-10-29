@@ -54,6 +54,9 @@ class M {
 		}
 	**/
 	function testGetLocalTypeAfterRecoveredMissingType(_) {
+		// `Util.foo(1)` loads Util, whose missing `Unknown` type is recovered as Dynamic.
+		// Afterwards, `Gen<String>` runs a @:genericBuild macro that needs `Context.getLocalType()`
+		// to turn it into `Array<String>`. If the macro still works, `a.` completes Array fields like `push`.
 		putUtilWithMissingType();
 		put("G.hx", "import haxe.macro.Context;
 import haxe.macro.Expr;
