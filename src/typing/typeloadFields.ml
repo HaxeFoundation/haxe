@@ -1018,13 +1018,13 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 	in
 	let handle_array_access () =
 		if fctx.is_macro then invalid_modifier ctx.com fctx "macro" "array-access function" p;
-		begin match follow cf.cf_type with
+		begin match follow t with
 			| TFun(_ :: _ :: args,_) when is_empty_or_pos_infos args ->
 				a.a_array_read <- cf :: a.a_array_read;
 			| TFun(_ :: _ :: _ :: args,_) when is_empty_or_pos_infos args ->
 				a.a_array_write <- cf :: a.a_array_write;
 			| _ ->
-				raise_typing_error (cf.cf_name ^ ": Invalid number of arguments for array access function") p
+				raise_typing_error (cf.cf_name ^ ": Invalid number of arguments for array access function") cf.cf_pos
 		end;
 		allow_no_expr();
 	in

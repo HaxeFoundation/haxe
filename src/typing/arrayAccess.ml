@@ -121,6 +121,7 @@ let get_array_access ctx t p =
 				{ aa_type = t; aa_get = AGIndex; aa_length }
 			end else begin
 				(* otherwise, as the typer does when the abstract has no @:arrayAccess function *)
+				if a.a_array_read <> [] || a.a_array_write <> [] then raise Not_found;
 				let aa_get,aa_type = get_array_element ctx t p in
 				{ aa_type; aa_get; aa_length }
 			end
