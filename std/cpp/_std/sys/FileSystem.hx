@@ -49,8 +49,10 @@ class FileSystem {
 				nlink: 0,
 				rdev: 0,
 				size: 0,
+				size64: 0,
 				mode: 0
 			};
+		s.size64 = haxe.Int64.ofInt(s.size);
 		s.atime = Date.fromTime(1000.0 * (untyped s.atime));
 		s.mtime = Date.fromTime(1000.0 * (untyped s.mtime));
 		s.ctime = Date.fromTime(1000.0 * (untyped s.ctime));

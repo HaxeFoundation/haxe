@@ -45,6 +45,7 @@ class FileSystem {
 			mtime: @:privateAccess Date.fromInt(values[3]),
 			ctime: @:privateAccess Date.fromInt(values[4]),
 			size: values[5],
+			size64: haxe.Int64.ofInt(values[5]),
 			dev: values[6],
 			ino: values[7],
 			nlink: values[8],
