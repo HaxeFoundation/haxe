@@ -149,7 +149,13 @@ class Hl {
 
 		getHlDependencies();
 
-		for (extraArgs in [[], ["--undefine", "analyzer-optimize"], ["-D", "hl_legacy32"]]) {
+		final extraArgsList = [
+			for (analyzerArgs in [[], ["--undefine", "analyzer-optimize"]])
+				for (legacyArgs in [[], ["-D", "hl_legacy32"]])
+					analyzerArgs.concat(legacyArgs)
+		];
+
+		for (extraArgs in extraArgsList) {
 			if (Hl.withJitTests) {
 				runCommand("haxe", ["compile-hl.hxml"].concat(extraArgs).concat(haxeArgs));
 				runCommand(hlBinary, ['bin/unit.hl']);
