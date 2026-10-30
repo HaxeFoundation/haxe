@@ -1,11 +1,22 @@
 package haxe.atomic;
 
-private typedef AtomicObjectData<T:{}> = Dynamic;
+@:include("hx/atomic/AtomicObject.hpp")
+@:cpp.ManagedType({type: "AtomicObject", namespace: ["hx", "atomic"], flags: [StandardNaming]})
+private extern class AtomicObjectImpl {
+	function new(value:Dynamic);
+
+	function load():Dynamic;
+	function store(value:Dynamic):Dynamic;
+	function exchange(value:Dynamic):Dynamic;
+	function compareExchange(expected:Dynamic, replacement:Dynamic):Dynamic;
+}
+
+private typedef AtomicObjectData<T:{}> = AtomicObjectImpl;
 
 #if cppia
 extern
 #end
-abstract AtomicObject<T: {}>(AtomicObjectData<T>) {
+abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
 	#if cppia
 	public function new(value:T):Void;
 
@@ -17,28 +28,24 @@ abstract AtomicObject<T: {}>(AtomicObjectData<T>) {
 
 	public function store(value:T):T;
 	#else
-	public #if !scriptable inline #end function new(value:T) {
-		this = untyped __global__.__hxcpp_atomic_object_create(value);
+	public #if !scriptable inline #end function new(value:T):Void {
+		this = new AtomicObjectImpl(value);
 	}
 
-	// The `cast` makes hxcpp convert the `hx::Object` returned by the untyped calls to `T`.
-	// Without it, a field access directly on the inlined result, like `a.load().field`,
-	// generates a member access on `hx::Object` that doesn't compile.
-
 	public #if !scriptable inline #end function compareExchange(expected:T, replacement:T):T {
-		return cast (untyped __global__.__hxcpp_atomic_object_compare_exchange(this, expected, replacement));
+		return this.compareExchange(expected, replacement);
 	}
 
 	public #if !scriptable inline #end function exchange(value:T):T {
-		return cast (untyped __global__.__hxcpp_atomic_object_exchange(this, value));
+		return this.exchange(value);
 	}
 
 	public #if !scriptable inline #end function load():T {
-		return cast (untyped __global__.__hxcpp_atomic_object_load(this));
+		return this.load();
 	}
 
 	public #if !scriptable inline #end function store(value:T):T {
-		return cast (untyped __global__.__hxcpp_atomic_object_store(this, value));
+		return this.store(value);
 	}
 	#end
 }
