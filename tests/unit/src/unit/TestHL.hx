@@ -22,6 +22,7 @@ class Bar {
 	public var val:Int;
 }
 
+#if !hl_legacy32 // native hl.I64 and hl.GUID
 private class Numbers {
 	public var ui8 : hl.UI8;
 	public var ui16 : hl.UI16;
@@ -67,6 +68,7 @@ private typedef NumbersNull = {
 	?ni64 : hl.I64,
 	?nguid : hl.GUID,
 }
+#end
 
 class TestHL extends Test {
 	function testRetTypeTP() {
@@ -110,6 +112,7 @@ class TestHL extends Test {
 		//eq(i, 20);
 	}
 
+	#if !hl_legacy32
 	public function testNumberCompare() {
 		var num = new Numbers(); // prevent @:analyzer(ignore)
 		var v : hl.I64 = haxe.Int64.make(0xF, 1);
@@ -380,4 +383,5 @@ class TestHL extends Test {
 		v.loadInt(1);
 		numberFunDefault(v);
 	}
+	#end
 }

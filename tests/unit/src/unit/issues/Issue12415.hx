@@ -9,7 +9,7 @@ class Issue12415 extends Test {
 		eq(false, value != null);
 		eq(true, value.isNull());
 
-		#if static
+		#if (static && !(hl && hl_legacy32))
 		eq(true, (cast value) == 0);
 
 		#if !flash
