@@ -89,7 +89,10 @@ let hash_keys hash =
   !key_list
 
 let is_gc_element ctx member_type =
-  Gctx.defined ctx.ctx_common Define.HxcppGcGenerational && (is_object_element member_type)
+  Gctx.defined ctx.ctx_common Define.HxcppGcGenerational &&
+  match member_type with
+  | CppAst.TCppFunction _ -> false
+  | _ -> is_object_element member_type
 
 let strip_file ctx file = match Gctx.defined ctx Define.AbsolutePath with
   | true -> Path.get_full_path file
