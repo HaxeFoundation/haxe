@@ -52,8 +52,7 @@ class FileSystem {
 				size64: 0,
 				mode: 0
 			};
-		if (!Reflect.hasField(s, "size64"))
-			s.size64 = haxe.Int64.ofInt(s.size);
+		s.size64 = haxe.Int64.ofInt(s.size);
 		s.atime = Date.fromTime(1000.0 * (untyped s.atime));
 		s.mtime = Date.fromTime(1000.0 * (untyped s.mtime));
 		s.ctime = Date.fromTime(1000.0 * (untyped s.ctime));
