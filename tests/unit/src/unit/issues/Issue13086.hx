@@ -4,10 +4,6 @@ class Issue13086 extends unit.Test {
 	#if (hl && hl_ver >= version("2.0.0"))
 	// some tests that are disabled by #8600
 	function test() {
-		if (!hl.Api.is64()) {
-			noAssert();
-			return;
-		}
 		var referenceDate = new Date(1970, 0, 12, 2, 0, 0);
 
 		// Y2038 (outside of signed 32-bit integer range)
