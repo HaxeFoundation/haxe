@@ -128,15 +128,15 @@ class TestFileSystem extends utest.Test {
 		Assert.isTrue(stat != null);
 	}
 
-	#if !js
 	function testStatSize64() {
 		var path = dir + "statSize64.txt";
 		sys.io.File.saveContent(path, "hello");
 		var stat = FileSystem.stat(path);
 		Assert.equals(5, stat.size);
+		#if !js // hxnodejs doesn't set size64 yet
 		Assert.isTrue(stat.size64 == 5);
+		#end
 	}
-	#end
 
 	function testCreateExistingDirectory() {
 		var testDir = dir + "exists";
