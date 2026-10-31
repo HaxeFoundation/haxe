@@ -69,48 +69,81 @@ class Cpp {
 	}
 
 	static final LLDB_ITERATIONS = 30;
+	static final GMALLOC_ITERATIONS = 3;
+	static final GMALLOC = "/usr/lib/libgmalloc.dylib";
 
 	/**
 		DEBUG(mac-arm64-cppia-jit): runs the cppia JIT under lldb repeatedly, to catch the
 		intermittent `hxSehException` crash on macOS arm64 that happens while the module
 		is being JIT-compiled. lldb stops on the EXC_BAD_ACCESS before hxcpp's SIGSEGV
 		handler converts it into an `hxSehException`, so we get a native backtrace.
+
+		The crash was caught once in `ScriptCallable::compile` with a garbage `body`
+		pointer (0x500000000), so this first runs a few times with Guard Malloc (which
+		faults on the first use-after-free/overflow), then repeatedly with MallocScribble
+		and malloc stack logging so stale memory is recognisable and its history printable.
 	**/
 	static function debugCppiaJitWithLldb(script:String, host:String) {
+		if (FileSystem.exists(GMALLOC)) {
+			runCppiaJitUnderLldb(script, host, "guard malloc", GMALLOC_ITERATIONS, [
+				'DYLD_INSERT_LIBRARIES=$GMALLOC'
+			]);
+		} else {
+			infoMsg('$GMALLOC not found, skipping guard malloc runs');
+		}
+		runCppiaJitUnderLldb(script, host, "malloc scribble", LLDB_ITERATIONS, [
+			"MallocScribble=1",
+			"MallocPreScribble=1",
+			"MallocStackLogging=1"
+		]);
+	}
+
+	static function runCppiaJitUnderLldb(script:String, host:String, label:String, iterations:Int, env:Array<String>) {
 		final lldbArgs = [
 			"--batch",
 			// lldb disables ASLR by default, and the crash didn't reproduce in 30 runs that way
 			"-O", "settings set target.disable-aslr false",
+			"-O", "settings set target.env-vars " + env.join(" "),
 			"-o", "run",
 			// these only run if the process stops because of a crash
 			"-k", "thread backtrace all",
 			"-k", "register read",
 			"-k", "image lookup --address $pc",
 			"-k", "disassemble --pc --count 24",
-			"-k", "image list",
+			"-k", "frame variable --ptr-depth 1 *this",
+			"-k", "memory read --size 8 --format x --count 48 this",
+			"-k", "up",
+			"-k", "frame variable --ptr-depth 1 *this",
+			"-k", "up",
+			"-k", "frame variable name",
+			"-k", "frame select 0",
+			"-k", "command script import lldb.macosx.heap",
+			"-k", "malloc_info --stack-history this",
 			"-k", "quit 1",
 			"--", host, script, "-jit"
 		];
 		final cmd = "lldb " + [for (a in lldbArgs) "'" + a.split("'").join("'\\''") + "'"].join(" ") + " 2>&1";
 		final exitedRegex = ~/Process \d+ exited with status = (-?\d+)/;
 		Sys.putEnv("CPPIA_IS_JIT", "1");
-		for (i in 1...LLDB_ITERATIONS + 1) {
-			infoMsg('lldb cppia jit run $i/$LLDB_ITERATIONS: $cmd');
+		for (i in 1...iterations + 1) {
+			infoMsg('lldb cppia jit run ($label) $i/$iterations: $cmd');
+			final t = haxe.Timer.stamp();
 			final p = new sys.io.Process("/bin/sh", ["-c", cmd]);
 			final output = p.stdout.readAll().toString();
 			final exitCode = p.exitCode();
 			p.close();
+			final dt = Math.round(haxe.Timer.stamp() - t);
 			final crashed = output.indexOf("stop reason =") != -1;
 			final exited = exitedRegex.match(output);
 			if (crashed || !exited || exitedRegex.matched(1) != "0") {
 				Sys.println(output);
-				failMsg('lldb cppia jit run $i failed (lldb exit code $exitCode, crashed: $crashed)');
+				failMsg('lldb cppia jit run ($label) $i failed in ${dt}s (lldb exit code $exitCode, crashed: $crashed)');
 				Sys.putEnv("CPPIA_IS_JIT", null);
 				throw new CommandFailure(exitCode == 0 ? 1 : exitCode);
 			}
 			if (i == 1)
 				Sys.println(output);
-			successMsg('lldb cppia jit run $i passed');
+			successMsg('lldb cppia jit run ($label) $i passed in ${dt}s');
 		}
 		Sys.putEnv("CPPIA_IS_JIT", null);
 	}
