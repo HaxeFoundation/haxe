@@ -98,6 +98,16 @@ private class OverloadedJavaMethod {
 }
 #end
 
+#if cpp
+private class OverloadedNativeStatic {
+	// The C++ generator used to crash on this call, because the coroutine transform turned it
+	// into a call of the first overload, `getByteCount(Char32):Int`.
+	@:coroutine public static function getByteCount():Int {
+		return haxe.Int64.toInt(cpp.encoding.Utf8.getByteCount("hello"));
+	}
+}
+#end
+
 private class SimpleCont<T> implements IContinuation<T> {
 	public var context(get, never):Context;
 
@@ -797,6 +807,20 @@ class TestCoroutines extends Test {
 		eq(1, cont.resumeCount);
 		eq("oops", cont.lastResult.getMessage());
 		eq(null, cont.lastError);
+	}
+
+	#end
+
+	#if cpp
+
+	function testIssue13099() {
+		var cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, @:coroutine function() {
+			return OverloadedNativeStatic.getByteCount();
+		});
+		eq(1, cont.resumeCount);
+		eq(null, cont.lastError);
+		eq(5, cont.lastResult);
 	}
 
 	#end
