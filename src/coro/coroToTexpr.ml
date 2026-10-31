@@ -51,6 +51,19 @@ let handle_locals ctx cls params states tf_args econtinuation =
 	let fst_state     = List.hd states in
 	let arg_state_set = IntSet.of_list [ fst_state.cs_id ] in
 
+	(* Expand deferred expressions first so that the usage analysis below sees the locals they reference. *)
+	let rec expand_deferred e =
+		match e.eexpr with
+		| TCall ({eexpr = TLocal v},[]) when Hashtbl.mem ctx.deferred_exprs v.v_id ->
+			expand_deferred ((Hashtbl.find ctx.deferred_exprs v.v_id) ())
+		| _ ->
+			Type.map_expr expand_deferred e
+	in
+	List.iter (fun state ->
+		state.cs_el <- List.map expand_deferred state.cs_el;
+		state.cs_el_tail <- Option.map (List.map expand_deferred) state.cs_el_tail
+	) states;
+
 	(* Keep an extra table of all vars and what states they appear in, easier check if a var is used across states this way. *)
 	let var_usages = tf_args |> List.map (fun (v, _) -> v.v_id, arg_state_set) |> List.to_seq |> Hashtbl.of_seq in
 
@@ -191,8 +204,6 @@ let handle_locals ctx cls params states tf_args econtinuation =
 				state.cs_reads <- IntSet.add v.v_id state.cs_reads;
 
 				{ e with eexpr = TLocal (get_or_create_local_mapping v) }
-			| TCall ({eexpr = TLocal v},[]) when Hashtbl.mem ctx.deferred_exprs v.v_id ->
-				mapper ((Hashtbl.find ctx.deferred_exprs v.v_id) ())
 			| _ ->
 				Type.map_expr mapper e
 		in
