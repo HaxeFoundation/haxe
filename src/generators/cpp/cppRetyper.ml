@@ -1762,6 +1762,47 @@ let native_field_name_remap field =
   | None ->
     keyword_remap field.cf_name
 
+(* Generate a no op tfunc for an abstract function. *)
+(* This allows it to go through the rest of the generators with no special cases. *)
+(* We can't implement abstract functions as pure virtual due to cppia needing to construct the class. *)
+let abstract_tfunc basic field =
+  let args, ret =
+    match follow_with_coro field.cf_type with
+    | Coro (t, r) -> Common.expand_coro_type basic t r
+    | NotCoro TFun (t, r) -> t, r
+    | _ -> cpp_abort InternalError field.cf_pos
+  in
+
+  (* We need to fetch the default values for abstract functions from the @:Value meta *)
+  let get_default_value name =
+    try
+      match Meta.get Meta.Value field.cf_meta with
+      | _, [ (EObjectDecl decls, _) ], _ ->
+        Some
+          (decls
+            |> List.find (fun ((n, _, _), _) -> n = name)
+            |> snd
+            |> type_constant_value basic)
+      | _ -> None
+    with Not_found -> None
+  in
+
+  let map_arg (name, _, t) =
+    ( (alloc_var VGenerated name t null_pos), (get_default_value name) ) in
+  let expr =
+    match follow ret with
+    | TAbstract ({ a_path = ([], "Void") }, _) ->
+      { eexpr = TReturn None; etype = ret; epos = null_pos }
+    | _ ->
+      let zero_val = Some { eexpr = TConst (TInt Int32.zero); etype = ret; epos = null_pos } in
+      { eexpr = TReturn zero_val; etype = ret; epos = null_pos } in
+
+  {
+    tf_args = args |> List.map map_arg;
+    tf_type = ret;
+    tf_expr = expr;
+  }
+
 let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
   let scriptable = Gctx.defined ctx.ctx_common Define.Scriptable in
   let cpp_type_of = cpp_type_of ctx.ctx_common.basic in
@@ -1818,49 +1859,7 @@ let rec tcpp_class_from_tclass ctx ids slots class_def class_params =
       | Method (MethNormal | MethInline), Some { eexpr = TFunction func } ->
         Some (create_function field func)
       | Method MethNormal, _ when has_class_field_flag field CfAbstract ->
-        (* We need to fetch the default values for abstract functions from the @:Value meta *)
-        let abstract_tfunc =
-          let args, ret =
-            match follow_with_coro field.cf_type with
-            | Coro (t, r) -> Common.expand_coro_type ctx.ctx_common.basic t r
-            | NotCoro TFun (t, r) -> t, r
-            | _ -> cpp_abort InternalError field.cf_pos
-          in
-
-          let get_default_value name =
-            try
-              match Meta.get Meta.Value field.cf_meta with
-              | _, [ (EObjectDecl decls, _) ], _ ->
-                Some
-                  (decls
-                    |> List.find (fun ((n, _, _), _) -> n = name)
-                    |> snd
-                    |> type_constant_value ctx.ctx_common.basic)
-              | _ -> None
-            with Not_found -> None
-          in
-
-          (* Generate a no op tfunc for our abstract *)
-          (* This allows it to go through the rest of the generator with no special cases *)
-          (* We can't implement abstract functions as pure virtual due to cppia needing to construct the class *)
-          let map_arg (name, _, t) =
-            ( (alloc_var VGenerated name t null_pos), (get_default_value name) ) in
-          let expr =
-            match follow ret with
-            | TAbstract ({ a_path = ([], "Void") }, _) ->
-              { eexpr = TReturn None; etype = ret; epos = null_pos }
-            | _ ->
-              let zero_val = Some { eexpr = TConst (TInt Int32.zero); etype = ret; epos = null_pos } in
-              { eexpr = TReturn zero_val; etype = ret; epos = null_pos } in
-          
-          {
-            tf_args = args |> List.map map_arg;
-            tf_type = ret;
-            tf_expr = expr;
-          }
-        in
-
-        Some (create_function field abstract_tfunc)
+        Some (create_function field (abstract_tfunc ctx.ctx_common.basic field))
       | _ ->
         None
     else

@@ -1828,6 +1828,14 @@ let generate_script_class common_ctx script class_def =
        + match TClass.get_cl_init class_def with Some _ -> 1 | _ -> 0)
     ^ "\n");
 
+  (* Methods without an expression (i.e. abstract ones) still need a real function, because hxcpp
+     reads every class method as a ScriptCallable and the JIT accesses it as one *)
+  let method_expression field =
+    match field.cf_expr with
+    | None when not (has_class_flag class_def CInterface) ->
+        Some (mk (TFunction (CppRetyper.abstract_tfunc common_ctx.basic field)) field.cf_type field.cf_pos)
+    | e -> e
+  in
   let generate_field isStatic field =
     match (field.cf_kind, follow field.cf_type) with
     | Var { v_read = AccInline; v_write = AccNever }, _ ->
@@ -1854,7 +1862,7 @@ let generate_script_class common_ctx script class_def =
     | Method MethDynamic, TFun (args, ret) ->
         script#func isStatic true field.cf_name ret args
           (has_class_flag class_def CInterface)
-          field.cf_expr field.cf_pos
+          (method_expression field) field.cf_pos
     | Method _, TFun (args, ret) when field.cf_name = "new" ->
         script#func true false "new"
           (TInst (class_def, []))
@@ -1862,7 +1870,7 @@ let generate_script_class common_ctx script class_def =
     | Method _, TFun (args, ret) ->
         script#func isStatic false field.cf_name ret args
           (has_class_flag class_def CInterface)
-          field.cf_expr field.cf_pos
+          (method_expression field) field.cf_pos
     | Method _, _ ->
         print_endline
           ("Unknown method type "
