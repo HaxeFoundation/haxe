@@ -1833,7 +1833,7 @@ let generate_script_class common_ctx script class_def =
   let method_expression field =
     match field.cf_expr with
     | None when not (has_class_flag class_def CInterface) ->
-        Some (mk (TFunction (CppRetyper.abstract_tfunc common_ctx.basic field)) field.cf_type field.cf_pos)
+        Some (mk (TFunction (CppRetyper.abstract_tfunc common_ctx.Gctx.basic field)) field.cf_type field.cf_pos)
     | e -> e
   in
   let generate_field isStatic field =
