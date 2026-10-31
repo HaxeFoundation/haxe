@@ -84,6 +84,21 @@ private class HoistedNames {
 	}
 }
 
+private class Issue13101 {
+	// `start` is only read in the return expression, which is built after the usage analysis of locals.
+	@:coroutine public static function run(sus:Suspender<haxe.Unit>, x:Int):Int {
+		final start = x;
+		var i = start;
+		while (true) {
+			if (i == 3) {
+				return i - start;
+			}
+			sus.suspend();
+			i++;
+		}
+	}
+}
+
 #if jvm
 private class OverloadedJavaMethod {
 	// Calls of overloaded Java methods used to resolve to the first overload in coroutines with
@@ -763,6 +778,20 @@ class TestCoroutines extends Test {
 		invokeCoroutine(cont, caller);
 		eq(0, cont.resumeCount);
 		sus.cont.resume(null, new Exception("oops"));
+		eq(1, cont.resumeCount);
+		eq(null, cont.lastError);
+		eq(3, cont.lastResult);
+	}
+
+	function testIssue13101() {
+		final sus = new Suspender<haxe.Unit>();
+		final cont = new TrackingCont<Int>();
+		Issue13101.run(cont, sus, 0);
+		while (sus.cont != null) {
+			final c = sus.cont;
+			sus.cont = null;
+			c.resume(null, null);
+		}
 		eq(1, cont.resumeCount);
 		eq(null, cont.lastError);
 		eq(3, cont.lastResult);
