@@ -183,7 +183,7 @@ module ContinuationClassBuilder = struct
 
 		field
 
-	let mk_invoke_resume_with_body ctx coro_class vcontinuation vtmp_result vtmp_error vtmp_error_unwrapped eresult eloop =
+	let mk_invoke_resume_with_body ctx coro_class vcontinuation vtmp_result vtmp_error vtmp_error_unwrapped eresult eerror_init eloop =
 		let basic = ctx.typer.t in
 		let b     = ctx.builder in
 		let tret_invoke_resume = (TInst(AtomicLazy.force ctx.typer.t.tcoro.suspension_result_class,[coro_class.inside.result_type])) in
@@ -204,7 +204,7 @@ module ContinuationClassBuilder = struct
 		let el = [
 			b#var_init vcontinuation ethis;
 		] @ (if AtomicLazy.is_val vtmp_result then [b#var_init (AtomicLazy.force vtmp_result) eresult] else []) @ [
-			b#var_init_null vtmp_error;
+			(match eerror_init with Some e -> b#var_init vtmp_error e | None -> b#var_init_null vtmp_error);
 		] in
 		let el = if AtomicLazy.is_val vtmp_error_unwrapped then
 			el @ [b#var_init_null (AtomicLazy.force vtmp_error_unwrapped)]
@@ -282,7 +282,7 @@ let check_assertions assert_config num_states num_hoisted p =
 let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_error vtmp_error_unwrapped vcompletion vcontinuation gen_mode stack_item_inserter start_exception =
 	let b = ctx.builder in
 	let cont = coro_class.ContinuationClassBuilder.continuation_api in
-	let eloop, initial_state, fields, num_states = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls coro_class.outside.param_types args exprs coro_class.name_pos stack_item_inserter start_exception in
+	let eloop, initial_state, fields, num_states, has_resume_state = CoroToTexpr.block_to_texpr_coroutine ctx cb_root cont coro_class.cls coro_class.outside.param_types args exprs coro_class.name_pos stack_item_inserter start_exception in
 	(* Check @:coroutine(assert) config — skip numStates assertion in debug mode
 	   because debug mode disables TCO which may add extra states. *)
 	if not ctx.typer.com.debug then
@@ -293,7 +293,9 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 		TClass.add_field coro_class.cls cf
 	) fields;
 
-	let {CoroToTexpr.ecompletion;eresult;_} = exprs in
+	let {CoroToTexpr.ecompletion;eresult;eerror;_} = exprs in
+	(* The error of a resumption, see CoroToTexpr.block_to_texpr_coroutine. *)
+	let eerror_init = if has_resume_state then Some eerror else None in
 	let tret_invoke_resume = cont.suspension_result coro_class.outside.result_type in
 
 	(* With coro.stack-traces, insert an initial setStackItem call at the very start of
@@ -306,7 +308,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 
 	let invoke_resume_field = match gen_mode with
 		| GenInline cfo ->
-			ContinuationClassBuilder.mk_invoke_resume_with_body ctx coro_class vcontinuation vtmp_result vtmp_error vtmp_error_unwrapped eresult eloop
+			ContinuationClassBuilder.mk_invoke_resume_with_body ctx coro_class vcontinuation vtmp_result vtmp_error vtmp_error_unwrapped eresult eerror_init eloop
 		| GenThunk cf_captured ->
 			ContinuationClassBuilder.mk_invoke_resume_thunk_call ctx coro_class cf_captured
 	in
@@ -346,7 +348,7 @@ let coro_to_state_machine ctx coro_class cb_root exprs args vtmp_result vtmp_err
 			let einvoke_resume_call = b#call (continuation_field invoke_resume_field invoke_resume_type) [] tret_invoke_resume in
 			let thunk_body_el =
 				(if AtomicLazy.is_val vtmp_result then [b#var_init (AtomicLazy.force vtmp_result) eresult] else []) @ [
-				b#var_init_null vtmp_error;
+				(match eerror_init with Some e -> b#var_init vtmp_error e | None -> b#var_init_null vtmp_error);
 			] @ (if AtomicLazy.is_val vtmp_error_unwrapped then [b#var_init_null (AtomicLazy.force vtmp_error_unwrapped)] else [])
 			@ [eloop] in
 			let thunk_type = TFun([], tret_invoke_resume) in
