@@ -199,7 +199,8 @@ module ContinuationClassBuilder = struct
 				v'
 		in
 		let rec subst_eloop e =
-			Texpr.map_expr_type subst_eloop subst map_var e
+			let e = Texpr.map_expr_type subst_eloop subst map_var e in
+			OverloadResolution.maybe_reapply_overload_call e
 		in
 		let el = [
 			b#var_init vcontinuation ethis;

@@ -84,6 +84,20 @@ private class HoistedNames {
 	}
 }
 
+#if jvm
+private class OverloadedJavaMethod {
+	// Calls of overloaded Java methods used to resolve to the first overload in coroutines with
+	// several states, here `write(int)` instead of `write(byte[], int, int)`. This has to be a
+	// static coroutine, because those that capture variables are generated differently.
+	@:coroutine public static function write(sus:Suspender<Int>):Int {
+		final out = new java.io.ByteArrayOutputStream();
+		final bytes = haxe.io.Bytes.ofString("abc");
+		out.write(bytes.getData(), 0, sus.suspend());
+		return out.size();
+	}
+}
+#end
+
 private class SimpleCont<T> implements IContinuation<T> {
 	public var context(get, never):Context;
 
@@ -721,6 +735,18 @@ class TestCoroutines extends Test {
 	}
 
 	#if jvm
+
+	function testOverloadedJavaMethod() {
+		final sus = new Suspender<Int>();
+		var cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, @:coroutine function() {
+			return OverloadedJavaMethod.write(sus);
+		});
+		sus.cont.resume(2, null);
+		eq(1, cont.resumeCount);
+		eq(null, cont.lastError);
+		eq(2, cont.lastResult);
+	}
 
 	function testIssue13080Throwable() {
 		var cont = new TrackingCont();
