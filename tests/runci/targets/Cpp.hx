@@ -79,6 +79,8 @@ class Cpp {
 	static function debugCppiaJitWithLldb(script:String, host:String) {
 		final lldbArgs = [
 			"--batch",
+			// lldb disables ASLR by default, and the crash didn't reproduce in 30 runs that way
+			"-O", "settings set target.disable-aslr false",
 			"-o", "run",
 			// these only run if the process stops because of a crash
 			"-k", "thread backtrace all",
@@ -106,6 +108,8 @@ class Cpp {
 				Sys.putEnv("CPPIA_IS_JIT", null);
 				throw new CommandFailure(exitCode == 0 ? 1 : exitCode);
 			}
+			if (i == 1)
+				Sys.println(output);
 			successMsg('lldb cppia jit run $i passed');
 		}
 		Sys.putEnv("CPPIA_IS_JIT", null);
