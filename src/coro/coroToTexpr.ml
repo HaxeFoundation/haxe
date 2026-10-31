@@ -435,9 +435,13 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 		| _ ->
 			die "" __LOC__
 	in
+	(* Resume states are also entered from call sites whose callee returned synchronously, so the error
+	   field is cleared once the error of a resumption has been taken. Otherwise a resume state entered
+	   later would find it again, even if it has already been caught. *)
 	let eif_error cb =
 		let el = [
 			b#assign etmp_error eerror;
+			b#assign eerror (b#null eerror.etype p);
 			b#break p;
 		] in
 		let e_then = b#void_block el in
