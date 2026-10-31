@@ -734,6 +734,43 @@ class TestCoroutines extends Test {
 		aeq([5], a.toArray());
 	}
 
+	// Regression test: resume states used to check the continuation's error field, including when
+	// they were entered from a call that returned synchronously. A coroutine call in a catch block
+	// then saw the error that resumed the coroutine again, and rethrew it.
+	function testCoroutineCallInCatchAfterErrorResumption() {
+		final sus = new Suspender<Int>();
+		@:coroutine function id(x:Int):Int {
+			return x;
+		}
+		@:coroutine function caller():Int {
+			try {
+				return sus.suspend();
+			} catch (e:Exception) {
+				return id(1) + id(2);
+			}
+		}
+		var cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, caller);
+		eq(0, cont.resumeCount);
+		sus.cont.resume(null, new Exception("oops"));
+		eq(1, cont.resumeCount);
+		eq(null, cont.lastError);
+		eq(3, cont.lastResult);
+	}
+
+	// The error of a resumption that isn't caught completes the coroutine.
+	function testUncaughtErrorResumption() {
+		final sus = new Suspender<Int>();
+		@:coroutine function caller():Int {
+			return sus.suspend() + 1;
+		}
+		var cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, caller);
+		sus.cont.resume(null, new Exception("oops"));
+		eq(1, cont.resumeCount);
+		eq("oops", cont.lastError.message);
+	}
+
 	#if jvm
 
 	function testOverloadedJavaMethod() {
