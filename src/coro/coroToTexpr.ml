@@ -435,21 +435,18 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 		| _ ->
 			die "" __LOC__
 	in
-	let eif_error cb =
-		let el = [
-			b#assign etmp_error eerror;
-			b#break p;
-		] in
-		let e_then = b#void_block el in
-		let e_if = b#binop OpNotEq eerror (b#null eerror.etype p) com.basic.tbool in
+	(* A resume state is entered either from invokeResume after the suspending call resumed us, or
+	   directly from the call site if the call returned synchronously. In both cases the call's value
+	   is in etmp_result, and errors have already been dealt with: see the entry check below. *)
+	let eassign_stack_value cb =
 		match cb.cb_stack_value with
 			| None ->
-				b#if_then e_if e_then
+				None
 			| Some e ->
 				let etmp_result = {(AtomicLazy.force etmp_result) with epos = e.epos} in
-				let e_assign = b#assign e etmp_result in
-				b#if_then_else e_if e_then e_assign com.basic.tvoid
+				Some (b#assign e etmp_result)
 	in
+	let has_resume_state = ref false in
 
 	let exc_state_map = Array.init ctx.next_block_id (fun _ -> ref []) in
 	let generate cb =
@@ -462,9 +459,12 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 				| Some id ->
 					el @ [set_state id]
 			in
-			let el = if has_block_flag cb CbResumeState then
-				eif_error cb :: el
-			else
+			let el = if has_block_flag cb CbResumeState then begin
+				has_resume_state := true;
+				match eassign_stack_value cb with
+					| None -> el
+					| Some e -> e :: el
+			end else
 				el
 			in
 			let el = el @ extra_el in
@@ -607,7 +607,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 		)) com.basic.tvoid p
 	in
 
-	let eexchandle =
+	let make_exchandle () =
 		let cases = DynArray.create () in
 		Array.iteri (fun i l -> match !l with
 			| [] ->
@@ -641,7 +641,7 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 
 	let etry = b#void_block [
 		etry;
-		eexchandle;
+		make_exchandle ();
 	] in
 
 	let eloop = if ctx.has_catch then
@@ -650,5 +650,27 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 		(* If there is no catch we don't need to pseudo-goto back into the state loop, so we don't need a control loop. *)
 		etry
 	in
+
+	(* The continuation's error field is only meaningful right after resume has set it, so it is checked
+	   once on entry to invokeResume. An error is handled as if the suspending call had thrown it: the
+	   exception handler either selects the catch dispatch state, after which we enter the state loop, or
+	   completes the coroutine with the error.
+
+	   Checking the field in the resume states instead would be wrong, because they are also entered from
+	   call sites whose callee returned synchronously. The field might then still hold the error of an
+	   earlier resumption that has already been caught. *)
+	let eloop = if not !has_resume_state then
+		eloop
+	else begin
+		let e_if = b#binop OpNotEq eerror (b#null eerror.etype p) com.basic.tbool in
+		let e_then = b#void_block [
+			b#assign etmp_error eerror;
+			make_exchandle ();
+		] in
+		b#void_block [
+			b#if_then e_if e_then;
+			eloop;
+		]
+	end in
 
 	eloop, init_state, fields_and_decls, List.length states
