@@ -26,7 +26,7 @@ let rec make_static_call ctx c cf a pl args t p =
 	end else
 		CallUnification.make_static_call_better ctx c cf pl args t p
 
-and do_check_cast ctx uctx tleft eright p =
+and do_check_cast ?(do_cast=true) ctx uctx tleft eright p =
 	let recurse cf f =
 		(*
 			Without this special check for macro @:from methods we will always get "Recursive implicit cast" error
@@ -45,7 +45,9 @@ and do_check_cast ctx uctx tleft eright p =
 		rec_stack_loop cast_stack cf f ()
 	in
 	let make (a,tl,(tcf,cf)) =
-		if (Meta.has Meta.MultiType cf.cf_meta) then
+		if not do_cast then
+			eright
+		else if (Meta.has Meta.MultiType cf.cf_meta) then
 			mk_cast eright tleft p
 		else match a.a_impl with
 			| Some c -> recurse cf (fun () ->
@@ -110,13 +112,13 @@ and do_check_cast ctx uctx tleft eright p =
 		loop [] tleft eright.etype
 	end
 
-and cast_or_unify_raise ctx ?(uctx=None) tleft eright p =
+and cast_or_unify_raise ctx ?(uctx=None) ?(do_cast=true) tleft eright p =
 	let uctx = match uctx with
 		| None -> default_unification_context ()
 		| Some uctx -> uctx
 	in
 	try
-		do_check_cast ctx uctx tleft eright p
+		do_check_cast ~do_cast:do_cast ctx uctx tleft eright p
 	with Not_found ->
 		unify_raise_custom uctx eright.etype tleft p;
 		eright
@@ -164,28 +166,7 @@ let find_array_read_access_raise ctx a pl e1 p =
 				end
 			| _ -> loop cfl
 	in
-	loop a.a_array
-
-let find_array_write_access_raise ctx a pl e1 e2  p =
-	let rec loop cfl =
-		match cfl with
-		| [] -> raise Not_found
-		| cf :: cfl ->
-			let map,check_constraints,get_ta = prepare_array_access_field ctx a pl cf p in
-			match follow (map cf.cf_type) with
-			| TFun((_,_,tab) :: (_,_,ta1) :: (_,_,ta2) :: args,r) as tf when is_empty_or_pos_infos args ->
-				begin try
-					Type.unify tab (get_ta());
-					let e1 = cast_or_unify_raise ctx ta1 e1 p in
-					let e2 = cast_or_unify_raise ctx ta2 e2 p in
-					check_constraints();
-					cf,tf,r,e1,e2
-				with Unify_error _ | Error { err_message = Unify _ } ->
-					loop cfl
-				end
-			| _ -> loop cfl
-	in
-	loop a.a_array
+	loop a.a_array_read
 
 let find_array_read_access ctx a tl e1 p =
 	try
@@ -194,12 +175,73 @@ let find_array_read_access ctx a tl e1 p =
 		let s_type = s_type (print_context()) in
 		raise_typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts argument of %s" (s_type (TAbstract(a,tl))) (s_type e1.etype)) p
 
-let find_array_write_access ctx a tl e1 e2 p =
-	try
-		find_array_write_access_raise ctx a tl e1 e2 p
-	with Not_found ->
-		let s_type = s_type (print_context()) in
-		raise_typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type e1.etype) (s_type e2.etype)) p
+module ArrayWrite = struct
+	let get_list_from_key ctx a pl e1 p =
+		let rec loop acc cfl =
+			match cfl with
+			| [] ->
+				List.rev acc
+			| cf :: cfl ->
+				let restore = monomorph_transaction ctx in
+				let map,check_constraints,get_ta = prepare_array_access_field ctx a pl cf p in
+				match follow (map cf.cf_type) with
+				| TFun((_,_,tab) :: (_,_,ta1) :: (_,_,ta2) :: args,r) as tf when is_empty_or_pos_infos args ->
+					begin try
+						Type.unify tab (get_ta());
+						ignore(cast_or_unify_raise ~do_cast:false ctx ta1 e1 p);
+						restore();
+						let f e2 =
+							let restore = monomorph_transaction ctx in
+							try
+								Type.unify tab (get_ta());
+								let e1 = cast_or_unify_raise ctx ta1 e1 p in
+								let e2 = cast_or_unify_raise ctx ta2 e2 p in
+								check_constraints();
+								cf,tf,r,e1,e2
+							with Unify_error _ | Error { err_message = Unify _ } as exc ->
+								restore();
+								raise exc
+						in
+						loop ((f,ta2) :: acc) cfl
+					with Unify_error _ | Error { err_message = Unify _ } ->
+						restore();
+						loop acc cfl
+					end
+				| _ ->
+					restore();
+					loop acc cfl
+		in
+		loop [] a.a_array_write
+
+	let filter_by_value_raise candidates e2 =
+		let rec loop candidates = match candidates with
+			| [] ->
+				raise Not_found
+			| (f,_) :: candidates ->
+				try
+					f e2
+				with Unify_error _ | Error { err_message = Unify _ } ->
+					loop candidates
+		in
+		loop candidates
+
+	let catch_write_exception a tl t1 t2 p f =
+		try
+			f ()
+		with Not_found ->
+			let s_type = s_type (print_context()) in
+			raise_typing_error (Printf.sprintf "No @:arrayAccess function for %s accepts arguments of %s and %s" (s_type (TAbstract(a,tl))) (s_type t1) (s_type t2)) p
+
+	let filter_by_value a tl t1 e2 p candidates =
+		catch_write_exception a tl t1 e2.etype p (fun () -> filter_by_value_raise candidates e2)
+
+	let find_array_write_access_raise ctx a tl e1 e2 p =
+		let candidates = get_list_from_key ctx a tl e1 p in
+		filter_by_value_raise candidates e2
+
+	let find_array_write_access ctx a tl e1 e2 p =
+		catch_write_exception a tl e1.etype e2.etype p (fun () -> find_array_write_access_raise ctx a tl e1 e2 p)
+end
 
 (* TODO: This duplicates pretty much all the code from unifies_to_field. The only reason for that is
    that we want the monos so we can apply them to the type. Surely we can design our data better here... *)
