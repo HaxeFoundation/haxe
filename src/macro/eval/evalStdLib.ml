@@ -1438,14 +1438,27 @@ module CountingSemaphore = struct
 		) lock;
 		lock
 
+	(* Uncontended locking goes through trylock, whose binding does not release
+	   the OCaml runtime lock. Only a contended lock takes the blocking path,
+	   which releases it around uv_mutex_lock. *)
+	let lock_mutex lock =
+		match Luv.Mutex.trylock lock.lmutex with
+		| Ok () -> ()
+		| Error _ -> Luv.Mutex.lock lock.lmutex
+
+	(* Windows converts the timeout of uv_cond_timedwait to a DWORD of
+	   milliseconds, so a single wait is limited to about 24 days. Longer
+	   waits are split up by the loop in try_acquire_timeout. *)
+	let max_single_wait = 2e6
+
 	let release lock =
-		Luv.Mutex.lock lock.lmutex;
+		lock_mutex lock;
 		lock.lcount <- lock.lcount + 1;
 		Luv.Condition.signal lock.lcond;
 		Luv.Mutex.unlock lock.lmutex
 
 	let acquire lock =
-		Luv.Mutex.lock lock.lmutex;
+		lock_mutex lock;
 		while lock.lcount = 0 do
 			Luv.Condition.wait lock.lcond lock.lmutex
 		done;
@@ -1454,7 +1467,7 @@ module CountingSemaphore = struct
 
 	(* Takes one unit if one is available right away, without waiting. *)
 	let try_acquire lock =
-		Luv.Mutex.lock lock.lmutex;
+		lock_mutex lock;
 		let acquired = lock.lcount > 0 in
 		if acquired then lock.lcount <- lock.lcount - 1;
 		Luv.Mutex.unlock lock.lmutex;
@@ -1467,7 +1480,7 @@ module CountingSemaphore = struct
 		(* about 31 years, so that the nanosecond count cannot overflow *)
 		let timeout = if timeout > 1e9 then 1e9 else timeout in
 		let deadline = Extc.time () +. timeout in
-		Luv.Mutex.lock lock.lmutex;
+		lock_mutex lock;
 		let rec loop () =
 			if lock.lcount > 0 then begin
 				lock.lcount <- lock.lcount - 1;
@@ -1479,7 +1492,8 @@ module CountingSemaphore = struct
 					false
 				else begin
 					(* Ok or Error `ETIMEDOUT: loop to re-check either way *)
-					ignore (Luv.Condition.timedwait lock.lcond lock.lmutex (int_of_float (remaining *. 1e9)));
+					let wait = Float.min remaining max_single_wait in
+					ignore (Luv.Condition.timedwait lock.lcond lock.lmutex (int_of_float (wait *. 1e9)));
 					loop ()
 				end
 			end
