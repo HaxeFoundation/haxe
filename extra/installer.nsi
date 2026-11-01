@@ -128,7 +128,10 @@ Section "Haxe ${VERSION}" Main
 
 	File /r /x .svn /x *.db /x Exceptions.log /x .local /x .multi /x *.pdb /x *.vshost.exe /x *.vshost.exe.config /x *.vshost.exe.manifest "resources\haxe\*.*"
 
-	${registerExtension} "$INSTDIR\haxe\haxe.exe --prompt" ".hxml" "Haxe compiler arguments list"
+	; registerExtension quotes the executable itself, so it cannot take arguments.
+	; Register the bare executable, then override the open command to add --prompt.
+	${registerExtension} "$INSTDIR\haxe\haxe.exe" ".hxml" "Haxe compiler arguments list"
+	WriteRegStr HKCR "Haxe compiler arguments list\shell\open\command" "" '"$INSTDIR\haxe\haxe.exe" --prompt "%1"'
 
 	WriteUninstaller "$INSTDIR\Uninstall.exe"
 

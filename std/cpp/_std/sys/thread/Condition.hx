@@ -1,33 +1,47 @@
 package sys.thread;
 
+@:include("hx/thread/ConditionVariable.hpp")
+@:cpp.ManagedType({ namespace : [ "hx", "thread" ], flags : [ StandardNaming ] })
+private extern class ConditionVariable {
+	function new():Void;
+
+	public function acquire():Void;
+	public function tryAcquire():Bool;
+	public function release():Void;
+	public function wait():Void;
+	public function signal():Void;
+	public function broadcast():Void;
+}
+
 @:coreApi
 class Condition {
-	var c:Dynamic;
+	final c:ConditionVariable;
+
 	public function new():Void {
-		c = untyped __global__.__hxcpp_condition_create();
+		c = new ConditionVariable();
 	}
 
 	public function acquire():Void {
-		untyped __global__.__hxcpp_condition_acquire(c);
+		c.acquire();
 	}
 
 	public function tryAcquire():Bool {
-		return untyped __global__.__hxcpp_condition_try_acquire(c);
+		return c.tryAcquire();
 	}
 
 	public function release():Void {
-		untyped __global__.__hxcpp_condition_release(c);
+		c.release();
 	}
 
 	public function wait():Void {
-		untyped __global__.__hxcpp_condition_wait(c);
+		c.wait();
 	}
 
 	public function signal():Void {
-		untyped __global__.__hxcpp_condition_signal(c);
+		c.signal();
 	}
 
 	public function broadcast():Void {
-		untyped __global__.__hxcpp_condition_broadcast(c);
+		c.broadcast();
 	}
 }

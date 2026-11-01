@@ -84,6 +84,7 @@ type parser_config = {
 type parser_ctx = {
 	lexer_ctx : Lexer.lexer_ctx;
 	mutable syntax_errors : (error_msg * pos) list;
+	mutable syntax_warnings : (Warning.warning * pos) list;
 	mutable last_doc : (string * int) option;
 	in_macro : bool;
 	code : Sedlexing.lexbuf;
@@ -114,9 +115,11 @@ let error_msg = function
 type parse_data = string list * (type_def * pos) list
 
 type parse_error = (error_msg * pos)
+type parse_warning = (Warning.warning * pos)
 
 type parser_display_information = {
 	pd_errors : parse_error list;
+	pd_warnings : parse_warning list;
 	pd_dead_blocks : (pos * expr) list;
 	pd_conditions : expr list;
 	pd_was_display_file : bool;
@@ -131,6 +134,7 @@ type 'a parse_result =
 let create_context lexer_ctx config in_macro code = {
 	lexer_ctx;
 	syntax_errors = [];
+	syntax_warnings = [];
 	last_doc = None;
 	in_macro;
 	code;
@@ -193,6 +197,14 @@ let syntax_error_with_pos ctx error_msg p v =
 let syntax_error ctx error_msg ?(pos=None) s v =
 	let p = (match pos with Some p -> p | None -> next_pos ctx s) in
 	syntax_error_with_pos ctx error_msg p v
+
+let syntax_warning_with_pos ctx warning p =
+	let p = if p.pmax = max_int then {p with pmax = p.pmin + 1} else p in
+	ctx.syntax_warnings <- (warning,p) :: ctx.syntax_warnings
+
+let syntax_warning ctx warning ?(pos=None) s =
+	let p = (match pos with Some p -> p | None -> next_pos ctx s) in
+	syntax_warning_with_pos ctx warning p
 
 let handle_stream_error ctx msg s =
 	let err,pos = if msg = "Parse error." then begin

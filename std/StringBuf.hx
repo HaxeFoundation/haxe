@@ -89,6 +89,13 @@ class StringBuf {
 	}
 
 	/**
+		Removes all characters from `this` StringBuf, making it possible to reuse it.
+	**/
+	public inline function clear():Void {
+		b = "";
+	}
+
+	/**
 		Returns the content of `this` StringBuf as String.
 
 		The buffer is not emptied by this operation.

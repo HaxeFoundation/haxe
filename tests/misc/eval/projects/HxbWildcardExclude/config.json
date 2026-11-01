@@ -1,0 +1,6 @@
+{
+	"archivePath": "bin/hxb.zip",
+	"targetConfig": {
+		"exclude": ["pack.**"]
+	}
+}

@@ -2,7 +2,9 @@ package haxe.atomic;
 
 import js.lib.Atomics;
 
-abstract AtomicInt(js.lib.Int32Array) {
+private typedef AtomicIntData = js.lib.Int32Array;
+
+abstract AtomicInt(AtomicIntData) {
 	public inline function new(value:Int) {
 		this = new js.lib.Int32Array(new js.lib.SharedArrayBuffer(js.lib.Int32Array.BYTES_PER_ELEMENT));
 		this[0] = value;

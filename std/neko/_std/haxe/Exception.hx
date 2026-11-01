@@ -3,7 +3,7 @@ package haxe;
 @:coreApi
 class Exception {
 	public var message(get,never):String;
-	public var stack(get,never):CallStack;
+	public var stack(get,set):CallStack;
 	public var previous(get,never):Null<Exception>;
 	public var native(get,never):Any;
 
@@ -90,5 +90,9 @@ class Exception {
 				__exceptionStack = NativeStackTrace.toHaxe(__nativeStack, __skipStack);
 			case s: s;
 		}
+	}
+
+	function set_stack(stack:CallStack) {
+		return __exceptionStack = stack;
 	}
 }

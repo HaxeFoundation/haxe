@@ -1,0 +1,3 @@
+--main AssertNumStates
+-D haxe-next
+-js /dev/null

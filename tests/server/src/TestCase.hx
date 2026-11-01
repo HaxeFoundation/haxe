@@ -5,6 +5,7 @@ import haxe.display.Position;
 import haxeserver.HaxeServerRequestResult;
 import haxe.display.JsonModuleTypes;
 import haxe.display.Display;
+import haxe.display.Server;
 import haxe.display.Protocol;
 import haxe.display.Diagnostic;
 import haxe.Json;
@@ -19,6 +20,34 @@ using Lambda;
 
 @:autoBuild(utils.macro.BuildHub.build())
 interface ITestCase {}
+
+class TestException extends Exception {
+	public final pos:PosInfos;
+
+	public function new(message:String, ?pos:PosInfos) {
+		super(message);
+		this.pos = pos;
+	}
+}
+
+typedef JsonRpcError<Data> = {
+	code:Int,
+	message:String,
+	?data:Data
+}
+
+typedef JsonRpcResponse<Result, ErrorData> = {
+	jsonrpc:String,
+	id:Int,
+	?result:Result,
+	?error:JsonRpcError<ErrorData>
+}
+
+typedef JsonRpcNotification = {
+	jsonrpc:String,
+	method:String,
+	?params:Dynamic
+}
 
 class TestCase implements ITest implements ITestCase {
 	static public var debugLastResult:{
@@ -36,6 +65,7 @@ class TestCase implements ITest implements ITestCase {
 	var lastResult:HaxeServerRequestResult;
 	var messages:Array<String> = [];
 	var errorMessages = [];
+	var notifications:Array<JsonRpcNotification> = [];
 
 	static var i:Int = 0;
 
@@ -77,14 +107,19 @@ class TestCase implements ITest implements ITestCase {
 	public function setup(async:utest.Async) {
 		testDir = "test/cases/" + i++;
 		vfs = new Vfs(testDir);
-		runHaxeJson(["--cwd", rootCwd, "--cwd", testDir], Methods.ResetCache, {}, () -> {
-			async.done();
+
+		hxcoro.CoroRun.promise(() -> {
+			runHaxeJson([], Methods.ResetState, {});
+			runHaxeJson([], ServerMethods.SetCwd, {dir: testDir});
+
+			if (!async.timedOut)
+				async.done();
 		});
 	}
 
 	public function teardown() {}
 
-	function handleResult(result) {
+	function handleResult(result:HaxeServerRequestResult) {
 		lastResult = result;
 		debugLastResult = {
 			hasError: lastResult.hasError,
@@ -99,43 +134,62 @@ class TestCase implements ITest implements ITestCase {
 		}
 	}
 
-	function runHaxe(args:Array<String>, done:() -> Void) {
+	@:coroutine
+	function runHaxe(args:Array<String>) {
 		messages = [];
 		errorMessages = [];
-		server.rawRequest(args, null, function(result) {
-			handleResult(result);
-			if (result.hasError) {
-				sendErrorMessage(result.stderr);
-			}
-			done();
-		}, sendErrorMessage);
+
+		hxcoro.Coro.suspend(cont -> {
+			server.rawRequest(args, null, function(result) {
+				handleResult(result);
+				if (result.hasError) {
+					sendErrorMessage(result.stderr);
+				}
+				cont.resume(null, null);
+			}, err -> {
+				sendErrorMessage(err);
+				cont.resume(null, null);
+			});
+		});
 	}
 
-	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, TResponse>, methodArgs:TParams, done:() -> Void) {
-		var methodArgs = {method: method, id: 1, params: methodArgs};
-		args = args.concat(['--display', Json.stringify(methodArgs)]);
-		runHaxe(args, done);
-	}
-
-	function runHaxeJsonCb<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, Response<TResponse>>, methodArgs:TParams,
-			callback:TResponse->Void, done:() -> Void, ?pos:PosInfos) {
+	@:coroutine
+	function runHaxeJson<TParams, TResponse>(args:Array<String>, method:HaxeRequestMethod<TParams, Response<TResponse>>, methodArgs:TParams,
+			?pos:PosInfos):TResponse {
 		var methodArgs = {method: method, id: 1, params: methodArgs};
 		args = args.concat(['--display', Json.stringify(methodArgs)]);
 		messages = [];
 		errorMessages = [];
-		server.rawRequest(args, null, function(result) {
-			handleResult(result);
-			var json = try Json.parse(result.stderr) catch(e) {result: null, error: e.message + " (Response: " + result.stderr + ")"};
+		notifications = [];
 
-			if (json.result != null) {
-				callback(json.result?.result);
-			} else {
-				Assert.fail('Error: ' + json.error, pos);
-			}
-			done();
-		}, function(msg) {
-			sendErrorMessage(msg);
-			done();
+		return hxcoro.Coro.suspend(cont -> {
+			server.rawRequest(args, null, function(result) {
+				// TODO: would be nicer to not have that here either, but it makes 3 tests fail.
+				sendLogMessage(result.stdout);
+				collectNotifications(result.prints);
+				var json:JsonRpcResponse<Response<TResponse>, Array<Any>> = try {
+					Json.parse(result.stderr);
+				} catch (e) {
+					cont.resume(null, new TestException("Response: " + result.stderr, pos));
+					return;
+				}
+
+				if (json.result != null) {
+					cont.resume(json.result?.result, null);
+				} else {
+					// TODO: This needs some serious cleanup in the compiler so all methods return
+					// properly typed data.
+					final obj = json.error.data[0];
+					final message:String = if (obj is String) {
+						(obj : String);
+					} else {
+						(obj : HaxeResponseErrorData).message;
+					}
+					cont.resume(null, new TestException(message, pos));
+				}
+			}, function(msg) {
+				cont.resume(null, new TestException(msg, pos));
+			});
 		});
 	}
 
@@ -153,8 +207,51 @@ class TestCase implements ITest implements ITestCase {
 		}
 	}
 
+	function collectNotifications(prints:Array<String>) {
+		for (print in prints) {
+			var trimmed = print.trim();
+			if (trimmed.length == 0) continue;
+			// Prints contain mixed content (trace output, compiler messages, etc.).
+			// We only extract entries that parse as JSON-RPC 2.0 notifications.
+			var parsed:Dynamic = try Json.parse(trimmed) catch (_) null;
+			if (parsed != null && Reflect.field(parsed, "jsonrpc") == "2.0" && Reflect.field(parsed, "method") != null) {
+				notifications.push({
+					jsonrpc: parsed.jsonrpc,
+					method: parsed.method,
+					params: parsed.params
+				});
+			}
+		}
+	}
+
+	function hasNotification(method:String) {
+		for (n in notifications) {
+			if (n.method == method) return true;
+		}
+		return false;
+	}
+
+	function assertHasNotification(method:String, ?p:haxe.PosInfos) {
+		return Assert.isTrue(hasNotification(method), null, p);
+	}
+
+	function assertNoNotification(method:String, ?p:haxe.PosInfos) {
+		return Assert.isFalse(hasNotification(method), null, p);
+	}
+
 	function getTemplate(templateName:String) {
 		return sys.io.File.getContent("test/templates/" + templateName);
+	}
+
+	function getTemplateWithMarkers(templateName:String) {
+		var content = sys.io.File.getContent("test/templates/" + templateName);
+		return Marker.extractMarkers(content);
+	}
+
+	function storeAndParseTemplate(templatePath:String, asPath:String) {
+		var tpl = getTemplateWithMarkers(templatePath);
+		vfs.putContent(asPath, tpl.source);
+		return tpl;
 	}
 
 	function hasMessage<T>(msg:String) {
@@ -175,13 +272,8 @@ class TestCase implements ITest implements ITestCase {
 		return false;
 	}
 
-	function getStoredType<T>(typePackage:String, typeName:String) {
-		var storedTypes:Array<JsonModuleType<T>> = try {
-			Json.parse(lastResult.stderr).result.result;
-		} catch (e:Dynamic) {
-			trace(e);
-			[];
-		}
+	function getStoredType<T>(storedTypes:Array<JsonModuleType<T>>, typePackage:String, typeName:String) {
+		if (storedTypes == null) return null;
 		for (type in storedTypes) {
 			if (type.pack.join(".") == typePackage && type.name == typeName) {
 				return type;
@@ -190,46 +282,14 @@ class TestCase implements ITest implements ITestCase {
 		return null;
 	}
 
-	function parseCompletion():CompletionResult {
-		return Json.parse(lastResult.stderr).result;
-	}
-
-	function parseHover():HoverResult {
-		return Json.parse(lastResult.stderr).result;
-	}
-
-	function parseSignatureHelp():SignatureHelpResult {
-		return Json.parse(lastResult.stderr).result;
-	}
-
-	function parseGotoTypeDefinition():GotoTypeDefinitionResult {
-		return Json.parse(lastResult.stderr).result;
-	}
-
-	function parseGotoDefintion():GotoDefinitionResult {
-		return haxe.Json.parse(lastResult.stderr).result;
-	}
-
-	function parseDiagnostics():Array<Diagnostic<Any>> {
-		var result = haxe.Json.parse(lastResult.stderr)[0];
-		return if (result == null) [] else result.diagnostics;
-	}
-
-	function parseGotoDefinitionLocations():Array<Location> {
-		switch parseGotoTypeDefinition().result {
-			case null:
-				throw new Exception('No result for GotoDefinition found');
-			case result:
-				return result;
-		}
-	}
-
 	function assertSilence() {
 		return Assert.isTrue(lastResult.stderr == "");
 	}
 
 	function assertSuccess(?p:haxe.PosInfos) {
-		return Assert.isTrue(0 == errorMessages.length, p);
+		var res = 0 == errorMessages.length;
+		if (!res) debugErrorMessages();
+		return Assert.isTrue(res, p);
 	}
 
 	function assertErrorMessage(message:String, ?p:haxe.PosInfos) {
@@ -253,27 +313,8 @@ class TestCase implements ITest implements ITestCase {
 		return Assert.isTrue(hasMessage('$module not cached (modified)'), null, p);
 	}
 
-	function assertHasType(typePackage:String, typeName:String, ?p:haxe.PosInfos) {
-		return Assert.isTrue(getStoredType(typePackage, typeName) != null, null, p);
-	}
-
-	function assertHasField(typePackage:String, typeName:String, fieldName:String, isStatic:Bool, ?p:haxe.PosInfos) {
-		var type = getStoredType(typePackage, typeName);
-		Assert.isTrue(type != null, p);
-		function check<T>(type:JsonModuleType<T>) {
-			return switch [type.kind, type.args] {
-				case [Class, c]:
-					(isStatic ? c.statics : c.fields).exists(cf -> cf.name == fieldName);
-				case _: false;
-			}
-		}
-		if (type != null) {
-			Assert.isTrue(check(type), null, p);
-		}
-	}
-
-	function assertClassField(completion:CompletionResult, name:String, ?callback:(field:JsonClassField) -> Void, ?pos:PosInfos) {
-		for (item in completion.result.items) {
+	function assertClassField(completion:CompletionResponse<Dynamic, Dynamic>, name:String, ?callback:(field:JsonClassField) -> Void, ?pos:PosInfos) {
+		for (item in completion.items) {
 			switch item.kind {
 				case ClassField if (item.args.field.name == name):
 					switch callback {
@@ -287,8 +328,8 @@ class TestCase implements ITest implements ITestCase {
 		Assert.fail(pos);
 	}
 
-	function assertHasCompletion<T>(completion:CompletionResult, f:DisplayItem<T>->Bool, ?p:haxe.PosInfos) {
-		for (type in completion.result.items) {
+	function assertHasCompletion<T>(completion:CompletionResponse<Dynamic, Dynamic>, f:DisplayItem<T>->Bool, ?p:haxe.PosInfos) {
+		for (type in completion.items) {
 			if (f(type)) {
 				Assert.pass();
 				return;
@@ -297,8 +338,8 @@ class TestCase implements ITest implements ITestCase {
 		Assert.fail("No such completion", p);
 	}
 
-	function assertHasNoCompletion<T>(completion:CompletionResult, f:DisplayItem<T>->Bool, ?p:haxe.PosInfos) {
-		for (type in completion.result.items) {
+	function assertHasNoCompletion<T>(completion:CompletionResponse<Dynamic, Dynamic>, f:DisplayItem<T>->Bool, ?p:haxe.PosInfos) {
+		for (type in completion.items) {
 			if (f(type)) {
 				Assert.fail("Unexpected completion", p);
 				return;

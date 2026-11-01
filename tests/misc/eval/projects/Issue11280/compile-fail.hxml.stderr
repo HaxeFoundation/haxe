@@ -1,0 +1,6 @@
+[ERROR] Main.hx:2: characters 9-10
+
+ 2 |  var foo(get, never):Int;
+   |         ^
+   | Missing ;
+

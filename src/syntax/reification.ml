@@ -231,20 +231,27 @@ let reify in_macro =
 		| Some p ->
 			p
 		| None ->
-		let file = (EConst (String(p.pfile,SDoubleQuotes)),p) in
-		let pmin = (EConst (Int ((string_of_int p.pmin), None)),p) in
-		let pmax = (EConst (Int ((string_of_int p.pmax), None)),p) in
-		if in_macro then
-			(EUntyped (ECall ((EConst (Ident "$__mk_pos__"),p),[file;pmin;pmax]),p),p)
-		else
-			to_obj [("file",file);("min",pmin);("max",pmax)] p
+			if in_macro then
+				(EUntyped (EConst (Ident "$__mk_pos__"),p),p)
+			else begin
+				let file = (EConst (String(p.pfile,SDoubleQuotes)),p) in
+				let pmin = (EConst (Int ((string_of_int p.pmin), None)),p) in
+				let pmax = (EConst (Int ((string_of_int p.pmax), None)),p) in
+				to_obj [("file",file);("min",pmin);("max",pmax)] p
+			end
 	and to_enc_pos p =
 		match !cur_pos with
 		| Some p -> p
 		| None when in_macro -> to_pos p
 		| None -> (ECall ((efield ((efield ((efield ((EConst (Ident "haxe"),p),"macro"),p),"Context"),p),"makePosition"),p),[to_pos p]),p)
 	and to_expr_array a p = match a with
-		| [EMeta ((Meta.Dollar "a",[],_),e1),_] -> (match fst e1 with EArrayDecl el -> to_expr_array el p | _ -> e1)
+		| [EMeta ((Meta.Dollar "a",[],_),e1),_] ->
+			begin match fst e1 with
+				| EArrayDecl el when (match el with [(EFor _,_)] -> false | _ -> true) ->
+					to_expr_array el p
+				| _ ->
+					e1
+			end
 		| _ -> to_array to_expr a p
 	and to_expr e _ =
 		let p = snd e in

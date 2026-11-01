@@ -57,6 +57,17 @@ type mutexes = {
 	closure_lookup : Mutex.t;
 }
 
+(* One shared top-level closure class per (path_this, name). Codegen sites
+   register their signature(s) here; materialization (constructor / invoke
+   methods / equals / write_class) happens in generate_closures at the end
+   of the build, after all sites have contributed their invokes and FI
+   associations. *)
+type closure_record = {
+	cr_path : path;
+	cr_wf : JvmFunctions.typed_function;
+	cr_pending_sigs : (jsignature,unit) Hashtbl.t;
+}
+
 type generation_context = {
 	gctx : Gctx.t;
 	out : Zip_output.any_output;
@@ -69,7 +80,8 @@ type generation_context = {
 	mutable (* final after preprocessing *) preprocessor : jsignature preprocessor;
 	default_export_config : export_config;
 	typed_functions : JvmFunctions.typed_functions; (* guards itself *)
-	closure_paths : (path * string * jsignature,path) Hashtbl.t; (* guarded by mutexes.closure_lookup *)
+	closure_paths : (path * string,closure_record) Hashtbl.t; (* guarded by mutexes.closure_lookup *)
+	static_closure_paths : (path * string * jsignature,path) Hashtbl.t; (* guarded by mutexes.closure_lookup *)
 	enum_paths : (path,unit) Hashtbl.t; (* final after preprocessing *)
 	detail_times : bool;
 	mutable (* final after preprocessing *) typedef_interfaces : jsignature typedef_interfaces;
@@ -77,6 +89,22 @@ type generation_context = {
 	dynamic_level : int;
 	mutexes : mutexes;
 }
+
+(* DEX (pre-040) SimpleName grammar: Java-identifier-ish. We use a conservative
+   ASCII subset so the predicate is stable across DEX versions and so we don't
+   need to track which extra Unicode code points each release allows. *)
+let is_dex_safe_simple_name name =
+	let len = String.length name in
+	if len = 0 then false
+	else
+		let is_start c = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c = '_' || c = '$' in
+		let is_cont c = is_start c || (c >= '0' && c <= '9') in
+		let rec loop i =
+			if i >= len then true
+			else if is_cont name.[i] then loop (i + 1)
+			else false
+		in
+		is_start name.[0] && loop 1
 
 type ret =
 	| RValue of jsignature option * string option
@@ -168,6 +196,14 @@ let rec jsignature_of_type gctx stack t =
 					end
 				| [],"EnumValue" ->
 					java_enum_sig object_sig
+				| ["haxe";"coro"],"Coroutine" ->
+					begin match tl with
+					| [TFun(args,ret)] ->
+						let args,ret = Common.expand_coro_type gctx.gctx.basic args ret in
+						jsignature_of_type (TFun(args,ret))
+					| _ ->
+						die "" __LOC__
+					end
 				| _ ->
 					if Meta.has Meta.CoreType a.a_meta then
 						TObject(a.a_path,List.map jtype_argument_of_type tl)
@@ -197,11 +233,12 @@ let rec jsignature_of_type gctx stack t =
 	| TInst(c,tl) -> TObject(c.cl_path,List.map jtype_argument_of_type tl)
 	| TEnum(en,tl) ->
 		TObject(en.e_path,List.map jtype_argument_of_type tl)
-	| TFun(tl,tr) -> method_sig (List.map (fun (_,o,t) ->
-		let jsig = jsignature_of_type t in
-		let jsig = if o then get_boxed_type jsig else jsig in
-		jsig
-	) tl) (return_of_type gctx stack tr)
+	| TFun(tl,tr) ->
+		method_sig (List.map (fun (_,o,t) ->
+			let jsig = jsignature_of_type t in
+			let jsig = if o then get_boxed_type jsig else jsig in
+			jsig
+		) tl) (return_of_type gctx stack tr)
 	| TAnon an -> object_sig
 	| TType(td,tl) ->
 		begin match gctx.typedef_interfaces#get_interface_class td.t_path with
@@ -377,6 +414,13 @@ let is_interface_var_access c cf =
 		| Var _ | Method MethDynamic -> true
 		| _ -> false
 
+let rec dynamic_field_owner c cf =
+	match c.cl_super with
+	| Some (csup,_) when cf.cf_kind = Method MethDynamic && has_class_field_flag cf CfOverride ->
+		dynamic_field_owner csup (try PMap.find cf.cf_name csup.cl_fields with Not_found -> cf)
+	| _ ->
+		c
+
 let follow = Abstract.follow_with_abstracts
 
 class haxe_exception gctx (t : Type.t) =
@@ -439,42 +483,94 @@ let associate_functional_interfaces gctx f t =
 	end
 
 let create_typed_function gctx kind jc jm context =
-	new JvmFunctions.typed_function gctx.typed_functions kind jc jm context
+	new JvmFunctions.typed_function gctx.typed_functions kind (JvmFunctions.THostInner jc) jm context
 
-let create_field_closure gctx jc path_this jm name jsig t =
+(* Mangle a (target_class_path, method_name) into the simple class name used
+   for its shared closure. The synthetic package `jvm.$Closure` segregates
+   them from user code; the leading `$` in the package segment makes both
+   the package and any sibling class name unreachable from Haxe source
+   (Haxe identifiers disallow `$`), so user code cannot define a class that
+   collides with — or shadows — one of these. *)
+let closure_class_name path_this name =
+	let prefix = match fst path_this with
+		| [] -> snd path_this
+		| pkg -> String.concat "_" pkg ^ "_" ^ snd path_this
+	in
+	Printf.sprintf "Closure_%s_%s" prefix (patch_name name)
+
+let closure_class_package = ["jvm";"$Closure"]
+
+(* Register N invoke signatures for the shared closure of (path_this, name),
+   creating its class builder on first hit. Each caller site invokes this
+   while emitting its own bytecode; the actual closure-class body is only
+   materialized later by generate_closures (after every caller has had a
+   chance to contribute its signatures and functional-interface bindings).
+
+   The site must still emit a NEW + invokespecial of the closure ctor at the
+   call point — we do that here, given the closure path is known up-front. *)
+let register_field_closure gctx jc path_this jm name overloads f t =
 	let jsig_this = object_path_sig path_this in
 	let context = ["this",jsig_this] in
-	let wf = create_typed_function gctx (FuncMember(path_this,name)) jc jm context in
-	let jc_closure = wf#get_class in
-	Hashtbl.add gctx.closure_paths (path_this,name,jsig) jc_closure#get_this_path;
-	Mutex.unlock gctx.mutexes.closure_lookup;
-	begin match t with
-	| None ->
-		()
-	| Some t ->
-		associate_functional_interfaces gctx wf t
-	end;
-	ignore(wf#generate_constructor true);
-	let args,ret = match jsig with
-		| TMethod(args,ret) ->
-			List.mapi (fun i jsig -> (Printf.sprintf "arg%i" i,jsig)) args,ret
-		| _ ->
-			die "" __LOC__
+	Mutex.lock gctx.mutexes.closure_lookup;
+	let record = try Hashtbl.find gctx.closure_paths (path_this,name)
+	with Not_found ->
+		let closure_path = (closure_class_package, closure_class_name path_this name) in
+		let wf = new JvmFunctions.typed_function gctx.typed_functions
+			(FuncMember(path_this,name)) (JvmFunctions.THostStandalone closure_path) jm context in
+		let r = {
+			cr_path = closure_path;
+			cr_wf = wf;
+			cr_pending_sigs = Hashtbl.create 2;
+		} in
+		Hashtbl.add gctx.closure_paths (path_this,name) r;
+		r
 	in
-	let jm_invoke = wf#generate_invoke args ret [] in
-	let vars = List.map (fun (name,jsig) ->
-		jm_invoke#add_local name jsig VarArgument
-	) args in
-	jm_invoke#finalize_arguments;
-	jm_invoke#load_this;
-	jm_invoke#getfield jc_closure#get_this_path "this" jsig_this;
-	List.iter (fun (_,load,_) ->
-		load();
-	) vars;
-	jm_invoke#invokevirtual path_this name (method_sig (List.map snd args) ret);
-	jm_invoke#return;
-	(* equals *)
-	begin
+	List.iter (fun jsig ->
+		if not (Hashtbl.mem record.cr_pending_sigs jsig) then
+			Hashtbl.add record.cr_pending_sigs jsig ()
+	) overloads;
+	Mutex.unlock gctx.mutexes.closure_lookup;
+	(* FI association is additive across sites — each caller contributes the
+	   SAM types it expected. Later, generate_invoke materializes them all. *)
+	begin match t with
+	| None -> ()
+	| Some t -> associate_functional_interfaces gctx record.cr_wf t
+	end;
+	ignore jc; (* host class no longer used; kept in the signature to ease the call-site diff *)
+	jm#construct ConstructInit record.cr_path (fun () ->
+		f();
+		[jsig_this]
+	)
+
+(* Materialize all shared closure classes registered during codegen. Emits
+   each one's constructor, the accumulated invoke methods (one per unique
+   signature collected from caller sites), and an equals method. Called
+   from generate () after every type-level codegen pass has completed.
+
+   This always runs end-to-end every build — there's no per-class caching
+   to invalidate. JVM codegen re-walks gctx.types from scratch on every
+   compilation-server cycle, so the cache is fresh and complete each time. *)
+let generate_closures gctx =
+	Hashtbl.iter (fun (path_this,name) record ->
+		let jc_closure = record.cr_wf#get_class in
+		let jsig_this = object_path_sig path_this in
+		ignore(record.cr_wf#generate_constructor true);
+		Hashtbl.iter (fun jsig () -> match jsig with
+			| TMethod(args,ret) ->
+				let args_named = List.mapi (fun i a -> (Printf.sprintf "arg%i" i, a)) args in
+				let jm_invoke = record.cr_wf#generate_invoke args_named ret [] in
+				let vars = List.map (fun (n,j) ->
+					jm_invoke#add_local n j VarArgument
+				) args_named in
+				jm_invoke#finalize_arguments;
+				jm_invoke#load_this;
+				jm_invoke#getfield jc_closure#get_this_path "this" jsig_this;
+				List.iter (fun (_,load,_) -> load()) vars;
+				jm_invoke#invokevirtual path_this name (method_sig args ret);
+				jm_invoke#return
+			| _ ->
+				die "" __LOC__
+		) record.cr_pending_sigs;
 		let jm_equals,load = generate_equals_function jc_closure object_sig in
 		let code = jm_equals#get_code in
 		jm_equals#load_this;
@@ -489,25 +585,8 @@ let create_field_closure gctx jc path_this jm name jsig t =
 			);
 		code#bconst true;
 		jm_equals#return;
-	end;
-	write_class gctx jc_closure#get_this_path (jc_closure#export_class gctx.default_export_config);
-	jc_closure#get_this_path
-
-let create_field_closure gctx jc path_this jm name jsig f t =
-	let jsig_this = object_path_sig path_this in
-	Mutex.lock gctx.mutexes.closure_lookup;
-	let closure_path = try
-		let r = Hashtbl.find gctx.closure_paths (path_this,name,jsig) in
-		Mutex.unlock gctx.mutexes.closure_lookup;
-		r;
-	with Not_found ->
-		let closure_path = create_field_closure gctx jc path_this jm name jsig t in
-		closure_path
-	in
-	jm#construct ConstructInit closure_path (fun () ->
-		f();
-		[jsig_this]
-	)
+		write_class gctx jc_closure#get_this_path (jc_closure#export_class gctx.default_export_config)
+	) gctx.closure_paths
 
 let rvalue_any = RValue(None,None)
 let rvalue_sig jsig = RValue (Some jsig,None)
@@ -714,8 +793,8 @@ class texpr_to_jvm
 			jm#invokestatic haxe_jvm_path "readField" (method_sig [object_sig;string_sig] (Some object_sig));
 			cast();
 		in
-		match gctx.anon_identification#identify true t with
-		| Some pfm ->
+		match gctx.anon_identification#identify AnonIdMode.default true t with
+		| Some pfm when is_dex_safe_simple_name cf.cf_name ->
 			let cf = PMap.find cf.cf_name pfm.pfm_fields in
 			let path = pfm.pfm_path in
 			code#dup;
@@ -728,20 +807,20 @@ class texpr_to_jvm
 					cast();
 				)
 				(fun () -> default());
-		| None ->
+		| _ ->
 			default();
 
 	method read_static_closure (path : path) (name : string) (args : (string * jsignature) list) (ret : jsignature option) (t : Type.t) =
 		let jsig = method_sig (List.map snd args) ret in
 		Mutex.lock gctx.mutexes.closure_lookup;
 		let closure_path = try
-			let r = Hashtbl.find gctx.closure_paths (path,name,jsig) in
+			let r = Hashtbl.find gctx.static_closure_paths (path,name,jsig) in
 			Mutex.unlock gctx.mutexes.closure_lookup;
 			r
 		with Not_found ->
 			let wf = create_typed_function gctx (FuncStatic(path,name)) jc jm [] in
 			let jc_closure = wf#get_class in
-			Hashtbl.add gctx.closure_paths (path,name,jsig) jc_closure#get_this_path;
+			Hashtbl.add gctx.static_closure_paths (path,name,jsig) jc_closure#get_this_path;
 			Mutex.unlock gctx.mutexes.closure_lookup;
 			associate_functional_interfaces gctx wf t;
 			ignore(wf#generate_constructor false);
@@ -765,8 +844,11 @@ class texpr_to_jvm
 
 	method read cast e1 fa =
 		let read_static_closure path cf =
-			let args,ret = match follow cf.cf_type with
-				| TFun(tl,tr) -> List.map (fun (n,_,t) -> n,self#vtype t) tl,(return_of_type gctx tr)
+			let args,ret = match follow_with_coro cf.cf_type with
+				| NotCoro TFun(tl,tr) -> List.map (fun (n,_,t) -> n,self#vtype t) tl,(return_of_type gctx tr)
+				| Coro (tl,tr) ->
+					let tl,tr = Common.expand_coro_type gctx.gctx.basic tl tr in
+					List.map (fun (n,_,t) -> n,self#vtype t) tl,(return_of_type gctx tr)
 				| _ -> die "" __LOC__
 			in
 			self#read_static_closure path cf.cf_name args ret cf.cf_type
@@ -797,6 +879,7 @@ class texpr_to_jvm
 			let vtobj = self#vtype e1.etype in
 			code#arraylength vtobj;
 		| FInstance(c,tl,cf) | FClosure(Some(c,tl),({cf_kind = Method MethDynamic} as cf)) when not (is_interface_var_access c cf) ->
+			let c = dynamic_field_owner c cf in
 			self#texpr rvalue_any e1;
 			jm#getfield c.cl_path cf.cf_name (self#vtype cf.cf_type);
 			cast();
@@ -810,11 +893,16 @@ class texpr_to_jvm
 			self#read_anon_field cast e1.etype cf;
 		| FDynamic s | FInstance(_,_,{cf_name = s}) | FEnum(_,{ef_name = s}) | FClosure(None,{cf_name = s}) ->
 			dynamic_read s
+		| FClosure((Some(c,_)),cf) when c.cl_path = string_path ->
+			(* String instance methods need JVM-compatible wrappers (e.g. charAt returns char not
+			   String in Java). Redirect the closure creation through Jvm.readField which already
+			   handles all string methods correctly via StringExt. *)
+			dynamic_read cf.cf_name
 		| FClosure((Some(c,_)),cf) ->
 			if has_class_flag c CInterface then
 				dynamic_read cf.cf_name
 			else
-				create_field_closure gctx jc c.cl_path jm cf.cf_name (self#vtype cf.cf_type) (fun () ->
+				register_field_closure gctx jc c.cl_path jm cf.cf_name [self#vtype cf.cf_type] (fun () ->
 					self#texpr rvalue_any e1;
 				) (Some cf.cf_type)
 
@@ -850,6 +938,7 @@ class texpr_to_jvm
 			jm#cast jsig_cf;
 			jm#putstatic c.cl_path cf.cf_name jsig_cf;
 		| TField(e1,FInstance(c,tl,cf)) when not (is_interface_var_access c cf) ->
+			let c = dynamic_field_owner c cf in
 			self#texpr rvalue_any e1;
 			let jsig_cf = self#vtype cf.cf_type in
 			if ak <> AKNone then begin
@@ -861,8 +950,8 @@ class texpr_to_jvm
 			jm#putfield c.cl_path cf.cf_name jsig_cf
 		| TField(e1,FAnon cf) ->
 			self#texpr rvalue_any e1;
-			begin match gctx.anon_identification#identify true e1.etype with
-			| Some pfm ->
+			begin match gctx.anon_identification#identify AnonIdMode.default true e1.etype with
+			| Some pfm when is_dex_safe_simple_name cf.cf_name ->
 				let cf = PMap.find cf.cf_name pfm.pfm_fields in
 				let path = pfm.pfm_path in
 				code#dup;
@@ -884,7 +973,7 @@ class texpr_to_jvm
 						default cf.cf_name cf.cf_type;
 						if need_val ret then jm#cast jsig_cf;
 					);
-			| None ->
+			| _ ->
 				default cf.cf_name cf.cf_type;
 			end
 		| TField(e1,(FDynamic s | FInstance(_,_,{cf_name = s}))) ->
@@ -1122,7 +1211,10 @@ class texpr_to_jvm
 		| [TObject(path1,_);sig2] when jc#has_typed_function path1 || path1 = haxe_function_path ->
 			code#swap;
 			fun_compare path1 sig2
-		| [(TObject _ | TArray _ | TMethod _) as t1;(TObject _ | TArray _ | TMethod _) as t2] ->
+		| [TMethod _;_] | [_;TMethod _] ->
+			jm#invokestatic haxe_jvm_path "compareFunctions" (method_sig [object_sig;object_sig] (Some TBool));
+			CmpNormal(op,TBool)
+		| [(TObject _ | TArray _) as t1;(TObject _ | TArray _) as t2] ->
 			CmpSpecial ((if op = CmpEq then code#if_acmp_ne else code#if_acmp_eq) t1 t2)
 		| [TDouble;TDouble] ->
 			let op = flip_cmp_op op in
@@ -1558,9 +1650,12 @@ class texpr_to_jvm
 	(* calls *)
 
 	method call_arguments ?(cast=true) t el =
-		let tl,tr = match follow t with
-			| TFun(tl,tr) ->
+		let tl,tr = match follow_with_coro t with
+			| NotCoro (TFun(tl,tr)) ->
 				tl,return_of_type gctx tr
+			| Coro(args,ret) ->
+				let args,ret = Common.expand_coro_type gctx.gctx.basic args ret in
+				args,return_of_type gctx ret
 			| _ ->
 				List.map (fun e -> ("",false,e.etype)) el,Some (object_sig)
 		in
@@ -1747,7 +1842,7 @@ class texpr_to_jvm
 			jm#invokestatic en.e_path ef.ef_name (method_sig tl (Some tr));
 			Some tr
 		| TField(e11,FAnon cf) ->
-			begin match gctx.anon_identification#identify false e11.etype with
+			begin match gctx.anon_identification#identify AnonIdMode.default false e11.etype with
 			| Some {pfm_path=path_anon} ->
 				begin match gctx.typedef_interfaces#get_interface_class path_anon with
 				| Some c ->
@@ -1963,7 +2058,8 @@ class texpr_to_jvm
 		if not jm#is_terminated then self#texpr' ret e
 
 	method texpr' ret e =
-		code#set_line (Lexer.get_error_line_if_exists e.epos);
+		if e.epos.pmin >= 0 then
+			code#set_line (Lexer.get_error_line e.epos);
 		match e.eexpr with
 		| TVar(v,Some e1) ->
 			self#texpr (rvalue_type gctx v.v_type (Some v.v_name)) e1;
@@ -2230,7 +2326,7 @@ class texpr_to_jvm
 				PMap.add name cf acc
 			) PMap.empty fl in
 			let t = mk_anon ~fields (ref Closed) in
-			let td = gctx.anon_identification#identify true t in
+			let td = gctx.anon_identification#identify AnonIdMode.default true t in
 			begin match td with
 			| Some pfm when not !had_invalid_field_name ->
 				let lut = Hashtbl.create 0 in
@@ -2294,6 +2390,15 @@ type super_ctor_mode =
 	| SCHaxe
 
 let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
+	(* In anon classes, unsafe-named entries aren't typed fields — they live
+	   in DynamicObject's _hx_fields. Drop them from the switches so the
+	   default branch (super) handles them via the map. *)
+	let fields =
+		if is_anon then
+			List.filter (fun (name,_,_) -> is_dex_safe_simple_name name) fields
+		else
+			fields
+	in
 	begin match fields with
 	| [] ->
 		()
@@ -2302,26 +2407,57 @@ let generate_dynamic_access gctx (jc : JvmClass.builder) fields is_anon =
 		let jm = jc#spawn_method "_hx_getField" jsig [MPublic;MSynthetic] in
 		let _,load,_ = jm#add_local "name" string_sig VarArgument in
 		jm#finalize_arguments;
-		let cases = List.map (fun (name,jsig,kind) ->
+		(* Group fields by name. When `@:overload @:native(X)` or similar makes
+		   several Haxe fields share a JVM name, they end up in the same group
+		   and produce a single switch case + a single merged closure class. *)
+		let grouped =
+			let h = Hashtbl.create 16 in
+			let order = ref [] in
+			List.iter (fun (name,jsig,kind) ->
+				if not (Hashtbl.mem h name) then order := name :: !order;
+				let prev = try Hashtbl.find h name with Not_found -> [] in
+				Hashtbl.replace h name ((jsig,kind) :: prev)
+			) fields;
+			List.rev_map (fun name -> name, List.rev (Hashtbl.find h name)) !order
+		in
+		let cases = List.map (fun (name,entries) ->
 			[name],(fun () ->
-			begin match kind,jsig with
+			let emit_field jsig =
+				jm#load_this;
+				jm#getfield jc#get_this_path name jsig;
+				jm#expect_reference_type
+			in
+			let emit_dynamic_closure args =
+				jm#load_this;
+				jm#string name;
+				jm#new_native_array java_class_sig (List.map (fun jsig -> fun () -> jm#get_class jsig) args);
+				jm#invokestatic haxe_jvm_path "readFieldClosure" (method_sig [object_sig;string_sig;array_sig (java_class_sig)] (Some (object_sig)))
+			in
+			let is_method = function Method (MethNormal | MethInline) -> true | _ -> false in
+			begin match entries with
+			| [(jsig,kind)] ->
+				begin match kind,jsig with
 				| Method (MethNormal | MethInline),TMethod(args,_) ->
-					if gctx.dynamic_level >= 2 then begin
-						create_field_closure gctx jc jc#get_this_path jm name jsig (fun () -> jm#load_this) None
-					end else begin
-						jm#load_this;
-						jm#string name;
-						jm#new_native_array java_class_sig (List.map (fun jsig -> fun () -> jm#get_class jsig) args);
-						jm#invokestatic haxe_jvm_path "readFieldClosure" (method_sig [object_sig;string_sig;array_sig (java_class_sig)] (Some (object_sig)))
-					end
+					emit_dynamic_closure args
 				| _ ->
-					jm#load_this;
-					jm#getfield jc#get_this_path name jsig;
-					jm#expect_reference_type;
-				end;
-				jm#replace_top object_sig;
-			)
-		) fields in
+					emit_field jsig
+				end
+			| _ when List.for_all (fun (_,k) -> is_method k) entries ->
+				(* Reflection-based dispatch; readFieldClosure's parameterTypes
+				   only narrows to one overload, so pick the first deterministically. *)
+				let args = match fst (List.hd entries) with TMethod(args,_) -> args | _ -> die "" __LOC__ in
+				emit_dynamic_closure args
+			| (jsig,_) :: _ ->
+				(* Mixed kinds for the same name shouldn't occur in well-formed
+				   Haxe (JVM forbids it for fields, and field+method sharing a
+				   name is a Haxe-level error). Fall back to the first entry. *)
+				emit_field jsig
+			| [] ->
+				die "" __LOC__
+			end;
+			jm#replace_top object_sig
+		)
+		) grouped in
 		let def = (fun () ->
 			jm#load_this;
 			load();
@@ -2428,13 +2564,16 @@ class tclass_to_jvm gctx c = object(self)
 				maybe_make_bridge cf_impl.cf_name jsig_super jsig_impl
 		in
 		let find_overload map_type c cf =
-			let tl = match follow (map_type cf.cf_type) with
-				| TFun(tl,_) -> tl
+			let tl = match follow_with_coro (map_type cf.cf_type) with
+				| Coro (tl, _) -> tl
+				| NotCoro TFun(tl,_) -> tl
 				| _ -> die "" __LOC__
 			in
 			OverloadResolution.resolve_instance_overload false map_type c cf.cf_name (List.map (fun (_,_,t) -> Texpr.Builder.make_null t null_pos) tl)
 		in
 		let if_method f cf = match cf.cf_kind with
+			| Method MethDynamic ->
+				()
 			| Method _ ->
 				f cf;
 				List.iter f cf.cf_overloads
@@ -2507,7 +2646,7 @@ class tclass_to_jvm gctx c = object(self)
 			load();
 			jm_empty_ctor#call_super_ctor ConstructInit jsig_empty
 		end;
-		if c.cl_constructor = None then begin
+		begin
 			let handler = new texpr_to_jvm gctx None jc jm_empty_ctor None in
 			DynArray.iter (fun e ->
 				handler#texpr RVoid e;
@@ -2574,9 +2713,6 @@ class tclass_to_jvm gctx c = object(self)
 			| SCNone ->
 				()
 			end;
-			DynArray.iter (fun e ->
-				handler#texpr RVoid e;
-			) delayed_field_inits;
 		| _ ->
 			()
 		end;
@@ -2625,6 +2761,16 @@ class tclass_to_jvm gctx c = object(self)
 		end;
 		AnnotationHandler.generate_annotations (jm :> JvmBuilder.base_builder) cf.cf_meta
 
+	method private add_field_init c cf e =
+		let tl = extract_param_types c.cl_params in
+		let ethis = mk (TConst TThis) (TInst(c,tl)) null_pos in
+		let efield = mk (TField(ethis,FInstance(c,tl,cf))) cf.cf_type null_pos in
+		let eop = mk (TBinop(OpAssign,efield,e)) cf.cf_type null_pos in
+		match cf.cf_kind with
+		(* a dynamic method default goes to <init>, where the most derived class assigns last *)
+		| Method MethDynamic -> DynArray.add delayed_field_inits eop
+		| _ -> DynArray.add field_inits eop
+
 	method generate_field gctx (jc : JvmClass.builder) c mtype cf =
 		let jsig = jsignature_of_type gctx cf.cf_type in
 		let flags = if Meta.has Meta.Private cf.cf_meta then [FdPrivate] else if Meta.has Meta.Protected cf.cf_meta then [FdProtected] else [FdPublic] in
@@ -2648,19 +2794,7 @@ class tclass_to_jvm gctx c = object(self)
 					default e;
 				end;
 			| Some e when mtype <> MStatic ->
-				let tl = extract_param_types c.cl_params in
-				let ethis = mk (TConst TThis) (TInst(c,tl)) null_pos in
-				let efield = mk (TField(ethis,FInstance(c,tl,cf))) cf.cf_type null_pos in
-				let eop = mk (TBinop(OpAssign,efield,e)) cf.cf_type null_pos in
-				begin match cf.cf_kind with
-					| Method MethDynamic ->
-						let enull = Texpr.Builder.make_null efield.etype null_pos in
-						let echeck = Texpr.Builder.binop OpEq efield enull gctx.gctx.basic.tbool null_pos in
-						let eif = mk (TIf(echeck,eop,None)) gctx.gctx.basic.tvoid null_pos in
-						DynArray.add delayed_field_inits eif
-					| _ ->
-						DynArray.add field_inits eop
-				end
+				self#add_field_init c cf e
 			| Some e ->
 				match e.eexpr with
 				| TConst ct ->
@@ -2714,7 +2848,10 @@ class tclass_to_jvm gctx c = object(self)
 					if not (has_class_field_flag cf CfExtern) && not (is_weird_abstract_field_without_expression) then self#generate_method gctx jc c mtype cf
 				) (cf :: List.filter (fun cf -> has_class_field_flag cf CfOverload) cf.cf_overloads)
 			| _ ->
-				if not (has_class_flag c CInterface) && is_physical_field cf then self#generate_field gctx jc c mtype cf
+				(* an overriding dynamic method has no field of its own, only a default value to install *)
+				if not (has_class_flag c CInterface) && is_physical_field cf then
+					if dynamic_field_owner c cf == c then self#generate_field gctx jc c mtype cf
+					else Option.may (self#add_field_init c cf) cf.cf_expr
 		in
 		let field mtype cf =
 			run_timed gctx true cf.cf_name (fun () -> field mtype cf)
@@ -2763,7 +2900,7 @@ class tclass_to_jvm gctx c = object(self)
 		end;
 		self#generate_signature;
 		if gctx.dynamic_level > 0 && not (Meta.has Meta.NativeGen c.cl_meta) && not (has_class_flag c CInterface) then
-			generate_dynamic_access gctx jc (List.map (fun cf -> cf.cf_name,jsignature_of_type gctx cf.cf_type,cf.cf_kind) c.cl_ordered_fields) false;
+			generate_dynamic_access gctx jc (List.map (fun cf -> cf.cf_name,jsignature_of_type gctx cf.cf_type,cf.cf_kind) (List.filter (fun cf -> dynamic_field_owner c cf == c) c.cl_ordered_fields)) false;
 		self#generate_annotations;
 		let jc = jc#export_class gctx.default_export_config in
 		write_class gctx c.cl_path jc
@@ -2950,14 +3087,37 @@ let generate_anons gctx pool =
 		let fields = convert_fields gctx pfm in
 		let jc = new JvmClass.builder path haxe_dynamic_object_path in
 		jc#add_access_flag 0x1;
+		let is_typed_field name = is_dex_safe_simple_name name in
 		begin
 			let jm_ctor = jc#spawn_method "<init>" (method_sig (List.map snd fields) None) [MPublic] in
 			jm_ctor#load_this;
 			jm_ctor#get_code#aconst_null haxe_empty_constructor_sig;
 			jm_ctor#call_super_ctor ConstructInit (method_sig [haxe_empty_constructor_sig] None);
-			List.iter (fun (name,jsig) ->
-				jm_ctor#add_argument_and_field name jsig [FdPublic]
-			) fields;
+			(* Two-pass: first initialize typed fields (so _hx_getKnownFields can
+			   read them when _hx_setField triggers _hx_initReflection), then
+			   write the map-backed unsafe ones via super._hx_setField. *)
+			let arg_loaders = List.map (fun (name,jsig) ->
+				let _,load,_ = jm_ctor#add_local name jsig VarArgument in
+				(name,jsig,load)
+			) fields in
+			List.iter (fun (name,jsig,load) ->
+				if is_typed_field name then begin
+					ignore(jc#spawn_field name jsig [FdPublic]);
+					jm_ctor#load_this;
+					load();
+					jm_ctor#putfield jc#get_this_path name jsig
+				end
+			) arg_loaders;
+			List.iter (fun (name,jsig,load) ->
+				if not (is_typed_field name) then begin
+					jm_ctor#load_this;
+					jm_ctor#string name;
+					load();
+					jm_ctor#expect_reference_type;
+					jm_ctor#invokevirtual haxe_dynamic_object_path "_hx_setField"
+						(method_sig [string_sig;object_sig] None)
+				end
+			) arg_loaders;
 			jm_ctor#return;
 		end;
 		begin
@@ -2968,13 +3128,18 @@ let generate_anons gctx pool =
 			jm_fields#construct ConstructInit string_map_path (fun () -> []);
 			save();
 			List.iter (fun (name,jsig) ->
-				load();
-				let offset = jc#get_pool#add_const_string name in
-				jm_fields#get_code#sconst (string_sig) offset;
-				jm_fields#load_this;
-				jm_fields#getfield jc#get_this_path name jsig;
-				jm_fields#expect_reference_type;
-				jm_fields#invokevirtual string_map_path "set" (method_sig [string_sig;object_sig] None);
+				(* Unsafe-named fields live in DynamicObject._hx_fields directly
+				   (written from the constructor), so they're merged into the
+				   reflection map elsewhere — skip them here. *)
+				if is_typed_field name then begin
+					load();
+					let offset = jc#get_pool#add_const_string name in
+					jm_fields#get_code#sconst (string_sig) offset;
+					jm_fields#load_this;
+					jm_fields#getfield jc#get_this_path name jsig;
+					jm_fields#expect_reference_type;
+					jm_fields#invokevirtual string_map_path "set" (method_sig [string_sig;object_sig] None);
+				end
 			) fields;
 			load();
 			jm_fields#return
@@ -2989,8 +3154,11 @@ let generate_anons gctx pool =
 			List.iter (fun cf ->
 				let jsig_cf = jsignature_of_type gctx cf.cf_type in
 				let jm = jc#spawn_method cf.cf_name jsig_cf [MPublic] in
-				let tl,tr = match follow cf.cf_type with
-					| TFun(tl,tr) -> tl,tr
+				let tl,tr = match follow_with_coro cf.cf_type with
+					| NotCoro TFun(tl,tr) ->
+						tl,tr
+					| Coro(tl,tr) ->
+						Common.expand_coro_type gctx.gctx.basic tl tr
 					| _ -> die "" __LOC__
 				in
 				let locals = List.map (fun (n,_,t) ->
@@ -3042,19 +3210,7 @@ module Preprocessor = struct
 			mt.mt_path <- make_root mt.mt_path
 
 	let check_functional_interface gctx c =
-		let rec loop m l = match l with
-			| [] ->
-				m
-			| cf :: l ->
-				if not (has_class_field_flag cf CfDefault) then begin match m with
-					| None ->
-						loop (Some cf) l
-					| Some _ ->
-						None
-				end else
-					loop m l
-		in
-		match loop None c.cl_ordered_fields with
+		match TClass.get_singular_interface_field c.cl_ordered_fields with
 		| None ->
 			()
 		| Some cf ->
@@ -3065,6 +3221,63 @@ module Preprocessor = struct
 			| _ ->
 				()
 
+	(* Collect the functional interfaces actually referenced by user code, so
+	   closures only implement SAMs the program demands. Without this filter a
+	   closure would bind to every structurally-matching interface on the
+	   --java-lib classpath — including incidental ones from a higher API level
+	   than the runtime, which hard-fails class linking. An interface counts as
+	   used iff some non-extern type, field signature, or sub-expression names
+	   it; scanning non-extern code only keeps classpath noise out. *)
+	let collect_used_functional_interfaces gctx =
+		let used = Hashtbl.create 0 in
+		(* `seen` guards against recursive types (e.g. a recursive abstract whose
+		   underlying references itself through several fields): without it the walk
+		   branches exponentially and the compiler hangs. depth is a coarse backstop. *)
+		let rec note_fi_in_type seen depth t =
+			if depth < 32 && not (List.exists (fast_eq t) seen) then begin
+			let seen = t :: seen in
+			match follow t with
+			| TInst(c,tl) ->
+				if has_class_flag c CFunctionalInterface then Hashtbl.replace used c.cl_path ();
+				List.iter (note_fi_in_type seen (depth + 1)) tl
+			| TFun(args,ret) ->
+				List.iter (fun (_,_,t) -> note_fi_in_type seen (depth + 1) t) args;
+				note_fi_in_type seen (depth + 1) ret
+			| TAbstract(_,tl) | TEnum(_,tl) | TType(_,tl) ->
+				List.iter (note_fi_in_type seen (depth + 1)) tl
+			| TAnon an ->
+				PMap.iter (fun _ cf -> note_fi_in_type seen (depth + 1) cf.cf_type) an.a_fields
+			| TDynamic (Some t) ->
+				note_fi_in_type seen (depth + 1) t
+			| _ ->
+				()
+			end
+		in
+		let rec note_fi_in_expr e =
+			note_fi_in_type [] 0 e.etype;
+			Type.iter note_fi_in_expr e
+		in
+		let scan_class c =
+			if not (has_class_flag c CExtern) then begin
+				let rec scan cf =
+					note_fi_in_type [] 0 cf.cf_type;
+					Option.may note_fi_in_expr cf.cf_expr;
+					List.iter scan cf.cf_overloads
+				in
+				List.iter scan c.cl_ordered_fields;
+				List.iter scan c.cl_ordered_statics;
+				Option.may scan c.cl_constructor
+			end
+		in
+		(* go through com.modules so we can also pick up private typedefs *)
+		List.iter (fun m ->
+			List.iter (fun mt -> match mt with
+				| TClassDecl c -> scan_class c
+				| _ -> ()
+			) m.m_types
+		) gctx.gctx.modules;
+		used
+
 	let preprocess gctx =
 		let rec has_runtime_meta = function
 			| (Meta.Custom s,_,_) :: _ when String.length s > 0 && s.[0] <> ':' ->
@@ -3074,7 +3287,6 @@ module Preprocessor = struct
 			| [] ->
 				false
 		in
-		(* go through com.modules so we can also pick up private typedefs *)
 		List.iter (fun m ->
 			List.iter (fun mt ->
 				match mt with
@@ -3092,6 +3304,9 @@ module Preprocessor = struct
 					()
 			) m.m_types
 		) gctx.gctx.modules;
+		(* After check_path: cl_paths are stable, so we can key the used-SAM
+		   set by cl_path without worrying about private-type rewrites. *)
+		let fi_used = collect_used_functional_interfaces gctx in
 		(* preprocess classes *)
 		let patch_optional c =
 			let apply cf =
@@ -3108,8 +3323,8 @@ module Preprocessor = struct
 					gctx.preprocessor#preprocess_class c
 				else begin
 					patch_optional c;
-					if has_class_flag c CFunctionalInterface then
-					check_functional_interface gctx c
+					if Hashtbl.mem fi_used c.cl_path then
+						check_functional_interface gctx c
 				end
 			| _ -> ()
 		) gctx.gctx.types;
@@ -3165,7 +3380,7 @@ let generate jvm_flag gctx =
 	with _ ->
 		1
 	in
-	if dynamic_level < 0 || dynamic_level > 2 then failwith "Invalid value for -D jvm.dynamic-level: Must be >=0 and <= 2";
+	if dynamic_level < 0 || dynamic_level > 1 then failwith "Invalid value for -D jvm.dynamic-level: Must be 0 or 1";
 	let gctx = {
 		gctx = gctx;
 		out = out;
@@ -3178,6 +3393,7 @@ let generate jvm_flag gctx =
 		typedef_interfaces = Obj.magic ();
 		typed_functions = new JvmFunctions.typed_functions;
 		closure_paths = Hashtbl.create 0;
+		static_closure_paths = Hashtbl.create 0;
 		enum_paths = Hashtbl.create 0;
 		default_export_config = {
 			export_debug = true;
@@ -3215,21 +3431,24 @@ let generate jvm_flag gctx =
 		gctx.out#add_entry v filename;
 	) gctx.gctx.resources;
 
-	let generate pool =
-		let generate_real_types () =
-			Parallel.ParallelArray.iter pool (generate_module_type gctx) (Array.of_list gctx.gctx.types)
-		in
-		let generate_typed_interfaces () =
-			let seq = Hashtbl.to_seq gctx.typedef_interfaces#get_interfaces in
-			Parallel.ParallelSeq.iter pool (fun (_,c) -> generate_module_type gctx (TClassDecl c)) seq;
-		in
-		run_timed gctx false "preprocess" (fun () -> Preprocessor.preprocess gctx);
-		run_timed gctx false "real types" generate_real_types;
-		run_timed gctx false "typed interfaces" generate_typed_interfaces;
-		run_timed gctx false "anons" (fun () -> generate_anons gctx pool);
-		run_timed gctx false "typed_functions" (fun () -> generate_typed_functions gctx);
+	let generate () =
+		Parallel.run_with_pool gctx.gctx.pool (fun pool ->
+			let generate_real_types () =
+				Parallel.ParallelArray.iter pool (generate_module_type gctx) (Array.of_list gctx.gctx.types)
+			in
+			let generate_typed_interfaces () =
+				let seq = Hashtbl.to_seq gctx.typedef_interfaces#get_interfaces in
+				Parallel.ParallelSeq.iter pool (fun (_,c) -> generate_module_type gctx (TClassDecl c)) seq;
+			in
+			run_timed gctx false "preprocess" (fun () -> Preprocessor.preprocess gctx);
+			run_timed gctx false "real types" generate_real_types;
+			run_timed gctx false "typed interfaces" generate_typed_interfaces;
+			run_timed gctx false "anons" (fun () -> generate_anons gctx pool);
+			run_timed gctx false "typed_functions" (fun () -> generate_typed_functions gctx);
+			run_timed gctx false "closures" (fun () -> generate_closures gctx);
+		)
 	in
-	Parallel.run_in_new_pool gctx.gctx.timer_ctx generate;
+	generate ();
 
 	let manifest_content =
 		"Manifest-Version: 1.0\n" ^

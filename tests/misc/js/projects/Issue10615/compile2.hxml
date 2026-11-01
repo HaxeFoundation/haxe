@@ -1,0 +1,8 @@
+--main Main
+-dce full
+-D analyzer-optimize
+--class-path src
+--js bin/main.js
+--cmd node bin/main
+-D js-es=6
+-D pixijs_path="../pixi.js"

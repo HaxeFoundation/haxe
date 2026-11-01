@@ -47,7 +47,7 @@ let is_generic_parameter ctx c =
 	with Not_found ->
 		false
 
-let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
+let valid_redefinition com map1 map2 f1 t1 f2 t2 = (* child, parent *)
 	let tctx = {
 		type_param_pairs = [];
 		known_type_params = f1.cf_params
@@ -64,22 +64,30 @@ let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 	end;
 	begin match f1.cf_kind,f2.cf_kind with
 	| Method m1, Method m2 when not (m1 = MethDynamic) && not (m2 = MethDynamic) ->
-		begin match follow t1, follow t2 with
-		| TFun (args1,r1) , TFun (args2,r2) -> (
+		begin match follow_with_coro t1, follow_with_coro t2 with
+		| Coro _,NotCoro _ ->
+			raise (Unify_error [Unify_custom "Method should be coroutine"])
+		| NotCoro _,Coro _ ->
+			raise (Unify_error [Unify_custom "Method should not be coroutine"]);
+		| NotCoro (TFun (args1,r1)), NotCoro(TFun (args2,r2))
+		| Coro (args1,r1), Coro(args2,r2) ->
 			if not (List.length args1 = List.length args2) then raise (Unify_error [Unify_custom "Different number of function arguments"]);
 			let i = ref 0 in
-			try
+			begin try
 				valid r1 r2;
-				List.iter2 (fun (n,o1,a1) (_,o2,a2) ->
+				List.iter2 (fun (n,o1,a1) (n2,o2,a2) ->
 					incr i;
-					if o1 <> o2 then raise (Unify_error [Not_matching_optional n]);
-					(try valid a2 a1 with Unify_error _ -> raise (Unify_error [Cannot_unify(a1,a2)]))
+					if o1 <> o2 then
+						raise (Unify_error [Cannot_unify(a2, a1); Not_matching_optional (o2, o1, n)]);
+
+					(try valid a2 a1 with Unify_error _ -> raise (Unify_error [Cannot_unify_implementation(a1,a2)]))
 				) args1 args2;
 			with Unify_error l ->
 				let msg = if !i = 0 then Invalid_return_type else Invalid_function_argument(!i,List.length args1) in
-				raise (Unify_error (Cannot_unify (t1,t2) :: msg :: l)))
+				raise (Unify_error (Cannot_unify (t1,t2) :: msg :: l))
+			end
 		| _ ->
-			die "" __LOC__
+			display_error com (Printf.sprintf "Unexpected types when checking redefinition of %s:\n\tf1: %s\n\tf2: %s" f1.cf_name (s_type_kind t1) (s_type_kind t2)) f1.cf_pos;
 		end
 	| _,(Var { v_write = AccNo | AccNever }) ->
 		(* write variance *)
@@ -106,7 +114,13 @@ let valid_redefinition map1 map2 f1 t1 f2 t2 = (* child, parent *)
 		| ct1,ct2 ->
 			List.iter (fun t2 ->
 				let t2 = map2 t2 in
-				if not (List.exists (fun t1 -> does_unify (map1 t1) t2) ct1) then
+				if not (List.exists (fun t1 ->
+					try
+						Type.unify_custom uctx (map1 t1) t2;
+						true
+					with Unify_error _ ->
+						false
+				) ct1) then
 					raise (Unify_error ([Unify_custom (Printf.sprintf "Constraint unsatisfied for type parameter %s: %s" ttp2.ttp_name (s_type (print_context()) t2))]))
 			) ct2
 	in
@@ -124,7 +138,7 @@ let copy_meta meta_src meta_target sl =
 let check_native_name_override ctx child base =
 	let error base_pos child_pos =
 		display_error_ext ctx.com (make_error (Custom ("Field " ^ child.cf_name ^ " has different @:native value than in superclass")) ~sub:([
-			(make_error ~depth:1 (Custom (compl_msg "Base field is defined here")) base_pos)
+			(make_error (Custom (compl_msg "Base field is defined here")) base_pos)
 		]) child_pos);
 	in
 	try
@@ -177,12 +191,12 @@ let check_override_field ctx p rctx =
 		display_error ctx.com ("Field " ^ i ^ " has different property access than in superclass") p);
 	if (has_class_field_flag rctx.cf_old CfFinal) then display_error ctx.com ("Cannot override final method " ^ i) p;
 	try
-		valid_redefinition rctx.map rctx.map rctx.cf_new rctx.cf_new.cf_type rctx.cf_old rctx.t_old;
+		valid_redefinition ctx.com rctx.map rctx.map rctx.cf_new rctx.cf_new.cf_type rctx.cf_old rctx.t_old;
 	with
 		Unify_error l ->
 			display_error_ext ctx.com (make_error (Custom ("Field " ^ i ^ " overrides parent class with different or incomplete type")) ~sub:([
-				(make_error ~depth:1 (Custom (compl_msg (error_msg (Unify l)))) p);
-				(make_error ~depth:1 (Custom (compl_msg "Base field is defined here")) rctx.cf_old.cf_name_pos);
+				(make_error (Custom (compl_msg (error_msg (Unify l)))) p);
+				(make_error (Custom (compl_msg "Base field is defined here")) rctx.cf_old.cf_name_pos);
 			]) p)
 
 let find_override_field ctx c_new cf_new c_old tl get_super_field is_overload p =
@@ -221,6 +235,37 @@ type check_override_kind =
 	| NothingToDo
 	| NormalOverride of redefinition_context
 	| OverloadOverride of (unit -> unit)
+
+let rec has_super_call name e =
+	match e.eexpr with
+	| TCall({eexpr = TField({eexpr = TConst TSuper}, FInstance(_, _, cf))}, _) when cf.cf_name = name ->
+		true
+	| _ ->
+		check_expr (has_super_call name) e
+
+let check_call_super com rctx e =
+	let name = rctx.cf_old.cf_name in
+	let rec is_active c cf =
+		if has_class_field_flag rctx.cf_old CfAbstract then
+			false
+		else try
+			let (_, args, _) = Meta.get Meta.CallSuper cf.cf_meta in
+			(match args with
+			| [(EConst (Ident "false"), _)] -> false
+			| _ -> true)
+		with Not_found ->
+			match c.cl_super with
+			| None ->
+				false
+			| Some (csup, _) ->
+				try
+					let cf = PMap.find name csup.cl_fields in
+					is_active csup cf
+				with Not_found ->
+					false
+	in
+	if is_active rctx.c_old rctx.cf_old && not (has_super_call name e) then
+		display_error com ("Missing call to super." ^ name ^ "()") rctx.cf_new.cf_name_pos
 
 let check_overriding ctx c f =
 	match c.cl_super with
@@ -341,6 +386,7 @@ module Inheritance = struct
 		| t -> raise_typing_error (Printf.sprintf "Should extend by using a class, found %s" (s_type_kind t)) p
 
 	let rec check_interface com g missing c intf params =
+		let uctx = default_unification_context () in
 		List.iter (fun (i2,p2) ->
 			check_interface com g missing c i2 (List.map (apply_params intf.cl_params params) p2)
 		) intf.cl_implements;
@@ -383,17 +429,17 @@ module Inheritance = struct
 					in
 					if (has_class_field_flag f CfPublic) && not (has_class_field_flag f2 CfPublic) && not (Meta.has Meta.CompilerGenerated f.cf_meta) then
 						display_error com ("Field " ^ f.cf_name ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
-					else if not (unify_kind ~strict:false f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
-						display_error com ("Field " ^ f.cf_name ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
+					else if not (unify_kind uctx f2.cf_kind f.cf_kind) || not (match f.cf_kind, f2.cf_kind with Var _ , Var _ -> true | Method m1, Method m2 -> mkind m1 = mkind m2 | _ -> false) then
+						display_error com ("Field " ^ f.cf_name ^ " has different property access than in " ^ s_type_path intf.cl_path ^ ": " ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind) p
 					else try
 						let map1 = TClass.get_map_function  intf params in
-						valid_redefinition map1 map2 f2 t2 f (apply_params intf.cl_params params f.cf_type)
+						valid_redefinition com map1 map2 f2 t2 f (apply_params intf.cl_params params f.cf_type)
 					with
 						Unify_error l ->
 							if not ((has_class_flag c CExtern)) then begin
 								display_error_ext com (make_error (Custom ("Field " ^ f.cf_name ^ " has different type than in " ^ s_type_path intf.cl_path)) ~sub:([
-									(make_error ~depth:1 (Custom (compl_msg (error_msg (Unify l)))) p);
-									(make_error ~depth:1 (Custom (compl_msg "Interface field is defined here")) f.cf_name_pos);
+									(make_error (Custom (compl_msg (error_msg (Unify l)))) p);
+									(make_error (Custom (compl_msg "Interface field is defined here")) f.cf_name_pos);
 								]) p)
 							end
 				)
@@ -442,8 +488,8 @@ module Inheritance = struct
 					mf_fields = List.map (fun (cf,t) -> (cf,t,CompletionType.from_type (Display.get_import_status ctx) t)) l;
 					mf_cause = ImplementedInterface(intf,params);
 				} in
-				let display = ctx.com.display_information in
-				display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
+				let cm = DiagnosticsPrinter.make_missing_fields_message diag in
+				CompilerMessage.add_module_diagnostic ctx.com c.cl_module cm
 			end
 		) c.cl_implements
 
@@ -478,8 +524,8 @@ module Inheritance = struct
 				mf_fields = List.rev_map (fun (cf,t) -> (cf,t,CompletionType.from_type (Display.get_import_status ctx) t)) l;
 				mf_cause = AbstractParent(csup,params);
 			} in
-			let display = ctx.com.display_information in
-			display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
+			let cm = DiagnosticsPrinter.make_missing_fields_message diag in
+			CompilerMessage.add_module_diagnostic ctx.com c.cl_module cm
 		| l ->
 			let pctx = print_context() in
 			let sub = List.map (fun (cf,_) ->
@@ -489,7 +535,7 @@ module Inheritance = struct
 					| t ->
 						s_type pctx t
 				in
-				make_error ~depth:1 (Custom (compl_msg (Printf.sprintf "%s(%s)" cf.cf_name s))) cf.cf_name_pos
+				make_error (Custom (compl_msg (Printf.sprintf "%s(%s)" cf.cf_name s))) cf.cf_name_pos
 			) !missing in
 			let singular = match l with [_] -> true | _ -> false in
 			let sub = [make_error (Custom (Printf.sprintf "Implement %s or make %s abstract as well" (if singular then "it" else "them") (s_type_path c.cl_path))) ~sub c.cl_name_pos] in
@@ -603,6 +649,9 @@ module Inheritance = struct
 			with Error { err_message = Module_not_found(([],name)); err_pos = p } when ctx.com.display.dms_kind <> DMNone ->
 				if Diagnostics.error_in_diagnostics_run ctx.com p then DisplayToplevel.handle_unresolved_identifier ctx name p true;
 				None
+			| Error ({ err_message = Module_not_found _ | Type_not_found _ } as err) when not (is_diagnostics ctx.com) && Typeload.can_recover_from_missing_type ctx err ->
+				display_error_ext ctx.com err;
+				None
 		) herits in
 		fl
 end
@@ -637,7 +686,7 @@ let check_final_vars ctx e =
 		if Hashtbl.length final_vars > 0 then begin
 			let sub = List.filter_map (fun (c,cf) ->
 				if Hashtbl.mem final_vars cf.cf_name then
-					Some (make_error ~depth:1 (Custom "Uninitialized field") cf.cf_name_pos)
+					Some (make_error (Custom "Uninitialized field") cf.cf_name_pos)
 				else
 					None
 			) (DynArray.to_list ordered_fields) in

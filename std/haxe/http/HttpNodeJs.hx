@@ -46,7 +46,7 @@ class HttpNodeJs extends haxe.http.HttpBase {
 		req = null;
 	}
 
-	public override function request(?post:Bool) {
+	public override function request(post = false) {
 		responseAsString = null;
 		responseBytes = null;
 		responseHeaders = null;
@@ -123,7 +123,9 @@ class HttpNodeJs extends haxe.http.HttpBase {
 				req.setHeader("Content-Length", '${postBytes.length}');
 				req.write(Buffer.from(postBytes.getData()));
 			}
-
+		req.on('error', function(e) {
+            		onError(e);
+         	});
 		req.end();
 	}
 }

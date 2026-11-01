@@ -3,8 +3,7 @@ package cases;
 import haxe.Timer;
 
 @:timeout(10000)
-@:depends(cases.TestEvents)
-class TestTimer extends utest.Test {
+class TestTimer extends ThreadTestBase {
 	static inline var APPROX_FACTOR = 0.95;
 
 	function testCorrectInterval(async:Async) {
@@ -58,7 +57,7 @@ class TestTimer extends utest.Test {
 		}
 
 		for(n in 0...10) {
-			Thread.createWithEventLoop(work.bind(n));
+			Thread.create(work.bind(n));
 		}
 
 		//expect two messages with different types per thread

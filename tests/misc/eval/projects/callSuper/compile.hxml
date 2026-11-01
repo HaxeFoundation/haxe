@@ -1,0 +1,3 @@
+--interp
+-cp .
+-main Main2

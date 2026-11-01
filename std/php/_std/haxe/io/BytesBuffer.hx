@@ -23,6 +23,7 @@
 package haxe.io;
 
 import php.*;
+import haxe.Int32;
 import haxe.io.Error;
 
 class BytesBuffer {
@@ -46,7 +47,7 @@ class BytesBuffer {
 		b = Syntax.concat(b, v);
 	}
 
-	public function addInt32(v:Int) {
+	public function addInt32(v:Int32) {
 		addByte(v & 0xFF);
 		addByte((v >> 8) & 0xFF);
 		addByte((v >> 16) & 0xFF);

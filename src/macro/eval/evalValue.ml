@@ -19,6 +19,48 @@
 open Extlib_leftovers
 open Globals
 
+module DomainMutex = struct
+	type t = {
+		dmutex : Mutex.t;
+		downer : int Atomic.t;  (* owner domain_id, or -1 if unlocked *)
+		mutable ddepth : int;   (* reentrant depth, only accessed by owner *)
+	}
+
+	let create () = {
+		dmutex = Mutex.create();
+		downer = Atomic.make (-1);
+		ddepth = 0;
+	}
+
+	let lock mutex domain_id =
+		if Atomic.get mutex.downer = domain_id then
+			mutex.ddepth <- mutex.ddepth + 1
+		else begin
+			Mutex.lock mutex.dmutex;
+			Atomic.set mutex.downer domain_id;
+			mutex.ddepth <- 1
+		end
+
+	let try_lock mutex domain_id =
+		if Atomic.get mutex.downer = domain_id then begin
+			mutex.ddepth <- mutex.ddepth + 1;
+			true
+		end else if Mutex.try_lock mutex.dmutex then begin
+			Atomic.set mutex.downer domain_id;
+			mutex.ddepth <- 1;
+			true
+		end else
+			false
+
+	let unlock mutex =
+		if mutex.ddepth > 1 then
+			mutex.ddepth <- mutex.ddepth - 1
+		else begin
+			Atomic.set mutex.downer (-1);
+			Mutex.unlock mutex.dmutex
+		end
+end
+
 type cmp =
 	| CEq
 	| CSup
@@ -31,8 +73,9 @@ type vstring = {
 	sstring : UTF8.t;
 	(* The length of the string. *)
 	slength : int;
-	(* The current (character * byte) offsets. *)
-	mutable soffsets : (int ref * int ref) list;
+	(* The current (character * byte) offsets. Threads share this cache, so it is
+	   only ever replaced as a whole and its pairs are immutable. *)
+	mutable soffsets : (int * int) list;
 }
 
 type vstring_buffer = {
@@ -56,6 +99,7 @@ module RuntimeStringHashtbl = struct
 	let mem this key = StringMap.mem key.sstring !this
 	let remove this key = this := StringMap.remove key.sstring !this
 	let clear this = this := StringMap.empty
+	let size this = StringMap.cardinal !this
 end
 
 module RuntimeIntHashtbl = struct
@@ -71,6 +115,23 @@ module RuntimeIntHashtbl = struct
 	let mem this key = IntHashtbl.mem this key
 	let remove this key = IntHashtbl.remove this key
 	let clear this = IntHashtbl.clear this
+	let size this = IntHashtbl.length this
+end
+
+module RuntimeInt64Hashtbl = struct
+	type 'value t = 'value Int64Hashtbl.t
+
+	let add this key v = Int64Hashtbl.replace this key v
+	let copy this = Int64Hashtbl.copy this
+	let create () = Int64Hashtbl.create 0
+	let find this key = Int64Hashtbl.find this key
+	let fold f this acc = Int64Hashtbl.fold f this acc
+	let is_empty this = Int64Hashtbl.length this = 0
+	let iter f this = Int64Hashtbl.iter f this
+	let mem this key = Int64Hashtbl.mem this key
+	let remove this key = Int64Hashtbl.remove this key
+	let clear this = Int64Hashtbl.clear this
+	let size this = Int64Hashtbl.length this
 end
 
 type vregex = {
@@ -141,7 +202,7 @@ type value =
 	| VPrototype of vprototype
 	| VFunction of vfunc * bool
 	| VFieldClosure of value * vfunc
-	| VLazy of value Lazy.t
+	| VLazy of value AtomicLazy.t
 	| VNativeString of string
 	| VHandle of vhandle
 	| VInt64 of Signed.Int64.t
@@ -188,6 +249,7 @@ and vinstance_kind =
 	| IDate of float
 	| IStringMap of value RuntimeStringHashtbl.t
 	| IIntMap of value RuntimeIntHashtbl.t
+	| IInt64Map of value RuntimeInt64Hashtbl.t
 	| IObjectMap of (value,value) Hashtbl.t
 	| IOutput of Buffer.t (* BytesBuffer *)
 	| IBuffer of vstring_buffer(* StringBuf *)
@@ -198,7 +260,9 @@ and vinstance_kind =
 	| IOutChannel of out_channel (* FileOutput *)
 	| ISocket of Unix.file_descr
 	| IThread of vthread
-	| IMutex of vmutex
+	| IMutex of DomainMutex.t
+	| ISemaphore of Semaphore.Counting.t
+	| ICondition of vcondition
 	| ILock of vlock
 	| ITls of int
 	| IDeque of vdeque
@@ -214,6 +278,9 @@ and vinstance_kind =
 	| IMbedtlsSsl of Mbedtls.mbedtls_ssl_context
 	| IMbedtlsX509Crt of Mbedtls.mbedtls_x509_crt
 	| INormal
+	| IAtomicBool of bool Atomic.t
+	| IAtomicInt of int Atomic.t
+	| IAtomicObject of value Atomic.t
 
 and vinstance = {
 	(* The fields of this instance. *)
@@ -238,28 +305,35 @@ and venum_value = {
 	eindex : int;
 	eargs : value array;
 	epath : int;
-	enpos : pos option;
+	mutable enpos : pos option;
 }
 
+and vthread_mode =
+	| Thread of Thread.t
+	| Domain of unit Domain.t
+	| LuvThread of Luv.Thread.t
+
 and vthread = {
-	mutable tthread : Thread.t;
-	tdeque : vdeque;
-	mutable tevents : value;
-	mutable tstorage : value IntMap.t;
+	thread_id : int;
+	mutable thread_mode : vthread_mode;
+	thread_deque : vdeque;
 }
 
 and vdeque = {
 	mutable dvalues : value list;
 	dmutex : Mutex.t;
-}
-
-and vmutex = {
-	mmutex : Mutex.t;
-	mutable mowner : (int * int) option; (* thread ID * same thread lock count *)
+	dcond : Condition.t;
 }
 
 and vlock = {
-	ldeque : vdeque;
+	lmutex : Mutex.t;
+	lcond : Condition.t;
+	mutable lcount : int;
+}
+
+and vcondition = {
+	cond : Condition.t;
+	cmutex : Mutex.t;
 }
 
 let same_handle h1 h2 =
@@ -323,8 +397,8 @@ let rec equals a b = match a,b with
 	| VFieldClosure(v1,f1),VFieldClosure(v2,f2) -> f1 == f2 && equals v1 v2
 	| VNativeString s1,VNativeString s2 -> s1 = s2
 	| VHandle h1,VHandle h2 -> same_handle h1 h2
-	| VLazy f1,_ -> equals (Lazy.force f1) b
-	| _,VLazy f2 -> equals a (Lazy.force f2)
+	| VLazy f1,_ -> equals (AtomicLazy.force f1) b
+	| _,VLazy f2 -> equals a (AtomicLazy.force f2)
 	| _ -> a == b
 
 module ValueHashtbl = Hashtbl.Make(struct
@@ -347,6 +421,7 @@ let vfield_closure v f = VFieldClosure(v,f)
 let vobject o = VObject o
 let vint i = VInt32 (Int32.of_int i)
 let vint32 i = VInt32 i
+let vint64 i = VInt64 i
 let vfloat f = VFloat f
 let venum_value e = VEnumValue e
 let vnative_string s = VNativeString s
@@ -354,5 +429,11 @@ let vnative_string s = VNativeString s
 let s_expr_pretty e = (Type.s_expr_pretty false "" false (Type.s_type (Type.print_context())) e)
 
 let rec vresolve v = match v with
-	| VLazy f -> vresolve (Lazy.force f)
+	| VLazy f -> vresolve (AtomicLazy.force f)
 	| _ -> v
+
+let associate_enum_value_pos ve p = match ve with
+	| VEnumValue ve ->
+		ve.enpos <- Some p
+	| _ ->
+		()

@@ -126,11 +126,11 @@ let completion_item_of_expr ctx e =
 					| 'u' -> doc c "use UTF-8 matching"
 					| _ -> die "" __LOC__
 				in
-				let present = List.map f present in
+					DisplayException.send_signatures_raise ctx.com overloads 0 display_arg SKCall
 				let present = match present with [] -> [] | _ -> "\n\nActive flags:\n\n" :: present in
 				let absent = List.map f absent in
 				let absent = match absent with [] -> [] | _ -> "\n\nInactive flags:\n\n" :: absent in
-				(TInst(c,tl)),Some ("Regular expression\n\n" ^ (String.concat "\n" (present @ absent)))
+					DisplayException.send_positions_raise ctx.com []
 			| _ -> *)
 				let fa = get_constructor_access c tl e.epos in
 				let fcc = unify_field_call ctx fa el [] e.epos false in
@@ -183,12 +183,12 @@ let display_dollar_type ctx p make_type =
 	let arg = ["expression",false,mono] in
 	begin match ctx.com.display.dms_kind with
 	| DMSignature ->
-		raise_signatures [(convert_function_signature ctx PMap.empty (arg,mono),doc)] 0 0 SKCall
+		DisplayException.send_signatures_raise ctx.com [(convert_function_signature ctx PMap.empty (arg,mono),doc)] 0 0 SKCall
 	| DMHover ->
 		let t = TFun(arg,mono) in
 		raise_hover (make_ci_expr (mk (TIdent "trace") t p) (make_type t)) (Some (WithType.named_argument "expression")) p
 	| DMDefinition | DMTypeDefinition ->
-		raise_positions []
+		DisplayException.send_positions_raise ctx.com []
 	| _ ->
 		raise_typing_error "Unsupported method" p
 	end
@@ -229,11 +229,11 @@ let rec handle_signature_display ctx e_ast with_type =
 				in
 				loop (if keep t then (t,doc,values) :: acc else acc) tl
 			| [] ->
-				acc
+				List.rev acc
 		in
 		let overloads = match loop [] tl with [] -> tl | tl -> tl in
 		let overloads = List.map (fun (t,doc,values) -> (convert_function_signature ctx values t,doc)) overloads in
-		raise_signatures overloads 0 (* ? *) display_arg SKCall
+		DisplayException.send_signatures_raise ctx.com overloads 0 (* ? *) display_arg SKCall
 	in
 	let process_overloads stat co (map,cf,t) =
 		let is_wacky_overload = not (has_class_field_flag cf CfOverload) in
@@ -241,7 +241,13 @@ let rec handle_signature_display ctx e_ast with_type =
 			| Some c -> can_access ctx c cf stat
 			| None -> true
 		in
-		let l = (t,cf) :: List.rev_map (fun cf -> map cf.cf_type,cf) cf.cf_overloads in
+		(* Keep declaration order: @:overload metadata is stored in source order and precedes the main field,
+		   while proper overloads are prepended to the main field's cf_overloads in typeloadFields. *)
+		let l = if is_wacky_overload then
+			(List.map (fun cf' -> map cf'.cf_type,cf') cf.cf_overloads) @ [t,cf]
+		else
+			(t,cf) :: List.rev_map (fun cf' -> map cf'.cf_type,cf') cf.cf_overloads
+		in
 		let l = List.filter (fun (_,cf) -> can_access cf) l in
 		let l = List.map (fun (t,cf') ->
 			(* Ghetto overloads have their documentation on the main field. *)
@@ -317,7 +323,7 @@ let rec handle_signature_display ctx e_ast with_type =
 			begin match follow e1.etype with
 			| TInst({cl_path=([],"Array")},[t]) ->
 				let res = convert_function_signature ctx PMap.empty (["index",false,ctx.t.tint],t) in
-				raise_signatures [res,doc_from_string "The array index"] 0 0 SKCall
+				DisplayException.send_signatures_raise ctx.com [res,doc_from_string "The array index"] 0 0 SKCall
 			| TAbstract(a,tl) ->
 				(match a.a_impl with Some c -> ignore(c.cl_build()) | _ -> ());
 				let sigs = ExtList.List.filter_map (fun cf -> match follow cf.cf_type with
@@ -333,9 +339,9 @@ let rec handle_signature_display ctx e_ast with_type =
 					| _ ->
 						None
 				) a.a_array in
-				raise_signatures sigs 0 0 SKArrayAccess
+				DisplayException.send_signatures_raise ctx.com sigs 0 0 SKArrayAccess
 			| _ ->
-				raise_signatures [] 0 0 SKArrayAccess
+				DisplayException.send_signatures_raise ctx.com [] 0 0 SKArrayAccess
 			end
 		| _ -> raise_typing_error "Call expected" p
 
@@ -488,10 +494,10 @@ and display_expr ctx e_ast e dk mode with_type p =
 			[]
 		in
 		let pl = loop e in
-		raise_positions pl
+		DisplayException.send_positions_raise ctx.com pl
 	| DMTypeDefinition ->
 		raise_position_of_type ctx e.etype
-	| DMDefault when not ctx.com.parser_state.had_parser_resume ->
+	| DMDefault when not ctx.com.part_scope.parser_state.had_parser_resume ->
 		let display_fields e_ast e1 so =
 			let l = match so with None -> 0 | Some s -> String.length s in
 			let fields = DisplayFields.collect ctx e_ast e1 dk with_type p in
@@ -527,7 +533,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 		in
 		let keyValueIterator =
 			try begin
-				let _,pt = ForLoop.IterationKind.check_iterator ~resume:true ctx "keyValueIterator" e e.epos in
+				let _,pt = ForLoop.IterationKind.try_sync_iterator ~resume:true ctx "keyValueIterator" e in
 				match follow pt with
 					| TAnon a ->
 						let key = PMap.find "key" a.a_fields in
@@ -608,12 +614,12 @@ let handle_display ctx e_ast dk mode with_type =
 		let p = pos e_ast in
 		begin match ctx.com.display.dms_kind with
 		| DMSignature ->
-			raise_signatures [(convert_function_signature ctx PMap.empty (arg,ret),doc)] 0 0 SKCall
+			DisplayException.send_signatures_raise ctx.com [(convert_function_signature ctx PMap.empty (arg,ret),doc)] 0 0 SKCall
 		| DMHover ->
 			let t = TFun(arg,ret) in
 			raise_hover (make_ci_expr (mk (TIdent "trace") t p) (tpair t)) (Some (WithType.named_argument "value")) p
 		| DMDefinition | DMTypeDefinition ->
-			raise_positions []
+			DisplayException.send_positions_raise ctx.com []
 		| _ ->
 			raise_typing_error "Unsupported method" p
 		end
@@ -622,15 +628,9 @@ let handle_display ctx e_ast dk mode with_type =
 	| (_,p),_ -> try
 		type_expr ~mode ctx e_ast with_type
 	with Error { err_message = Unknown_ident n } when ctx.com.display.dms_kind = DMDefault ->
-        if dk = DKDot && is_legacy_completion ctx.com then raise (Parser.TypePath ([n],None,false,p))
-		else raise_toplevel ctx dk with_type (n,p)
-	| Error ({ err_message = Type_not_found (path,_,_) | Module_not_found path } as err) when ctx.com.display.dms_kind = DMDefault ->
-		if is_legacy_completion ctx.com then begin try
-			raise_fields (DisplayFields.get_submodule_fields ctx path) (CRField((make_ci_module path),p,None,None)) (make_subject None (pos e_ast))
-		with Not_found ->
-			raise_error err
-		end else
-			raise_toplevel ctx dk with_type (s_type_path path,p)
+		raise_toplevel ctx dk with_type (n,p)
+	| Error ({ err_message = Type_not_found (path,_,_) | Module_not_found path }) when ctx.com.display.dms_kind = DMDefault ->
+		raise_toplevel ctx dk with_type (s_type_path path,p)
 	| DisplayException(DisplayFields ({fkind = CRTypeHint} as r)) when (match fst e_ast with ENew _ -> true | _ -> false) ->
 		let l = Timer.time ctx.com.timer_ctx ["display";"toplevel";"filter ctors"] (filter_ctors ctx) r in
 		raise_fields l CRNew r.fsubject
@@ -660,7 +660,7 @@ let handle_display ctx e_ast dk mode with_type =
 	ctx.f.in_display <- fst old;
 	ctx.f.in_call_args <- snd old;
 	let f () = display_expr ctx e_ast e dk mode with_type p in
-	if ctx.f.in_overload_call_args then begin
+	if in_overload_call_args ctx then begin
 		try
 			f()
 		with DisplayException de ->

@@ -1,0 +1,4 @@
+A onestar=true twostar=true foo.fonestar=true foo.ftwostar=true
+M onestar=true twostar=true foo.fonestar=true foo.ftwostar=true
+B onestar=false twostar=true foo.fonestar=false foo.ftwostar=true
+C onestar=false twostar=true foo.fonestar=false foo.ftwostar=true

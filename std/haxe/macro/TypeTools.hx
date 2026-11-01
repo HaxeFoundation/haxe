@@ -47,6 +47,7 @@ class TypeTools {
 						case AccNever: "never";
 						case AccResolve: throw "Invalid TAnonymous";
 						case AccCall: getOrSet;
+						case AccPrivateCall: 'private $getOrSet';
 						case AccInline: "default";
 						case AccRequire(_, _): "default";
 					}

@@ -111,6 +111,11 @@ package hl;
 	@:hlNative("std", "bsort_f64")
 	public function sortF64(pos:Int, length:Int, f:Float->Float->Int):Void {}
 
+	#if (hl_ver >= version("1.16.0"))
+	@:hlNative("std", "bsort_i64")
+	public function sortI64(pos:Int, length:Int, f:hl.I64->hl.I64->Int):Void {}
+	#end
+
 	/**
 		Please note that you need to retain the original unoffset'ed Bytes so it does not get garbage collected, unless the pointer was not GC allocated.
 	**/
@@ -219,4 +224,10 @@ package hl;
 	public inline function toBytes(len:Int) {
 		return @:privateAccess new haxe.io.Bytes(this, len);
 	}
+
+	#if (hl_ver >= "1.16.0")
+	@:hlNative("std", "bytes_get_memsize") public function getMemSize() : Int {
+		return 0;
+	}
+	#end
 }

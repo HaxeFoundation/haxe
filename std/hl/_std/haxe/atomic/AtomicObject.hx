@@ -7,7 +7,9 @@ import hl.Atomics;
 
 // use hl.NativeArray<Dynamic> instead of hl.NativeArray<T>
 // so that the compiler doesn't get confused and emit hl.Ref.make(this.getRef())
-abstract AtomicObject<T:{}>(hl.NativeArray<Dynamic>) {
+private typedef AtomicObjectData<T:{}> = hl.NativeArray<Dynamic>;
+
+abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
 	public inline function new(value:T):Void {
 		this = new hl.NativeArray(1);
 		this[0] = value;

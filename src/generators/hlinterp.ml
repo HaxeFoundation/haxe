@@ -120,11 +120,14 @@ type context = {
 }
 
 let default t =
-	match t with
-	| HUI8 | HUI16 | HI32 -> VInt Int32.zero
-	| HI64 -> VInt64 Int64.zero
-	| HF32 | HF64 -> VFloat 0.
-	| HBool -> VBool false
+	match get_group t with
+	| GInt ->
+		if type_size_bits t <= 2 then
+			VInt Int32.zero
+		else
+			VInt64 Int64.zero
+	| GFloat -> VFloat 0.
+	| GBool -> VBool false
 	| _ -> if is_nullable t then VNull else VUndef
 
 let get_type = function
@@ -144,27 +147,27 @@ let v_dynamic = function
 	| _ -> false
 
 let rec is_compatible v t =
-	match v, t with
-	| VInt _, (HUI8 | HUI16 | HI32) -> true
-	| VInt64 _, HI64 -> true
-	| VFloat _, (HF32 | HF64) -> true
-	| VBool _, HBool -> true
-	| _, HVoid -> true
-	| VNull, t -> is_nullable t
-	| VObj o, HObj _ -> safe_cast (HObj o.oproto.pclass) t
-	| VClosure _, HFun _ -> safe_cast (match get_type v with None -> Globals.die "" __LOC__ | Some t -> t) t
-	| VBytes _, HBytes -> true
-	| VDyn (_,t1), HNull t2 -> tsame t1 t2
-	| v, HNull t -> is_compatible v t
-	| v, HDyn -> v_dynamic v
-	| VType _, HType -> true
-	| VArray _, HArray _ -> true
-	| VDynObj _, HDynObj -> true
-	| VVirtual v, HVirtual _ -> safe_cast (HVirtual v.vtype) t
-	| VRef (_,t1), HRef t2 -> tsame t1 t2
-	| VAbstract _, HAbstract _ -> true
-	| VEnum _, HEnum _ -> true
-	| VStruct v, HStruct _ -> safe_cast (HStruct v.oproto.pclass) t
+	match v, get_group t, t with
+	| VInt _, GInt, _ -> type_size_bits t <= 2
+	| VInt64 _, GInt, _ -> type_size_bits t == 3
+	| VFloat _, GFloat, _ -> true
+	| VBool _, GBool, _ -> true
+	| _, _, HVoid -> true
+	| VNull, _, _ -> is_nullable t
+	| VObj o, _, HObj _ -> safe_cast (HObj o.oproto.pclass) t
+	| VClosure _, _, HFun _ -> safe_cast (match get_type v with None -> Globals.die "" __LOC__ | Some t -> t) t
+	| VBytes _, _, HBytes -> true
+	| VDyn (_,t1), _, HNull ti -> tsame t1 ti
+	| v, _, HNull ti -> is_compatible v ti
+	| v, _, HDyn -> v_dynamic v
+	| VType _, _, HType -> true
+	| VArray _, _, HArray _ -> true
+	| VDynObj _, _, HDynObj -> true
+	| VVirtual v, _, HVirtual _ -> safe_cast (HVirtual v.vtype) t
+	| VRef (_,t1), _, HRef t2 -> tsame t1 t2
+	| VAbstract _, _, HAbstract _ -> true
+	| VEnum _, _, HEnum _ -> true
+	| VStruct v, _, HStruct _ -> safe_cast (HStruct v.oproto.pclass) t
 	| _ -> false
 
 type cast =
@@ -1156,7 +1159,7 @@ let interp ctx f args =
 			| _ -> Globals.die "" __LOC__)
 		| OAsm _ ->
 			throw_msg ctx "Unsupported ASM"
-		| ONop _ | OPrefetch _ ->
+		| ONop _ | OPrefetch _ | OCatch _ ->
 			()
 		);
 		loop()
@@ -1536,12 +1539,12 @@ let load_native ctx lib name t =
 					(match !cached_sys_name with
 					| Some n -> n
 					| None ->
-						let ic, pid = Process_helper.open_process_args_in_pid "uname" [| "uname" |] in
+						let ic = Unix.open_process_args_in "uname" [| "uname" |] in
 						let uname = (match input_line ic with
 							| "Darwin" -> "Mac"
 							| n -> n
 						) in
-						Stdlib.ignore (Process_helper.close_process_in_pid (ic, pid));
+						Stdlib.ignore (Unix.close_process_in ic);
 						cached_sys_name := Some uname;
 						uname)
 				| "Win32" | "Cygwin" -> "Windows"
@@ -2212,19 +2215,13 @@ let check comerror code =
 			if not (safe_cast (rtype r) t) then error (reg_inf r ^ " should be " ^ tstr t ^ " and not " ^ tstr (rtype r))
 		in
 		let numeric r =
-			match rtype r with
-			| HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 -> ()
-			| _ -> error (reg_inf r ^ " should be numeric")
+			if not (is_number (rtype r)) then error (reg_inf r ^ " should be numeric")
 		in
 		let int r =
-			match rtype r with
-			| HUI8 | HUI16 | HI32 | HI64 -> ()
-			| _ -> error (reg_inf r ^ " should be integral")
+			if not (is_int (rtype r)) then error (reg_inf r ^ " should be integral")
 		in
 		let float r =
-			match rtype r with
-			| HF32 | HF64 -> ()
-			| _ -> error (reg_inf r ^ " should be float")
+			if not (is_float (rtype r)) then error (reg_inf r ^ " should be float")
 		in
 		let call f args r =
 			match ftypes.(f) with
@@ -2433,7 +2430,8 @@ let check comerror code =
 				reg b HBytes;
 				reg p HI32;
 			| OGetMem (r,b,p) ->
-				(match rtype r with HI32 | HI64 | HF32 | HF64 -> () | _ -> error (reg_inf r ^ " should be numeric"));
+				let t = rtype r in
+				(match get_group t with (GInt | GFloat) when type_size_bits t >= 2 -> () | _ -> error (reg_inf r ^ " should be numeric"));
 				reg b HBytes;
 				reg p HI32;
 			| OSetUI8 (r,p,v) | OSetUI16 (r,p,v) ->
@@ -2443,12 +2441,13 @@ let check comerror code =
 			| OSetMem (r,p,v) ->
 				reg r HBytes;
 				reg p HI32;
-				(match rtype v with HI32 | HI64 | HF32 | HF64 -> () | _ -> error (reg_inf r ^ " should be numeric"));
+				let t = rtype v in
+				(match get_group t with (GInt | GFloat) when type_size_bits t >= 2 -> () | _ -> error (reg_inf r ^ " should be numeric"));
 			| OSetArray (a,i,v) ->
 				(match rtype a with HAbstract ("hl_carray",_) | HArray _ -> () | _ -> reg a (HArray HDyn));
 				reg i HI32;
 				ignore(rtype v);
-            | OUnsafeCast (a,b) | OSafeCast (a,b) ->
+			| OUnsafeCast (a,b) | OSafeCast (a,b) ->
 				ignore(rtype a);
 				ignore(rtype b);
 			| OArraySize (r,a) ->
@@ -2540,6 +2539,8 @@ let check comerror code =
 				if f = 0 then ignore(rtype r) else ignore(tfield r (f - 1) false)
 			| OAsm (_,_,r) ->
 				if r > 0 then ignore(rtype (r - 1))
+			| OCatch _ ->
+				()
 		) f.code
 		(* TODO : check that all path correctly initialize NULL values and reach a return *)
 	in

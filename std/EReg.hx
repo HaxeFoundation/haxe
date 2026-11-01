@@ -135,6 +135,18 @@ class EReg {
 	}
 
 	/**
+		Returns the total number of groups captures by the last matched substring.
+
+		To stay consistent with `this.matched`, the matched substring is also
+		counted as a group.
+
+		Returns `0` if no substring has been matched.
+	**/
+	public function matchedNum():Int {
+		return 0;
+	}
+
+	/**
 		Splits String `s` at all substrings `this` EReg matches.
 
 		If a match is found at the start of `s`, the result contains a leading

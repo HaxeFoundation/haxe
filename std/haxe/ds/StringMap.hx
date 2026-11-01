@@ -96,4 +96,6 @@ extern class StringMap<T> implements haxe.Constraints.IMap<String, T> {
 		See `Map.clear`
 	**/
 	function clear():Void;
+	
+	public function size():Int;
 }

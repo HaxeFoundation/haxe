@@ -28,6 +28,7 @@
 #ifdef _WIN32
 #	include <windows.h>
 #	include <conio.h>
+#	include <io.h>
 #else
 #	include <dlfcn.h>
 #	include <limits.h>
@@ -487,11 +488,14 @@ CAMLprim value get_real_path( value path ) {
 #define TimeSpecToSeconds(ts) (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0
 #endif
 
+#ifdef WIN32
+static LARGE_INTEGER freq;
+static int freq_init = -1;
+#endif
+
 CAMLprim value sys_time() {
 #ifdef _WIN32
 #define EPOCH_DIFF	(134774*24*60*60.0)
-	static LARGE_INTEGER freq;
-	static int freq_init = -1;
 	LARGE_INTEGER counter;
 	if( freq_init == -1 )
 		freq_init = QueryPerformanceFrequency(&freq);
@@ -521,7 +525,7 @@ CAMLprim value sys_time() {
 
 	elapsedNano = time * sTimebaseInfo.numer / sTimebaseInfo.denom;
 
-	return caml_copy_double(time / 1000000000.0);
+	return caml_copy_double((double)elapsedNano / 1000000000.0);
 #elif defined CLOCK_MONOTONIC_RAW
 	struct timespec t;
 	clock_gettime(CLOCK_MONOTONIC_RAW, &t);
@@ -533,9 +537,47 @@ CAMLprim value sys_time() {
 #endif
 }
 
+CAMLprim value sys_timestamp_ms() {
+#ifdef _WIN32
+	if (-1 == freq_init) {
+		freq_init = QueryPerformanceFrequency(&freq);
+	}
+
+	LARGE_INTEGER time;
+	QueryPerformanceCounter(&time);
+
+	return caml_copy_int64(time.QuadPart * 1000LL / freq.QuadPart);
+#else
+	struct timespec ts;
+	if (clock_gettime(CLOCK_MONOTONIC, &ts)) {
+		caml_failwith("Failed to get time from the monotonic clock");
+	}
+
+	return caml_copy_int64(ts.tv_sec * 1000 + (ts.tv_nsec / 1000000));
+#endif
+}
+
 CAMLprim value sys_getch( value b ) {
 #	ifdef _WIN32
-	return Val_int( Bool_val(b)?getche():getch() );
+	/* getch()/getche() from <conio.h> read from the console input buffer,
+	   not from stdin.  When stdin is a pipe or file (e.g. subprocess with
+	   redirected input) they ignore the redirected data entirely.
+	   Detect this and fall back to _read() on the raw file descriptor. */
+	{
+		HANDLE h = GetStdHandle(STD_INPUT_HANDLE);
+		DWORD ft = (h != INVALID_HANDLE_VALUE) ? GetFileType(h) : FILE_TYPE_CHAR;
+		if (ft == FILE_TYPE_CHAR) {
+			return Val_int( Bool_val(b) ? getche() : getch() );
+		} else {
+			unsigned char c;
+			int n = _read(0, &c, 1);
+			if (n <= 0) return Val_int(-1);
+			if (Bool_val(b)) {
+				_write(1, &c, 1);
+			}
+			return Val_int(c);
+		}
+	}
 #	else
 	// took some time to figure out how to do that
 	// without relying on ncurses, which clear the

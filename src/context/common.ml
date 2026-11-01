@@ -16,13 +16,14 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
+open Message
 open Ast
 open Type
+open Error
 open Globals
 open Lookup
 open Define
 open NativeLibraries
-open Warning
 
 type package_rule =
 	| Forbidden
@@ -30,20 +31,26 @@ type package_rule =
 
 type pos = Globals.pos
 
-let const_type basic const default =
-	match const with
-	| TString _ -> basic.tstring
-	| TInt _ -> basic.tint
-	| TFloat _ -> basic.tfloat
-	| TBool _ -> basic.tbool
-	| _ -> default
+module Stats = struct
+	type t = {
+		s_files_parsed : int ref;
+		s_modules_typed : int ref;
+		s_modules_restored : int ref;
+		s_classes_built : int ref;
+		s_methods_typed : int ref;
+		s_macros_called : int ref;
+	}
 
-type stats = {
-	s_files_parsed : int ref;
-	s_classes_built : int ref;
-	s_methods_typed : int ref;
-	s_macros_called : int ref;
-}
+	let create () =
+		{
+			s_files_parsed = ref 0;
+			s_modules_typed = ref 0;
+			s_modules_restored = ref 0;
+			s_classes_built = ref 0;
+			s_methods_typed = ref 0;
+			s_macros_called = ref 0;
+		}
+end
 
 class compiler_callbacks = object(self)
 	val before_typer_create = ref [];
@@ -76,7 +83,7 @@ class compiler_callbacks = object(self)
 	method add_after_generation (f : unit -> unit) : unit =
 		after_generation := f :: !after_generation
 
-	method add_null_safety_report (f : (string*pos) list -> unit) : unit =
+	method add_null_safety_report (f : (string*pos) list -> (WarningList.warning*string*pos) list -> unit) : unit =
 		null_safety_report <- f :: null_safety_report
 
 	method run handle_error r =
@@ -118,27 +125,6 @@ class file_keys = object(self)
 
 end
 
-type shared_display_information = {
-	mutable diagnostics_messages : diagnostic list;
-}
-
-type display_information = {
-	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
-	mutable display_module_has_macro_defines : bool;
-	mutable module_diagnostics : DisplayTypes.module_diagnostics list;
-}
-
-(* This information is shared between normal and macro context. *)
-type shared_context = {
-	shared_display_information : shared_display_information;
-}
-
-type json_api = {
-	send_result : Json.t -> unit;
-	send_error : Json.t list -> unit;
-	jsonrpc : Jsonrpc_handler.jsonrpc_handler;
-}
-
 type compiler_stage =
 	| CCreated          (* Context was just created *)
 	| CInitialized      (* Context was initialized (from CLI args and such). *)
@@ -175,7 +161,6 @@ let s_compiler_stage = function
 
 type report_mode =
 	| RMNone
-	| RMLegacyDiagnostics of (Path.UniqueKey.t list)
 	| RMDiagnostics of (Path.UniqueKey.t list)
 	| RMStatistics
 
@@ -230,21 +215,92 @@ end
 type parser_state = {
 	mutable was_auto_triggered : bool;
 	mutable had_parser_resume : bool;
+	mutable display_module_has_macro_defines : bool;
 	delayed_syntax_completion : Parser.syntax_completion_on option Atomic.t;
 	special_identifier_files : (Path.UniqueKey.t,string) ThreadSafeHashtbl.t;
 }
 
-type context = {
+module LocalWrapper = struct
+	type t = <
+		captured_type : TType.t -> TType.t;
+		mk_init : tvar -> tvar -> pos -> texpr;
+		mk_ref : tvar -> texpr option -> pos -> texpr;
+		mk_ref_access : texpr -> tvar -> texpr
+	>
+
+	let null_wrapper = object
+		method captured_type =
+			(fun t -> t)
+
+		method mk_ref v ve p =
+			let ev = Texpr.Builder.make_local v p in
+			match ve with
+			| None ->
+				ev
+			| Some e ->
+				Texpr.Builder.binop OpAssign ev e ev.etype p
+
+		method mk_ref_access e v =
+			e
+
+		method mk_init av v p =
+			mk (TVar (av,Some (mk (TLocal v) v.v_type p))) t_dynamic p
+	end
+end
+
+type part_scope = {
+	runtime_args : string list;
+	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
+	has_next : bool;
+	mutable messages : Message.t list;
+	mutable has_error : bool;
+	mutable running_macros : int;
+	mutable report_mode : report_mode;
+	mutable message_capture : Message.t list ref option;
 	compilation_step : int;
+	pass_debug_messages : string DynArray.t;
+	dump_config : DumpConfig.t;
+	parser_state : parser_state;
+	file_keys : file_keys;
+	stored_typed_exprs : (int, texpr) lookup;
+	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) lookup;
+}
+
+type parse_input_result =
+	| NeedsTyping
+	| NoCompletionPointFound
+	| Completed
+
+type request_scope = {
+	stats : Stats.t;
+	timer_ctx : Timer.timer_context;
+	mutable cancellation_requested : bool;
+	io : CompilerIo.t;
+	result_handler : result_handler;
+}
+
+and result_handler = {
+	send_result : Json.t -> unit;
+	send_result_raise : 'a . Json.t -> 'a;
+	send_error : Json.t list -> unit;
+	send_error_raise : 'a . Json.t list -> 'a;
+	(** Finalize message output at the end of compilation.
+	    Handles error signaling, timer reports, log file writing, etc. *)
+	flush_messages : bool -> context -> unit;
+	set_com : context -> parse_input_result;
+}
+
+and context = {
+	request_scope : request_scope;
+	part_scope : part_scope;
 	mutable stage : compiler_stage;
+	sctx : ServerCompilationContext.t;
 	cs : CompilationCache.t;
 	mutable cache : CompilationCache.context_cache option;
 	is_macro_context : bool;
-	mutable json_out : json_api option;
 	timer_ctx : Timer.timer_context;
 	(* config *)
-	version : compiler_version;
-	mutable args : string list;
+	mutable parsed_args : ParsedArg.parsed_arg list;
 	mutable display : DisplayTypes.DisplayMode.settings;
 	mutable debug : bool;
 	mutable verbose : bool;
@@ -252,21 +308,19 @@ type context = {
 	mutable doinline : bool;
 	mutable platform : platform;
 	mutable config : PlatformConfig.platform_config;
+	mutable custom_ext : string option;
 	empty_class_path : ClassPath.class_path;
 	class_paths : ClassPaths.class_paths;
 	main : Gctx.context_main;
 	mutable package_rules : (string,package_rule) PMap.t;
-	mutable report_mode : report_mode;
-	parser_state : parser_state;
 	(* communication *)
-	mutable print : string -> unit;
 	mutable error : Gctx.error_function;
 	mutable error_ext : Error.error -> unit;
-	mutable info : ?depth:int -> ?from_macro:bool -> string -> pos -> unit;
+	mutable info : ?depth:int -> string -> pos -> unit;
 	mutable warning : Gctx.warning_function;
-	mutable warning_options : Warning.warning_option list list;
-	mutable get_messages : unit -> compiler_message list;
-	mutable filter_messages : (compiler_message -> bool) -> unit;
+	mutable warning_options : warning_option list list;
+	mutable get_messages : unit -> Message.t list;
+	mutable filter_messages : (Message.t -> bool) -> unit;
 	mutable run_command : string -> int;
 	mutable run_command_args : string -> string list -> int;
 	(* typing setup *)
@@ -276,38 +330,28 @@ type context = {
 	mutable user_defines : (string, Define.user_define) Hashtbl.t;
 	mutable user_metas : (string, Meta.user_meta) Hashtbl.t;
 	mutable get_macros : unit -> context option;
+	mutable local_wrapper : LocalWrapper.t;
 	(* typing state *)
 	mutable std : tclass;
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
-	shared : shared_context;
-	display_information : display_information;
-	file_keys : file_keys;
 	mutable file_contents : (Path.UniqueKey.t * string option) list;
 	parser_cache : (string,(type_def * pos) list) lookup;
 	module_to_file : (path,ClassPaths.resolved_file) lookup;
-	cached_macros : (path * string,(((string * bool * t) list * t * tclass * Type.tclass_field) * module_def)) lookup;
-	stored_typed_exprs : (int, texpr) lookup;
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
 	module_lut : module_lut;
 	module_nonexistent_lut : (path,bool) lookup;
-	fake_modules : (Path.UniqueKey.t,module_def) Hashtbl.t;
-	mutable has_error : bool;
-	pass_debug_messages : string DynArray.t;
 	(* output *)
 	mutable file : string;
 	mutable features : (string,bool) Hashtbl.t;
 	mutable modules : Type.module_def list;
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
-	functional_interface_lut : (path,(tclass * tclass_field)) lookup;
 	(* target-specific *)
 	mutable flash_version : float;
 	mutable neko_lib_paths : string list;
 	mutable include_files : (string * string) list;
 	mutable native_libs : native_libraries;
 	mutable hxb_libs : abstract_hxb_lib list;
-	mutable net_std : string list;
-	net_path_map : (path,string list * string list * string) Hashtbl.t;
 	mutable js_gen : (unit -> unit) option;
 	(* misc *)
 	mutable basic : basic_types;
@@ -326,10 +370,10 @@ let to_gctx com = {
 	run_command_args = com.run_command_args;
 	warning = com.warning;
 	error = com.error;
-	print = com.print;
+	io = com.request_scope.io;
 	debug = com.debug;
 	file = com.file;
-	version = com.version;
+	version = com.sctx.version;
 	features = com.features;
 	modules = com.modules;
 	main = com.main;
@@ -342,6 +386,7 @@ let to_gctx com = {
 	include_files = com.include_files;
 	std = com.std;
 	timer_ctx = com.timer_ctx;
+	pool = com.sctx.pool;
 }
 let enter_stage com stage =
 	(* print_endline (Printf.sprintf "Entering stage %s" (s_compiler_stage stage)); *)
@@ -349,11 +394,14 @@ let enter_stage com stage =
 
 let ignore_error com =
 	let b = com.display.dms_error_policy = EPIgnore in
-	if b then com.has_error <- true;
+	if b then com.part_scope.has_error <- true;
 	b
 
 let module_warning com m w options msg p =
-	if com.display.dms_full_typing then DynArray.add m.m_extra.m_cache_bound_objects (Warning(w,msg,p));
+	if com.display.dms_full_typing then begin
+		let cm = make_message com.is_macro_context msg p 0 (MKWarning(w, options)) in
+		DynArray.add m.m_extra.m_cache_bound_objects (Message cm)
+	end;
 	com.warning w options msg p
 
 (* Defines *)
@@ -445,14 +493,6 @@ let short_platform_name = function
 	| Hl -> "hl"
 	| Eval -> "evl"
 	| CustomTarget n -> "c_" ^ n
-
-let stats =
-	{
-		s_files_parsed = ref 0;
-		s_classes_built = ref 0;
-		s_methods_typed = ref 0;
-		s_macros_called = ref 0;
-	}
 
 open PlatformConfig
 
@@ -601,6 +641,9 @@ let get_config com =
 			pf_add_final_return = true;
 			pf_supports_threads = true;
 			pf_supports_unicode = (defined Define.Cppia) || not (defined Define.DisableUnicodeStrings);
+			pf_exceptions = { default_config.pf_exceptions with
+				ec_avoid_wrapping = false
+			};
 			pf_scoping = { default_config.pf_scoping with
 				vs_flags = [NoShadowing];
 				vs_scope = FunctionScope;
@@ -678,30 +721,22 @@ let get_config com =
 			pf_capture_policy = CPWrapRef;
 			pf_exceptions = { default_config.pf_exceptions with
 				ec_avoid_wrapping = false
-			}
+			};
+			pf_supports_atomics = true;
 		}
 
 let memory_marker = [|Unix.time()|]
 
-let create timer_ctx compilation_step cs version args display_mode =
+let create sctx request_scope part_scope display_mode =
 	let rec com = {
-		compilation_step = compilation_step;
-		cs = cs;
+		request_scope;
+		part_scope;
+		sctx;
+		cs = sctx.cs;
 		cache = None;
-		timer_ctx = timer_ctx;
+		timer_ctx = request_scope.timer_ctx;
 		stage = CCreated;
-		version = version;
-		args = args;
-		shared = {
-			shared_display_information = {
-				diagnostics_messages = [];
-			}
-		};
-		display_information = {
-			unresolved_identifiers = [];
-			display_module_has_macro_defines = false;
-			module_diagnostics = [];
-		};
+		parsed_args = [];
 		debug = false;
 		display = display_mode;
 		verbose = false;
@@ -710,7 +745,7 @@ let create timer_ctx compilation_step cs version args display_mode =
 		features = Hashtbl.create 0;
 		platform = Cross;
 		config = default_config;
-		print = (fun s -> print_string s; flush stdout);
+		custom_ext = None;
 		run_command = Sys.command;
 		run_command_args = (fun s args -> com.run_command (Printf.sprintf "%s %s" s (String.concat " " args)));
 		empty_class_path = new ClassPath.directory_class_path "" User;
@@ -728,13 +763,10 @@ let create timer_ctx compilation_step cs version args display_mode =
 		modules = [];
 		module_lut = new module_lut;
 		module_nonexistent_lut = new hashtbl_lookup;
-		fake_modules = Hashtbl.create 0;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
-		net_std = [];
 		native_libs = create_native_libs();
 		hxb_libs = [];
-		net_path_map = Hashtbl.create 0;
 		neko_lib_paths = [];
 		include_files = [];
 		js_gen = None;
@@ -743,14 +775,159 @@ let create timer_ctx compilation_step cs version args display_mode =
 		user_defines = Hashtbl.create 0;
 		user_metas = Hashtbl.create 0;
 		get_macros = (fun() -> None);
-		info = (fun ?depth ?from_macro _ _ -> die "" __LOC__);
-		warning = (fun ?depth ?from_macro _ _ _ -> die "" __LOC__);
+		local_wrapper = LocalWrapper.null_wrapper;
+		info = (fun ?depth _ _ -> die "" __LOC__);
+		warning = (fun ?depth _ _ _ -> die "" __LOC__);
 		warning_options = [List.map (fun w -> {wo_warning = w;wo_mode = WMDisable}) WarningList.disabled_warnings];
-		error = (fun ?depth _ _ -> die "" __LOC__);
+		error = (fun _ _ -> die "" __LOC__);
 		error_ext = (fun _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
 		filter_messages = (fun _ -> ());
-		pass_debug_messages = DynArray.create();
+		basic = {
+			tvoid = mk_mono();
+			tany = mk_mono();
+			tint = mk_mono();
+			tfloat = mk_mono();
+			tbool = mk_mono();
+			tstring = mk_mono();
+			texception = mk_mono();
+			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
+			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
+			titerator = (fun _ -> die "Could not locate typedef Iterator<T> (was it redefined?)" __LOC__);
+			tunit = mk_mono();
+			tcoro = {
+				tcoro = AtomicLazy.from_fun (fun () -> fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
+				continuation = AtomicLazy.from_fun (fun () -> mk_mono());
+				suspension_result_class = AtomicLazy.from_fun (fun () -> null_class);
+				tasync_iterator = AtomicLazy.from_fun (fun () -> fun _ -> die "Could not locate typedef AsyncIterator<T> (was it redefined?)" __LOC__);
+			}
+		};
+		std = null_class;
+		file_contents = [];
+		module_to_file = new hashtbl_lookup;
+		memory_marker = memory_marker;
+		parser_cache = new hashtbl_lookup;
+		overload_cache = new hashtbl_lookup;
+		is_macro_context = false;
+		hxb_reader_api = None;
+		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
+		hxb_writer_config = None;
+	} in
+	com
+
+let is_diagnostics com = match com.part_scope.report_mode with
+	| RMDiagnostics _ -> true
+	| _ -> false
+
+let is_compilation com = com.display.dms_kind = DMNone && not (is_diagnostics com)
+
+(* Whether typing errors (e.g. missing types) may be reported instead of aborting the request:
+   in diagnostics, in display requests without full typing and in the macro context of display requests.
+   While a macro is running (part_scope.running_macros > 0), callers should not recover from an error,
+   e.g. by using Dynamic for a missing type, but let it reach the macro as in a compilation. *)
+let display_recovery_enabled com =
+	is_diagnostics com || (com.display.dms_error_policy = EPIgnore && (not com.display.dms_full_typing || com.is_macro_context))
+
+let has_error_to_report com =
+	com.part_scope.has_error && (is_compilation com || com.part_scope.messages <> [])
+
+let activate_message_capture com buf =
+	let old_capture = com.part_scope.message_capture in
+	let old_hook = !lazy_force_hook in
+	com.part_scope.message_capture <- Some buf;
+	lazy_force_hook := (fun f ->
+		let saved = com.part_scope.message_capture in
+		com.part_scope.message_capture <- None;
+		let r = (try f () with exc -> com.part_scope.message_capture <- saved; raise exc) in
+		com.part_scope.message_capture <- saved;
+		r
+	);
+	(fun () ->
+		com.part_scope.message_capture <- old_capture;
+		lazy_force_hook := old_hook
+	)
+
+let commit_captured_messages com (buf : Message.t list) =
+	List.iter (fun cm ->
+		match com.part_scope.message_capture with
+		| Some parent ->
+			parent := cm :: !parent
+		| None ->
+			if Message.cm_severity cm = MessageSeverity.Error then com.part_scope.has_error <- true;
+			com.part_scope.messages <- cm :: com.part_scope.messages
+	) (List.rev buf)
+
+let disable_report_mode com =
+	let old = com.part_scope.report_mode in
+	com.part_scope.report_mode <- RMNone;
+	(fun () -> com.part_scope.report_mode <- old)
+
+let log com str =
+	if com.verbose then CompilerIo.write_out com.request_scope.io (str ^ "\n")
+
+let clone com is_macro_context =
+	{
+		(* keeps *)
+		request_scope = com.request_scope;
+		part_scope = com.part_scope;
+		sctx = com.sctx;
+		cs = com.cs;
+		timer_ctx = com.timer_ctx;
+		parsed_args = com.parsed_args;
+		debug = com.debug;
+		display = com.display;
+		verbose = com.verbose;
+		foptimize = com.foptimize;
+		doinline = com.doinline;
+		platform = com.platform;
+		config = com.config;
+		custom_ext = com.custom_ext;
+		run_command = com.run_command;
+		run_command_args = com.run_command_args;
+		package_rules = com.package_rules;
+		file = com.file;
+		global_metadata = com.global_metadata;
+		flash_version = com.flash_version;
+		resources = com.resources;
+		native_libs = com.native_libs;
+		hxb_libs = com.hxb_libs;
+		neko_lib_paths = com.neko_lib_paths;
+		include_files = com.include_files;
+		js_gen = com.js_gen;
+		defines = {
+			values = com.defines.values;
+			defines_signature = com.defines.defines_signature;
+		};
+		user_defines = com.user_defines;
+		user_metas = com.user_metas;
+		get_macros = com.get_macros;
+		info = com.info;
+		warning = com.warning;
+		warning_options = com.warning_options;
+		error = com.error;
+		error_ext = com.error_ext;
+		get_messages = com.get_messages;
+		filter_messages = com.filter_messages;
+		memory_marker = com.memory_marker;
+		hxb_writer_config = com.hxb_writer_config;
+		file_contents = com.file_contents;
+		(* reinits *)
+		cache = None;
+		stage = CCreated;
+		features = Hashtbl.create 0;
+		empty_class_path = new ClassPath.directory_class_path "" User;
+		class_paths = new ClassPaths.class_paths;
+		main = {
+			main_path = None;
+			main_file = None;
+			main_expr = None;
+		};
+		types = [];
+		callbacks = new compiler_callbacks;
+		modules = [];
+		module_lut = new module_lut;
+		module_nonexistent_lut = new hashtbl_lookup;
+		load_extern_type = []; (* ! *)
 		basic = {
 			tvoid = mk_mono();
 			tany = mk_mono();
@@ -761,89 +938,23 @@ let create timer_ctx compilation_step cs version args display_mode =
 			tnull = (fun _ -> die "Could use locate abstract Null<T> (was it redefined?)" __LOC__);
 			tarray = (fun _ -> die "Could not locate class Array<T> (was it redefined?)" __LOC__);
 			titerator = (fun _ -> die "Could not locate typedef Iterator<T> (was it redefined?)" __LOC__);
+			texception = mk_mono();
+			tunit = mk_mono();
+			tcoro = {
+				tcoro = AtomicLazy.from_fun (fun () -> fun _ -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__);
+				continuation = AtomicLazy.from_fun (fun () -> mk_mono());
+				suspension_result_class = AtomicLazy.from_fun (fun () -> null_class);
+				tasync_iterator = AtomicLazy.from_fun (fun () -> fun _ -> die "Could not locate typedef AsyncIterator<T> (was it redefined?)" __LOC__);
+			};
 		};
+		local_wrapper = LocalWrapper.null_wrapper;
 		std = null_class;
-		file_keys = new file_keys;
-		file_contents = [];
 		module_to_file = new hashtbl_lookup;
-		stored_typed_exprs = new hashtbl_lookup;
-		cached_macros = new hashtbl_lookup;
-		memory_marker = memory_marker;
 		parser_cache = new hashtbl_lookup;
-		overload_cache = new hashtbl_lookup;
-		json_out = None;
-		has_error = false;
-		report_mode = RMNone;
-		is_macro_context = false;
-		functional_interface_lut = new Lookup.hashtbl_lookup;
-		hxb_reader_api = None;
-		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
-		hxb_writer_config = None;
-		parser_state = {
-			was_auto_triggered = false;
-			had_parser_resume = false;
-			delayed_syntax_completion = Atomic.make None;
-			special_identifier_files = ThreadSafeHashtbl.create 0;
-		}
-	} in
-	com
-
-let is_diagnostics com = match com.report_mode with
-	| RMLegacyDiagnostics _ | RMDiagnostics _ -> true
-	| _ -> false
-
-let is_compilation com = com.display.dms_kind = DMNone && not (is_diagnostics com)
-
-let disable_report_mode com =
-	let old = com.report_mode in
-	com.report_mode <- RMNone;
-	(fun () -> com.report_mode <- old)
-
-let log com str =
-	if com.verbose then com.print (str ^ "\n")
-
-let clone com is_macro_context =
-	let t = com.basic in
-	{ com with
-		cache = None;
-		stage = CCreated;
-		basic = { t with
-			tvoid = mk_mono();
-			tany = mk_mono();
-			tint = mk_mono();
-			tfloat = mk_mono();
-			tbool = mk_mono();
-			tstring = mk_mono();
-		};
-		main = {
-			main_path = None;
-			main_file = None;
-			main_expr = None;
-		};
-		features = Hashtbl.create 0;
-		callbacks = new compiler_callbacks;
-		display_information = {
-			unresolved_identifiers = [];
-			display_module_has_macro_defines = false;
-			module_diagnostics = [];
-		};
-		defines = {
-			values = com.defines.values;
-			defines_signature = com.defines.defines_signature;
-		};
-		native_libs = create_native_libs();
+		overload_cache = new hashtbl_lookup; (* ! *)
 		is_macro_context = is_macro_context;
-		parser_cache = new hashtbl_lookup;
-		module_to_file = new hashtbl_lookup;
-		overload_cache = new hashtbl_lookup;
-		module_lut = new module_lut;
-		fake_modules = Hashtbl.create 0;
 		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
-		std = null_class;
-		functional_interface_lut = new Lookup.hashtbl_lookup;
-		empty_class_path = new ClassPath.directory_class_path "" User;
-		class_paths = new ClassPaths.class_paths;
 	}
 
 let file_time file = Extc.filetime file
@@ -875,7 +986,7 @@ let init_platform com =
 	end;
 	(* Set the source header, unless the user has set one already or the platform sets a custom one *)
 	if not (defined com Define.SourceHeader) && (com.platform <> Hl) then
-		define_value com Define.SourceHeader ("Generated by Haxe " ^ (s_version_full com.version));
+		define_value com Define.SourceHeader ("Generated by Haxe " ^ (s_version_full com.sctx.version));
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
 	com.package_rules <- List.fold_left forbid com.package_rules ("java" :: (List.map platform_name platforms));
 	update_platform_config com;
@@ -995,21 +1106,25 @@ let hash f =
 	done;
 	if Sys.word_size = 64 then Int32.to_int (Int32.shift_right (Int32.shift_left (Int32.of_int !h) 1) 1) else !h
 
-let add_diagnostics_message ?(depth = 0) ?(code = None) com s p kind sev =
-	if sev = MessageSeverity.Error then com.has_error <- true;
-	let di = com.shared.shared_display_information in
-	di.diagnostics_messages <- (make_diagnostic ~depth ~code s p kind sev) :: di.diagnostics_messages
+let add_diagnostics_message ?(depth = 0) ?(diagnostics_kind = MessageKind.DKCompilerMessage) com s p message_kind =
+	let cm = make_diagnostic com.is_macro_context diagnostics_kind (JString s) p depth message_kind in
+	match com.part_scope.message_capture with
+	| Some buf ->
+		buf := cm :: !buf
+	| None ->
+		if message_kind_severity message_kind = MessageSeverity.Error then com.part_scope.has_error <- true;
+		com.part_scope.messages <- cm :: com.part_scope.messages
 
 let display_error_ext com err =
 	if is_diagnostics com then begin
 		Error.recurse_error (fun depth err ->
-			add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MessageKind.DKCompilerMessage MessageSeverity.Error;
+			add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MKError;
 		) err;
 	end else
 		com.error_ext err
 
-let display_error com ?(depth = 0) msg p =
-	display_error_ext com (Error.make_error ~depth (Custom msg) p)
+let display_error com ?(sub:macro_error list = []) msg pos =
+	display_error_ext com (convert_error {msg; pos; sub})
 
 let adapt_defines_to_macro_context defines =
 	let to_remove = "java" :: List.map Globals.platform_name Globals.platforms in
@@ -1029,10 +1144,6 @@ let adapt_defines_to_display_context defines =
 	Define.define defines Define.Display;
 	defines
 
-let is_legacy_completion com = match com.json_out with
-	| None -> true
-	| Some api -> !ServerConfig.legacy_completion
-
 let get_entry_point com =
 	Option.map (fun path ->
 		let m = List.find (fun m -> m.m_path = path) com.modules in
@@ -1044,6 +1155,12 @@ let get_entry_point com =
 		let e = Option.get com.main.main_expr in (* must be present at this point *)
 		(snd path, c, e)
 	) com.main.main_path
+
+let expand_coro_type basic args ret =
+	let args = ("_hx_continuation",false,AtomicLazy.force basic.tcoro.continuation) :: args in
+	let ret = if ExtType.is_void (follow ret) then basic.tunit else ret in
+	let c = AtomicLazy.force basic.tcoro.suspension_result_class in
+	(args,TInst(c,[ret]))
 
 let make_unforced_lazy t_proc f where =
 	let r = ref (lazy_available t_dynamic) in
@@ -1058,3 +1175,6 @@ let make_unforced_lazy t_proc f where =
 				raise (Error.Fatal_error e)
 	);
 	r
+
+let check_cancellation com =
+	if com.request_scope.cancellation_requested then raise Cancelled

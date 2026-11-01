@@ -65,6 +65,7 @@ package java.lang;
 	@:overload static function toBinaryString(param1:Int):String;
 	@:overload static function toHexString(param1:Int):String;
 	@:overload static function toOctalString(param1:Int):String;
+	@:overload static function toUnsignedString(param1:Int):String;
 	@:native("toString") @:overload static function _toString(param1:Int, param2:Int):String;
 	@:native("toString") @:overload static function _toString(param1:Int):String;
 	@:overload static function valueOf(param1:Int):Integer;

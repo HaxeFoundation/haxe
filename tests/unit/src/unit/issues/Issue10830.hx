@@ -29,8 +29,8 @@ namespace customnamespace {
 
 		static bool __GetStatic(const String&, Dynamic&, hx::PropertyAccess);
 
-		String GetEnumName() const { return HX_CSTRING("MyExternEnum"); }
-		String __ToString() const { return HX_CSTRING("MyExternEnum.") + _hx_tag; }
+		String GetEnumName() const override { return HX_CSTRING("MyExternEnum"); }
+		String __ToString() const override { return HX_CSTRING("MyExternEnum.") + _hx_tag; }
 
 		static MyExternEnum First();
 		static Dynamic First_dyn();

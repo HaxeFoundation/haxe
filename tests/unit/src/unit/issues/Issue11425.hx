@@ -58,7 +58,7 @@ class Issue11425 extends Test {
 		// generated: Variant.toFloat(variant1 != null ? variant1 : 1.0)
 		// testValue10 is inferred as Variant
 		// and hxcpp does not like casting Float to that
-		#if !cpp 
+		#if !(cpp || hl)
 		var testValue10 = variant1 ?? cast 1.0; // Works fine.
 		// generated: variant1 != null ? variant1 : 1.0
 		#end

@@ -1,21 +1,36 @@
+let enable = ref true
+
 let run_parallel_for num_domains ?(chunk_size=0) length f =
-	let pool = Domainslib.Task.setup_pool ~num_domains:(num_domains - 1) () in
-	Domainslib.Task.run pool (fun _ -> Domainslib.Task.parallel_for pool ~chunk_size ~start:0 ~finish:(length-1) ~body:f);
-	Domainslib.Task.teardown_pool pool
+	if not !enable then begin
+		for i = 0 to length - 1 do
+			f i
+		done
+	end else
+		let pool = Domainslib.Task.setup_pool ~num_domains:(num_domains - 1) () in
+		Domainslib.Task.run pool (fun _ -> Domainslib.Task.parallel_for pool ~chunk_size ~start:0 ~finish:(length-1) ~body:f);
+		Domainslib.Task.teardown_pool pool
 
 module ParallelArray = struct
 	let iter pool f a =
-		let f' idx = f a.(idx) in
-		Domainslib.Task.parallel_for pool ~start:0 ~finish:(Array.length a - 1) ~body:f'
+		match pool with
+		| None ->
+			Array.iter f a
+		| Some pool ->
+			let f' idx = f a.(idx) in
+			Domainslib.Task.parallel_for pool ~start:0 ~finish:(Array.length a - 1) ~body:f'
 
 	let map pool f a x =
-		let length = Array.length a in
-		let a_out = Array.make length x in
-		let f' idx =
-			Array.unsafe_set a_out idx (f (Array.unsafe_get a idx))
-		in
-		Domainslib.Task.parallel_for pool ~start:0 ~finish:(length - 1) ~body:f';
-		a_out
+		match pool with
+		| None ->
+			Array.map f a
+		| Some pool ->
+			let length = Array.length a in
+			let a_out = Array.make length x in
+			let f' idx =
+				Array.unsafe_set a_out idx (f (Array.unsafe_get a idx))
+			in
+			Domainslib.Task.parallel_for pool ~start:0 ~finish:(length - 1) ~body:f';
+			a_out
 end
 
 module ParallelSeq = struct
@@ -23,6 +38,58 @@ module ParallelSeq = struct
 		ParallelArray.iter pool f (Array.of_seq seq)
 end
 
+(* A pool that can be acquired on demand and released when idle.
+   Unlike AtomicLazy, supports teardown and re-creation so that
+   domain workers don't stay alive during phases that don't need them
+   (e.g. eval interpretation). *)
+module ManagedPool = struct
+	type t = {
+		setup : unit -> Domainslib.Task.pool;
+		mutable pool : Domainslib.Task.pool option;
+		mutex : Mutex.t;
+	}
+
+	let create setup = {
+		setup;
+		pool = None;
+		mutex = Mutex.create ();
+	}
+
+	let acquire mp =
+		Mutex.protect mp.mutex (fun () ->
+			match mp.pool with
+			| Some p -> p
+			| None ->
+				let p = mp.setup () in
+				mp.pool <- Some p;
+				p
+		)
+
+	let release mp =
+		Mutex.protect mp.mutex (fun () ->
+			match mp.pool with
+			| Some p ->
+				Domainslib.Task.teardown_pool p;
+				mp.pool <- None
+			| None -> ()
+		)
+
+	let is_active mp =
+		Mutex.protect mp.mutex (fun () ->
+			mp.pool <> None
+		)
+end
+
 let run_in_new_pool timer_ctx f =
-	let pool = Timer.time timer_ctx ["domainslib";"setup"] (Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count() - 1)) () in
-	Std.finally (fun () -> Timer.time timer_ctx ["domainslib";"teardown"] Domainslib.Task.teardown_pool pool) (Domainslib.Task.run pool) (fun () -> f pool)
+	if not !enable then
+		f None
+	else
+		let pool = Timer.time timer_ctx ["domainslib";"setup"] (Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count() - 1)) () in
+		Std.finally (fun () -> Timer.time timer_ctx ["domainslib";"teardown"] Domainslib.Task.teardown_pool pool) (Domainslib.Task.run pool) (fun () -> f (Some pool))
+
+let run_with_pool mp f =
+	if not !enable then
+		f None
+	else
+		let pool = ManagedPool.acquire mp in
+		Domainslib.Task.run pool (fun () -> f (Some pool))

@@ -17,12 +17,10 @@ class Issue9824 extends DisplayTestCase {
 	function test(_) {
 		var args = ["-main", "Main", "--no-output", "--jvm", "no.jar"];
 		runHaxe(args);
-		runHaxeJson(args, DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover();
-		Assert.equals("a2", result.result.expected.name.name);
+		var result = runHaxeJson(args, DisplayMethods.Hover, {file: file, offset: offset(1)});
+		Assert.equals("a2", result.expected.name.name);
 
-		runHaxeJson(args, DisplayMethods.Hover, {file: file, offset: offset(2)});
-		var result = parseHover();
-		Assert.equals("b", result.result.expected.name.name);
+		var result = runHaxeJson(args, DisplayMethods.Hover, {file: file, offset: offset(2)});
+		Assert.equals("b", result.expected.name.name);
 	}
 }

@@ -213,6 +213,7 @@ enum abstract JsonVarAccessKind<T>(String) {
 	var AccNever;
 	var AccResolve;
 	var AccCall;
+	var AccPrivateCall;
 	var AccInline;
 	var AccRequire:JsonVarAccessKind<{require:String, message:Null<String>}>;
 	var AccCtor;

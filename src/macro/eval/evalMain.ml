@@ -35,7 +35,7 @@ open Extlib_leftovers
 
 (* Create *)
 
-let create com api is_macro =
+let create com api is_macro args =
 	incr GlobalState.sid;
 	let builtins = match !GlobalState.stdlib with
 		| None ->
@@ -90,14 +90,12 @@ let create com api is_macro =
 			debug
 	in
 	let detail_times = Common.defined com Define.EvalTimes in
-	let thread = {
-		tthread = Thread.self();
-		tstorage = IntMap.empty;
-		tevents = vnull;
-		tdeque = EvalThread.Deque.create();
-	} in
+	let next_thread_id = Atomic.make 0 in
+	let thread = EvalThread.create_thread_info next_thread_id (Thread (Thread.self ())) in
 	let eval = EvalThread.create_eval thread in
-	let evals = IntMap.singleton 0 eval in
+	let evals = ThreadSafeHashtbl.create 1 in
+	ThreadSafeHashtbl.add evals 0 eval;
+	let fake_proto_cache = Hashtbl.create 0 in
 	let ctx = {
 		ctx_id = !GlobalState.sid;
 		is_macro = is_macro;
@@ -108,29 +106,33 @@ let create com api is_macro =
 		type_cache = IntMap.empty;
 		overrides = Hashtbl.create 0;
 		had_error = false;
+		args;
 		(* prototypes *)
-		string_prototype = fake_proto key_String;
-		array_prototype = fake_proto key_Array;
-		vector_prototype = fake_proto key_eval_Vector;
+		string_prototype = fake_proto fake_proto_cache key_String;
+		array_prototype = fake_proto fake_proto_cache key_Array;
+		vector_prototype = fake_proto fake_proto_cache key_eval_Vector;
 		static_prototypes = new static_prototypes;
 		instance_prototypes = IntMap.empty;
 		constructors = IntMap.empty;
-		file_keys = com.file_keys;
+		fake_proto_cache = fake_proto_cache;
+		file_keys = com.part_scope.file_keys;
+		object_name_cache = Hashtbl.create 0;
 		get_object_prototype = get_object_prototype;
 		(* eval *)
+		next_thread_id;
 		toplevel = 	vobject {
 			ofields = [||];
-			oproto = OProto (fake_proto key_eval_toplevel);
+			oproto = OProto (fake_proto fake_proto_cache key_eval_toplevel);
 		};
-		eval = eval;
+		eval = Thread_local_storage.create ();
 		evals = evals;
-		exception_stack = [];
 		timer_ctx = com.timer_ctx;
 		max_stack_depth = int_of_string (Common.defined_value_safe ~default:"1000" com Define.EvalCallStackDepth);
 		max_print_depth = int_of_string (Common.defined_value_safe ~default:"5" com Define.EvalPrintDepth);
 		print_indentation = match Common.defined_value_safe com Define.EvalPrettyPrint
 			with | "" -> None | "1" -> Some "  " | indent -> Some indent;
 	} in
+	Thread_local_storage.set ctx.eval eval;
 	if debug.support_debugger && not !GlobalState.debugger_initialized then begin
 		(* Let's wait till the debugger says we're good to continue. This allows it to finish configuration.
 		   Note that configuration is shared between macro and interpreter contexts, which is why the check
@@ -142,7 +144,9 @@ let create com api is_macro =
 		ignore(Event.sync(Event.receive eval.debug_channel));
 	end;
 	(* If no user-defined exception handler is set then follow libuv behavior.
-		Which is printing an error to stderr and exiting with code 2 *)
+		Which is printing an error to stderr and exiting with code 2.
+		Use get_ctx() to access the current context dynamically instead of capturing
+		`com` directly, so the compilation context can be garbage collected between requests. *)
 	Luv.Error.set_on_unhandled_exception (fun ex ->
 		match ex with
 		| EvalTypes.Sys_exit _ ->
@@ -152,9 +156,9 @@ let create com api is_macro =
 				| Error.Error err ->
 						let messages = ref [] in
 						Error.recurse_error (fun depth err ->
-							messages := (make_compiler_message ~from_macro:err.err_from_macro (Error.error_msg err.err_message) err.err_pos depth DKCompilerMessage Error) :: !messages;
+							messages := (Message.make_message is_macro (Error.error_msg err.err_message) err.err_pos depth MKError) :: !messages;
 						) err;
-						MessageReporting.format_messages com.defines !messages
+						MessageReporting.format_messages ((get_ctx()).curapi.MacroApi.get_com()).Common.defines !messages
 				| _ -> Printexc.to_string ex
 			in
 			Printf.eprintf "%s\n" msg;
@@ -162,8 +166,8 @@ let create com api is_macro =
 	);
 	ctx
 
-let create com api is_macro =
-	Timer.time com.Common.timer_ctx [(if is_macro then "macro" else "interp");"create"] (create com api) is_macro
+let create com api is_macro args =
+	Timer.time com.Common.timer_ctx [(if is_macro then "macro" else "interp");"create"] (create com api is_macro) args
 
 (* API for macroContext.ml *)
 
@@ -294,6 +298,16 @@ let value_signature v =
 				) map;
 				addc 'h'
 			)
+		| VInstance {ikind = IInt64Map map} ->
+			cache v (fun () ->
+				addc 'Q';
+				RuntimeInt64Hashtbl.iter (fun i value ->
+					addc ':';
+					add (Int64.to_string i);
+					loop value
+				) map;
+				addc 'h'
+			)
 		| VInstance {ikind = IObjectMap map} ->
 			cache v (fun() ->
 				addc 'M';
@@ -363,7 +377,7 @@ let value_signature v =
 		| VHandle _ ->
 			custom_name 'H'
 		| VLazy f ->
-			loop (Lazy.force f)
+			loop (AtomicLazy.force f)
 	and loop_fields fields =
 		List.iter (fun (name,v) ->
 			adds (rev_hash name);
@@ -383,8 +397,10 @@ let setup get_api =
 		Hashtbl.replace GlobalState.macro_lib n v
 	) api
 
-let do_reuse ctx api =
+let do_reuse ctx api args =
 	ctx.curapi <- api;
+	ctx.args <- args;
+	ctx.had_error <- false;
 	ctx.static_prototypes#reset
 
 let set_error ctx b =
@@ -422,10 +438,8 @@ let compiler_error (err : Error.error) =
 
 		| _ ->
 			let stack = ref [] in
-			let depth = err.err_depth + 1 in
-
 			List.iter (fun err ->
-				Error.recurse_error ~depth (fun depth err ->
+				Error.recurse_error (fun depth err ->
 					(* TODO indent child errors depending on depth *)
 					stack := make_runtime_error (Error.error_msg err.err_message) err.err_pos :: !stack;
 				) err;
@@ -493,6 +507,12 @@ let rec value_to_expr v p =
 	| VInstance {ikind = IIntMap m} ->
 		let el = RuntimeIntHashtbl.fold (fun k v acc ->
 			let e_key = (EConst (Int (string_of_int k, None)),p) in
+			(make_map_entry e_key v) :: acc
+		) m [] in
+		(EArrayDecl el,p)
+	| VInstance {ikind = IInt64Map m} ->
+		let el = RuntimeInt64Hashtbl.fold (fun k v acc ->
+			let e_key = (EConst (Int (Int64.to_string k, Some "i64")),p) in
 			(make_map_entry e_key v) :: acc
 		) m [] in
 		(EArrayDecl el,p)
@@ -631,3 +651,6 @@ let get_api_call_pos () =
 		| Some env -> env
 	in
 	{ pfile = rev_hash env.env_info.pfile; pmin = env.env_leave_pmin; pmax = env.env_leave_pmax }
+
+let get_current_com () =
+	(get_ctx()).curapi.MacroApi.get_com()

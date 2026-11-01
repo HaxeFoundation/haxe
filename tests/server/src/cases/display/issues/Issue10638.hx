@@ -10,12 +10,11 @@ class Issue10638 extends DisplayTestCase {
 	**/
 	function test(_) {
 		runHaxe(["--main", "Main"]);
-		runHaxeJson([], DisplayMethods.Hover, {
+		var result = runHaxeJson([], DisplayMethods.Hover, {
 			file: file,
 			offset: offset(2)
 		});
-		var result = parseHover();
-		Assert.same(range(1, 3), result.result.range);
+		Assert.same(range(1, 3), result.range);
 	}
 
 }

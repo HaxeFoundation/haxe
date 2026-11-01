@@ -5,7 +5,7 @@ import js.lib.Error;
 @:coreApi
 class Exception extends NativeException {
 	public var message(get,never):String;
-	public var stack(get,never):CallStack;
+	public var stack(get,set):CallStack;
 	public var previous(get,never):Null<Exception>;
 	public var native(get,never):Any;
 
@@ -106,10 +106,14 @@ class Exception extends NativeException {
 		}
 	}
 
+	function set_stack(stack:CallStack) {
+		return __exceptionStack = stack;
+	}
+
 	@:noCompletion
 	function setProperty(name:String, value:Any):Void {
 		try {
-			js.lib.Object.defineProperty(this, name, {value:value});
+			js.lib.Object.defineProperty(this, name, {value:value, writable: true});
 		} catch(e:Exception) {
 			js.Syntax.code('{0}[{1}] = {2}', this, name, value);
 		}

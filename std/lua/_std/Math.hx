@@ -22,6 +22,8 @@
 
 package;
 
+// Can't enable @:coreApi because some fields have different property access (get vs default)
+@:coreApi(check = Off)
 class Math {
 	public static var PI(get, null):Float;
 
@@ -40,10 +42,10 @@ class Math {
 
 	public static var NaN(get, null):Float;
 
-	// Note: this has to be an untyped literal, otherwise the compiler tries
+	// Note: this has to be a raw literal, otherwise the compiler tries
 	// to unify it to an Int, which defeats useful numeric reflection behavior.
 	static inline function get_NaN():Float
-		return untyped __lua__("(0/0)");
+		return lua.Syntax.plainCode("(0/0)");
 
 	public static function isNaN(f:Float):Bool
 		return (f != f);
@@ -91,8 +93,19 @@ class Math {
 	public static inline function random():Float
 		return untyped __define_feature__("Math.random", lua.Math.random());
 
+	#if (lua_ver >= 5.3)
+	public static inline function atan2(y:Float, x:Float):Float
+		return lua.Math.atan(y, x);
+	#elseif (lua_ver <= 5.2 || luajit)
 	public static inline function atan2(y:Float, x:Float):Float
 		return lua.Math.atan2(y, x);
+	#else
+	private static final atan2Impl = lua.Math.atan2 ?? lua.Math.atan;
+
+	public static inline function atan2(y:Float, x:Float):Float {
+		return atan2Impl(y, x);
+	}
+	#end
 
 	public static function max(a:Float, b:Float):Float {
 		return Math.isNaN(a) || Math.isNaN(b) ? Math.NaN : lua.Math.max(a, b);
@@ -103,7 +116,7 @@ class Math {
 	}
 
 	public static inline function pow(v:Float, exp:Float):Float
-		return lua.Math.pow(v, exp);
+		return lua.Syntax.code("(({0}) ^ ({1}))", v, exp);
 
 	public static inline function round(v:Float):Int
 		return Math.floor(v + 0.5);

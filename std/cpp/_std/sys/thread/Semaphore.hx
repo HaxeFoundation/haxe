@@ -1,22 +1,32 @@
 package sys.thread;
 
+@:include("hx/thread/CountingSemaphore.hpp")
+@:cpp.ManagedType({ namespace : [ "hx", "thread" ], flags : [ StandardNaming ] })
+private extern class CountingSemaphore {
+	function new(value:Int):Void;
+
+	public function acquire():Void;
+	public function release():Void;
+	public function tryAcquire(timeout:Null<Float>):Bool;
+}
+
 @:coreApi
 class Semaphore {
-	var m:Dynamic;
+	final s:CountingSemaphore;
 
 	public function new(value:Int) {
-		m = untyped __global__.__hxcpp_semaphore_create(value);
+		s = new CountingSemaphore(value);
 	}
 
 	public function acquire():Void {
-		untyped __global__.__hxcpp_semaphore_acquire(m);
+		s.acquire();
 	}
 
 	public function tryAcquire(?timeout:Float):Bool {
-		return untyped __global__.__hxcpp_semaphore_try_acquire(m, timeout == null ? 0 : (timeout:Float));
+		return s.tryAcquire(timeout);
 	}
 
 	public function release():Void {
-		untyped __global__.__hxcpp_semaphore_release(m);
+		s.release();
 	}
 }

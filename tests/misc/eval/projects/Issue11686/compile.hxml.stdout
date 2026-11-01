@@ -1,0 +1,37 @@
+Main.hx:3: Working archive
+Main.hx:7: [,test/,0,0,]
+Main.hx:8: [,,]
+Main.hx:7: [,test/moretext2.txt,68,-2888415,]
+Main.hx:8: [,MORETEXTMORETEXTMORETEXTMORETEXT
+MORETEXTMORETEXTMORETEXTMORETEXT
+,]
+Main.hx:7: [,test/salut.txt,4,-662733300,]
+Main.hx:8: [,test,]
+Main.hx:7: [,moretext.txt,30,55748892,]
+Main.hx:8: [,SECONDTEXTSECONDTEXTSECONDTEXT,]
+Main.hx:7: [,moretext2.txt,68,-2888415,]
+Main.hx:8: [,MORETEXTMORETEXTMORETEXTMORETEXT
+MORETEXTMORETEXTMORETEXTMORETEXT
+,]
+Main.hx:7: [,salut.txt,4,-662733300,]
+Main.hx:8: [,test,]
+Main.hx:10: Broken archive
+Main.hx:14: [,moretext.txt,30,55748892,]
+Main.hx:15: [,SECONDTEXTSECONDTEXTSECONDTEXT,]
+Main.hx:14: [,moretext2.txt,68,-2888415,]
+Main.hx:15: [,MORETEXTMORETEXTMORETEXTMORETEXT
+MORETEXTMORETEXTMORETEXTMORETEXT
+,]
+Main.hx:14: [,salut.txt,4,-662733300,]
+Main.hx:15: [,test,]
+Main.hx:14: [,test/,0,0,]
+Main.hx:15: [,,]
+Main.hx:14: [,test/moretext2.txt,68,-2888415,]
+Main.hx:15: [,MORETEXTMORETEXTMORETEXTMORETEXT
+MORETEXTMORETEXTMORETEXTMORETEXT
+,]
+Main.hx:14: [,test/salut.txt,4,-662733300,]
+Main.hx:15: [,test,]
+Main.hx:17: Archive from neko haxe.zip.Writer
+Main.hx:21: [,test.txt,12,62177901,]
+Main.hx:22: [,hello world!,]

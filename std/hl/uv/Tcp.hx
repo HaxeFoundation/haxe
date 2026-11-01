@@ -26,7 +26,7 @@ package hl.uv;
 class Tcp extends Stream {
 	public function new(?loop:Loop) {
 		if (loop == null)
-			loop = Loop.getDefault();
+			loop = Loop.getCurrent();
 		super(tcp_init_wrap(loop));
 	}
 

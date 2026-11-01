@@ -30,6 +30,12 @@ enum Message {
 	Warning(msg:String, pos:Position);
 }
 
+typedef MacroError = {
+	msg:String,
+	pos:Position,
+	?sub:Array<MacroError>
+}
+
 /**
 	Context provides an API for macro programming.
 
@@ -47,24 +53,24 @@ class Context {
 		Displays a compilation error `msg` at the given `Position` `pos`
 		and aborts the current macro call.
 	**/
-	public static function error(msg:String, pos:Position, ?depth:Int = 0):Dynamic {
-		return load("error", 2)(msg, pos, depth);
+	public static function error(msg:String, pos:Position, ?sub:Array<MacroError>):Dynamic {
+		return load("error", 2)(msg, pos, sub);
 	}
 
 	/**
 		Displays a compilation error `msg` at the given `Position` `pos`
 		and aborts the compilation.
 	**/
-	public static function fatalError(msg:String, pos:Position, ?depth:Int = 0):Dynamic {
-		return load("fatal_error", 2)(msg, pos, depth);
+	public static function fatalError(msg:String, pos:Position, ?sub:Array<MacroError>):Dynamic {
+		return load("fatal_error", 2)(msg, pos, sub);
 	}
 
 	/**
 		Displays a compilation error `msg` at the given `Position` `pos`
 		without aborting the current macro call.
 	**/
-	public static function reportError(msg:String, pos:Position, ?depth:Int = 0):Void {
-		load("report_error", 2)(msg, pos, depth);
+	public static function reportError(msg:String, pos:Position, ?sub:Array<MacroError>):Void {
+		load("report_error", 2)(msg, pos, sub);
 	}
 
 	/**

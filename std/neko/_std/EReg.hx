@@ -70,6 +70,12 @@
 		return p;
 	}
 
+	public function matchedNum():Int {
+		var num = regexp_matched_num(r);
+		if(last == null || num == -1) return 0;
+		return num;
+	}
+
 	public function split(s:String):Array<String> {
 		var pos = 0;
 		var len = s.length;
@@ -206,4 +212,17 @@
 	static var regexp_match = neko.Lib.load("regexp", "regexp_match", 4);
 	static var regexp_matched = neko.Lib.load("regexp", "regexp_matched", 2);
 	static var regexp_matched_pos:Dynamic->Int->{pos: Int, len: Int} = neko.Lib.load("regexp", "regexp_matched_pos", 2);
+	static var regexp_matched_num = try neko.Lib.load("regexp", "regexp_matched_num", 1) catch (_:Dynamic) fallback_matched_num;
+
+	private static function fallback_matched_num(r:Dynamic):Int {
+		var i = 0;
+		var num = 0;
+		try {
+			while (true) {
+				if (regexp_matched(r, i) != null) num++;
+				i++;
+			}
+		} catch (_:Dynamic) {}
+		return num;
+	}
 }

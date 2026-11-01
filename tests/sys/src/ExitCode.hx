@@ -8,7 +8,7 @@ import haxe.io.*;
 class ExitCode {
 	static public var bin:String =
 	#if interp
-		"bin/interp/ExitCode";
+		"bin/eval/ExitCode.hxb";
 	#elseif neko
 		"bin/neko/ExitCode.n";
 	#elseif hl
@@ -18,7 +18,9 @@ class ExitCode {
 			"bin/hl/ExitCode.hl";
 		#end
 	#elseif cpp
-		#if debug
+		#if cppia
+			"bin/cppia/ExitCode.cppia";
+		#elseif debug
 			"bin/cpp/ExitCode-debug";
 		#else
 			"bin/cpp/ExitCode";
@@ -84,6 +86,6 @@ class ExitCode {
 	}
 
 	static function main():Void {
-		Sys.exit(Std.parseInt(Sys.args()[0]));
+		Sys.exit(Std.parseInt(Sys.args()[#if cppia 1 #else 0 #end]));
 	}
 }

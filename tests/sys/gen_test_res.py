@@ -79,6 +79,7 @@ for data in all_filenames:
     for target, name in [
         ("../../bin/cpp/UtilityProcess-debug", "bin-cpp-debug"),
         ("../../bin/cpp/UtilityProcess", "bin-cpp"),
+        ("../../bin/cppia/UtilityProcess.cppia", "bin-cppia"),
         ("../../bin/hl/UtilityProcess.hl", "bin-hl"),
         ("../../bin/hlc/utilityProcess/UtilityProcess.exe", "bin-hlc"),
         ("../../bin/lua/UtilityProcess.lua", "bin-lua"),
@@ -88,7 +89,7 @@ for data in all_filenames:
         ("../../bin/neko/UtilityProcess.n", "bin-neko"),
         ("../../bin/php/UtilityProcess/index.php", "bin-php"),
         ("../../bin/python/UtilityProcess.py", "bin-py"),
-        ("../../src/UtilityProcess.hx", "bin-eval"),
+        ("../../bin/eval/UtilityProcess.hxb", "bin-eval"),
         ("../../bin/js/UtilityProcess.js", "bin-js")
     ]:
         os.symlink(target, os.path.join(TESTDIR, data, name), target_is_directory=False)

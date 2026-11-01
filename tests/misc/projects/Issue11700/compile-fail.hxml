@@ -1,5 +1,0 @@
--lib mylib
--cp src
--main Main
--D message.reporting=pretty
--D message.no-color

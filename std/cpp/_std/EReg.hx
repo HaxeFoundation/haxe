@@ -71,6 +71,12 @@
 		return p;
 	}
 
+	public function matchedNum():Int {
+		var num = _hx_regexp_matched_num(r);
+		if (num == -1) return 0;
+		return num;
+	}
+
 	public function split(s:String):Array<String> {
 		var pos = 0;
 		var len = s.length;
@@ -190,4 +196,7 @@
 
 	@:native("_hx_regexp_matched_pos")
 	extern static function _hx_regexp_matched_pos(handle:Dynamic, match:Int):{pos:Int, len:Int};
+
+	@:native("_hx_regexp_matched_num")
+	extern static function _hx_regexp_matched_num(handle:Dynamic):Int;
 }

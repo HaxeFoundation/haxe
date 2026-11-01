@@ -14,6 +14,11 @@ class CommandFailure extends haxe.Exception {
 	}
 }
 
+enum abstract Arch(Int) {
+	final Arm64;
+	final Amd64;
+}
+
 class System {
 	static public function successMsg(msg:String):Void {
 		Sys.println(colorSupported ? '\x1b[32m' + msg + '\x1b[0m' : msg);
@@ -79,6 +84,8 @@ class System {
 		final exitCode = Sys.command(cmd, args);
 		final dt = Math.round(Timer.stamp() - t);
 
+		Sys.stderr().flush();
+
 		final msg = 'Command exited with $exitCode in ${dt}s: $displayed';
 		if (exitCode != 0)
 			failMsg(msg);
@@ -130,17 +137,6 @@ class System {
 				Sys.putEnv("PATH", path + ";" + Sys.getEnv("PATH"));
 			case "Mac", "Linux":
 				Sys.putEnv("PATH", path + ":" + Sys.getEnv("PATH"));
-		}
-	}
-
-	static public function addToLIBPATH(path:String):Void {
-		infoMsg('Prepending $path to loader path.');
-		switch (systemName) {
-			case "Windows": // pass
-			case "Linux":
-				Sys.putEnv("LD_LIBRARY_PATH", path + ":" + Sys.getEnv("LD_LIBRARY_PATH"));
-			case "Mac":
-				Sys.putEnv("DYLD_LIBRARY_PATH", path + ":" + Sys.getEnv("DYLD_LIBRARY_PATH"));
 		}
 	}
 
@@ -253,4 +249,13 @@ class System {
 		return installPath + "/downloads";
 	}
 
+	static public var arch(get, null):Arch;
+	static function get_arch() {
+		if (arch == null)
+			arch = switch commandResult('arch', []).stdout.replace('\n', '') {
+				case 'arm64' | 'aarch64': Arm64;
+				case _: Amd64;
+			}
+		return arch;
+	}
 }

@@ -1,0 +1,6 @@
+[ERROR] Main6.hx:1: characters 29-36
+
+ 1 | typedef Foo = Array<String, default>
+   |                             ^^^^^^^
+   | Too many type parameters for Array
+

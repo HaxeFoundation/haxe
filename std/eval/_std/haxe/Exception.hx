@@ -3,7 +3,7 @@ package haxe;
 @:coreApi
 class Exception {
 	public var message(get,never):String;
-	public var stack(get,never):CallStack;
+	public var stack(get,set):CallStack;
 	public var previous(get,never):Null<Exception>;
 	public var native(get,never):Any;
 
@@ -13,6 +13,7 @@ class Exception {
 	@:noCompletion @:ifFeature("haxe.Exception.get_stack") var __skipStack:Int = 0;
 	@:noCompletion var __nativeException:Any;
 	@:noCompletion var __previousException:Null<Exception>;
+	@:noCompletion var __customStack:haxe.ds.Vector<Dynamic>;
 
 	static function caught(value:Any):Exception {
 		if(Std.isOfType(value, Exception)) {
@@ -94,5 +95,19 @@ class Exception {
 				}
 			case s: s;
 		}
+	}
+
+	function set_stack(stack:CallStack) {
+		var items = stack.asArray();
+		var a:Array<Dynamic> = [];
+		for (item in items) {
+			switch (item) {
+				case FilePos(Method(_), _):
+					a.push(item);
+				case _:
+			}
+		}
+		__customStack = haxe.ds.Vector.fromArrayCopy(a);
+		return __nativeStack = __exceptionStack = stack;
 	}
 }

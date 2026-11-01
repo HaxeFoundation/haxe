@@ -23,6 +23,9 @@ module EvalReaderApi = struct
 	let read_string v =
 		decode_string v
 
+	let read_ident v =
+		decode_string v
+
 	let read_int v =
 		decode_int v
 

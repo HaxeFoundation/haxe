@@ -40,7 +40,7 @@ class HttpFlash extends haxe.http.HttpBase {
 		req = null;
 	}
 
-	public override function request(?post:Bool) {
+	public override function request(post = false) {
 		responseAsString = null;
 		responseBytes = null;
 		var loader = req = new flash.net.URLLoader();

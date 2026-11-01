@@ -180,6 +180,7 @@ let jump_back ctx =
 let real_path = function
 	| [] , "Int" -> [] , "int"
 	| [] , "UInt" -> [] , "uint"
+	| ["haxe"] , "UInt32" -> [] , "uint"
 	| [] , "Float" -> [] , "Number"
 	| [] , "Bool" -> [] , "Boolean"
 	| [] , "Enum" -> [] , "Class"
@@ -213,12 +214,11 @@ let rec follow_basic t =
 		| TFun _
 		| TAbstract ({ a_path = ([],"Int") },[])
 		| TAbstract ({ a_path = ([],"Float") },[])
-		| TAbstract ({ a_path = [],"UInt" },[])
+		| TAbstract ({ a_path = ["haxe"],"UInt32" },[])
 		| TAbstract ({ a_path = ([],"Bool") },[])
 		| TInst ({ cl_path = (["haxe"],"Int32") },[]) -> t
 		| t -> t)
-	| TType ({ t_path = ["flash";"utils"],"Function" },[])
-	| TType ({ t_path = [],"UInt" },[]) ->
+	| TType ({ t_path = ["flash";"utils"],"Function" },[]) ->
 		t
 	| TType (t,tl) ->
 		follow_basic (apply_typedef t tl)
@@ -253,7 +253,7 @@ let rec type_id ctx t =
 		type_path ctx a.a_path
 	| TFun _ | TType ({ t_path = ["flash";"utils"],"Function" },[]) ->
 		type_path ctx ([],"Function")
-	| TType ({ t_path = ([],"UInt") as path },_) ->
+	| TAbstract ({ a_path = (["haxe"],"UInt32") as path },_) ->
 		type_path ctx path
 	| TEnum ({ e_path = ["flash"],"XmlType" } as e,_) when has_enum_flag e EnExtern ->
 		HMPath ([],"String")
@@ -288,7 +288,7 @@ let classify ctx t =
 		KType (HMPath ([],"String"))
 	| TEnum (e,_) ->
 		KType (type_id ctx t)
-	| TAbstract ({ a_path = [],"UInt" },_) | TType ({ t_path = [],"UInt" },_) ->
+	| TAbstract ({ a_path = ["haxe"],"UInt32" },_) | TType ({ t_path = [],"UInt" },_) ->
 		KUInt
 	| TFun _ | TType ({ t_path = ["flash";"utils"],"Function" },[]) ->
 		KType (HMPath ([],"Function"))
@@ -367,6 +367,10 @@ let property ctx fa t =
 		| "charCodeAt" when Gctx.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
 		| "charCodeAt" (* use Haxe version *) -> ident p, None, true
 		| "cca" -> as3 "charCodeAt", None, false
+
+		| "substr" when Gctx.defined ctx.com Define.NoFlashOverride -> ident (p ^ "HX"), None, true
+		| "substr" (* use Haxe version *) -> ident p, None, true
+		| "__substr__" -> as3 "substr", None, false
 		| _ -> as3 p, None, false);
 	| TInst ({ cl_path = [],"Date" },_) ->
 		(match p with
@@ -763,7 +767,7 @@ let begin_fun ctx args tret el stat p =
 			| TConst (TFloat s) -> HVFloat (float_of_string s)
 			| TConst (TBool b) -> HVBool b
 			| TConst TNull -> abort ("In Flash9, null can't be used as basic type " ^ s_type (print_context()) t) p
-			| _ -> die "" __LOC__)
+			| _ -> abort ("Non-constant default argument values are not supported on the flash target for basic type " ^ s_type (print_context()) t) p)
 		| _, Some {eexpr = TConst TNull} -> HVNone
 		| k, Some c ->
 			write ctx (HReg r.rid);
@@ -2324,7 +2328,7 @@ let realize_required_accessors ctx cl =
 				if not (is_implemented_by_super ci) then begin
 					List.iter (fun cf ->
 						match cf.cf_kind with
-						| Var { v_read = (AccCall | AccNever) as read; v_write = (AccCall | AccNever) as write } ->
+						| Var { v_read = (AccCall | AccPrivateCall | AccNever) as read; v_write = (AccCall | AccPrivateCall | AccNever) as write } ->
 							begin try
 								let read', write', native = Hashtbl.find h cf.cf_name in
 								let read = if read = AccNever then read' else true in
@@ -2496,10 +2500,10 @@ let generate_class ctx c =
 				maybe_gen_instance_setter ctx c f acc alloc_slot
 			else
 				maybe_gen_static_setter ctx c f acc alloc_slot
-		| Var { v_read = (AccCall | AccNever) as read; v_write = (AccCall | AccNever) as write } when not (has_class_flag c CInterface) && not (Meta.has Meta.IsVar f.cf_meta) ->
+		| Var { v_read = (AccCall | AccPrivateCall | AccNever) as read; v_write = (AccCall | AccPrivateCall | AccNever) as write } when not (has_class_flag c CInterface) && not (Meta.has Meta.IsVar f.cf_meta) ->
 			(* if the accessor methods were defined in super classes, we still need to generate native getter/setter *)
 			let acc =
-				if read = AccCall then begin
+				if read = AccCall || read = AccPrivateCall then begin
 					try
 						begin
 						let tl = extract_param_types c.cl_params in
@@ -2524,7 +2528,7 @@ let generate_class ctx c =
 						acc
 				end else acc
 			in
-			if write = AccCall then begin
+			if write = AccCall || write = AccPrivateCall then begin
 				try
 					begin
 					let tl = extract_param_types c.cl_params in
@@ -2834,7 +2838,7 @@ let generate com boot_name =
 					else nargs (n - 1) ((mk (TArray (rest, const n)) t_rest_item rest.epos) :: acc)
 				in
 				let rec loop n e_else =
-					let args = (nargs (n - 1) args_rev) in
+					let args = List.rev_append args_rev (nargs (n - 1) []) in
 					let e = mk (TIf (check n, args_to_expr args, Some e_else)) t_result rest.epos in
 					if n = 0 then e
 					else loop (n - 1) e

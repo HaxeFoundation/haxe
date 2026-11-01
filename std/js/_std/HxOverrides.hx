@@ -56,7 +56,7 @@ class HxOverrides {
 
 	@:pure
 	static function cca(s:String, index:Int):Null<Int> {
-		var x = (cast s).charCodeAt(index);
+		var x = js.lib.NativeStringTools.charCodeAt(s, index);
 		if (x != x) // fast isNaN
 			return js.Lib.undefined; // isNaN will still return true
 		return x;
@@ -67,19 +67,13 @@ class HxOverrides {
 		if (len == null) {
 			len = s.length;
 		} else if (len < 0) {
-			if (pos == 0)
-				len = s.length + len;
-			else
-				return "";
+			if (pos < 0) {
+				pos = s.length + pos;
+				if (pos < 0)
+					pos = 0;
+			}
+			len = s.length + len - pos;
 		}
-
-		#if (js_es < 5)
-		if (pos < 0) {
-			pos = s.length + pos;
-			if (pos < 0)
-				pos = 0;
-		}
-		#end
 
 		return (cast s).substr(pos, len);
 	}
@@ -148,13 +142,6 @@ class HxOverrides {
 
 	static function __init__()
 		untyped {
-			#if (js_es < 5)
-			__feature__('HxOverrides.indexOf',
-				if (Array.prototype.indexOf) js.Syntax.code("HxOverrides").indexOf = function(a, o, i) return Array.prototype.indexOf.call(a, o, i));
-			__feature__('HxOverrides.lastIndexOf',
-				if (Array.prototype.lastIndexOf) js.Syntax.code("HxOverrides").lastIndexOf = function(a, o, i) return Array.prototype.lastIndexOf.call(a, o, i));
-			#end
-
 			__feature__('HxOverrides.now',
 				if (js.Syntax.typeof(performance) != 'undefined' && js.Syntax.typeof(performance.now) == 'function') {
 					HxOverrides.now = performance.now.bind(performance);

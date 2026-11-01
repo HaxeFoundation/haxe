@@ -32,10 +32,10 @@ class Issue9516 extends unit.Test {
     var starBaz: Star<Baz> = new Baz(5, 4);
     var referenceBaz: Reference<Baz> = starBaz;
 
-    eq(7, justBaz.fun());
-    eq(8, structBaz.fun());
-    eq(9, starBaz.fun());
-    eq(9, referenceBaz.fun());
+    eq(7, justBaz.funBaz());
+    eq(8, structBaz.funBaz());
+    eq(9, starBaz.funBaz());
+    eq(9, referenceBaz.funBaz());
 
     Pointer.fromStar(starFoo).destroy();
     Pointer.fromStar(starBar).destroy();
@@ -73,7 +73,7 @@ private class Baz extends Bar {
     super(value);
   }
 
-  public override function fun() return super.fun() + delta;
+  public function funBaz() return super.fun() + delta;
 }
 
 #else

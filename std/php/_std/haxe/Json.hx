@@ -79,7 +79,7 @@ class Json {
 			return JsonPrinter.print(value, replacer, space);
 		}
 
-		var json = Global.json_encode(convertBeforeEncode(value));
+		var json = Global.json_encode(convertBeforeEncode(value), Const.JSON_UNESCAPED_SLASHES);
 		if (Global.json_last_error() != Const.JSON_ERROR_NONE) {
 			return throw Global.json_last_error_msg();
 		}

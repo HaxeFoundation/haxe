@@ -118,6 +118,15 @@ and inline_expression_handled =
 let inline_constructors (scom : SafeCom.t) original_e =
 	let inline_objs = ref IntMap.empty in
 	let vars = ref IntMap.empty in
+	let marked_vars = Hashtbl.create 0 in
+	let is_marked vid = Hashtbl.mem marked_vars (abs vid) in
+	let toggle_mark vid =
+		let key = abs vid in
+		if Hashtbl.mem marked_vars key then
+			Hashtbl.remove marked_vars key
+		else
+			Hashtbl.replace marked_vars key true
+	in
 	let scoped_ivs = ref [] in
 	let get_io (ioid:int) : inline_object = IntMap.find ioid !inline_objs in
 	let get_iv (vid:int) : inline_var = IntMap.find (abs vid) !vars in
@@ -128,10 +137,10 @@ let inline_constructors (scom : SafeCom.t) original_e =
 			PMap.iter (fun _ iv -> cancel_iv iv p) io.io_fields;
 			match io.io_kind with
 			| IOKCtor(ioc) ->
-				List.iter (fun v -> if v.v_id < 0 then cancel_v v p) io.io_dependent_vars;
+				List.iter (fun v -> if is_marked v.v_id then cancel_v v p) io.io_dependent_vars;
 				if ioc.ioc_forced then begin
 					SafeCom.add_error scom (make_error (Custom "Forced inline constructor could not be inlined") ~sub:([
-						(make_error ~depth:1 (Custom (compl_msg "Cancellation happened here")) p)
+						(make_error (Custom (compl_msg "Cancellation happened here")) p)
 					]) io.io_pos);
 				end
 			| _ -> ()
@@ -151,7 +160,7 @@ let inline_constructors (scom : SafeCom.t) original_e =
 			if remove then begin
 				let v = iv.iv_var in
 				vars := IntMap.remove (abs v.v_id) !vars;
-				v.v_id <- (abs v.v_id);
+				Hashtbl.remove marked_vars (abs v.v_id);
 			end
 		end
 	and cancel_v (v:tvar) (p:pos) : unit =
@@ -175,7 +184,7 @@ let inline_constructors (scom : SafeCom.t) original_e =
 			iv_kind = kind;
 			iv_closed = false
 		} in
-		v.v_id <- -v.v_id;
+		toggle_mark v.v_id;
 		vars := IntMap.add (abs v.v_id) iv !vars;
 		iv
 	in
@@ -232,23 +241,26 @@ let inline_constructors (scom : SafeCom.t) original_e =
 		The id is incremented each time and is used later in the final_map phase to identify the correct inline_object.
 	*)
 	let rec mark_ctors ?(force_inline=false) e : texpr =
-		let is_meta_inline = match e.eexpr with (TMeta((Meta.Inline,_,_),e)) -> true | _ -> false in
-		let e = Type.map_expr (mark_ctors ~force_inline:is_meta_inline) e in
-		let mark() =
-			incr curr_io_id;
-			let id_expr = (EConst(Int (string_of_int !curr_io_id, None)), e.epos) in
-			let meta = (Meta.InlineObject, [id_expr], e.epos) in
-			mk (TMeta(meta, e)) e.etype e.epos
-		in
-		match e.eexpr, force_inline with
-			| TObjectDecl _, _
-			| TArrayDecl _, _
-			| TNew _, true ->
-				mark()
-			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_), _ ->
-				if needs_inline scom (Some c) cf then mark()
-				else e
-			| _ -> e
+		match e.eexpr with
+			| TMeta((Meta.InlineConstructorArgument _,_,_),_) -> e
+			| _ ->
+				let is_meta_inline = match e.eexpr with (TMeta((Meta.Inline,_,_),e)) -> true | _ -> false in
+				let e = Type.map_expr (mark_ctors ~force_inline:is_meta_inline) e in
+				let mark() =
+					incr curr_io_id;
+					let id_expr = (EConst(Int (string_of_int !curr_io_id, None)), e.epos) in
+					let meta = (Meta.InlineObject, [id_expr], e.epos) in
+					mk (TMeta(meta, e)) e.etype e.epos
+				in
+				match e.eexpr, force_inline with
+					| TObjectDecl _, _
+					| TArrayDecl _, _
+					| TNew _, true ->
+						mark()
+					| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_), _ ->
+						if needs_inline scom (Some c) cf then mark()
+						else e
+					| _ -> e
 	in
 
 	(*
@@ -477,7 +489,7 @@ let inline_constructors (scom : SafeCom.t) original_e =
 			let i = Int32.to_int i in
 			let validate_io io = match io.io_kind with IOKArray(l) when i >= 0 && i < l -> true | _ -> false in
 			handle_field_case_no_methods e ethis (int_field_name i) validate_io
-		| TLocal(v) when v.v_id < 0 ->
+		| TLocal(v) when is_marked v.v_id ->
 			let iv = get_iv v.v_id in
 			if iv.iv_closed || captured==IEHNotHandled then cancel_iv iv e.epos;
 			Some iv
@@ -623,14 +635,14 @@ let inline_constructors (scom : SafeCom.t) original_e =
 			with Not_found ->
 				default_case e
 			end
-		| TVar(v, None) when v.v_id < 0 ->
+		| TVar(v, None) when is_marked v.v_id ->
 			let iv = get_iv v.v_id in
 			if iv.iv_state = IVSUnassigned then
 				(* If the variable is unassigned, leave the expression unchanged *)
 				([e], None)
 			else
 				(get_iv_var_decls (iv)), None
-		| TVar(v,Some e) when v.v_id < 0 ->
+		| TVar(v,Some e) when is_marked v.v_id ->
 			let el = (get_iv_var_decls (get_iv v.v_id)) in
 			let e,_ = (final_map ~unwrap_block:true e) in (e@el, None)
 		| TBinop(OpAssign, lve, rve) ->
@@ -686,7 +698,7 @@ let inline_constructors (scom : SafeCom.t) original_e =
 				let te = make_expr_for_rev_list tel ethis.etype ethis.epos in
 				[mk (TArray(te, indexexpr)) e.etype e.epos], None
 			end
-		| TLocal v when v.v_id < 0 ->
+		| TLocal v when is_marked v.v_id ->
 			begin match get_iv v.v_id with
 			| {iv_state = IVSAliasing io} ->
 				[], (Some io)
@@ -723,7 +735,6 @@ let inline_constructors (scom : SafeCom.t) original_e =
 	let e = mark_ctors original_e in
 	ignore(analyze_aliases [] IEHNotHandled false e);
 	if IntMap.for_all (fun _ io -> io.io_cancelled) !inline_objs then begin
-		IntMap.iter (fun _ iv -> let v = iv.iv_var in if v.v_id < 0 then v.v_id <- -v.v_id ) !vars;
 		original_e
 	end else begin
 		let el,_ = final_map e in
@@ -732,13 +743,14 @@ let inline_constructors (scom : SafeCom.t) original_e =
 		let e = make_expr_for_rev_list el e.etype e.epos in
 		let rec get_pretty_name iv : string list = match iv.iv_kind with
 			| IVKField(io,fname,None) ->
-				begin try
-					let is_user_variable iv = match iv.iv_var.v_kind with VUser _ | VInlined -> true | _ -> false in
-					let iv = List.find is_user_variable io.io_aliases in
-					fname :: (get_pretty_name iv);
-				with Not_found ->
-					fname :: (get_pretty_name (List.hd io.io_aliases));
-				end
+				let is_source_variable iv = match iv.iv_var.v_kind with VUser _ -> true | _ -> false in
+				let is_inline_variable iv = match iv.iv_var.v_kind with VInlined -> true | _ -> false in
+				let iv =
+					try List.find is_source_variable io.io_aliases with Not_found ->
+					try List.find is_inline_variable io.io_aliases with Not_found ->
+					List.hd io.io_aliases
+				in
+				fname :: (get_pretty_name iv)
 			| _ -> [iv.iv_var.v_name]
 		in
 		let is_user_kind iv = match iv.iv_var.v_kind with VUser _ -> true | _ -> false in
@@ -754,8 +766,7 @@ let inline_constructors (scom : SafeCom.t) original_e =
 		in
 		IntMap.iter (fun _ iv ->
 			let v = iv.iv_var in
-			if v.v_id < 0 then begin
-				v.v_id <- -v.v_id;
+			if is_marked v.v_id then begin
 				let vnames = List.rev (get_pretty_name iv) in
 				v.v_name <- String.concat "_" vnames;
 				if (was_user iv) then v.v_kind <- VInlinedConstructorVariable vnames;

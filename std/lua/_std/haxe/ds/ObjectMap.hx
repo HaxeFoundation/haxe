@@ -22,6 +22,8 @@
 
 package haxe.ds;
 
+// Can't enable @:coreApi because type parameter constraints differ from the core (A vs K:{})
+@:coreApi(check = Off)
 class ObjectMap<A, B> implements haxe.Constraints.IMap<A, B> {
 	static var count = 0;
 
@@ -116,5 +118,9 @@ class ObjectMap<A, B> implements haxe.Constraints.IMap<A, B> {
 	public inline function clear():Void {
 		h = lua.Table.create();
 		k = lua.Table.create();
+	}
+	
+	public function size():Int {
+		return lua.Syntax.code("(function() local s = 0; for _ in pairs({0}) do s = s + 1 end; return s end)()", h);
 	}
 }

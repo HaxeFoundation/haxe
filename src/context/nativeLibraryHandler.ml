@@ -18,7 +18,7 @@
  *)
 
 open Common
-open CompilationContext
+open ParsedArg
 
 let add_native_lib com lib =
 	let file = lib.lib_file in

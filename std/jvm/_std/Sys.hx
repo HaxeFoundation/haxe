@@ -47,7 +47,7 @@ using jvm.NativeTools;
 		return @:privateAccess Array.ofNative(_args);
 	}
 
-	public static function getEnv(s:String):String {
+	public static function getEnv(s:String):Null<String> {
 		return java.lang.System.getenv(s);
 	}
 

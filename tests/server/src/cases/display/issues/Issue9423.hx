@@ -14,12 +14,11 @@ class Issue9423 extends DisplayTestCase {
 	function test(_) {
 		vfs.putContent("Mod9423.hx", getTemplate("issues/Issue9423/Mod9423.hx"));
 		vfs.putContent("Mod9423.whatever.hx", getTemplate("issues/Issue9423/Mod9423.whatever.hx"));
-		runHaxeJson(["-cp", "."], DisplayMethods.Completion, {
+		var result = runHaxeJson(["-cp", "."], DisplayMethods.Completion, {
 			file: file,
 			offset: offset(1),
 			wasAutoTriggered: false
 		});
-		var result = parseCompletion().result;
 		final l = result.items.filter(di -> switch [di.kind, di.args] {
 			case [Type, args]: args.path.typeName == "Mod9423";
 			case _: false;

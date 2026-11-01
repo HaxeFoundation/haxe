@@ -109,7 +109,7 @@ class BytesOutput extends Output {
 	}
 
 	@:dox(hide)
-	override function writeInt32(x:Int) {
+	override function writeInt32(x:Int32) {
 		b.writeInt(x);
 	}
 

@@ -21,6 +21,20 @@
  */
 
 package haxe.iterators;
+
+#if lua_vanilla
+
+class StringIterator {
+	static inline function notImplemented():Dynamic
+		throw new haxe.exceptions.NotImplementedException("StringIterator cannot be used with -D lua-vanilla because it requires lua-utf8");
+
+	public inline function new(s:String) notImplemented();
+	public inline function hasNext():Bool return notImplemented();
+	public inline function next():Int return notImplemented();
+}
+
+#else
+
 import lua.lib.luautf8.Utf8;
 
 class StringIterator {
@@ -48,3 +62,5 @@ class StringIterator {
         return ret;
     }
 }
+
+#end

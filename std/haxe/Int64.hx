@@ -55,6 +55,9 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	@:from public static inline function ofInt(x:Int):Int64
 		#if lua return make((x : Int32) >> 31, (x : Int32)); #else return make(x >> 31, x); #end
 
+	public static inline function fromInt(x:Int):Int64
+		#if lua return make((x : Int32) >> 31, (x : Int32)); #else return make(x >> 31, x); #end
+
 	/**
 		Returns an Int with the value of the Int64 `x`.
 		Throws an exception  if `x` cannot be represented in 32 bits.
@@ -130,7 +133,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	public static inline function toStr(x:Int64):String
 		return x.toString();
 
-	function toString():String {
+	public function toString():String {
 		var i:Int64 = cast this;
 		if (i == 0)
 			return "0";
@@ -162,6 +165,15 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	public static inline function fromFloat(f:Float):Int64 {
 		return Int64Helper.fromFloat(f);
+	}
+
+	/**
+		Returns a `Float` with the value of `this` Int64.
+
+		Loss of precision may occur for values whose magnitude exceeds 2^53.
+	**/
+	public inline function toFloat():Float {
+		return Int64Helper.toFloat(abstract);
 	}
 
 	/**
@@ -457,7 +469,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	private inline function set_low(x)
 		return this.low = x;
-		
+
 	#if php
 	static var extraBits:Int = php.Const.PHP_INT_SIZE * 8 - 32;
 	#end
@@ -480,6 +492,8 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		return x;
 		#end
 	}
+
+	static var IMPL = ___Int64;
 }
 
 /**
@@ -503,6 +517,7 @@ private class ___Int64 {
 		when tracing or calling `Std.string`. This tends not to happen when
 		`toString` is only in the abstract.
 	**/
+	@:ifFeature("dynamic_read.toString")
 	public function toString():String
 		return Int64.toStr(cast this);
 }

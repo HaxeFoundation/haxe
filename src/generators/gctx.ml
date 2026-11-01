@@ -1,4 +1,5 @@
 open Globals
+open Message
 open Type
 open Warning
 
@@ -8,8 +9,8 @@ type context_main = {
 	mutable main_expr : texpr option;
 }
 
-type warning_function = ?depth:int -> ?from_macro:bool -> warning -> Warning.warning_option list list -> string -> pos -> unit
-type error_function = ?depth:int -> string -> pos -> unit
+type warning_function = ?depth:int -> warning -> warning_option list list -> string -> pos -> unit
+type error_function = string -> pos -> unit
 
 type t = {
 	platform : platform;
@@ -19,7 +20,7 @@ type t = {
 	run_command_args : string -> string list -> int;
 	warning : warning_function;
 	error : error_function;
-	print : string -> unit;
+	io : CompilerIo.t;
 	basic : basic_types;
 	debug : bool;
 	file : string;
@@ -33,6 +34,7 @@ type t = {
 	include_files : (string * string) list;
 	std : tclass; (* TODO: I would prefer to not have this here, have to check default_cast *)
 	timer_ctx : Timer.timer_context;
+	pool : Parallel.ManagedPool.t;
 }
 
 let defined com s =

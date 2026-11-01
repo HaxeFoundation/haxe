@@ -86,4 +86,8 @@ import haxe.Constraints;
 	public inline function clear():Void {
 		data = new NativeAssocArray();
 	}
+	
+	public inline function size():Int {
+		return Global.count(data);
+	}
 }

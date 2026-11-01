@@ -1,8 +1,9 @@
-# DO NOT EDIT. Generated from /extra/github-actions
 # TODO: support skip ci (https://github.community/t/github-actions-does-not-respect-skip-ci/17325/8)
 
 name: CI
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
 
 env:
   OCAML_VERSION: 5.3.0
@@ -13,77 +14,25 @@ concurrency:
 
 jobs:
   windows64-build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: windows-latest
     env:
-      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows64
       ARCH: 64
       MINGW_ARCH: x86_64
-      CYG_ROOT: D:\cygwin
+      CYG_ROOT: C:\.opam\.cygwin\root
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
-      - name: choco install nsis
-        uses: nick-invision/retry@v3
+      - uses: repolevedavaj/install-nsis@v1.2.0
         with:
-          timeout_minutes: 10
-          max_attempts: 10
-          command: choco install --no-progress nsis.portable --version 3.09 -y
+          nsis-version: '3.10'
 
-      - name: choco install things
-        shell: pwsh
-        run: choco install --no-progress curl wget 7zip.portable -y
+      - uses: ./.github/actions/setup-neko
 
-      - name: Prepend Chocolatey path
-        shell: pwsh
-        run: Write-Host "::add-path::C:\ProgramData\chocolatey\bin"
-
-      - name: Install Neko from S3
-        shell: pwsh
-        run: |
-          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $env:RUNNER_TEMP/neko_latest.zip
-          Expand-Archive $env:RUNNER_TEMP/neko_latest.zip -DestinationPath $env:RUNNER_TEMP
-          $NEKOPATH = Get-ChildItem $env:RUNNER_TEMP/neko-*-*
-          echo "$NEKOPATH" >> $env:GITHUB_PATH
-          echo "NEKOPATH=$NEKOPATH" >> $env:GITHUB_ENV
-
-      - name: Print Neko version
-        run: neko -version 2>&1
-
-      - name: Setup ocaml
-        uses: ocaml/setup-ocaml@v3
-        with:
-          ocaml-compiler: ${{ env.OCAML_VERSION }}
-          opam-local-packages: |
-            haxe.opam
-
-      - name: Install dependencies
-        shell: pwsh
-        env:
-          MBEDTLS_VERSION: 2.16.3
-        run: |
-          curl.exe -fsSL -o "libmbedtls.tar.xz" --retry 3 `
-            https://github.com/Simn/mingw64-mbedtls/releases/download/${{ env.MBEDTLS_VERSION }}/mingw64-${{ env.MINGW_ARCH }}-mbedtls-${{ env.MBEDTLS_VERSION }}-1.tar.xz
-          ${{ env.CYG_ROOT }}\bin\tar.exe -C ${{ env.CYG_ROOT }} -xvf libmbedtls.tar.xz
-
-      - name: Install OCaml libraries
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 10
-          max_attempts: 10
-          retry_on: timeout
-          shell: pwsh
-          command: |
-            Set-PSDebug -Trace 1
-            # stop after any command returns an error
-            $PSNativeCommandUseErrorActionPreference = $true
-            $ErrorActionPreference = 'Stop'
-            # see: https://github.com/aantron/luv/issues/162
-            $env:PATH="${env:CYG_ROOT}\bin;${env:CYG_ROOT}\usr\x86_64-w64-mingw32\bin;${env:PATH}"
-            opam install haxe --deps-only
-            opam list
+      - uses: ./.github/actions/setup-ocaml-windows
 
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -100,320 +49,40 @@ jobs:
           opam exec -- make -s -f Makefile.win -j"$env:NUMBER_OF_PROCESSORS" haxe
           opam exec -- make -s -f Makefile.win haxelib
           opam exec -- make -f Makefile.win echo_package_files package_bin package_installer_win package_choco
-          cygcheck ./haxe.exe
-          cygcheck ./haxelib.exe
+          opam exec -- cygcheck ./haxe.exe
+          opam exec -- cygcheck ./haxelib.exe
           ls ./out
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: win${{env.ARCH}}Binaries
           path: out
 
 
   linux-build:
-    runs-on: ubuntu-22.04
-    env:
-      PLATFORM: linux64
-      OPAMYES: 1
-    steps:
-      - uses: actions/checkout@main
-        with:
-          submodules: recursive
-
-      - name: Cache opam
-        id: cache-opam
-        uses: actions/cache@v4
-        with:
-          path: ~/.opam/
-          key: ${{ runner.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
-
-      - name: Install Neko from S3
-        run: |
-          set -ex
-
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
-          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
-          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
-          sudo mkdir -p /usr/local/bin
-          sudo mkdir -p /usr/local/include
-          sudo mkdir -p /usr/local/lib/neko
-          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
-          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
-
-      - name: Print Neko version
-        run: neko -version 2>&1
-
-
-      - name: Install dependencies
-        run: |
-          set -ex
-          sudo apt-get update -qqy
-          sudo apt-get install -qqy darcs bubblewrap ocaml-nox libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
-          curl -sSL https://github.com/ocaml/opam/releases/download/2.3.0/opam-2.3.0-x86_64-linux -o $RUNNER_TEMP/opam
-          sudo install $RUNNER_TEMP/opam /usr/local/bin/opam
-
-      - name: Install OCaml libraries
-        if: steps.cache-opam.outputs.cache-hit != 'true'
-        run: |
-          set -ex
-          opam init -c ${{ env.OCAML_VERSION }}
-          opam update
-          opam pin add haxe . --no-action
-          opam install haxe --deps-only --assume-depexts
-          opam list
-          ocamlopt -v
-
-      - name: Set ADD_REVISION=1 for non-release
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: echo "ADD_REVISION=1" >> $GITHUB_ENV
-
-      - name: Build Haxe
-        run: |
-          set -ex
-          eval $(opam env)
-          opam config exec -- make -s -j`nproc` STATICLINK=1 haxe
-          opam config exec -- make -s haxelib
-          make -s package_unix
-          ls -l out
-          ldd -v ./haxe
-          ldd -v ./haxelib
-
-      # https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
-      - name: Extract branch name
-        id: extract_branch
-        shell: bash
-        run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
-
-      - name: Build xmldoc
-        run: |
-          set -ex
-          make -s xmldoc
-          cat >extra/doc/info.json <<EOL
-            {
-              "commit": "$GITHUB_SHA",
-              "branch": "${{ steps.extract_branch.outputs.branch }}"
-            }
-          EOL
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: linuxBinaries
-          path: out
-
-      - name: Upload xmldoc artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: xmldoc
-          path: extra/doc
-
-  linux-test:
-    needs: linux-build
-    runs-on: ubuntu-22.04
-    env:
-      PLATFORM: linux64
-      TEST: ${{matrix.target}}
-      HXCPP_COMPILE_CACHE: ~/hxcache
-      HAXE_STD_PATH: /usr/local/share/haxe/std
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
-      fail-fast: false
       matrix:
-        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
-        include:
-          - target: hl
-            APT_PACKAGES: cmake ninja-build libturbojpeg-dev
-          - target: cpp
-            APT_PACKAGES: gcc-multilib g++-multilib
-          - target: lua
-            APT_PACKAGES: ncurses-dev
-          - target: flash
-            APT_PACKAGES: libglib2.0-0 libgtk2.0-0 libfreetype6 xvfb
-    steps:
-      - uses: actions/checkout@main
-        with:
-          submodules: recursive
-      - uses: actions/download-artifact@v4
-        with:
-          name: linuxBinaries
-          path: linuxBinaries
+        arch: [x86_64, arm64]
 
-      - name: Install Neko from S3
-        run: |
-          set -ex
-
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
-          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
-          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
-          sudo mkdir -p /usr/local/bin
-          sudo mkdir -p /usr/local/include
-          sudo mkdir -p /usr/local/lib/neko
-          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
-          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
-
-      - name: Print Neko version
-        run: neko -version 2>&1
-
-
-      - name: Setup Haxe
-        run: |
-          sudo apt install -qqy libmbedtls-dev
-
-          set -ex
-          tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
-          sudo mkdir -p /usr/local/bin/
-          sudo mkdir -p /usr/local/share/haxe/
-          sudo ln -s `pwd`/linuxBinaries/haxe /usr/local/bin/haxe
-          sudo ln -s `pwd`/linuxBinaries/haxelib /usr/local/bin/haxelib
-          sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
-
-      - name: Print Haxe version
-        run: haxe -version
-
-      - name: Setup haxelib
-        run: |
-          set -ex
-          mkdir ~/haxelib
-          haxelib setup ~/haxelib
-
-      - name: Install apt packages
-        if: matrix.APT_PACKAGES
-        run: |
-          set -ex
-          sudo apt update -qqy
-          sudo apt install -qqy ${{matrix.APT_PACKAGES}}
-
-      - name: Flash setup
-        if: matrix.target == 'flash'
-        run: export DISPLAY=:99.0
-
-      - name: Test
-        run: haxe RunCi.hxml
-        working-directory: ${{github.workspace}}/tests
-        timeout-minutes: 20
-
-  test-docgen:
-    needs: linux-build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-22.04${{ matrix.arch == 'arm64' && '-arm' || '' }}
     env:
-      PLATFORM: linux64
-      HXCPP_COMPILE_CACHE: ~/hxcache
-    steps:
-      - uses: actions/checkout@main
-        with:
-          submodules: recursive
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: linuxBinaries
-          path: linuxBinaries
-
-      - name: Download xmldoc artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: xmldoc
-          path: xmldoc
-
-      - name: Install Neko from S3
-        run: |
-          set -ex
-
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
-          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
-          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
-          sudo mkdir -p /usr/local/bin
-          sudo mkdir -p /usr/local/include
-          sudo mkdir -p /usr/local/lib/neko
-          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
-          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
-
-      - name: Print Neko version
-        run: neko -version 2>&1
-
-
-      - name: Setup Haxe
-        run: |
-          sudo apt install -qqy libmbedtls-dev
-
-          set -ex
-          tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
-          sudo mkdir -p /usr/local/bin/
-          sudo mkdir -p /usr/local/share/haxe/
-          sudo ln -s `pwd`/linuxBinaries/haxe /usr/local/bin/haxe
-          sudo ln -s `pwd`/linuxBinaries/haxelib /usr/local/bin/haxelib
-          sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
-
-      - name: Print Haxe version
-        run: haxe -version
-
-      - name: Setup haxelib
-        run: |
-          set -ex
-          mkdir ~/haxelib
-          haxelib setup ~/haxelib
-
-      - name: Test documentation generation
-        run: |
-          set -ex
-          haxelib git dox https://github.com/HaxeFoundation/dox.git
-          haxelib git hxtemplo https://github.com/Simn/hxtemplo.git
-          haxelib git hxargs https://github.com/Simn/hxargs.git
-          haxelib git markdown https://github.com/dpeek/haxe-markdown.git
-          haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git
-          cd $(haxelib libpath hxcpp)/tools/hxcpp
-          haxe compile.hxml
-          cd -
-          haxe dox.hxml
-          mkdir resources
-          cp ../../src-json/* resources
-          cpp/Dox -i ../../xmldoc -ex microsoft -ex javax -theme $(haxelib libpath dox)/themes/default
-        working-directory: ${{github.workspace}}/tests/docgen
-
-  linux-arm64-build:
-    runs-on: ubuntu-22.04-arm
-    env:
-      PLATFORM: linux-arm64
+      PLATFORM: linux${{ matrix.arch == 'arm64' && '-arm' || '' }}64
       OPAMYES: 1
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
       - name: Cache opam
         id: cache-opam
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.opam/
-          key: arm-${{ runner.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
-      - name: Install Neko from S3
-        run: |
-          set -ex
-
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
-          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
-          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
-          sudo mkdir -p /usr/local/bin
-          sudo mkdir -p /usr/local/include
-          sudo mkdir -p /usr/local/lib/neko
-          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
-          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
-
-      - name: Print Neko version
-        run: neko -version 2>&1
-
+      - uses: ./.github/actions/setup-neko
 
       - name: Install dependencies
         run: |
@@ -453,54 +122,71 @@ jobs:
         run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: linuxArm64Binaries
+          name: linux${{ matrix.arch == 'arm64' && 'Arm64' || '' }}Binaries
           path: out
 
-  linux-arm64-test:
-    needs: linux-arm64-build
-    runs-on: ubuntu-22.04-arm
+      - name: Build xmldoc
+        if: matrix.arch == 'x86_64'
+        run: |
+          set -ex
+          make -s xmldoc
+          cat >extra/doc/info.json <<EOL
+            {
+              "commit": "$GITHUB_SHA",
+              "branch": "${{ steps.extract_branch.outputs.branch }}"
+            }
+          EOL
+
+      - name: Upload xmldoc artifact
+        if: matrix.arch == 'x86_64'
+        uses: actions/upload-artifact@v7
+        with:
+          name: xmldoc
+          path: extra/doc
+
+  linux-test:
+    needs: linux-build
+    runs-on: ubuntu-22.04${{ matrix.arch == 'arm64' && '-arm' || '' }}
     env:
-      PLATFORM: linux-arm64
-      TEST: ${{matrix.target}}
-      HXCPP_COMPILE_CACHE: ~/hxcache
+      PLATFORM: linux${{ matrix.arch == 'arm64' && '-arm' || '' }}64
+      HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
       HAXE_STD_PATH: /usr/local/share/haxe/std
     strategy:
       fail-fast: false
       matrix:
-        target: [macro, js, cpp, jvm, php, python, lua, neko]
+        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
+        arch: [x86, arm64]
         include:
+          - target: hl
+            arch: x86
+            APT_PACKAGES: cmake ninja-build libturbojpeg-dev
+          - target: hl
+            arch: arm64
+            APT_PACKAGES: cmake ninja-build libturbojpeg-dev
+            runci-args: --skip-hl-jit
+          - target: cpp
+            arch: x86
+            APT_PACKAGES: gcc-multilib g++-multilib
           - target: lua
             APT_PACKAGES: ncurses-dev
+          - target: flash
+            APT_PACKAGES: libglib2.0-0 libgtk2.0-0 libfreetype6 xvfb
+        exclude:
+          - target: flash
+            arch: arm64
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
-      - uses: actions/download-artifact@v4
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
         with:
-          name: linuxArm64Binaries
+          name: linux${{ matrix.arch == 'arm64' && 'Arm64' || '' }}Binaries
           path: linuxBinaries
 
-      - name: Install Neko from S3
-        run: |
-          set -ex
-
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
-          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
-          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
-          sudo mkdir -p /usr/local/bin
-          sudo mkdir -p /usr/local/include
-          sudo mkdir -p /usr/local/lib/neko
-          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
-          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
-
-      - name: Print Neko version
-        run: neko -version 2>&1
-
+      - uses: ./.github/actions/setup-neko
 
       - name: Setup Haxe
         run: |
@@ -530,76 +216,158 @@ jobs:
           sudo apt update -qqy
           sudo apt install -qqy ${{matrix.APT_PACKAGES}}
 
+      - name: Flash setup
+        if: matrix.target == 'flash'
+        run: export DISPLAY=:99.0
+
+      - name: Cache Lua environments
+        uses: ./.github/actions/cache-lua
+        if: matrix.target == 'lua'
+        with:
+          key-prefix: lua-env-linux-${{ matrix.arch }}
+
+      - name: Download d8 (Android build-tools)
+        if: matrix.target == 'jvm'
+        run: |
+          set -ex
+          curl -fsSLo /tmp/build-tools.zip https://dl.google.com/android/repository/build-tools_r34-linux.zip
+          mkdir -p "$HOME/d8"
+          unzip -q /tmp/build-tools.zip -d "$HOME/d8"
+          d8=$(find "$HOME/d8" -name d8 -type f -executable | head -n1)
+          test -x "$d8"
+          echo "D8=$d8" >> "$GITHUB_ENV"
+
       - name: Test
-        run: haxe RunCi.hxml
+        run: haxe --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
-        timeout-minutes: 20
+        timeout-minutes: 25
+
+  test-docgen:
+    needs: linux-build
+    runs-on: ubuntu-22.04
+    env:
+      PLATFORM: linux64
+      HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: linuxBinaries
+          path: linuxBinaries
+
+      - name: Download xmldoc artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: xmldoc
+          path: xmldoc
+
+      - uses: ./.github/actions/setup-neko
+
+      - name: Setup Haxe
+        run: |
+          sudo apt install -qqy libmbedtls-dev
+
+          set -ex
+          tar -xf linuxBinaries/*_bin.tar.gz -C linuxBinaries --strip-components=1
+          sudo mkdir -p /usr/local/bin/
+          sudo mkdir -p /usr/local/share/haxe/
+          sudo ln -s `pwd`/linuxBinaries/haxe /usr/local/bin/haxe
+          sudo ln -s `pwd`/linuxBinaries/haxelib /usr/local/bin/haxelib
+          sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
+
+      - name: Print Haxe version
+        run: haxe -version
+
+      - name: Setup haxelib
+        run: |
+          set -ex
+          mkdir ~/haxelib
+          haxelib setup ~/haxelib
+
+      - name: Test documentation generation
+        run: |
+          set -ex
+          haxelib git dox https://github.com/HaxeFoundation/dox.git
+          haxelib git hxtemplo https://github.com/Simn/hxtemplo.git
+          haxelib git hxargs https://github.com/Simn/hxargs.git
+          haxelib git markdown https://github.com/dpeek/haxe-markdown.git
+          haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git
+          cd $(haxelib libpath hxcpp)/tools/hxcpp
+          haxe compile.hxml
+          cd -
+          haxe dox.hxml
+          mkdir resources
+          cp ../../src-json/* resources
+          cpp/Dox -i ../../xmldoc -ex microsoft -ex javax -theme $(haxelib libpath dox)/themes/default
+        working-directory: ${{github.workspace}}/tests/docgen
 
   mac-build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, macos-13]
-    runs-on: ${{ matrix.os }}
+        arch: [arm64, x86_64]
+    runs-on: macos-latest
     env:
-      PLATFORM: mac${{ matrix.os == 'macos-14' && '-arm64' || '' }}
+      PLATFORM: mac${{ matrix.arch == 'arm64' && '-arm64' || '' }}
       OPAMYES: 1
-      MACOSX_DEPLOYMENT_TARGET: 10.13
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.arch == 'arm64' && 11.0 || 10.13 }}
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
       - name: Cache opam
         id: cache-opam
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.opam/
-          key: ${{ matrix.os }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
+          key: macos-${{ matrix.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
-      - name: Install Neko from S3
-        run: |
-          set -ex
-
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
-          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
-          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
-          sudo mkdir -p /usr/local/bin
-          sudo mkdir -p /usr/local/include
-          sudo mkdir -p /usr/local/lib/neko
-          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
-          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
-
-      - name: Print Neko version
-        run: neko -version 2>&1
+      - uses: ./.github/actions/setup-neko
 
       - name: Install dependencies
         env:
-          # For compatibility with macOS 10.13
+          # Build from source for compatibility with macOS 10.13
           ZLIB_VERSION: 1.3.1
-          MBEDTLS_VERSION: 2.28.5
-          PCRE2_VERSION: 10.42
+          MBEDTLS_VERSION: 3.6.4
+          PCRE2_VERSION: 10.45
+          CMAKE_BUILD_TYPE: Release
+          CMAKE_GENERATOR: Ninja
         run: |
           set -ex
           brew update
           brew bundle --file=tests/Brewfile --no-upgrade
           curl -L https://github.com/madler/zlib/releases/download/v$ZLIB_VERSION/zlib-$ZLIB_VERSION.tar.gz | tar xz
           cd zlib-$ZLIB_VERSION
-          ./configure
-          sudo make && sudo make install
+          cmake -B build -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}
+          cmake --build build
+          sudo cmake --install build
           cd ..
-          curl -L https://github.com/ARMmbed/mbedtls/archive/v$MBEDTLS_VERSION.tar.gz | tar xz
+          curl -L https://github.com/Mbed-TLS/mbedtls/releases/download/mbedtls-$MBEDTLS_VERSION/mbedtls-$MBEDTLS_VERSION.tar.bz2 | tar xz
           cd mbedtls-$MBEDTLS_VERSION
-          sudo make && sudo make install
+          cmake -B build -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
+            -DENABLE_TESTING=OFF
+          cmake --build build
+          sudo cmake --install build
           cd ..
           curl -L https://github.com/PCRE2Project/pcre2/releases/download/pcre2-$PCRE2_VERSION/pcre2-$PCRE2_VERSION.tar.gz | tar xz
           cd pcre2-$PCRE2_VERSION
-          ./configure --enable-unicode --enable-pcre2-8 --enable-pcre2-16 --enable-pcre2-32 --enable-unicode-properties --enable-pcre2grep-libz --enable-pcre2grep-libbz2 --enable-jit
-          sudo make && sudo make install
+          cmake -B build -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
+            -DPCRE2_SUPPORT_JIT=ON \
+            -DPCRE2_BUILD_TESTS=OFF \
+            -DPCRE2_BUILD_PCRE2GREP=OFF
+          cmake --build build
+          sudo cmake --install build
           cd ..
+
+      - name: Install Opam
+        run: |
+          curl -sSL https://github.com/ocaml/opam/releases/download/2.3.0/opam-2.3.0-${{ matrix.arch }}-macos -o $RUNNER_TEMP/opam
+          sudo install $RUNNER_TEMP/opam /usr/local/bin/opam
 
       - name: Install OCaml libraries
         if: steps.cache-opam.outputs.cache-hit != 'true'
@@ -622,23 +390,23 @@ jobs:
         run: |
           set -ex
           eval $(opam env)
-          opam config exec -- make -s STATICLINK=1 "LIB_PARAMS=\"/usr/local/lib/libz.a\" \"/usr/local/lib/libpcre2-8.a\" \"/usr/local/lib/libmbedtls.a\" \"/usr/local/lib/libmbedcrypto.a\" \"/usr/local/lib/libmbedx509.a\"" haxe
-          opam config exec -- make -s haxelib
-          make -s package_unix package_installer_mac
+          opam exec -- make -s STATICLINK=1 "LIB_PARAMS=\"/usr/local/lib/libz.a\" \"/usr/local/lib/libpcre2-8.a\" \"/usr/local/lib/libmbedtls.a\" \"/usr/local/lib/libmbedcrypto.a\" \"/usr/local/lib/libmbedx509.a\"" haxe
+          opam exec -- make -s haxelib
+          opam exec -- make -s package_unix package_installer_mac
           ls -l out
           otool -L ./haxe
           otool -L ./haxelib
 
       - name: Upload artifact (x64)
-        if: runner.arch == 'X64'
-        uses: actions/upload-artifact@v4
+        if: matrix.arch == 'x86_64'
+        uses: actions/upload-artifact@v7
         with:
           name: macX64Binaries
           path: out
 
       - name: Upload artifact (arm)
-        if: runner.arch == 'ARM64'
-        uses: actions/upload-artifact@v4
+        if: matrix.arch == 'arm64'
+        uses: actions/upload-artifact@v7
         with:
           name: macArmBinaries
           path: out
@@ -646,42 +414,32 @@ jobs:
 
   windows64-test:
     needs: windows64-build
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     env:
-      ACTIONS_ALLOW_UNSECURE_COMMANDS: true
       PLATFORM: windows64
       TEST: ${{matrix.target}}
-      HXCPP_COMPILE_CACHE: ~/hxcache
+      HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
       ARCH: 64
     strategy:
       fail-fast: false
       matrix:
-        # TODO enable lua after https://github.com/HaxeFoundation/haxe/issues/10919
-        target: [macro, js, hl, cpp, jvm, php, python, flash, neko]
+        target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
-      - uses: actions/download-artifact@v4
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
         with:
           name: win${{env.ARCH}}Binaries
           path: win${{env.ARCH}}Binaries
 
-      - name: Install Neko from S3
-        shell: pwsh
-        run: |
-          Invoke-WebRequest https://build.haxe.org/builds/neko/$env:PLATFORM/neko_latest.zip -OutFile $env:RUNNER_TEMP/neko_latest.zip
-          Expand-Archive $env:RUNNER_TEMP/neko_latest.zip -DestinationPath $env:RUNNER_TEMP
-          $NEKOPATH = Get-ChildItem $env:RUNNER_TEMP/neko-*-*
-          echo "$NEKOPATH" >> $env:GITHUB_PATH
-          echo "NEKOPATH=$NEKOPATH" >> $env:GITHUB_ENV
+      - uses: ./.github/actions/setup-neko
 
-      - name: Print Neko version
-        run: neko -version 2>&1
-
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
+        if: matrix.target == 'js'
         with:
-          node-version: 18.17.1
+          node-version: 24
 
       # - name: Quick test
       #   shell: pwsh
@@ -696,9 +454,9 @@ jobs:
           $DOWNLOADDIR="./win$($env:ARCH)Binaries"
           Expand-Archive $DOWNLOADDIR/*_bin.zip -DestinationPath $DOWNLOADDIR
           Set-PSDebug -Trace 1
-          $HAXEPATH = Get-ChildItem $DOWNLOADDIR/haxe_*_* -Directory
-          Write-Host "::add-path::$HAXEPATH"
-          Write-Host "::set-env name=HAXELIB_ROOT::$HAXEPATH\lib"
+          $HAXEPATH = (Get-ChildItem $DOWNLOADDIR/haxe_*_* -Directory).FullName
+          echo $HAXEPATH >> $env:GITHUB_PATH
+          echo "HAXELIB_ROOT=$HAXEPATH\lib" >> $env:GITHUB_ENV
 
       - name: Print Haxe version
         shell: pwsh
@@ -713,20 +471,17 @@ jobs:
           cmd /c mklink $py3path $pypath
           python3 -V
 
-      - name: Install hererocks
+      - uses: msys2/setup-msys2@v2
         if: matrix.target == 'lua'
-        shell: cmd
-        run: |
-          pip install hererocks
-          hererocks lua53 -l5.3 -rlatest
-          call lua53/bin/activate
-
-      - name: Install wget
-        if: matrix.target == 'flash'
-        shell: cmd
-        run: |
-          choco install wget
-          wget --version
+        id: msys2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-openssl
+            mingw-w64-ucrt-x86_64-pcre2
+            mingw-w64-ucrt-x86_64-libuv
 
       - name: Setup haxelib
         shell: pwsh
@@ -734,11 +489,25 @@ jobs:
           mkdir "$env:HAXELIB_ROOT"
           haxelib setup "$env:HAXELIB_ROOT"
 
+      - name: Add msbuild to PATH (hl/c)
+        uses: microsoft/setup-msbuild@v3
+        if: matrix.target == 'hl'
+        with:
+          msbuild-architecture: x64
+
+      - name: Cache Lua environments
+        uses: ./.github/actions/cache-lua
+        if: matrix.target == 'lua'
+        with:
+          key-prefix: lua-env-windows64
+
       - name: Test
         shell: pwsh
         run: haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
-        timeout-minutes: 20
+        timeout-minutes: 25
+        env:
+          MSYS2_LOCATION: ${{ matrix.target == 'lua' && steps.msys2.outputs.msys2-location || '' }}
 
 
   mac-build-universal:
@@ -746,12 +515,12 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@main
-      - uses: actions/download-artifact@v4
+        uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           name: macX64Binaries
           path: macX64Binaries
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: macArmBinaries
           path: macArmBinaries
@@ -769,53 +538,42 @@ jobs:
           otool -L ./haxelib
 
       - name: Upload artifact (universal)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macBinaries
           path: out
 
   mac-test:
     needs: mac-build-universal
-    runs-on: macos-13
     env:
-      PLATFORM: mac
-      TEST: ${{matrix.target}}
-      HXCPP_COMPILE_CACHE: ~/hxcache
+      PLATFORM: mac-universal
+      HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
       HAXE_STD_PATH: /usr/local/share/haxe/std
     strategy:
       fail-fast: false
       matrix:
         target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
+        arch: [arm64]
         include:
-          - target: hl
-            BREW_PACKAGES: ninja
+        - target: hl
+          arch: arm64
+          runci-args: --skip-hl-jit
+        - target: hl
+          arch: x86_64
+          runner: macos-15-intel
+
+    runs-on: ${{ matrix.runner || 'macos-latest' }}
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
-      - uses: actions/download-artifact@v4
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
         with:
           name: macBinaries
           path: macBinaries
 
-      - name: Install Neko from S3
-        run: |
-          set -ex
-
-          curl -sSL https://build.haxe.org/builds/neko/$PLATFORM/neko_latest.tar.gz -o $RUNNER_TEMP/neko_latest.tar.gz
-          tar -xf $RUNNER_TEMP/neko_latest.tar.gz -C $RUNNER_TEMP
-          NEKOPATH=`echo $RUNNER_TEMP/neko-*-*`
-          sudo mkdir -p /usr/local/bin
-          sudo mkdir -p /usr/local/include
-          sudo mkdir -p /usr/local/lib/neko
-          sudo ln -s $NEKOPATH/{neko,nekoc,nekoml,nekotools}  /usr/local/bin/
-          sudo ln -s $NEKOPATH/libneko.*                      /usr/local/lib/
-          sudo ln -s $NEKOPATH/include/*                      /usr/local/include/
-          sudo ln -s $NEKOPATH/*.ndll                         /usr/local/lib/neko/
-          echo "NEKOPATH=$NEKOPATH" >> $GITHUB_ENV
-
-      - name: Print Neko version
-        run: neko -version 2>&1
+      - uses: ./.github/actions/setup-neko
 
       - name: Setup Haxe
         run: |
@@ -839,38 +597,41 @@ jobs:
           mkdir ~/haxelib
           haxelib setup ~/haxelib
 
-      - name: Install homebrew packages
-        if: matrix.BREW_PACKAGES
-        run: brew install ${{matrix.BREW_PACKAGES}}
+      - name: Cache Lua environments
+        uses: ./.github/actions/cache-lua
+        if: matrix.target == 'lua'
+        with:
+          key-prefix: lua-env-mac-${{ matrix.arch }}
 
       - name: Test
         run: |
           # disable invalid Unicode filenames on APFS
           echo "" > sys/compile-fs.hxml
-          haxe RunCi.hxml
+          haxe --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 60
 
 
   deploy:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
-    needs: [linux-test, linux-arm64-test, mac-test, windows64-test]
-    runs-on: ubuntu-22.04
+    needs: [linux-test, mac-test, windows64-test]
+    runs-on: ubuntu-24.04
     steps:
       # this is only needed for to get `COMMIT_DATE`...
       # maybe https://github.community/t/expose-commit-timestamp-in-the-github-context-data/16460/3
       # would be faster
       - name: Checkout the repository
-        uses: actions/checkout@main
+        uses: actions/checkout@v7
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
 
-      - name: Install awscli
+      - name: Install rclone
         run: |
           set -ex
           sudo apt-get update -qqy
-          sudo apt-get install -qqy awscli
+          sudo apt-get install -qqy rclone
+          rclone config touch
 
       # https://stackoverflow.com/questions/58033366/how-to-get-current-branch-within-github-actions
       - name: Extract branch name
@@ -881,50 +642,94 @@ jobs:
       - name: Upload binaries
         shell: bash
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.HXBUILDS_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.HXBUILDS_AWS_SECRET_ACCESS_KEY }}
-          HXBUILDS_S3ADDR: ${{ secrets.HXBUILDS_S3ADDR }}
-          AWS_EC2_METADATA_DISABLED: true
+          RCLONE_CONFIG_S3_TYPE: "s3"
+          RCLONE_CONFIG_S3_PROVIDER: "AWS"
+          RCLONE_CONFIG_S3_ACCESS_KEY_ID: ${{ secrets.HXBUILDS_AWS_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_S3_SECRET_ACCESS_KEY: ${{ secrets.HXBUILDS_AWS_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_TYPE: "s3"
+          RCLONE_CONFIG_R2_PROVIDER: "Cloudflare"
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ vars.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
+          RCLONE_CONFIG_R2_ACL: "private"
         run: |
           set -ex
           COMMIT_HASH_SHORT=${GITHUB_SHA:0:7}
           COMMIT_DATE=`TZ=UTC git show --quiet --date='format-local:%Y-%m-%d' --format="%cd"`
           FILE_NAME=haxe_${COMMIT_DATE}_${{ steps.extract_branch.outputs.branch }}_${COMMIT_HASH_SHORT}
-          aws s3 cp linuxBinaries/*_bin.tar.gz      ${HXBUILDS_S3ADDR}/haxe/linux64/${FILE_NAME}.tar.gz
-          aws s3 cp linuxArm64Binaries/*_bin.tar.gz ${HXBUILDS_S3ADDR}/haxe/linux-arm64/${FILE_NAME}.tar.gz
-          aws s3 cp macBinaries/*_bin.tar.gz        ${HXBUILDS_S3ADDR}/haxe/mac/${FILE_NAME}.tar.gz
-          aws s3 cp macBinaries/*_installer.tar.gz  ${HXBUILDS_S3ADDR}/haxe/mac-installer/${FILE_NAME}.tar.gz
-          aws s3 cp win64Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows64/${FILE_NAME}.zip
-          aws s3 cp win64Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows64-installer/${FILE_NAME}.zip
-          aws s3 cp win64Binaries/*.nupkg           ${HXBUILDS_S3ADDR}/haxe/windows64-choco/
+
+          rclone copyto linuxBinaries/*_bin.tar.gz      r2:hxbuilds-hjtpx7fj/builds/haxe/linux64/${FILE_NAME}.tar.gz
+          rclone copyto linuxArm64Binaries/*_bin.tar.gz r2:hxbuilds-hjtpx7fj/builds/haxe/linux-arm64/${FILE_NAME}.tar.gz
+          rclone copyto macBinaries/*_bin.tar.gz        r2:hxbuilds-hjtpx7fj/builds/haxe/mac/${FILE_NAME}.tar.gz
+          rclone copyto macBinaries/*_installer.tar.gz  r2:hxbuilds-hjtpx7fj/builds/haxe/mac-installer/${FILE_NAME}.tar.gz
+          rclone copyto win64Binaries/*_bin.zip         r2:hxbuilds-hjtpx7fj/builds/haxe/windows64/${FILE_NAME}.zip
+          rclone copyto win64Binaries/*_installer.zip   r2:hxbuilds-hjtpx7fj/builds/haxe/windows64-installer/${FILE_NAME}.zip
+          rclone copy win64Binaries/*.nupkg             r2:hxbuilds-hjtpx7fj/builds/haxe/windows64-choco/
+
+          rclone copyto linuxBinaries/*_bin.tar.gz      s3:hxbuilds/builds/haxe/linux64/${FILE_NAME}.tar.gz
+          rclone copyto linuxArm64Binaries/*_bin.tar.gz s3:hxbuilds/builds/haxe/linux-arm64/${FILE_NAME}.tar.gz
+          rclone copyto macBinaries/*_bin.tar.gz        s3:hxbuilds/builds/haxe/mac/${FILE_NAME}.tar.gz
+          rclone copyto macBinaries/*_installer.tar.gz  s3:hxbuilds/builds/haxe/mac-installer/${FILE_NAME}.tar.gz
+          rclone copyto win64Binaries/*_bin.zip         s3:hxbuilds/builds/haxe/windows64/${FILE_NAME}.zip
+          rclone copyto win64Binaries/*_installer.zip   s3:hxbuilds/builds/haxe/windows64-installer/${FILE_NAME}.zip
+          rclone copy win64Binaries/*.nupkg             s3:hxbuilds/builds/haxe/windows64-choco/
 
       - name: Update "latest"
         if: github.ref == 'refs/heads/development'
         shell: bash
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.HXBUILDS_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.HXBUILDS_AWS_SECRET_ACCESS_KEY }}
-          HXBUILDS_S3ADDR: ${{ secrets.HXBUILDS_S3ADDR }}
-          AWS_EC2_METADATA_DISABLED: true
+          RCLONE_CONFIG_S3_TYPE: "s3"
+          RCLONE_CONFIG_S3_PROVIDER: "AWS"
+          RCLONE_CONFIG_S3_ACCESS_KEY_ID: ${{ secrets.HXBUILDS_AWS_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_S3_SECRET_ACCESS_KEY: ${{ secrets.HXBUILDS_AWS_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_TYPE: "s3"
+          RCLONE_CONFIG_R2_PROVIDER: "Cloudflare"
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ vars.R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
+          RCLONE_CONFIG_R2_ACL: "private"
+          CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -ex
-          aws s3 cp linuxBinaries/*_bin.tar.gz      ${HXBUILDS_S3ADDR}/haxe/linux64/haxe_latest.tar.gz
-          aws s3 cp linuxArm64Binaries/*_bin.tar.gz ${HXBUILDS_S3ADDR}/haxe/linux-arm64/haxe_latest.tar.gz
-          aws s3 cp macBinaries/*_bin.tar.gz        ${HXBUILDS_S3ADDR}/haxe/mac/haxe_latest.tar.gz
-          aws s3 cp macBinaries/*_installer.tar.gz  ${HXBUILDS_S3ADDR}/haxe/mac-installer/haxe_latest.tar.gz
-          aws s3 cp win64Binaries/*_bin.zip         ${HXBUILDS_S3ADDR}/haxe/windows64/haxe_latest.zip
-          aws s3 cp win64Binaries/*_installer.zip   ${HXBUILDS_S3ADDR}/haxe/windows64-installer/haxe_latest.zip
 
-          # Chocolatey packages have to be named with version number,
-          # so let's use web redirection to keep the original file name.
-          [[ "$HXBUILDS_S3ADDR" =~ s3://([^/]+)(.*) ]] && HXBUILDS_S3BUCKET="${BASH_REMATCH[1]}" && HXBUILDS_S3PATH="${BASH_REMATCH[2]}"
-          [[ `echo win64Binaries/*.nupkg` =~ win64Binaries/(.+) ]] && FILE_NAME="${BASH_REMATCH[1]}"
-          aws s3 cp ${HXBUILDS_S3ADDR}/haxe/windows64-choco/${FILE_NAME} ${HXBUILDS_S3ADDR}/haxe/windows64-choco/haxe_latest.nupkg --acl public-read --website-redirect "${HXBUILDS_S3PATH}/haxe/windows64-choco/${FILE_NAME}"
+          rclone copyto linuxBinaries/*_bin.tar.gz      r2:hxbuilds-hjtpx7fj/builds/haxe/linux64/haxe_latest.tar.gz
+          rclone copyto linuxArm64Binaries/*_bin.tar.gz r2:hxbuilds-hjtpx7fj/builds/haxe/linux-arm64/haxe_latest.tar.gz
+          rclone copyto macBinaries/*_bin.tar.gz        r2:hxbuilds-hjtpx7fj/builds/haxe/mac/haxe_latest.tar.gz
+          rclone copyto macBinaries/*_installer.tar.gz  r2:hxbuilds-hjtpx7fj/builds/haxe/mac-installer/haxe_latest.tar.gz
+          rclone copyto win64Binaries/*_bin.zip         r2:hxbuilds-hjtpx7fj/builds/haxe/windows64/haxe_latest.zip
+          rclone copyto win64Binaries/*_installer.zip   r2:hxbuilds-hjtpx7fj/builds/haxe/windows64-installer/haxe_latest.zip
+          rclone copyto win64Binaries/*.nupkg           r2:hxbuilds-hjtpx7fj/builds/haxe/windows64-choco/haxe_latest.nupkg
 
+          rclone copyto linuxBinaries/*_bin.tar.gz      s3:hxbuilds/builds/haxe/linux64/haxe_latest.tar.gz
+          rclone copyto linuxArm64Binaries/*_bin.tar.gz s3:hxbuilds/builds/haxe/linux-arm64/haxe_latest.tar.gz
+          rclone copyto macBinaries/*_bin.tar.gz        s3:hxbuilds/builds/haxe/mac/haxe_latest.tar.gz
+          rclone copyto macBinaries/*_installer.tar.gz  s3:hxbuilds/builds/haxe/mac-installer/haxe_latest.tar.gz
+          rclone copyto win64Binaries/*_bin.zip         s3:hxbuilds/builds/haxe/windows64/haxe_latest.zip
+          rclone copyto win64Binaries/*_installer.zip   s3:hxbuilds/builds/haxe/windows64-installer/haxe_latest.zip
+          rclone copyto win64Binaries/*.nupkg           s3:hxbuilds/builds/haxe/windows64-choco/haxe_latest.nupkg
+
+          curl "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
+              -fsS \
+              -H 'Content-Type: application/json' \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -d '{
+                      "files": [
+                          "https://build.haxe.org/builds/haxe/linux64/haxe_latest.tar.gz",
+                          "https://build.haxe.org/builds/haxe/linux-arm64/haxe_latest.tar.gz",
+                          "https://build.haxe.org/builds/haxe/mac/haxe_latest.tar.gz",
+                          "https://build.haxe.org/builds/haxe/mac-installer/haxe_latest.tar.gz",
+                          "https://build.haxe.org/builds/haxe/windows64/haxe_latest.zip",
+                          "https://build.haxe.org/builds/haxe/windows64-installer/haxe_latest.zip",
+                          "https://build.haxe.org/builds/haxe/windows64-choco/haxe_latest.nupkg"
+                      ]
+                  }'
 
   deploy_apidoc:
-    if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request'
-    needs: [linux-test, linux-arm64-test, mac-test, windows64-test]
+    if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/development')
+    needs: [linux-test, mac-test, windows64-test]
     runs-on: ubuntu-22.04
     steps:
       - name: Install dependencies
@@ -933,7 +738,7 @@ jobs:
           sudo apt-get install -qqy libc6
 
       - name: Download Haxe
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: linuxBinaries
           path: linuxBinaries
@@ -949,7 +754,7 @@ jobs:
           sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
 
       - name: Download xmldoc artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: xmldoc
           path: xmldoc

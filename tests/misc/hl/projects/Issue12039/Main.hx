@@ -13,5 +13,11 @@ class Main {
 		$type((f1 : Single) / (f2 : Single));
 		$type(f1 / s2);
 		$type(s1 / f2);
+		$type(s1 % s2);
+		$type(s1 % (f2 : Single));
+		$type((f1 : Single) % s2);
+		$type((f1 : Single) % (f2 : Single));
+		$type(f1 % s2);
+		$type(s1 % f2);
 	}
 }

@@ -41,6 +41,7 @@ let iter f e =
 	| TVar (v,eo) ->
 		(match eo with None -> () | Some e -> f e)
 	| TFunction fu ->
+		List.iter (fun (_,eo) -> match eo with None -> () | Some e -> f e) fu.tf_args;
 		f fu.tf_expr
 	| TIf (e,e1,e2) ->
 		f e;
@@ -79,7 +80,7 @@ let check_expr predicate e =
 		| TVar (_,eo) | TReturn eo ->
 			(match eo with None -> false | Some e -> predicate e)
 		| TFunction fu ->
-			predicate fu.tf_expr
+			List.exists (fun (_,eo) -> match eo with None -> false | Some e -> predicate e) fu.tf_args || predicate fu.tf_expr
 		| TIf (e,e1,e2) ->
 			predicate e || predicate e1 || (match e2 with None -> false | Some e -> predicate e)
 		| TSwitch switch ->
@@ -133,7 +134,11 @@ let map_expr f e =
 	| TVar (v,eo) ->
 		{ e with eexpr = TVar (v, match eo with None -> None | Some e -> Some (f e)) }
 	| TFunction fu ->
-		{ e with eexpr = TFunction { fu with tf_expr = f fu.tf_expr } }
+		let map_arg (v,eo) = match eo with
+			| None -> v,eo
+			| Some e -> v,Some (f e)
+		in
+		{ e with eexpr = TFunction { fu with tf_args = List.map map_arg fu.tf_args; tf_expr = f fu.tf_expr } }
 	| TIf (ec,e1,e2) ->
 		let ec = f ec in
 		let e1 = f e1 in
@@ -313,13 +318,17 @@ let rec equal e1 e2 = match e1.eexpr,e2.eexpr with
 
 let e_identity e = e
 
+let copy_var v =
+	let v2 = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
+	v2.v_meta <- v.v_meta;
+	v2.v_extra <- v.v_extra;
+	v2.v_flags <- v.v_flags;
+	v2
+
 let duplicate_tvars f_this e =
 	let vars = Hashtbl.create 0 in
 	let copy_var v =
-		let v2 = alloc_var v.v_kind v.v_name v.v_type v.v_pos in
-		v2.v_meta <- v.v_meta;
-		v2.v_extra <- v.v_extra;
-		v2.v_flags <- v.v_flags;
+		let v2 = copy_var v in
 		Hashtbl.add vars v.v_id v2;
 		v2;
 	in
@@ -335,7 +344,7 @@ let duplicate_tvars f_this e =
 			) cl in
 			{e with eexpr = TTry(build_expr e1, cl)}
 		| TFunction f ->
-			let args = List.map (fun (v,c) -> copy_var v, c) f.tf_args in
+			let args = List.map (fun (v,c) -> let v = copy_var v in v, Option.map build_expr c) f.tf_args in
 			let f = {
 				tf_args = args;
 				tf_type = f.tf_type;
@@ -437,8 +446,13 @@ let foldmap f acc e =
 		let acc,eo = foldmap_opt f acc eo in
 		acc,{ e with eexpr = TVar (v, eo) }
 	| TFunction fu ->
+		let acc,tf_args = List.fold_left (fun (acc,args) (v,eo) ->
+			let acc,eo = foldmap_opt f acc eo in
+			acc,((v,eo) :: args)
+		) (acc,[]) fu.tf_args in
+		let tf_args = List.rev tf_args in
 		let acc,e1 = f acc fu.tf_expr in
-		acc,{ e with eexpr = TFunction { fu with tf_expr = e1 } }
+		acc,{ e with eexpr = TFunction { fu with tf_args; tf_expr = e1 } }
 	| TIf (ec,e1,eo) ->
 		let acc,ec = f acc ec in
 		let acc,e1 = f acc e1 in
@@ -507,6 +521,9 @@ module Builder = struct
 
 	let make_local v p =
 		mk (TLocal v) v.v_type p
+
+	let make_array_access arr iexpr pt p =
+		mk (TArray (arr,iexpr)) pt p
 
 	let make_const_texpr basic ct p = match ct with
 		| TString s -> mk (TConst (TString s)) basic.tstring p
@@ -625,7 +642,7 @@ let is_constant_value basic e =
 	try (ignore (type_constant_value basic e); true) with Error {err_message = Custom _} -> false
 
 let for_remap basic v etype e1 e2 p =
-	let v' = alloc_var v.v_kind v.v_name etype e1.epos in
+	let v' = alloc_var VGenerated (gen_local_prefix ^ v.v_name) etype e1.epos in
 	let ev' = mk (TLocal v') etype e1.epos in
 	let t1 = (Abstract.follow_with_abstracts etype) in
 	let ehasnext = mk (TField(ev',try quick_field t1 "hasNext" with Not_found -> raise_typing_error (s_type (print_context()) t1 ^ " has no field hasNext()") p)) (tfun [] basic.tbool) e1.epos in
@@ -638,6 +655,24 @@ let for_remap basic v etype e1 e2 p =
 		mk (TVar (v',Some e1)) basic.tvoid e1.epos;
 		mk (TWhile((mk (TParenthesis ehasnext) ehasnext.etype ehasnext.epos),ebody,NormalWhile)) basic.tvoid e1.epos;
 	]) basic.tvoid p
+
+let not_while_true_to_while_true basic e1 e2 flag t p =
+	let e_break = mk TBreak t_dynamic p in
+	let e_not = mk (TUnop(Not,Prefix,Builder.mk_parent e1)) e1.etype e1.epos in
+	let e_if eo = mk (TIf(e_not,e_break,eo)) basic.tvoid p in
+	let rec map_continue e = match e.eexpr with
+		| TContinue ->
+			duplicate_tvars e_identity (e_if (Some e))
+		| TWhile _ ->
+			e
+		| _ ->
+			map_expr map_continue e
+	in
+	let e2 = if flag = NormalWhile then e2 else map_continue e2 in
+	let e_if = e_if None in
+	let e_block = if flag = NormalWhile then concat e_if e2 else concat e2 e_if in
+	let e_true = mk (TConst (TBool true)) basic.tbool p in
+	mk (TWhile(e_true,e_block,NormalWhile)) t p
 
 (* -------------------------------------------------------------------------- *)
 (* BUILD META DATA OBJECT *)

@@ -153,6 +153,7 @@ class StringImpl {
 				if (startIndex < 0)
 					startIndex = 0;
 			}
+			if (len < 0) len = s.length + len - startIndex;
 			return Syntax.arrayAccess(s, startIndex, startIndex + len);
 		}
 	}

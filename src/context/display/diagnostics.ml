@@ -13,8 +13,8 @@ let add_replaceable_code ctx reason replacement display_range replace_range =
 	} :: ctx.replaceable_code
 
 let error_in_diagnostics_run com p =
-	let b = DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get p.pfile) in
-	if b then com.has_error <- true;
+	let b = DiagnosticsPrinter.is_diagnostics_file com (com.part_scope.file_keys#get p.pfile) in
+	if b then com.part_scope.has_error <- true;
 	b
 
 let find_unused_variables com e =
@@ -45,10 +45,10 @@ let find_unused_variables com e =
 let check_other_things com e =
 	let had_effect = ref false in
 	let no_effect p =
-		add_diagnostics_message com "This code has no effect" p DKCompilerMessage Warning;
+		add_diagnostics_message com "This code has no effect" p (MKWarning(WPointlessCode, []));
 	in
 	let pointless_compound s p =
-		add_diagnostics_message com (Printf.sprintf "This %s has no effect, but some of its sub-expressions do" s) p DKCompilerMessage Warning;
+		add_diagnostics_message com (Printf.sprintf "This %s has no effect, but some of its sub-expressions do" s) p (MKWarning(WPointlessCode, []));
 	in
 	let rec compound s el p =
 		let old = !had_effect in
@@ -106,7 +106,7 @@ let collect_diagnostics dctx com =
 	let open CompilationCache in
 	let dectx = DeprecationCheck.create_context com in
 	List.iter (function
-		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file com (com.file_keys#get c.cl_pos.pfile) ->
+		| TClassDecl c when DiagnosticsPrinter.is_diagnostics_file com (com.part_scope.file_keys#get c.cl_pos.pfile) ->
 			let dectx = {dectx with class_meta = c.cl_meta} in
 			List.iter (prepare_field dctx dectx com) c.cl_ordered_fields;
 			List.iter (prepare_field dctx dectx com) c.cl_ordered_statics;
@@ -121,7 +121,7 @@ let collect_diagnostics dctx com =
 				ParserEntry.is_true (ParserEntry.eval defines e)
 			in
 			Hashtbl.iter (fun file_key cfile ->
-				if DisplayPosition.display_position#is_in_file (com.file_keys#get cfile.c_file_path.file) then begin
+				if DisplayPosition.display_position#is_in_file (com.part_scope.file_keys#get cfile.c_file_path.file) then begin
 					let dead_blocks = cfile.c_pdi.pd_dead_blocks in
 					let dead_blocks = List.filter (fun (_,e) -> not (is_true display_defines e)) dead_blocks in
 					try
@@ -143,11 +143,9 @@ let prepare com =
 		replaceable_code = [];
 		import_positions = PMap.empty;
 		dead_blocks = Hashtbl.create 0;
-		diagnostics_messages = [];
-		unresolved_identifiers = [];
-		missing_fields = PMap.empty;
+		messages = [];
 	} in
-	if not (List.exists (fun diag -> diag.diag_severity = MessageSeverity.Error) com.shared.shared_display_information.diagnostics_messages) then
+	if not (List.exists (fun cm -> Message.cm_severity cm = Message.MessageSeverity.Error) com.part_scope.messages) then
 		collect_diagnostics dctx com;
 	let process_modules com =
 		List.iter (fun m ->
@@ -159,17 +157,7 @@ let prepare com =
 					b' := true
 				end
 			) m.m_extra.m_display.m_import_positions;
-		) com.modules;
-		List.iter (function
-			| MissingFields mf ->
-				let p = mf.mf_pos in
-				begin try
-					let _,l = PMap.find p dctx.missing_fields in
-					l := mf :: !l
-				with Not_found ->
-					dctx.missing_fields <- PMap.add p (mf.mf_on,ref [mf]) dctx.missing_fields
-				end
-		) com.display_information.module_diagnostics
+		) com.modules
 	in
 	process_modules com;
 	begin match com.get_macros() with
@@ -177,8 +165,7 @@ let prepare com =
 	| Some com -> process_modules com
 	end;
 	(* We do this at the end because some of the prepare functions might add information to the common context. *)
-	dctx.diagnostics_messages <- com.shared.shared_display_information.diagnostics_messages;
-	dctx.unresolved_identifiers <- com.display_information.unresolved_identifiers;
+	dctx.messages <- com.part_scope.messages;
 	dctx
 
 let print com =

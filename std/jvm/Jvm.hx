@@ -71,6 +71,10 @@ class Jvm {
 		return Reflect.compare(v1, v2);
 	}
 
+	static public function compareFunctions(v1:Dynamic, v2:Dynamic):Bool {
+		return Reflect.compareMethods(v1, v2);
+	}
+
 	static public function enumEq(v1:Dynamic, v2:Dynamic) {
 		if (!instanceof(v1, jvm.Enum)) {
 			return false;
@@ -237,7 +241,7 @@ class Jvm {
 		return n == null ? null : n.doubleValue();
 	}
 
-	static public function toByte(d:Dynamic) {
+	static public function toByte(d:Dynamic):jvm.Int8 {
 		return d == null ? 0 : (d : java.lang.Number).byteValue();
 	}
 

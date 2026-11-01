@@ -88,6 +88,17 @@ type macro_result =
 
 type typer_pass_tasks = {
 	mutable tasks : (unit -> unit) list;
+	mutable tasks_late : (unit -> unit) list;
+}
+
+type function_mode =
+	| FunFunction
+	| FunCoroutine
+	| FunNotFunction
+
+type call_arg_context = {
+	cac_in_overload : bool;
+	mutable cac_body_capture : Message.t list ref;
 }
 
 type typer_globals = {
@@ -97,7 +108,6 @@ type typer_globals = {
 	retain_meta : bool;
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;
-	mutable std_types : module_def;
 	mutable module_check_policies : (string list * module_check_policy list * bool) list;
 	mutable global_using : (tclass * pos) list;
 	(* Indicates that Typer.create() finished building this instance *)
@@ -108,8 +118,10 @@ type typer_globals = {
 	mutable build_count : int;
 	mutable t_dynamic_def : Type.t;
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
+	mutable call_arg_context : call_arg_context option;
 	root_typer : typer;
 	(* api *)
+	mutable continuation_api : ContTypes.continuation_api option;
 	do_macro : typer -> macro_mode -> path -> string -> expr list -> pos -> macro_result;
 	do_load_macro : typer -> bool -> path -> string -> pos -> ((string * bool * t) list * t * tclass * Type.tclass_field);
 	do_load_module : ?origin:module_dep_origin -> typer -> path -> pos -> module_def;
@@ -123,7 +135,7 @@ type typer_globals = {
    is shared by local TFunctions. *)
 and typer_expr = {
 	curfun : current_fun;
-	in_function : bool;
+	function_mode : function_mode;
 	mutable ret : t;
 	mutable opened : anon_status ref list;
 	mutable monomorphs : (tmono * pos) list;
@@ -142,7 +154,6 @@ and typer_field = {
 	mutable meta : metadata;
 	mutable in_display : bool;
 	mutable in_call_args : bool;
-	mutable in_overload_call_args : bool;
 }
 
 and typer = {
@@ -212,14 +223,13 @@ module TyperManager = struct
 			untyped = false;
 			meta = [];
 			in_display = false;
-			in_overload_call_args = false;
 			in_call_args = false;
 		}
 
-	let create_ctx_e curfun in_function =
+	let create_ctx_e curfun function_mode =
 		{
 			curfun;
-			in_function;
+			function_mode;
 			ret = t_dynamic;
 			opened = [];
 			monomorphs = [];
@@ -282,8 +292,17 @@ module TyperManager = struct
 
 	let clone_for_type_parameter_expression ctx =
 		let f = create_ctx_f ctx.f.curfield in
-		let e = create_ctx_e ctx.e.curfun false in
+		let e = create_ctx_e ctx.e.curfun FunNotFunction in
 		create ctx ctx.m ctx.c f e PTypeField ctx.type_params
+
+	let is_coroutine_context ctx =
+		ctx.e.function_mode = FunCoroutine
+
+	let is_function_context ctx = match ctx.e.function_mode with
+		| FunFunction | FunCoroutine ->
+			true
+		| FunNotFunction ->
+			false
 end
 
 type field_host =
@@ -305,6 +324,8 @@ type field_access = {
 	fa_inline : bool;
 	(* The position of the field access expression in syntax. *)
 	fa_pos    : pos;
+	(* The position of the field name accessed on `fa_on`. *)
+	fa_field_pos : pos option;
 }
 
 type static_extension_access = {
@@ -371,12 +392,48 @@ let spawn_monomorph' ctx p =
 let spawn_monomorph ctx p =
 	TMono (spawn_monomorph' ctx p)
 
+let monomorph_transaction ctx =
+	let current = ctx.e.monomorphs in
+	let known = List.fold_left (fun acc (m,_) -> match m.tm_type with
+		| None -> (m,m.tm_down_constraints) :: acc
+		| Some _ -> acc
+	) [] current in
+	(fun () ->
+		List.iter (fun (m,constr) ->
+			(match m.tm_type with Some _ -> m.tm_type <- None | None -> ());
+			if constr != m.tm_down_constraints then m.tm_down_constraints <- constr;
+		) known;
+		ctx.e.monomorphs <- current
+	)
+
 let make_static_field_access c cf t p =
 	let ethis = Texpr.Builder.make_static_this c p in
 	mk (TField (ethis,(FStatic (c,cf)))) t p
 
-let raise_with_type_error ?(depth = 0) msg p =
-	raise (WithTypeError (make_error ~depth (Custom msg) p))
+let enter_call_args ctx ~in_overload =
+	let old_in_call_args = ctx.f.in_call_args in
+	let old_context = ctx.g.call_arg_context in
+	ctx.f.in_call_args <- true;
+	ctx.g.call_arg_context <- Some { cac_in_overload = in_overload; cac_body_capture = ref [] };
+	(fun () ->
+		ctx.f.in_call_args <- old_in_call_args;
+		ctx.g.call_arg_context <- old_context;
+	)
+
+let in_overload_call_args ctx = match ctx.g.call_arg_context with
+	| Some cac -> cac.cac_in_overload
+	| None -> false
+
+let reset_call_arg_body_capture ctx = match ctx.g.call_arg_context with
+	| Some cac -> let buf = ref [] in cac.cac_body_capture <- buf; buf
+	| None -> ref []
+
+let call_arg_body_capture ctx = match ctx.g.call_arg_context with
+	| Some cac -> Some cac.cac_body_capture
+	| None -> None
+
+let raise_with_type_error msg p =
+	raise (WithTypeError (make_error (Custom msg) p))
 
 let raise_or_display ctx l p =
 	if ctx.f.untyped then ()
@@ -457,7 +514,7 @@ let delay g (p : typer_pass) f =
 let delay_late g (p : typer_pass) f =
 	let p = Obj.magic p in
 	let tasks = g.delayed.(p) in
-	tasks.tasks <- tasks.tasks @ [f];
+	tasks.tasks_late <- f :: tasks.tasks_late;
 	if p < g.delayed_min_index then
 		g.delayed_min_index <- p
 
@@ -473,16 +530,24 @@ let rec flush_pass g (p : typer_pass) where =
 			()
 		else begin
 			let tasks = g.delayed.(i) in
-			match tasks.tasks with
+			begin match tasks.tasks with
 			| f :: l ->
 				tasks.tasks <- l;
 				f();
 				flush_pass g p where
 			| [] ->
-				(* Done with this pass (for now), update min index to next one *)
-				let i = i + 1 in
-				g.delayed_min_index <- i;
-				loop i
+				begin match tasks.tasks_late with
+				| _ :: _ ->
+					tasks.tasks <- List.rev tasks.tasks_late;
+					tasks.tasks_late <- [];
+					flush_pass g p where
+				| [] ->
+					(* Done with this pass (for now), update min index to next one *)
+					let i = i + 1 in
+					g.delayed_min_index <- i;
+					loop i
+				end
+			end
 		end
 	in
 	loop g.delayed_min_index
@@ -508,8 +573,12 @@ let needs_inline ctx c cf =
 	cf.cf_kind = Method MethInline && ctx.allow_inline && (ctx.com.doinline || is_forced_inline c cf)
 
 (** checks if we can access to a given class field using current context *)
-let can_access ctx c cf stat =
-	if (has_class_field_flag cf CfPublic) then
+let can_access ctx c cf ?(check_prop=false) ?(is_setter=false) stat =
+	let is_private_prop = check_prop && match cf.cf_kind with
+		| Var { v_read = AccPrivateCall } when not is_setter -> true
+		| Var { v_write = AccPrivateCall } when is_setter -> true
+		| _ -> false in
+	if (not is_private_prop && has_class_field_flag cf CfPublic) then
 		true
 	else if c == ctx.c.curclass then
 		true
@@ -717,7 +786,7 @@ let make_stored_id_expr id p =
 
 let store_typed_expr com te p =
 	let id = get_next_stored_typed_expr_id() in
-	com.stored_typed_exprs#add id te;
+	com.part_scope.stored_typed_exprs#add id te;
 	let eid = make_stored_id_expr id p in
 	id,((EMeta ((Meta.StoredTypedExpr,[],null_pos), eid)),p)
 
@@ -726,7 +795,7 @@ let push_this ctx e = match e.eexpr with
 	(EConst (tconst_to_const ct),e.epos),fun () -> ()
 | _ ->
 	let id,er = store_typed_expr ctx.com e e.epos in
-	er,fun () -> ctx.com.stored_typed_exprs#remove id
+	er,fun () -> ctx.com.part_scope.stored_typed_exprs#remove id
 
 let create_deprecation_context ctx = {
 	(DeprecationCheck.create_context ctx.com) with
@@ -764,9 +833,10 @@ let debug com (path : string list) str =
 	if Common.raw_defined com "cdebug" then begin
 		let emit () =
 			let s = (context_ident com ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str) in
-			match com.json_out with
-			| None -> print_endline s
-			| Some _ -> DynArray.add com.pass_debug_messages s
+			if com.sctx.is_server then
+				DynArray.add com.part_scope.pass_debug_messages s
+			else
+				print_endline s
 		in
 		match debug_paths,path with
 		| [],_

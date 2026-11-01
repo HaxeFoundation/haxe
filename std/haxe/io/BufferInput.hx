@@ -28,7 +28,7 @@ class BufferInput extends haxe.io.Input {
 	public var available:Int;
 	public var pos:Int;
 
-	public function new(i, buf, ?pos = 0, ?available = 0) {
+	public function new(i, buf, pos = 0, available = 0) {
 		this.i = i;
 		this.buf = buf;
 		this.pos = pos;

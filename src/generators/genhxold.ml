@@ -135,7 +135,8 @@ let generate_type com t =
 			else
 				(* we have not found a default value stored in metadata, let's generate it *)
 				n ^ " : " ^ stype t ^ " = " ^ (match follow t with
-					| TAbstract ({ a_path = [],("Int"|"Float"|"UInt") },_) -> "0"
+					| TAbstract ({ a_path = [],("Int"|"Float"|"UInt") },_)
+					| TAbstract ({ a_path = ["haxe"],"UInt32" },_) -> "0"
 					| TAbstract ({ a_path = [],"Bool" },_) -> "false"
 					| _ -> "null")
 		| Some v ->

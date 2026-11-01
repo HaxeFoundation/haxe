@@ -27,8 +27,8 @@ package sys.thread;
 #end
 
 /**
-	A Deque is a double-ended queue with a `pop` method that can block until
-	an element is available. It is commonly used to synchronize threads.
+	A Deque is an output-restricted double-ended queue with a `pop` method that can
+	block until an element is available. It is commonly used to synchronize threads.
  */
 @:coreApi extern class Deque<T> {
 	/**

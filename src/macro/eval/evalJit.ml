@@ -427,7 +427,7 @@ and jit_expr jit return e =
 			in
 			let lazy_proto_field proto =
 				let i = get_proto_field_index proto name in
-				lazy (match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v e.epos)
+				AtomicLazy.from_fun (fun () -> match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v e.epos)
 			in
 			let jit_with_null_check ef =
 				let exec = jit_expr jit false ef in
@@ -489,22 +489,15 @@ and jit_expr jit return e =
 					emit_special_super_call f execs
 				with Not_found ->
 					let fnew = get_instance_constructor jit.ctx key e1.epos in
-					let v = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
+					let v = AtomicLazy.from_fun (fun () -> match AtomicLazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
 					emit_super_call v execs e.epos
 				end
 			| _ -> die "" __LOC__
 			end
 		| _ ->
-			match e1.eexpr,el with
-			| TIdent "$__mk_pos__",[file;min;max] ->
-				let exec1 = jit_expr jit false file in
-				let exec2 = jit_expr jit false min in
-				let exec3 = jit_expr jit false max in
-				emit_mk_pos exec1 exec2 exec3
-			| _ ->
-				let exec = jit_expr jit false e1 in
-				let execs = List.map (jit_expr jit false) el in
-				emit_call exec execs e.epos
+			let exec = jit_expr jit false e1 in
+			let execs = List.map (jit_expr jit false) el in
+			emit_call exec execs e.epos
 		end
 	| TNew({cl_path=[],"Array"},_,_) ->
 		emit_new_array
@@ -525,7 +518,7 @@ and jit_expr jit return e =
 		with Not_found ->
 			let fnew = get_instance_constructor jit.ctx key e.epos in
 			let proto = get_instance_prototype jit.ctx key e.epos in
-			let v = lazy (match Lazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
+			let v = AtomicLazy.from_fun (fun () -> match AtomicLazy.force fnew with VFunction (f,_) -> f | v -> cannot_call v e.epos) in
 			emit_constructor_call proto v execs e.epos
 		end
 	(* read *)
@@ -634,6 +627,8 @@ and jit_expr jit return e =
 	(* rewrites/skips *)
 	| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 		loop e1
+	| TIdent "$__mk_pos__" ->
+		emit_mk_pos e.epos
 	| TIdent s ->
 		Error.raise_typing_error ("Unknown identifier: " ^ s) e.epos
 	in
@@ -675,11 +670,10 @@ and jit_tfunction jit static pos tf =
 		| Local slot -> execute_set_local slot
 	) tf.tf_args in
 	let fl = if static then fl else (execute_set_local 0) :: fl in
-	(* Add conditionals for default values. *)
-	let e = List.fold_left (fun e (v,cto) -> match cto with
+	let e = List.fold_right (fun (v,cto) e -> match cto with
 		| None -> e
 		| Some ct -> concat (Texpr.set_default (ctx.curapi.MacroApi.get_com()).Common.basic v ct e.epos) e
-	) tf.tf_expr tf.tf_args in
+	) tf.tf_args tf.tf_expr in
 	let has_final_return el = match List.rev el with
 		| {eexpr = TReturn _} :: _ -> true
 		| _ -> false

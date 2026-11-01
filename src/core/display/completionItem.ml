@@ -55,10 +55,6 @@ module CompletionModuleType = struct
 		| No
 		| Maybe
 
-	type module_type_source =
-		| Syntax of type_def (* TODO: do we really want to keep this? *)
-		| Typed of module_type
-
 	type t = {
 		pack : string list;
 		name : string;
@@ -73,7 +69,6 @@ module CompletionModuleType = struct
 		is_abstract : bool;
 		kind : CompletionModuleKind.t;
 		has_constructor : not_bool;
-		source : module_type_source;
 	}
 
 	let of_type_decl pack module_name (td,p) = match td with
@@ -101,7 +96,6 @@ module CompletionModuleType = struct
 				is_abstract = List.mem HAbstract d.d_flags;
 				kind = if List.mem HInterface d.d_flags then Interface else Class;
 				has_constructor = ctor;
-				source = Syntax td;
 			}
 		| EEnum d -> {
 				pack = pack;
@@ -117,7 +111,6 @@ module CompletionModuleType = struct
 				is_abstract = false;
 				kind = Enum;
 				has_constructor = No;
-				source = Syntax td;
 			}
 		| ETypedef d ->
 			let kind = match fst d.d_data with CTAnonymous _ -> Struct | _ -> TypeAlias in
@@ -135,7 +128,6 @@ module CompletionModuleType = struct
 				is_abstract = false;
 				kind = kind;
 				has_constructor = if kind = Struct then No else Maybe;
-				source = Syntax td;
 			}
 		| EAbstract d ->
 			let ctor =
@@ -159,7 +151,6 @@ module CompletionModuleType = struct
 				is_abstract = false;
 				kind = if List.mem AbEnum d.d_flags then EnumAbstract else Abstract;
 				has_constructor = ctor;
-				source = Syntax td;
 			}
 		| EStatic d ->
 			{
@@ -176,7 +167,6 @@ module CompletionModuleType = struct
 				is_abstract = false;
 				kind = Static;
 				has_constructor = No;
-				source = Syntax td;
 			}
 		| EImport _ | EUsing _ ->
 			raise Exit
@@ -243,7 +233,6 @@ module CompletionModuleType = struct
 			is_abstract = is_abstract;
 			kind = kind;
 			has_constructor = ctor;
-			source = Typed mt;
 		}
 
 	let get_path cm = (cm.pack,cm.name)
@@ -257,20 +246,13 @@ module CompletionModuleType = struct
 				("importStatus",jint (ImportStatus.to_int is));
 			]) ::
 			("kind",jint (to_int cm.kind)) ::
-			(match ctx.generation_mode with
-			| GMFull | GMWithoutDoc ->
-				("meta",generate_metadata ctx cm.meta) ::
-				("pos",generate_pos ctx cm.pos) ::
-				("params",jlist (generate_ast_type_param ctx) cm.params) ::
-				("isExtern",jbool cm.is_extern) ::
-				("isFinal",jbool cm.is_final) ::
-				("isAbstract",jbool cm.is_abstract) ::
-				(if ctx.generation_mode = GMFull then ["doc",jopt jstring (gen_doc_text_opt cm.doc)] else [])
-			| GMMinimum ->
-				match generate_minimum_metadata ctx cm.meta with
-					| None -> []
-					| Some meta -> [("meta",meta)]
-			)
+			("meta",generate_metadata ctx cm.meta) ::
+			("pos",generate_pos ctx cm.pos) ::
+			("params",jlist (generate_ast_type_param ctx) cm.params) ::
+			("isExtern",jbool cm.is_extern) ::
+			("isFinal",jbool cm.is_final) ::
+			("isAbstract",jbool cm.is_abstract) ::
+			(if ctx.generate_docs then ["doc",jopt jstring (gen_doc_text_opt cm.doc)] else [])
 		in
 		jobject fields
 end
@@ -286,12 +268,14 @@ module ClassFieldOrigin = struct
 		| Unknown
 
 	let to_json ctx cfo =
+		let octx = { ctx with generate_member_bodies = false } in
+		let generate_module_type mt = generate_module_type octx mt in
 		let i,args = match cfo with
-		| Self mt -> 0,if ctx.generation_mode = GMMinimum then None else Some (generate_module_type ctx mt)
-		| StaticImport mt -> 1,if ctx.generation_mode = GMMinimum then None else Some (generate_module_type ctx mt)
-		| Parent mt -> 2,if ctx.generation_mode = GMMinimum then None else Some (generate_module_type ctx mt)
-		| StaticExtension mt -> 3,if ctx.generation_mode = GMMinimum then None else Some (generate_module_type ctx mt)
-		| AnonymousStructure an -> 4,if ctx.generation_mode = GMMinimum then None else Some (generate_anon ctx an)
+		| Self mt -> 0,if ctx.generate_origins then Some (generate_module_type mt) else None
+		| StaticImport mt -> 1,if ctx.generate_origins then Some (generate_module_type mt) else None
+		| Parent mt -> 2,if ctx.generate_origins then Some (generate_module_type mt) else None
+		| StaticExtension mt -> 3,if ctx.generate_origins then Some (generate_module_type mt) else None
+		| AnonymousStructure an -> 4,if ctx.generate_origins then Some (generate_anon ctx an) else None
 		| BuiltIn -> 5,None
 		| Unknown -> 6,None
 		in
@@ -522,7 +506,6 @@ type t_kind =
 	| ITPackage of path * (string * PackageContentKind.t) list
 	| ITModule of path
 	| ITLiteral of string
-	| ITTimer of string * string
 	| ITMetadata of Meta.strict_meta
 	| ITKeyword of keyword
 	| ITAnonymous of tanon
@@ -548,7 +531,6 @@ let make_ci_type mt import_status t = make (ITType(mt,import_status)) t
 let make_ci_package path l = make (ITPackage(path,l)) None
 let make_ci_module path = make (ITModule path) None
 let make_ci_literal lit t = make (ITLiteral lit) (Some t)
-let make_ci_timer name value = make (ITTimer(name,value)) None
 let make_ci_metadata meta = make (ITMetadata meta) None
 let make_ci_keyword kwd = make (ITKeyword kwd) None
 let make_ci_anon an t = make (ITAnonymous an) (Some t)
@@ -565,7 +547,6 @@ let get_index item = match item.ci_kind with
 	| ITPackage _ -> 5
 	| ITModule _ -> 6
 	| ITLiteral _ -> 7
-	| ITTimer _ -> 8
 	| ITMetadata _ -> 9
 	| ITKeyword _ -> 10
 	| ITAnonymous _ -> 11
@@ -620,35 +601,9 @@ let get_sort_index tk item p expected_name = match item.ci_kind with
 		60,s_keyword name
 	| ITAnonymous _
 	| ITExpression _
-	| ITTimer _
 	| ITMetadata _
 	| ITDefine _ ->
 		500,""
-
-let legacy_sort item = match item.ci_kind with
-	| ITClassField(cf) | ITEnumAbstractField(_,cf) ->
-		begin match cf.field.cf_kind with
-		| Var _ -> 0,cf.field.cf_name
-		| Method _ -> 1,cf.field.cf_name
-		end
-	| ITEnumField ef ->
-		let ef = ef.efield in
-		begin match follow ef.ef_type with
-		| TFun _ -> 1,ef.ef_name
-		| _ -> 0,ef.ef_name
-		end
-	| ITType(cm,_) -> 2,cm.name
-	| ITModule path -> 3,snd path
-	| ITPackage(path,_) -> 4,snd path
-	| ITMetadata meta -> 5,Meta.to_string meta
-	| ITTimer(s,_) -> 6,s
-	| ITLocal v -> 7,v.v_name
-	| ITLiteral s -> 9,s
-	| ITKeyword kwd -> 10,s_keyword kwd
-	| ITAnonymous _ -> 11,""
-	| ITExpression _ -> 12,""
-	| ITTypeParameter _ -> 13,""
-	| ITDefine _ -> 14,""
 
 let get_name item = match item.ci_kind with
 	| ITLocal v -> v.v_name
@@ -658,7 +613,6 @@ let get_name item = match item.ci_kind with
 	| ITPackage(path,_) -> snd path
 	| ITModule path -> snd path
 	| ITLiteral s -> s
-	| ITTimer(s,_) -> s
 	| ITMetadata meta -> Meta.to_string meta
 	| ITKeyword kwd -> s_keyword kwd
 	| ITAnonymous _ -> ""
@@ -676,7 +630,6 @@ let get_filter_name item = match item.ci_kind with
 	| ITPackage(path,_) -> s_type_path path
 	| ITModule path -> s_type_path path
 	| ITLiteral s -> s
-	| ITTimer(s,_) -> s
 	| ITMetadata meta -> Meta.to_string meta
 	| ITKeyword kwd -> s_keyword kwd
 	| ITAnonymous _ -> ""
@@ -749,10 +702,6 @@ let to_json ctx index item =
 		]
 		| ITLiteral s -> "Literal",jobject [
 			"name",jstring s;
-		]
-		| ITTimer(s,value) -> "Timer",jobject [
-			"name",jstring s;
-			"value",jstring value;
 		]
 		| ITMetadata meta ->
 			let open Meta in

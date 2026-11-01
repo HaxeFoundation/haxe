@@ -22,6 +22,12 @@ open EvalValue
 open EvalHash
 open EvalString
 
+module TlsStorage = Ephemeron.K1.Make(struct
+	type t = value
+	let equal = (==)
+	let hash v = match v with VInstance {ikind = ITls i} -> i | _ -> 0
+end)
+
 type var_info = {
 	vi_name : string;
 	vi_pos : pos;
@@ -109,6 +115,7 @@ type env = {
 and eval = {
 	mutable env : env option;
 	thread : vthread;
+	mutable exception_stack : (pos * env_kind) list;
 	(* The threads current debug state *)
 	mutable debug_state : debug_state;
 	(* The currently active breakpoint. Set to a dummy value initially. *)
@@ -121,6 +128,7 @@ and eval = {
 	mutable last_return : value option;
 	(* The debug channel used to synchronize with the debugger. *)
 	debug_channel : unit Event.channel;
+	eval_storage : value TlsStorage.t;
 }
 
 and debug_state =
@@ -274,20 +282,23 @@ and context = {
 	mutable type_cache : Type.module_type IntMap.t;
 	overrides : (Globals.path * string,bool) Hashtbl.t;
 	timer_ctx : Timer.timer_context;
+	mutable args : string list;
 	(* prototypes *)
 	mutable array_prototype : vprototype;
 	mutable string_prototype : vprototype;
 	mutable vector_prototype : vprototype;
 	mutable instance_prototypes : vprototype IntMap.t;
 	mutable static_prototypes : static_prototypes;
-	mutable constructors : value Lazy.t IntMap.t;
+	mutable constructors : value AtomicLazy.t IntMap.t;
+	fake_proto_cache : (int,vprototype) Hashtbl.t;
 	file_keys : Common.file_keys;
+	object_name_cache : (int list,int) Hashtbl.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
 	(* eval *)
+	mutable next_thread_id : int Atomic.t;
 	toplevel : value;
-	eval : eval;
-	mutable evals : eval IntMap.t;
-	mutable exception_stack : (pos * env_kind) list;
+	eval : eval Thread_local_storage.t;
+	evals : (int,eval) ThreadSafeHashtbl.t;
 	max_stack_depth : int;
 	max_print_depth : int;
 	print_indentation : string option;
@@ -321,14 +332,10 @@ let s_debug_state = function
 (* Misc *)
 
 let get_eval ctx =
-	let id = Thread.id (Thread.self()) in
-	if id = 0 then
-		ctx.eval
-	else
-		try
-			IntMap.find id ctx.evals
-		with Not_found ->
-			die "Cannot run Haxe code in a non-Haxe thread" __LOC__
+	Thread_local_storage.get_exn ctx.eval
+
+let current_thread_id ctx =
+	(get_eval ctx).thread.thread_id
 
 let kind_name eval kind =
 	let rec loop kind env = match kind with
@@ -541,6 +548,7 @@ let is v path =
 		v <> vnull
 	else match v with
 	| VInt32 _ -> path = key_Int || path = key_Float
+	| VInt64 _ -> path = key_eval_integers_Int64
 	| VFloat f -> path = key_Float || (path = key_Int && f = (float_of_int (int_of_float f)) && f <= 2147483647. && f >= -2147483648.)
 	| VTrue | VFalse -> path = key_Bool
 	| VPrototype {pkind = PClass _} -> path = key_Class

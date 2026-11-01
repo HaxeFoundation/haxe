@@ -22,24 +22,27 @@
 
 package sys.thread;
 
-#if (!target.threaded)
-#error "This class is not available on this target"
-#end
-
 /**
-	Creates thread local storage.
-
-	(hl) Warning: At the moment `Tls` does not protect the value from being
-	garbage collected. Keep the value reachable to avoid crashes.
+	A thread-local storage to store per-thread values.
 **/
-extern class Tls<T> {
-	var value(get, set):T;
+@:noPackageRestrict
+class Tls<T> {
+	@:isVar public var value(get, set):Null<T>;
 
 	/**
 		Creates thread local storage. This is placeholder that can store
 		a value that will be different depending on the local thread.
-		Set the tls value to `null` before exiting the thread
-		or the memory will never be collected.
+
+		It is good practice to set the value to `null` when the thread exits.
+		Otherwise, it might not be garbage-collected on some targets.
 	**/
-	function new():Void;
+	public function new():Void {}
+
+	function get_value() {
+		return value;
+	}
+
+	function set_value(v:Null<T>) {
+		return value = v;
+	}
 }

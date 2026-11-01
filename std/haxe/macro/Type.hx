@@ -652,6 +652,11 @@ enum VarAccess {
 	AccCall;
 
 	/**
+		Access through private accessor function (`private get`, `private set`).
+	**/
+	AccPrivateCall;
+
+	/**
 		Inline access (`inline`).
 	**/
 	AccInline;

@@ -15,25 +15,22 @@ class InheritDoc extends DisplayTestCase {
 	function test(_) {
 		vfs.putContent("InheritDocTypes.hx", getTemplate("InheritDocTypes.hx"));
 
-		runHaxeJson([], DisplayMethods.Hover, {
+		var result = runHaxeJson([], DisplayMethods.Hover, {
 			file: file,
 			offset: offset(1)
 		});
-		var result = parseHover();
-		Assert.equals(' Child class doc \n GrandParent class doc ', result.result.item.args.doc);
+		Assert.equals(' Child class doc \n GrandParent class doc ', result.item.args.doc);
 
-		runHaxeJson([], DisplayMethods.Hover, {
+		var result = runHaxeJson([], DisplayMethods.Hover, {
 			file: file,
 			offset: offset(2)
 		});
-		var result = parseHover();
-		Assert.equals(' Child field doc \n GrandParent field doc ', result.result.item.args.field.doc);
+		Assert.equals(' Child field doc \n GrandParent field doc ', result.item.args.field.doc);
 
-		runHaxeJson([], DisplayMethods.Hover, {
+		var result = runHaxeJson([], DisplayMethods.Hover, {
 			file: file,
 			offset: offset(3)
 		});
-		var result = parseHover();
-		Assert.equals(' Child field 2 doc \n unrelated field doc ', result.result.item.args.field.doc);
+		Assert.equals(' Child field 2 doc \n unrelated field doc ', result.item.args.field.doc);
 	}
 }

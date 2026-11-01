@@ -1,19 +1,15 @@
 open Globals
 open Ast
 open DisplayTypes
+open DisplayTypes.DisplayMode
 open CompletionItem
 open Type
 open Genjson
 
 exception DisplayException of display_exception_kind
 
-let raise_module_symbols s = raise (DisplayException(ModuleSymbols s))
-let raise_metadata s = raise (DisplayException(Metadata s))
-let raise_signatures l isig iarg kind = raise (DisplayException(DisplaySignatures((l,isig,iarg,kind))))
 let raise_hover item expected p = raise (DisplayException(DisplayHover({hitem = item;hpos = p;hexpected = expected})))
-let raise_positions pl = raise (DisplayException(DisplayPositions pl))
 let raise_fields ckl cr subj = raise (DisplayException(DisplayFields({fitems = ckl;fkind = cr;fsubject = subj})))
-let raise_package sl = raise (DisplayException(DisplayPackage sl))
 
 (* global state *)
 let last_completion_result = ref (Array.make 0 (CompletionItem.make (ITModule ([],"")) None))
@@ -160,26 +156,6 @@ let arg_index signatures signature_index param_index =
 
 let to_json ctx de =
 	match de with
-	| ModuleSymbols _
-	| Metadata _ -> die "" __LOC__
-	| DisplaySignatures(sigs,isig,iarg,kind) ->
-		(* We always want full info for signatures *)
-		let ctx = Genjson.create_context GMFull in
-		let fsig ((_,signature),doc) =
-			let fl = CompletionType.generate_function' ctx signature in
-			let fl = (match doc with None -> fl | Some d -> ("documentation",jstring (gen_doc_text d)) :: fl) in
-			jobject fl
-		in
-		let sigkind = match kind with
-			| SKCall -> 0
-			| SKArrayAccess -> 1
-		in
-		jobject [
-			"activeSignature",jint isig;
-			"activeParameter",jint (arg_index sigs isig iarg);
-			"signatures",jlist fsig sigs;
-			"kind",jint sigkind;
-		]
 	| DisplayHover hover ->
 		let named_source_kind = function
 			| WithType.FunctionArgument name -> (0, name)
@@ -187,7 +163,7 @@ let to_json ctx de =
 			| LocalVariable name -> (2, name)
 			| ImplicitReturn -> die "" __LOC__
 		in
-		let ctx = Genjson.create_context GMFull in
+		let ctx = Genjson.create_full_config () in
 		let generate_name kind =
 			let i,si = named_source_kind kind in
 			jobject [
@@ -218,11 +194,51 @@ let to_json ctx de =
 			"item",CompletionItem.to_json ctx None hover.hitem;
 			"expected",expected;
 		]
-	| DisplayPositions pl ->
-		jarray (List.map generate_pos_as_location pl)
 	| DisplayFields r ->
 		fields_to_json ctx r.fitems r.fkind r.fsubject
-	| DisplayPackage pack ->
-		jarray (List.map jstring pack)
-	| DisplayNoResult ->
-		jnull
+
+let send_json_result_raise (com:Common.context) json =
+	let rh = com.request_scope.result_handler in
+	CompilerOutput.send_result_raise rh json
+
+let send_module_symbols_raise com s =
+	DisplayPosition.display_position#reset;
+	send_json_result_raise com s
+
+let send_hover_raise com item expected p =
+	DisplayPosition.display_position#reset;
+	let ctx = Genjson.create_full_config () in
+	send_json_result_raise com (to_json ctx (DisplayHover({hitem = item;hpos = p;hexpected = expected})))
+
+let send_signatures_raise com sigs isig iarg kind =
+	DisplayPosition.display_position#reset;
+	let ctx = Genjson.create_full_config () in
+	let fsig ((_,signature),doc) =
+		let fl = CompletionType.generate_function' ctx signature in
+		let fl = (match doc with None -> fl | Some d -> ("documentation",jstring (gen_doc_text d)) :: fl) in
+		jobject fl
+	in
+	let sigkind = match kind with
+		| SKCall -> 0
+		| SKArrayAccess -> 1
+	in
+	send_json_result_raise com (jobject [
+		"activeSignature",jint isig;
+		"activeParameter",jint (arg_index sigs isig iarg);
+		"signatures",jlist fsig sigs;
+		"kind",jint sigkind;
+	])
+
+let send_positions_raise com pl =
+	DisplayPosition.display_position#reset;
+	send_json_result_raise com (jarray (List.map generate_pos_as_location pl))
+
+let send_package_raise com sl =
+	DisplayPosition.display_position#reset;
+	send_json_result_raise com (jarray (List.map jstring sl))
+
+let send_no_result_raise (com:Common.context) =
+	let rh = com.request_scope.result_handler in
+	match com.display.dms_kind with
+	| DMDefault -> CompilerOutput.send_error_raise rh [jstring "No completion point"]
+	| _ -> CompilerOutput.send_result_raise rh jnull

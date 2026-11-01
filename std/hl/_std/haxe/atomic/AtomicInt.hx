@@ -5,7 +5,9 @@ package haxe.atomic;
 #end
 import hl.Atomics;
 
-abstract AtomicInt(hl.NativeArray<Int>) {
+private typedef AtomicIntData = hl.NativeArray<Int>;
+
+abstract AtomicInt(AtomicIntData) {
 	public inline function new(value:Int):Void {
 		this = new hl.NativeArray(1);
 		this[0] = value;

@@ -20,9 +20,8 @@ class Issue9790 extends DisplayTestCase {
 	function test(_) {
 		var args = ["-main", "Main", "--no-output", "--jvm", "no.jar"];
 		runHaxe(args);
-		runHaxeJson(args, DisplayMethods.Hover, {file: file, offset: offset(2)});
-		var result = parseHover();
-		Assert.same(range(1, 3), result.result.range);
+		var result = runHaxeJson(args, DisplayMethods.Hover, {file: file, offset: offset(2)});
+		Assert.same(range(1, 3), result.range);
 		Assert.pass();
 	}
 }

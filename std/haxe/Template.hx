@@ -29,7 +29,7 @@ using StringTools;
 private enum TemplateExpr {
 	OpVar(v:String);
 	OpExpr(expr:Void->Dynamic);
-	OpIf(expr:Void->Dynamic, eif:TemplateExpr, eelse:TemplateExpr);
+	OpIf(expr:Void->Dynamic, eif:TemplateExpr, ?eelse:TemplateExpr);
 	OpStr(str:String);
 	OpBlock(l:List<TemplateExpr>);
 	OpForeach(expr:Void->Dynamic, loop:TemplateExpr);

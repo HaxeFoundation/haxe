@@ -22,24 +22,32 @@
 
 package sys.thread;
 
+@:include("hx/thread/ThreadLocal.hpp")
+@:cpp.ManagedType({ namespace : [ "hx", "thread" ], flags : [ StandardNaming ] })
+private extern class ThreadLocal {
+	function new():Void;
+	
+	function get():Dynamic;
+	function set(obj:Dynamic):Void;
+}
+
 @:coreApi
 class Tls<T> {
-	static var sFreeSlot = 0;
+	final tls:ThreadLocal;
 
-	var mTLSID:Int;
-
-	public var value(get, set):T;
+	public var value(get, set):Null<T>;
 
 	public function new() {
-		mTLSID = sFreeSlot++;
+		tls = new ThreadLocal();
 	}
 
-	function get_value():T {
-		return untyped __global__.__hxcpp_tls_get(mTLSID);
+	function get_value():Null<T> {
+		return tls.get();
 	}
 
-	function set_value(v:T):T {
-		untyped __global__.__hxcpp_tls_set(mTLSID, v);
+	function set_value(v:Null<T>):Null<T> {
+		tls.set(v);
+
 		return v;
 	}
 }

@@ -128,15 +128,13 @@
 
 		if (pos == null)
 			pos = 0;
-		if (pos != 0 && len < 0) {
-			return "";
-		}
 
 		if (pos < 0) {
 			pos = sl + pos;
 			if (pos < 0)
 				pos = 0;
-		} else if (len < 0) {
+		}
+		if (len < 0) {
 			len = sl + len - pos;
 		}
 

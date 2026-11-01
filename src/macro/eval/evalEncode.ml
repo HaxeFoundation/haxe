@@ -231,9 +231,9 @@ let encode_string s =
 
 (* Should only be used for std types that aren't expected to change while the compilation server is running *)
 let create_cached_instance path fkind =
-	let proto = lazy (get_instance_prototype (get_ctx()) path null_pos) in
+	let proto = AtomicLazy.from_fun (fun () -> get_instance_prototype (get_ctx()) path null_pos) in
 	(fun v ->
-		create_instance_direct (Lazy.force proto) (fkind v)
+		create_instance_direct (AtomicLazy.force proto) (fkind v)
 	)
 
 let encode_bytes =
@@ -241,6 +241,9 @@ let encode_bytes =
 
 let encode_int_map_direct =
 	create_cached_instance key_haxe_ds_IntMap (fun s -> IIntMap s)
+
+let encode_int64_map_direct =
+	create_cached_instance key_haxe_ds_Int64Map (fun s -> IInt64Map s)
 
 let encode_string_map_direct =
 	create_cached_instance key_haxe_ds_StringMap (fun s -> IStringMap s)
@@ -253,45 +256,48 @@ let encode_string_map convert m =
 	PMap.iter (fun key value -> RuntimeStringHashtbl.add h (create_ascii key) (convert value)) m;
 	encode_string_map_direct h
 
-let fake_proto path =
-	let proto = {
-		ppath = path;
-		pfields = [||];
-		pnames = IntMap.empty;
-		pinstance_names = IntMap.empty;
-		pinstance_fields = [||];
-		pparent = None;
-		pkind = PInstance;
-		pvalue = vnull;
-	} in
-	proto.pvalue <- vprototype proto;
-	proto
+let fake_proto cache path =
+	try Hashtbl.find cache path
+	with Not_found ->
+		let proto = {
+			ppath = path;
+			pfields = [||];
+			pnames = IntMap.empty;
+			pinstance_names = IntMap.empty;
+			pinstance_fields = [||];
+			pparent = None;
+			pkind = PInstance;
+			pvalue = vnull;
+		} in
+		proto.pvalue <- vprototype proto;
+		Hashtbl.replace cache path proto;
+		proto
 
 let encode_unsafe o =
 	vinstance {
 		ifields = [||];
-		iproto = fake_proto key_haxe_macro_Unsafe;
+		iproto = fake_proto (get_ctx()).fake_proto_cache key_haxe_macro_Unsafe;
 		ikind = IRef (Obj.repr o);
 	}
 
 let encode_pos p =
 	vinstance {
 		ifields = [||];
-		iproto = fake_proto key_haxe_macro_Position;
+		iproto = fake_proto (get_ctx()).fake_proto_cache key_haxe_macro_Position;
 		ikind = IPos p;
 	}
 
 let encode_lazytype t f =
 	vinstance {
 		ifields = [||];
-		iproto = fake_proto key_haxe_macro_LazyType;
+		iproto = fake_proto (get_ctx()).fake_proto_cache key_haxe_macro_LazyType;
 		ikind = ILazyType(t,f);
 	}
 
 let encode_tdecl t =
 	vinstance {
 		ifields = [||];
-		iproto = fake_proto key_haxe_macro_TypeDecl;
+		iproto = fake_proto (get_ctx()).fake_proto_cache key_haxe_macro_TypeDecl;
 		ikind = ITypeDecl t;
 	}
 

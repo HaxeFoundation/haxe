@@ -25,6 +25,8 @@ package haxe.crypto;
 import php.Global;
 import haxe.io.Bytes;
 
+// Can't enable @:coreApi because this implementation lacks a constructor that exists in the core type
+@:coreApi(check = Off)
 class Sha224 {
 	public static inline function encode(s:String):String {
 		return Global.hash('sha224', s);

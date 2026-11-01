@@ -3,6 +3,7 @@ class virtual ['key,'value] lookup = object(self)
 	method virtual add : 'key -> 'value -> unit
 	method virtual remove : 'key -> unit
 	method virtual find : 'key -> 'value
+	method virtual find_opt : 'key -> 'value option
 	method virtual iter : ('key -> 'value -> unit) -> unit
 	method virtual fold : 'acc . ('key -> 'value -> 'acc -> 'acc) -> 'acc -> 'acc
 	method virtual mem : 'key -> bool
@@ -21,6 +22,9 @@ class ['key,'value] pmap_lookup = object(self)
 
 	method find (key : 'key) : 'value =
 		PMap.find key lut
+
+	method find_opt (key : 'key) : 'value option =
+		try Some (PMap.find key lut) with Not_found -> None
 
 	method iter (f : 'key -> 'value -> unit) =
 		PMap.iter f lut
@@ -47,6 +51,9 @@ class ['key,'value] hashtbl_lookup = object(self)
 
 	method find (key : 'key) : 'value =
 		Hashtbl.find lut key
+
+	method find_opt (key : 'key) : 'value option =
+		Hashtbl.find_opt lut key
 
 	method iter (f : 'key -> 'value -> unit) =
 		Hashtbl.iter f lut

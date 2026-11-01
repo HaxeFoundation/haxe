@@ -94,4 +94,8 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		_keys = new NativeAssocArray();
 		_values = new NativeAssocArray();
 	}
+	
+	public inline function size():Int {
+		return Global.count(_keys);
+	}
 }

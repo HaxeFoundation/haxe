@@ -39,14 +39,14 @@ class String {
 	}
 
 	public function charAt(index:Int):String {
-		if ((index : UInt) >= (length : UInt))
+		if ((index : haxe.UInt32) >= (length : haxe.UInt32))
 			return "";
 		return __char__(bytes.getUI16(index << 1));
 	}
 
 	public function charCodeAt(index:Int):Null<Int> {
-		var idx:UInt = index;
-		if (idx >= (length : UInt))
+		var idx:haxe.UInt32 = index;
+		if (idx >= (length : haxe.UInt32))
 			return null;
 		return bytes.getUI16(index << 1);
 	}
@@ -122,21 +122,20 @@ class String {
 
 	public function substr(pos:Int, ?len:Int):String@:privateAccess {
 		var sl = length;
-		var len:Int = if (len == null) sl else len;
+		var len:Int = len ?? sl;
 		if (len == 0)
-			return "";
-		if (pos != 0 && len < 0)
 			return "";
 		if (pos < 0) {
 			pos = sl + pos;
 			if (pos < 0)
 				pos = 0;
-		} else if (len < 0) {
+		}
+		if (len < 0) {
 			len = sl + len - pos;
 			if (len < 0)
 				return "";
 		}
-		if (((pos + len) : UInt) > (sl : UInt))
+		if (((pos + len) : haxe.UInt32) > (sl : haxe.UInt32))
 			len = sl - pos;
 		if (pos < 0 || len <= 0)
 			return "";
@@ -258,7 +257,7 @@ class String {
 		b.setUI16(2, 0);
 		return __alloc__(b, 1);
 	}
-	
+
 	@:keep static function __add__(a:String, b:String):String {
 		if (a == null)
 			a = "null";

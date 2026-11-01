@@ -1,0 +1,31 @@
+open Type
+
+type continuation_api = {
+	base_continuation_class : tclass;
+	suspension_state : Type.t;
+	suspension_result : t -> t;
+	suspension_result_class : tclass;
+	continuation : Type.t;
+	state : tclass_field;
+	result : tclass_field;
+	error : tclass_field;
+	completion : tclass_field;
+	context : tclass_field;
+	goto_label : tclass_field;
+	suspended : tclass_field;
+}
+
+let create_continuation_api base_continuation_class suspension_state suspension_result_class continuation suspended state result error completion context goto_label = {
+	base_continuation_class;
+	suspension_state;
+	suspension_result = (fun t -> TInst(suspension_result_class,[t]));
+	suspension_result_class;
+	continuation;
+	suspended;
+	state;
+	result;
+	error;
+	completion;
+	context;
+	goto_label;
+}

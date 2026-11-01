@@ -22,6 +22,8 @@
 
 package haxe.io;
 
+import haxe.Int32;
+
 @:coreApi
 class BytesBuffer {
 	var buffer:js.lib.ArrayBuffer;
@@ -61,7 +63,7 @@ class BytesBuffer {
 		add(Bytes.ofString(v, encoding));
 	}
 
-	public function addInt32(v:Int):Void {
+	public function addInt32(v:Int32):Void {
 		if (pos + 4 > size)
 			grow(4);
 		view.setInt32(pos, v, true);

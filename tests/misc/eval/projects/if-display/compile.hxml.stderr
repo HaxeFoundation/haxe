@@ -1,0 +1,72 @@
+[WARNING] $$normPath(::cwd::/import.hx):1: characters 5-12
+
+  1 | #if display
+    |     ^^^^^^^
+    | (WIfDisplay) Using `display` here doesn't work because #if conditions are evaluated at parse time. In macros, use `haxe.macro.Context.defined("display")` instead.
+
+[WARNING] Main.hx:2: characters 6-13
+
+  2 |  #if display #end
+    |      ^^^^^^^
+    | (WIfDisplay) Using `display` here doesn't work because #if conditions are evaluated at parse time. In macros, use `haxe.macro.Context.defined("display")` instead.
+
+[WARNING] Main.hx:3: characters 7-14
+
+  3 |  #if (display) #end
+    |       ^^^^^^^
+    | (WIfDisplay) Using `display` here doesn't work because #if conditions are evaluated at parse time. In macros, use `haxe.macro.Context.defined("display")` instead.
+
+[WARNING] Main.hx:4: characters 18-25
+
+  4 |  #if foo #elseif display #end
+    |                  ^^^^^^^
+    | (WIfDisplay) Using `display` here doesn't work because #if conditions are evaluated at parse time. In macros, use `haxe.macro.Context.defined("display")` instead.
+
+[WARNING] Main.hx:5: characters 18-25
+
+  5 |  #if foo #elseif display == 42 #end
+    |                  ^^^^^^^
+    | (WIfDisplay) Using `display` here doesn't work because #if conditions are evaluated at parse time. In macros, use `haxe.macro.Context.defined("display")` instead.
+
+[WARNING] Main.hx:6: characters 7-14
+
+  6 |  #if !display #end
+    |       ^^^^^^^
+    | (WIfDisplay) Using `display` here doesn't work because #if conditions are evaluated at parse time. In macros, use `haxe.macro.Context.defined("display")` instead.
+
+[WARNING] Main.hx:7: characters 8-15
+
+  7 |  #if (!display) #end
+    |        ^^^^^^^
+    | (WIfDisplay) Using `display` here doesn't work because #if conditions are evaluated at parse time. In macros, use `haxe.macro.Context.defined("display")` instead.
+
+[WARNING] Main.hx:8: characters 14-21
+
+  8 |  #if (foo || display) #end
+    |              ^^^^^^^
+    | (WIfDisplay) Using `display` here doesn't work because #if conditions are evaluated at parse time. In macros, use `haxe.macro.Context.defined("display")` instead.
+
+[WARNING] Main.hx:9: characters 14-21
+
+  9 |  #if (foo || display > 0) #end
+    |              ^^^^^^^
+    | (WIfDisplay) Using `display` here doesn't work because #if conditions are evaluated at parse time. In macros, use `haxe.macro.Context.defined("display")` instead.
+
+[WARNING] Main.hx:10: characters 15-22
+
+ 10 |  #if (foo && !display) #end
+    |               ^^^^^^^
+    | (WIfDisplay) Using `display` here doesn't work because #if conditions are evaluated at parse time. In macros, use `haxe.macro.Context.defined("display")` instead.
+
+[WARNING] Main.hx:11: characters 23-30
+
+ 11 |  #if (foo || (!bar && display)) #end
+    |                       ^^^^^^^
+    | (WIfDisplay) Using `display` here doesn't work because #if conditions are evaluated at parse time. In macros, use `haxe.macro.Context.defined("display")` instead.
+
+[WARNING] Main.hx:12: characters 23-30
+
+ 12 |  #if (foo || (!bar && display == "nope")) #end
+    |                       ^^^^^^^
+    | (WIfDisplay) Using `display` here doesn't work because #if conditions are evaluated at parse time. In macros, use `haxe.macro.Context.defined("display")` instead.
+

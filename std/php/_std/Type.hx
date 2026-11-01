@@ -29,6 +29,7 @@ using php.Global;
 enum ValueType {
 	TNull;
 	TInt;
+	TInt64;
 	TFloat;
 	TBool;
 	TObject;
@@ -50,13 +51,13 @@ enum ValueType {
 		}
 	}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic> {
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> {
 		if (o == null)
 			return null;
 		return cast Boot.getClass(Global.get_class(cast o));
 	}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
 		if (c == null)
 			return null;
 		var parentClass = try {
@@ -79,7 +80,7 @@ enum ValueType {
 		return getClassName(cast e);
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic> {
+	public static function resolveClass(name:String):Null<Class<Dynamic>> {
 		if (name == null)
 			return null;
 		switch (name) {
@@ -108,7 +109,7 @@ enum ValueType {
 		return cast hxClass;
 	}
 
-	public static function resolveEnum(name:String):Enum<Dynamic> {
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>> {
 		if (name == null)
 			return null;
 		if (name == 'Bool')
@@ -278,6 +279,8 @@ enum ValueType {
 			var hxClass = Boot.getClass(Global.get_class(v));
 			if (Boot.isEnumValue(v))
 				return TEnum(cast hxClass);
+			if( (cast hxClass) == @:privateAccess haxe.Int64.IMPL )
+				return TInt64;
 			return TClass(cast hxClass);
 		}
 
@@ -286,7 +289,7 @@ enum ValueType {
 		if (v.is_int())
 			return TInt;
 		if (v.is_float())
-			return TFloat;
+			return (Math.isFinite(v) && Std.int(v) == v) ? TInt : TFloat;
 		if (v.is_string())
 			return TClass(String);
 

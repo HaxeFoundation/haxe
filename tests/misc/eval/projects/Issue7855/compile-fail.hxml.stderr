@@ -1,0 +1,15 @@
+Main.hx:23: characters 3-8 : Null safety: error: Null<Int> should be Int
+Main.hx:23: characters 3-8 : ... have: { b: Null<Int> }
+Main.hx:23: characters 3-8 : ... want: { b: Int }
+Main.hx:25: characters 14-15 : Null safety: error: Null<Int> should be Int
+Main.hx:25: characters 14-15 : ... have: { foo: Null<Int> }
+Main.hx:25: characters 14-15 : ... want: { foo: Int }
+Main.hx:27: characters 3-30 : Null safety: error: Null<Int> should be Int
+Main.hx:27: characters 3-30 : ... have: (Int) -> ...
+Main.hx:27: characters 3-30 : ... want: (Null<Int>) -> ...
+Main.hx:29: characters 3-32 : Null safety: error: Null<Array<String>> should be Array<String>
+Main.hx:29: characters 3-32 : ... have: (Array<...>) -> ...
+Main.hx:29: characters 3-32 : ... want: (Null<Array<...>>) -> ...
+Main.hx:31: characters 3-32 : Null safety: error: Null<Struct> should be Struct
+Main.hx:31: characters 3-32 : ... have: (...) -> Null<Struct>
+Main.hx:31: characters 3-32 : ... want: (...) -> Struct

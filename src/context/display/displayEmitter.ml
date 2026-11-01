@@ -20,7 +20,7 @@ let symbol_of_module_type = function
 
 let display_alias ctx name t p = match ctx.com.display.dms_kind with
 	| DMDefinition | DMTypeDefinition ->
-		raise_positions [p];
+		DisplayException.send_positions_raise ctx.com [p];
 	| DMUsage _ | DMImplementation ->
 		ReferencePosition.set (name,p,SKOther)
 	| DMHover ->
@@ -34,9 +34,9 @@ let display_module_type ctx mt p = match ctx.com.display.dms_kind with
 		begin match mt with
 		| TClassDecl c when Meta.has Meta.CoreApi c.cl_meta ->
 			let c' = ctx.g.do_load_core_class ctx c in
-			raise_positions [c.cl_name_pos;c'.cl_name_pos]
+			DisplayException.send_positions_raise ctx.com [c.cl_name_pos;c'.cl_name_pos]
 		| _ ->
-			raise_positions [(t_infos mt).mt_name_pos];
+			DisplayException.send_positions_raise ctx.com [(t_infos mt).mt_name_pos];
 		end
 	| DMUsage _ | DMImplementation ->
 		let infos = t_infos mt in
@@ -81,7 +81,7 @@ let raise_position_of_type ctx t =
 	let mt =
 		let rec follow_null t =
 			match t with
-				| TMono r -> (match r.tm_type with None -> raise_positions [null_pos] | Some t -> follow_null t)
+				| TMono r -> (match r.tm_type with None -> DisplayException.send_positions_raise ctx.com [null_pos] | Some t -> follow_null t)
 				| TLazy f -> follow_null (lazy_type f)
 				| TAbstract({a_path = [],"Null"},[t]) -> follow_null t
 				| TDynamic _ -> ctx.g.t_dynamic_def
@@ -90,12 +90,12 @@ let raise_position_of_type ctx t =
 		try
 			Type.module_type_of_type (follow_null t)
 		with
-			Exit -> raise_positions [null_pos]
+			Exit -> DisplayException.send_positions_raise ctx.com [null_pos]
 	in
-	raise_positions [(t_infos mt).mt_name_pos]
+	DisplayException.send_positions_raise ctx.com [(t_infos mt).mt_name_pos]
 
 let display_variable ctx v p = match ctx.com.display.dms_kind with
-	| DMDefinition -> raise_positions [v.v_pos]
+	| DMDefinition -> DisplayException.send_positions_raise ctx.com [v.v_pos]
 	| DMTypeDefinition -> raise_position_of_type ctx v.v_type
 	| DMUsage _ -> ReferencePosition.set (v.v_name,v.v_pos,SKVariable v)
 	| DMHover ->
@@ -104,7 +104,7 @@ let display_variable ctx v p = match ctx.com.display.dms_kind with
 	| _ -> ()
 
 let display_field ctx origin scope cf p = match ctx.com.display.dms_kind with
-	| DMDefinition -> raise_positions [cf.cf_name_pos]
+	| DMDefinition -> DisplayException.send_positions_raise ctx.com [cf.cf_name_pos]
 	| DMTypeDefinition -> raise_position_of_type ctx cf.cf_type
 	| DMUsage _ | DMImplementation ->
 		let name,kind = match cf.cf_name,origin with
@@ -135,7 +135,7 @@ let maybe_display_field ctx origin scope cf p =
 	if display_position#enclosed_in p then display_field ctx origin scope cf p
 
 let display_enum_field ctx en ef p = match ctx.com.display.dms_kind with
-	| DMDefinition -> raise_positions [ef.ef_name_pos]
+	| DMDefinition -> DisplayException.send_positions_raise ctx.com [ef.ef_name_pos]
 	| DMTypeDefinition -> raise_position_of_type ctx ef.ef_type
 	| DMUsage _ -> ReferencePosition.set (ef.ef_name,ef.ef_name_pos,SKEnumField ef)
 	| DMHover ->
@@ -148,12 +148,7 @@ let display_meta com meta p = match com.display.dms_kind with
 		begin match meta with
 		| Meta.Custom _ | Meta.Dollar _ -> ()
 		| _ ->
-			if com.json_out = None then begin match Meta.get_documentation com.user_metas meta with
-				| None -> ()
-				| Some (_,s) ->
-					raise_metadata ("<metadata>" ^ s ^ "</metadata>")
-			end else
-				raise_hover (make_ci_metadata meta) None p
+			raise_hover (make_ci_metadata meta) None p
 		end
 	| DMDefault ->
 		let all = Meta.get_all com.user_metas in

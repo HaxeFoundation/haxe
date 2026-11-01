@@ -37,6 +37,12 @@ module JsonReaderApi = struct
 		| _ ->
 			error (Printf.sprintf "Expected JInt, found %s" (string_of_json json))
 
+	let read_ident json = match json with
+		| JString s ->
+			s
+		| _ ->
+			error (Printf.sprintf "Expected identifier string, found %s" (string_of_json json))
+
 	let read_bool json = match json with
 		| JBool b ->
 			b

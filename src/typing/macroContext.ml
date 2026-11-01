@@ -41,7 +41,7 @@ let macro_interp_cache = ref None
 
 let safe_decode com v expected t p f =
 	let raise_decode_error s =
-		let path = [Dump.dump_path com.defines;"decoding_error"] in
+		let path = [com.part_scope.dump_config.DumpConfig.dump_path;"decoding_error"] in
 		let ch = Path.create_file false ".txt" [] path  in
 		Printf.fprintf ch "%s: %s\n" (TPrinting.Printer.s_pos p) s;
 		let errors = Interp.handle_decoding_error (output_string ch) v t in
@@ -57,15 +57,15 @@ let safe_decode com v expected t p f =
 			raise_decode_error (Printf.sprintf "Expected %s but got %s" expected (Interp.value_string v))
 
 
-let macro_timer timer_ctx level label identifier f arg =
-	let id = Timer.determine_id level ["macro"] [label] identifier in
+let macro_timer timer_ctx level s identifier f arg =
+	let id = Timer.determine_id level ["macro"] s identifier in
 	Timer.time timer_ctx id f arg
 
 let typing_timer ctx need_type f =
 	let t = Timer.start_timer ctx.com.timer_ctx ["typing"] in
 	let ctx = if need_type && ctx.pass < PTypeField then begin
 		enter_field_typing_pass ctx.g ("typing_timer",[]);
-		TyperManager.clone_for_expr ctx ctx.e.curfun false
+		TyperManager.clone_for_expr ctx ctx.e.curfun FunFunction
 	end else
 		ctx
 	in
@@ -73,7 +73,7 @@ let typing_timer ctx need_type f =
 	let old = ctx.com.error_ext in
 	let restore_report_mode = disable_report_mode ctx.com in
 	let restore_field_state = TypeloadFunction.save_field_state ctx in
-	ctx.com.error_ext <- (fun err -> raise_error { err with err_from_macro = true });
+	ctx.com.error_ext <- (fun err -> raise_error err);
 
 	let exit() =
 		t();
@@ -141,22 +141,22 @@ let make_macro_com_api com mcom p =
 		);
 		after_init_macros = (fun f ->
 			com.callbacks#add_after_init_macros (fun () ->
-				macro_timer com.timer_ctx timer_level "afterInitMacros" None f ();
+				macro_timer com.timer_ctx timer_level ["afterInitMacros"] None f ();
 			)
 		);
 		after_typing = (fun f ->
 			com.callbacks#add_after_typing (fun tl ->
-				macro_timer com.timer_ctx timer_level "afterTyping" None f tl;
+				macro_timer com.timer_ctx timer_level ["afterTyping"] None f tl;
 			)
 		);
 		on_generate = (fun f b ->
 			(if b then com.callbacks#add_before_save else com.callbacks#add_after_save) (fun() ->
-				macro_timer com.timer_ctx timer_level "onGenerate"None f (List.map type_of_module_type com.types);
+				macro_timer com.timer_ctx timer_level ["onGenerate"] None f (List.map type_of_module_type com.types);
 			)
 		);
 		after_generate = (fun f ->
 			com.callbacks#add_after_generation (fun() ->
-				macro_timer com.timer_ctx timer_level "afterGenerate" None f ();
+				macro_timer com.timer_ctx timer_level ["afterGenerate"] None f ();
 			)
 		);
 		on_type_not_found = (fun f ->
@@ -171,7 +171,7 @@ let make_macro_com_api com mcom p =
 		);
 		parse_string = (fun s p inl ->
 			let old = com.error_ext in
-			com.error_ext <- (fun err -> raise_error { err with err_from_macro = true });
+			com.error_ext <- (fun err -> raise_error err);
 			let exit() = com.error_ext <- old in
 
 			try
@@ -469,12 +469,12 @@ let make_macro_api ctx mctx p =
 					let m = ctx.com.module_lut#find mpath in
 					let pos = { pfile = (Path.UniqueKey.lazy_path m.m_extra.m_file); pmin = 0; pmax = 0 } in
 					Interp.compiler_error (make_error ~sub:[
-						make_error ~depth:1 (Custom "Previously defined here") pos
+						make_error (Custom "Previously defined here") pos
 					] (Custom (Printf.sprintf "Cannot redefine module %s" (s_type_path mpath))) p);
 				with Not_found ->
 					ctx.com.cs#taint_module mpath DefineType;
 					let mdep = Option.map_default (fun s -> TypeloadModule.load_module ~origin:MDepFromMacro ctx (parse_path s) pos) ctx.m.curmod mdep in
-					let mnew = TypeloadModule.type_module ctx.com ctx.g ~dont_check_path:(has_native_meta) mpath (ctx.com.file_keys#generate_virtual mpath ctx.com.compilation_step) [tdef,pos] pos in
+					let mnew = TypeloadModule.type_module ctx.com ctx.g ~dont_check_path:(has_native_meta) mpath (ctx.com.part_scope.file_keys#generate_virtual mpath ctx.com.part_scope.compilation_step) [tdef,pos] pos in
 					mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
 					add_dependency mnew mdep MDepFromMacro;
 					add_dependency mdep mnew MDepFromMacroDefine;
@@ -483,7 +483,7 @@ let make_macro_api ctx mctx p =
 			add false ctx;
 			(* if we are adding a class which has a macro field, we also have to add it to the macro context (issue #1497) *)
 			if not ctx.com.is_macro_context then match tdef with
-			| EClass c when List.exists (fun cff -> (Meta.has Meta.Macro cff.cff_meta || List.mem_assoc AMacro cff.cff_access)) c.d_data ->
+			| EClass c when List.exists (fun cff -> (List.mem_assoc AMacro cff.cff_access)) c.d_data ->
 				add true mctx
 			| _ ->
 				()
@@ -506,13 +506,13 @@ let make_macro_api ctx mctx p =
 				if m != ctx.m.curmod then begin
 					let pos = { pfile = (Path.UniqueKey.lazy_path m.m_extra.m_file); pmin = 0; pmax = 0 } in
 					Interp.compiler_error (make_error ~sub:[
-						make_error ~depth:1 (Custom "Previously defined here") pos
+						make_error (Custom "Previously defined here") pos
 					] (Custom (Printf.sprintf "Cannot redefine module %s" (s_type_path mpath))) p);
 				end else
 					ignore(TypeloadModule.type_types_into_module ctx.com ctx.g ctx.m.curmod types pos)
 			with Not_found ->
 				ctx.com.cs#taint_module mpath DefineModule;
-				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (ctx.com.file_keys#generate_virtual mpath ctx.com.compilation_step) types pos in
+				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (ctx.com.part_scope.file_keys#generate_virtual mpath ctx.com.part_scope.compilation_step) types pos in
 				mnew.m_extra.m_kind <- MFake;
 				add_dependency mnew ctx.m.curmod MDepFromMacro;
 				add_dependency ctx.m.curmod mnew MDepFromMacroDefine;
@@ -618,7 +618,7 @@ and flush_macro_context mint mctx =
 		*)
 		let minimal_restore t =
 			if (t_infos t).mt_module.m_extra.m_processed = 0 then
-				(t_infos t).mt_module.m_extra.m_processed <- mctx.com.compilation_step;
+				(t_infos t).mt_module.m_extra.m_processed <- mctx.com.part_scope.compilation_step;
 
 			match t with
 			| TClassDecl c ->
@@ -653,12 +653,11 @@ and flush_macro_context mint mctx =
 			if apply_native then Native.apply_native_paths t
 		in
 		let scom = SafeCom.of_typer mctx in
-		let cv_wrapper_impl = CapturedVars.get_wrapper_implementation mctx.com in
 		let expr_filters = [
 			"handle_abstract_casts",AbstractCast.handle_abstract_casts;
 			"local_statics",LocalStatic.run;
-			"Exceptions",(fun _ -> Exceptions.filter ectx);
-			"captured_vars",(fun scom -> CapturedVars.captured_vars scom cv_wrapper_impl);
+			"Exceptions",Exceptions.filter ectx;
+			"captured_vars",(fun scom -> CapturedVars.captured_vars scom mctx.com.local_wrapper false);
 		] in
 		let type_filters = [
 			(fun _ -> FiltersCommon.remove_generic_base);
@@ -677,33 +676,27 @@ and flush_macro_context mint mctx =
 		with Error err -> raise (Fatal_error err));
 	in
 	let timer_level = Timer.level_from_define mctx.com.defines Define.MacroTimes in
-	macro_timer mctx.com.timer_ctx timer_level "flush" None f ()
+	macro_timer mctx.com.timer_ctx timer_level ["flush"] None f ()
 
 let create_macro_interp api mctx =
 	let com2 = mctx.com in
 	let mint, init = (match !macro_interp_cache with
 		| None ->
-			let mint = Interp.create com2 api true in
+			let mint = Interp.create com2 api true (Args.to_raw_args com2.parsed_args) in
 			Interp.select mint;
 			mint, (fun() -> init_macro_interp mctx mint)
 		| Some mint ->
-			Interp.do_reuse mint api;
+			Interp.do_reuse mint api (Args.to_raw_args com2.parsed_args);
 			mint, (fun() -> ())
 	) in
-	let on_error = com2.error_ext in
+	let on_error = CompilerMessage.default_error_handler com2 in
 	com2.error_ext <- (fun err ->
 		Interp.set_error (Interp.get_ctx()) true;
 		macro_interp_cache := None;
-		on_error { err with err_from_macro = true }
+		on_error err
 	);
-	let on_warning = com2.warning in
-	com2.warning <- (fun ?(depth=0) ?(from_macro=false) w options msg p ->
-		on_warning ~depth ~from_macro:true w options msg p
-	);
-	let on_info = com2.info in
-	com2.info <- (fun ?(depth=0) ?(from_macro=false) msg p ->
-		on_info ~depth ~from_macro:true msg p
-	);
+	com2.warning <- CompilerMessage.default_warning_handler com2;
+	com2.info <- CompilerMessage.default_info_handler com2;
 	(* mctx.g.core_api <- ctx.g.core_api; // causes some issues because of optional args and Null type in Flash9 *)
 	init();
 	let init = (fun() -> Interp.select mint) in
@@ -717,7 +710,7 @@ let create_macro_context com =
 	com2.package_rules <- PMap.empty;
 	(* Inherit most display settings, but require normal typing. *)
 	com2.display <- {com.display with dms_kind = DMNone; dms_full_typing = true; dms_force_macro_typing = true; dms_inline = true; };
-	com2.class_paths#lock_context "macro" false;
+	com2.class_paths#lock_context com2.custom_ext "macro" false;
 	let name = platform_name Eval in
 	let eval_std = ref None in
 	com2.class_paths#modify (fun cp -> match cp#scope with
@@ -778,7 +771,7 @@ let load_macro'' com mctx display cpath fname p =
 	let mint = Interp.get_ctx() in
 	let timer_level = Timer.level_from_define com.defines Define.MacroTimes in
 	try
-		mctx.com.cached_macros#find (cpath,fname)
+		mctx.com.part_scope.cached_macros#find (cpath,fname)
 	with Not_found ->
 		let f () =
 			let mpath, sub = (match List.rev (fst cpath) with
@@ -807,10 +800,10 @@ let load_macro'' com mctx display cpath fname p =
 			let meth = (match follow meth.cf_type with TFun (args,ret) -> (args,ret,cl,meth),mloaded | _ -> raise_typing_error "Macro call should be a method" p) in
 			restore();
 			if not com.is_macro_context then flush_macro_context mint mctx;
-			mctx.com.cached_macros#add (cpath,fname) meth;
+			mctx.com.part_scope.cached_macros#add (cpath,fname) meth;
 			meth
 		in
-		macro_timer com.timer_ctx timer_level "typing" (Some (s_type_path cpath ^ "." ^ fname)) f ()
+		macro_timer com.timer_ctx timer_level ["typing";s_type_path cpath ^ "." ^ fname] None f ()
 
 let load_macro' ctx display cpath f p =
 	(* TODO: The only reason this nonsense is here is because this is the signature
@@ -819,10 +812,13 @@ let load_macro' ctx display cpath f p =
 	fst (load_macro'' ctx.com (get_macro_context ctx) display cpath f p)
 
 let do_call_macro com api cpath name args p =
-	incr stats.s_macros_called;
+	if com.verbose then Common.log com ("Calling macro " ^ s_type_path cpath ^ "." ^ name ^ " (" ^ p.pfile ^ ":" ^ string_of_int (Lexer.get_error_line p) ^ ")");
+	incr com.request_scope.stats.s_macros_called;
 	let timer_level = Timer.level_from_define com.defines Define.MacroTimes in
 	let f = Interp.call_path (Interp.get_ctx()) ((fst cpath) @ [snd cpath]) name args in
-	macro_timer com.timer_ctx timer_level "execution" (Some (s_type_path cpath ^ "." ^ name)) f api
+	let r = macro_timer com.timer_ctx timer_level ["execution";s_type_path cpath ^ "." ^ name] None f api in
+	if com.verbose then Common.log com ("Exiting macro " ^ s_type_path cpath ^ "." ^ name);
+	r
 
 let load_macro ctx com mctx api display cpath f p =
 	let meth,mloaded = load_macro'' com mctx display cpath f p in
@@ -948,7 +944,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			incr index;
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index), None)),p)),p)
 		) el in
-		let elt = fst (CallUnification.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false false) in
+		let elt = CallUnification.unify_call_args mctx constants (List.map fst eargs) t_dynamic p false false false in
 		List.map2 (fun ((n,_,t),mct) e ->
 			let e, et = (match e.eexpr with
 				(* get back our index and real expression *)
@@ -978,7 +974,18 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		| _ -> (match List.rev args with _::args -> List.rev args | [] -> []) @ [Interp.encode_array (List.map Interp.encode_expr el2)]
 	in
 	let call() =
-		match call_macro args with
+		let part_scope = ctx.com.part_scope in
+		part_scope.running_macros <- part_scope.running_macros + 1;
+		let r = try
+			Std.finally (fun () -> part_scope.running_macros <- part_scope.running_macros - 1) call_macro args
+		with Error err when display_recovery_enabled ctx.com && part_scope.running_macros = 0 ->
+			(* A typing error escaped the outermost macro: report it and treat the macro as failed instead of aborting
+			   the request. For a nested macro, the error keeps propagating into the API call of the enclosing macro,
+			   which turns it into an exception that macro can catch. *)
+			display_error_ext ctx.com err;
+			None
+		in
+		match r with
 		| None ->
 			MError
 		| Some v ->
@@ -1022,7 +1029,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	e
 
 let call_macro mctx args margs call p =
-	let el, _ = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
+	let el = CallUnification.unify_call_args mctx args margs t_dynamic p false false false in
 	call (List.map (fun e -> try Interp.make_const e with Exit -> raise_typing_error "Argument should be a constant" e.epos) el)
 
 let resolve_init_macro com e =
@@ -1078,9 +1085,10 @@ let finalize_macro_api tctx mctx =
 		| None -> ignore(create_macro_interp api mctx)
 		| Some mint -> mint.curapi <- api
 
-let interpret ctx =
+let interpret ctx args =
+	Parallel.ManagedPool.release ctx.com.sctx.pool;
 	let mctx = get_macro_context ctx in
-	let mctx = Interp.create ctx.com (make_macro_com_api ctx.com mctx.com null_pos) false in
+	let mctx = Interp.create ctx.com (make_macro_com_api ctx.com mctx.com null_pos) false args in
 	Interp.add_types mctx ctx.com.types (fun t -> ());
 	match ctx.com.main.main_expr with
 		| None -> ()

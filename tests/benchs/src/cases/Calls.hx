@@ -16,7 +16,7 @@ class CallClass implements CallInterface {
 
 	public function instanceCall0() { return null; }
 	public function instanceCall1(s1:String) { return null; }
-	public function instanceCall2(s1:String, s1:String) { return null; }
+	public function instanceCall2(s1:String, s2:String) { return null; }
 
 	public final function finalCall0() { return null; }
 	public final function finalCall1(s1:String) { return null; }
@@ -24,7 +24,7 @@ class CallClass implements CallInterface {
 
 	public function overrideCall0() { return null; }
 	public function overrideCall1(s1:String) { return null; }
-	public function overrideCall2(s2:String, s2:String) { return null; }
+	public function overrideCall2(s1:String, s2:String) { return null; }
 
 	public function new() { }
 }
@@ -32,7 +32,7 @@ class CallClass implements CallInterface {
 class CallClassChild extends CallClass {
 	override function overrideCall0() { return null; }
 	override function overrideCall1(s1:String) { return null; }
-	override function overrideCall2(s2:String, s2:String) { return null; }
+	override function overrideCall2(s1:String, s2:String) { return null; }
 }
 
 typedef TInstanceCall0 = { function instanceCall0():String; };

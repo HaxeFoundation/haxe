@@ -151,7 +151,7 @@ class StringTools {
 		- `"` becomes `&quot`;
 		- `'` becomes `&#039`;
 	**/
-	public static function htmlEscape(s:String, ?quotes:Bool):String {
+	public static function htmlEscape(s:String, quotes = false):String {
 		var buf = new StringBuf();
 		for (code in #if neko iterator(s) #else new haxe.iterators.StringIteratorUnicode(s) #end) {
 			switch (code) {
@@ -413,18 +413,12 @@ class StringTools {
 		its `length` equals `digits`.
 	**/
 	public static function hex(n:Int, ?digits:Int) {
-		#if flash
-		var n:UInt = n;
-		var s:String = untyped n.toString(16);
-		s = s.toUpperCase();
-		#else
 		var s = "";
 		var hexChars = "0123456789ABCDEF";
 		do {
 			s = hexChars.charAt(n & 15) + s;
 			n >>>= 4;
 		} while (n > 0);
-		#end
 		#if python
 		if (digits != null && s.length < digits) {
 			var diff = digits - s.length;
@@ -464,11 +458,15 @@ class StringTools {
 		#elseif java
 		return (index < s.length) ? cast(_charAt(s, index), Int) : -1;
 		#elseif js
-		return (cast s).charCodeAt(index);
+		return js.lib.NativeStringTools.charCodeAt(s, index);
 		#elseif python
 		return if (index >= s.length) -1 else python.internal.UBuiltins.ord(python.Syntax.arrayAccess(s, index));
 		#elseif hl
 		return @:privateAccess s.bytes.getUI16(index << 1);
+		#elseif eval
+		return untyped s.cca(index);
+		#elseif php
+		return untyped s.cca(index);
 		#elseif lua
 		#if lua_vanilla
 		return lua.NativeStringTools.byte(s, index + 1);
@@ -476,7 +474,7 @@ class StringTools {
 		return lua.lib.luautf8.Utf8.byte(s, index + 1);
 		#end
 		#else
-		return untyped s.cca(index);
+		return s.charCodeAt(index);
 		#end
 	}
 
@@ -501,7 +499,7 @@ class StringTools {
 		#elseif java
 		return cast(_charAt(s, index), Int);
 		#elseif js
-		return (cast s).charCodeAt(index);
+		return js.lib.NativeStringTools.charCodeAt(s, index);
 		#elseif python
 		return python.internal.UBuiltins.ord(python.Syntax.arrayAccess(s, index));
 		#elseif hl

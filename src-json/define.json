@@ -8,8 +8,7 @@
 		"name": "AdvancedTelemetry",
 		"define": "advanced-telemetry",
 		"doc": "Allow the SWF to be measured with Monocle tool.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "AnalyzerOptimize",
@@ -20,6 +19,7 @@
 		"name": "AnalyzerTimes",
 		"define": "times.analyzer",
 		"deprecatedDefine": "analyzer-times",
+		"signatureNeutral": true,
 		"doc": "Record detailed timers for the analyzer",
 		"params": ["level: 0 | 1 | 2"]
 	},
@@ -38,6 +38,11 @@
 		"name": "CoreApi",
 		"define": "core-api",
 		"doc": "Defined in the core API context."
+	},
+	{
+		"name": "CoroStackTraces",
+		"define": "coro.stack-traces",
+		"doc": "Generate the information required to build coroutine stack traces. Combine with `-debug` to also keep frames of coroutines that end in a tail call."
 	},
 	{
 		"name": "Cppia",
@@ -60,6 +65,7 @@
 	{
 		"name": "DceDebug",
 		"define": "dce-debug",
+		"signatureNeutral": true,
 		"doc": "Show DCE log.",
 		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
@@ -71,12 +77,32 @@
 	{
 		"name": "DisableHxbCache",
 		"define": "disable-hxb-cache",
+		"signatureNeutral": true,
 		"doc": "Use in-memory cache instead of hxb powered cache."
 	},
 	{
 		"name": "DisableHxbOptimizations",
 		"define": "disable-hxb-optimizations",
+		"signatureNeutral": true,
 		"doc": "Disable shortcuts used by hxb cache to speed up display requests."
+	},
+	{
+		"name": "DisableParallelism",
+		"define": "disable-parallelism",
+		"signatureNeutral": true,
+		"doc": "Disable experimental uses of parallelism in the compiler."
+	},
+	{
+		"name": "EnableParallelAbstractCast",
+		"define": "enable-parallel-abstract-cast",
+		"signatureNeutral": true,
+		"doc": "Enable experimental uses of parallelism in the abstract cast filter (can trigger memory leaks)."
+	},
+	{
+		"name": "EnableParallelAnalyzer",
+		"define": "enable-parallel-analyzer",
+		"signatureNeutral": true,
+		"doc": "Enable experimental uses of parallelism in the analyzer (can trigger memory leaks)."
 	},
 	{
 		"name": "DisableUnicodeStrings",
@@ -87,13 +113,22 @@
 	{
 		"name": "Display",
 		"define": "display",
+		"signatureNeutral": true,
 		"doc": "Activated during completion.",
 		"links": ["https://haxe.org/manual/cr-completion.html"]
 	},
 	{
 		"name": "DisplayStdin",
 		"define": "display-stdin",
+		"signatureNeutral": true,
 		"doc": "Read the contents of a file specified in `--display` from standard input."
+	},
+	{
+		"name": "DisplayDetails",
+		"define": "display-details",
+		"signatureNeutral": true,
+		"doc": "Not used anymore, but still sent by vshaxe.",
+		"deprecated": "This flag is no longer supported in Haxe 5"
 	},
 	{
 		"name": "DllExport",
@@ -109,12 +144,22 @@
 	{
 		"name": "Dump",
 		"define": "dump",
+		"signatureNeutral": true,
 		"doc": "Dump typed AST in dump subdirectory using specified mode or non-prettified default.",
 		"params": ["mode: pretty | record | position | legacy"]
 	},
 	{
+		"name": "DumpStage",
+		"define": "dump.stage",
+		"signatureNeutral": true,
+		"doc": "The compiler stage after which to generate the dump",
+		"params": ["stage: typing | casting | inlining | analyzing | dce"],
+		"default": "dce"
+	},
+	{
 		"name": "DumpPath",
 		"define": "dump-path",
+		"signatureNeutral": true,
 		"doc": "Path to generate dumps to (default: \"dump\").",
 		"default": "dump",
 		"params": ["path"]
@@ -122,11 +167,13 @@
 	{
 		"name": "DumpDependencies",
 		"define": "dump-dependencies",
+		"signatureNeutral": true,
 		"doc": "Dump the classes dependencies in a dump subdirectory."
 	},
 	{
 		"name": "DumpIgnoreVarIds",
 		"define": "dump-ignore-var-ids",
+		"signatureNeutral": true,
 		"doc": "Remove variable IDs from non-pretty dumps (helps with diff).",
 		"default": "1"
 	},
@@ -174,26 +221,28 @@
 		"name": "EvalTimes",
 		"define": "times.eval",
 		"deprecatedDefine": "eval-times",
+		"signatureNeutral": true,
 		"doc": "Record per-method execution times in macro/interp mode. Implies eval-stack.",
 		"platforms": ["eval"]
 	},
 	{
 		"name": "FailFast",
 		"define": "fail-fast",
+		"signatureNeutral": true,
 		"doc": "Abort compilation when first error occurs."
 	},
 	{
 		"name": "FilterTimes",
 		"define": "times.filter",
 		"deprecatedDefine": "filter-times",
+		"signatureNeutral": true,
 		"doc": "Record per-filter execution times upon --times."
 	},
 	{
 		"name": "Fdb",
 		"define": "fdb",
 		"doc": "Enable full flash debug infos for FDB interactive debugging.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "FileExtension",
@@ -205,15 +254,13 @@
 		"name": "FlashStrict",
 		"define": "flash-strict",
 		"doc": "More strict typing for flash target.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "FlashUseStage",
 		"define": "flash-use-stage",
 		"doc": "Keep the SWF library initial stage.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "ForceNativeProperty",
@@ -231,8 +278,7 @@
 		"name": "HaxeBoot",
 		"define": "haxe-boot",
 		"doc": "Give the name 'haxe' to the flash boot class instead of a generated name.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "HaxeVer",
@@ -274,14 +320,14 @@
 	},
 	{
 		"name": "HaxeOutputFile",
-		"define": "HAXE_OUTPUT_FILE",
+		"define": "HAXE-OUTPUT-FILE",
 		"doc": "Force the full output name of the executable/library without library prefix and debug suffix.",
 		"platforms": ["cpp"],
 		"params": ["name"]
 	},
 	{
 		"name": "HaxeOutputPart",
-		"define": "HAXE_OUTPUT_PART",
+		"define": "HAXE-OUTPUT-PART",
 		"doc": "Output name of the executable/library. (default: main class name)",
 		"platforms": ["cpp"],
 		"params": ["name"]
@@ -304,7 +350,14 @@
 		"name": "HxbTimes",
 		"define": "times.hxb",
 		"deprecatedDefine": "hxb-times",
+		"signatureNeutral": true,
 		"doc": "Display hxb timing when used with `--times`."
+	},
+	{
+		"name": "HxbStats",
+		"define": "hxb.stats",
+		"signatureNeutral": true,
+		"doc": "Display some hxb related stats (only with compilation server)."
 	},
 	{
 		"name": "HxcppApiLevel",
@@ -472,7 +525,7 @@
 	},
 	{
 		"name": "JsGlobal",
-		"define": "js_global",
+		"define": "js-global",
 		"doc": "Customizes the global object name.",
 		"platforms": ["js"]
 	},
@@ -492,6 +545,7 @@
 		"name": "SourceMap",
 		"define": "source-map",
 		"doc": "Generate source map for compiled files.",
+		"params": ["mode: inline"],
 		"platforms": ["php", "js"]
 	},
 	{
@@ -503,7 +557,7 @@
 	{
 		"name": "JvmDynamicLevel",
 		"define": "jvm.dynamic-level",
-		"doc": "Controls the amount of dynamic support code being generated. 0 = none, 1 = field read/write optimization (default), 2 = compile-time method closures",
+		"doc": "Controls the amount of dynamic support code being generated. 0 = none, 1 = field read/write optimization (default)",
 		"platforms": ["jvm"]
 	},
 	{
@@ -516,7 +570,7 @@
 	{
 		"name": "LuaJit",
 		"define": "lua-jit",
-		"doc": "Enable the jit compiler for lua (version 5.2 only).",
+		"doc": "Enable LuaJIT-specific code generation optimizations.",
 		"platforms": ["lua"]
 	},
 	{
@@ -533,6 +587,13 @@
 		"params": ["version"]
 	},
 	{
+		"name": "LuaWindowsUtf8Io",
+		"define": "lua.windows-utf8-io",
+		"doc": "Set the utf8 locale when running on Windows to fix unicode file operations. Lua runtime must be linked to windows UCRT.",
+		"platforms": ["lua"],
+		"params": ["version"]
+	},
+	{
 		"name": "Macro",
 		"define": "macro",
 		"doc": "Defined when code is compiled in the macro context.",
@@ -543,6 +604,7 @@
 		"name": "MacroTimes",
 		"define": "times.macro",
 		"deprecatedDefine": "macro-times",
+		"signatureNeutral": true,
 		"doc": "Display per-macro timing when used with `--times`."
 	},
 	{
@@ -569,12 +631,12 @@
 		"name": "NetworkSandbox",
 		"define": "network-sandbox",
 		"doc": "Use local network sandbox instead of local file access one.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "NoCompilation",
 		"define": "no-compilation",
+		"signatureNeutral": true,
 		"doc": "Disable final compilation.",
 		"platforms": ["cpp", "hl"]
 	},
@@ -593,8 +655,7 @@
 		"name": "NoFlashOverride",
 		"define": "no-flash-override",
 		"doc": "Change overrides on some basic classes into HX suffixed methods",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "NoOpt",
@@ -622,8 +683,7 @@
 		"name": "NoSwfCompress",
 		"define": "no-swf-compress",
 		"doc": "Disable SWF output compression.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "NoTraces",
@@ -721,82 +781,71 @@
 		"define": "swc",
 		"doc": "Output a SWC instead of a SWF.",
 		"platforms": ["flash"],
-		"reserved": true,
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"reserved": true
 	},
 	{
 		"name": "SwfCompressLevel",
 		"define": "swf-compress-level",
 		"doc": "Set the amount of compression for the SWF output.",
 		"platforms": ["flash"],
-		"params": ["level: 1-9"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"params": ["level: 1-9"]
 	},
 	{
 		"name": "SwfDebugPassword",
 		"define": "swf-debug-password",
 		"doc": "Set a password for debugging.",
 		"platforms": ["flash"],
-		"params": ["password"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"params": ["password"]
 	},
 	{
 		"name": "SwfDirectBlit",
 		"define": "swf-direct-blit",
 		"doc": "Use hardware acceleration to blit graphics.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "SwfGpu",
 		"define": "swf-gpu",
 		"doc": "Use GPU compositing features when drawing graphics.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "SwfHeader",
 		"define": "swf-header",
 		"doc": "define SWF header (width:height:fps:color)",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "SwfMetadata",
 		"define": "swf-metadata",
 		"doc": "Include contents of the given file as metadata in the SWF.",
 		"platforms": ["flash"],
-		"params": ["file"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"params": ["file"]
 	},
 	{
 		"name": "SwfPreloaderFrame",
 		"define": "swf-preloader-frame",
 		"doc": "Insert empty first frame in SWF.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "SwfProtected",
 		"define": "swf-protected",
 		"doc": "Compile Haxe `private` as `protected` in the SWF instead of `public`.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "SwfScriptTimeout",
 		"define": "swf-script-timeout",
 		"doc": "Maximum ActionScript processing time before script stuck dialog box displays.",
 		"platforms": ["flash"],
-		"params": ["time in seconds"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"params": ["time in seconds"]
 	},
 	{
 		"name": "SwfUseDoAbc",
 		"define": "swf-use-doabc",
 		"doc": "Use `DoAbc` SWF-tag instead of `DoAbcDefine`.",
-		"platforms": ["flash"],
-		"deprecated": "The flash target will be removed for Haxe 5"
+		"platforms": ["flash"]
 	},
 	{
 		"name": "Sys",
@@ -836,28 +885,40 @@
 	{
 		"name": "MessageReporting",
 		"define": "message.reporting",
+		"signatureNeutral": true,
 		"doc": "Select message reporting mode for compiler output. (default: pretty)",
 		"default": "pretty",
 		"params": ["mode: classic | pretty | indent"]
 	},
 	{
+		"name": "MessageColor",
+		"define": "message.color",
+		"signatureNeutral": true,
+		"doc": "Enable ANSI color codes in message reporting."
+	},
+	{
 		"name": "MessageNoColor",
 		"define": "message.no-color",
-		"doc": "Disable ANSI color codes in message reporting."
+		"signatureNeutral": true,
+		"doc": "Disable ANSI color codes in message reporting.",
+		"deprecated": "Color is now disabled by default; use -D message.color to enable ANSI coloring."
 	},
 	{
 		"name": "MessageAbsolutePositions",
 		"define": "message.absolute-positions",
+		"signatureNeutral": true,
 		"doc": "Use absolute character positions instead of line/columns for message reporting."
 	},
 	{
 		"name": "MessageLogFile",
 		"define": "message.log-file",
+		"signatureNeutral": true,
 		"doc": "Path to a text file to write message reporting to, in addition to regular output."
 	},
 	{
 		"name": "MessageLogFormat",
 		"define": "message.log-format",
+		"signatureNeutral": true,
 		"doc": "Select message reporting mode for message log file. (default: indent)",
 		"default": "indent",
 		"params": ["format: classic | pretty | indent"]

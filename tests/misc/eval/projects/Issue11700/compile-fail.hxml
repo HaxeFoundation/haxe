@@ -1,0 +1,4 @@
+-lib mylib
+-cp src
+-main Main
+-D message.reporting=pretty

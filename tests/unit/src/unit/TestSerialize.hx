@@ -31,7 +31,7 @@ class TestSerialize extends Test {
 			"\r\n",
 			"\n",
 			"   ",
-			""
+			"",
 		];
 		for (v in values)
 			eq(id(v), v);
@@ -52,6 +52,14 @@ class TestSerialize extends Test {
 		var d2 = id(d);
 		t((d2 is Date));
 		eq(d2.toString(), d.toString());
+		
+		// int64
+		var small = haxe.Int64.make(0,1);
+		var big1 = haxe.Int64.make(1,-1);
+		var big2 = haxe.Int64.make(-1,0x7FFFFFFF);
+		t(small == id(small));
+		t(big1 == id(big1));
+		t(big2 == id(big2));
 
 		// object
 		var o = {x: "a", y: -1.56, z: "hello"};

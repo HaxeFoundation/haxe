@@ -6,12 +6,9 @@ class Issue9047 extends DisplayTestCase {
 	**/
 	function test(_) {
 		var args = ["Main", "-js", "main.js"];
-		function parseGotoDefintion():GotoDefinitionResult {
-			return haxe.Json.parse(lastResult.stderr).result;
-		}
-		runHaxeJson(args, DisplayMethods.FindReferences, {file: file, offset: offset(1), contents: source});
-		Assert.same([], parseGotoDefintion().result);
-		runHaxeJson(args, DisplayMethods.FindReferences, {file: file, offset: offset(1), contents: source});
-		Assert.same([], parseGotoDefintion().result);
+		var result1 = runHaxeJson(args, DisplayMethods.FindReferences, {file: file, offset: offset(1), contents: source});
+		Assert.same([], result1);
+		var result2 = runHaxeJson(args, DisplayMethods.FindReferences, {file: file, offset: offset(1), contents: source});
+		Assert.same([], result2);
 	}
 }

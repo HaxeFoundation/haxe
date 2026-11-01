@@ -51,6 +51,7 @@ class EReg {
 	}
 
 	public inline function match(s:String):Bool {
+		@:nullSafety(Off)
 		matchObj = Re.search(pattern, s);
 		return matchObj != null;
 	}
@@ -69,6 +70,11 @@ class EReg {
 
 	public inline function matchedPos():{pos:Int, len:Int} {
 		return {pos: matchObj.start(), len: matchObj.end() - matchObj.start()};
+	}
+
+	public function matchedNum():Int {
+		if (matchObj == null) return 0;
+		return (matchObj.lastindex ?? 0) + 1;
 	}
 
 	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {

@@ -1,0 +1,6 @@
+[ERROR] Main4.hx:1: characters 9-16
+
+ 1 | typedef default = String;
+   |         ^^^^^^^
+   | Unexpected keyword "default"
+

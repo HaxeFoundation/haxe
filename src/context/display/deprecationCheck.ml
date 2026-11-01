@@ -17,16 +17,12 @@ let create_context com = {
 	curmod = null_module;
 }
 
-let warned_positions = Hashtbl.create 0
-
 let warn_deprecation dctx s p_usage =
 	let pkey p = (p.pfile,p.pmin) in
-	if not (Hashtbl.mem warned_positions (pkey p_usage)) then begin
-		Hashtbl.add warned_positions (pkey p_usage) (s,p_usage);
-		if not (is_diagnostics dctx.com) then begin
-			let options = Warning.from_meta (dctx.class_meta @ dctx.field_meta) in
-			module_warning dctx.com dctx.curmod WDeprecated options s p_usage;
-		end
+	if not (Hashtbl.mem dctx.com.part_scope.warned_positions (pkey p_usage)) then begin
+		let options = Warning.from_meta (dctx.class_meta @ dctx.field_meta) in
+		Hashtbl.add dctx.com.part_scope.warned_positions (pkey p_usage) (s,p_usage,options);
+		module_warning dctx.com dctx.curmod WDeprecated options s p_usage;
 	end
 
 let print_deprecation_message dctx meta s p_usage =
@@ -101,7 +97,7 @@ let run_on_field dctx cf =
 	| _ ->
 		()
 
-let run com =
+let run com types =
 	let dctx = create_context com in
 	List.iter (fun t -> match t with
 		| TClassDecl c when not (Meta.has Meta.Deprecated c.cl_meta) ->
@@ -112,7 +108,7 @@ let run com =
 			List.iter (run_on_field dctx) c.cl_ordered_fields;
 		| _ ->
 			()
-	) com.types
+	) types
 
 let check_is com m cl_meta cf_meta name meta p =
 	let dctx = {

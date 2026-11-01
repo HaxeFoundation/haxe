@@ -220,10 +220,6 @@ class Socket {
 			throw new Sys.SysError("setFastSend() failure");
 	}
 
-	// TODO : use TLS when multithread added
-	static var tmp:hl.Bytes = null;
-	static var curTmpSize = 0;
-
 	static function makeArray(a:Array<Socket>):hl.NativeArray<SocketHandle> {
 		if (a == null)
 			return null;
@@ -250,6 +246,8 @@ class Socket {
 		return out;
 	}
 
+	static var TMP = new sys.thread.Tls<haxe.io.Bytes>();
+
 	public static function select(read:Array<Socket>, write:Array<Socket>, others:Array<Socket>,
 			?timeout:Float):{read:Array<Socket>, write:Array<Socket>, others:Array<Socket>} {
 		var sread = makeArray(read);
@@ -262,17 +260,22 @@ class Socket {
 			tmpSize += socket_fd_size(swrite.length);
 		if (sothers != null)
 			tmpSize += socket_fd_size(sothers.length);
-		if (tmpSize > curTmpSize) {
-			tmp = new hl.Bytes(tmpSize);
-			curTmpSize = tmpSize;
+		var cur = TMP.value;
+		if (cur == null || tmpSize > cur.length) {
+			cur = haxe.io.Bytes.alloc(tmpSize);
+			TMP.value = cur;
 		}
-		if (!socket_select(sread, swrite, sothers, tmp, curTmpSize, timeout == null ? -1 : timeout))
+		if (!socket_select(sread, swrite, sothers, cur, cur.length, timeout == null ? -1 : timeout))
 			throw "Error while waiting on socket";
 		return {
 			read: outArray(sread, read),
 			write: outArray(swrite, write),
 			others: outArray(sothers, others),
 		};
+	}
+
+	static function clearCache() : Void {
+		TMP.value = null;
 	}
 
 	@:hlNative("std", "socket_init") static function socket_init():Void {}

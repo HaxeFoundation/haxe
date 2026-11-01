@@ -9,8 +9,6 @@ import sys.io.Process;
 using StringTools;
 
 class Js {
-	static final miscJsDir = getMiscSubDir('js');
-
 	static public function getJSDependencies() {
 		switch [ci, systemName] {
 			case [_, "Linux"]:
@@ -47,7 +45,7 @@ class Js {
 		getJSDependencies();
 
 		final jsOutputs = [
-			for (es_ver in    [[], ["-D", "js-es=3"], ["-D", "js-es=6"]])
+			for (es_ver in    [[], ["-D", "js-es=6"]])
 			for (unflatten in [[], ["-D", "js-unflatten"]])
 			for (classic in   [[], ["-D", "js-classic"]])
 			for (enums_as_objects in [[], ["-D", "js-enums-as-arrays"]])
@@ -67,16 +65,21 @@ class Js {
 
 				FileSystem.rename("bin/unit.js", output);
 				FileSystem.rename("bin/unit.js.map", output + ".map");
-				runCommand("node", ["-e", "require('./" + output + "').unit.TestMain.main();"]);
+				runCommand("node", [output]);
 				output;
 			}
 		];
 
+		// also test running with hxnodejs api for sys tests
+		haxelibInstallGit("HaxeFoundation", "hxnodejs");
+
+		runCommand("haxe", ["compile-js.hxml", "--library", "hxnodejs"].concat(args));
+		runCommand("node", ["bin/unit.js"]);
+
 		infoMsg("Test ES6:");
-		changeDirectory(getMiscSubDir("es6"));
+		changeDirectory(getMiscSubDir("js", "es6"));
 		runCommand("haxe", ["run.hxml"]);
 
-		haxelibInstallGit("HaxeFoundation", "hxnodejs");
 		final env = Sys.environment();
 		if (
 			env.exists("SAUCE") &&
@@ -123,6 +126,7 @@ class Js {
 
 		runci.targets.Jvm.getJavaDependencies(); // this is awkward
 		haxelibInstallGit("Simn", "haxeserver");
+		haxelibInstallGit("HaxeFoundation", "hxcoro", Config.hxcoroVersion);
 		changeDirectory(serverDir);
 		runCommand("haxe", ["build.hxml"]);
 		runCommand("node", ["test.js"]);
@@ -131,14 +135,12 @@ class Js {
 		runCommand("haxe", ["build.hxml", "-D", "disable-hxb-cache"]);
 		runCommand("node", ["test.js"]);
 
-		Display.maybeRunDisplayTests(Js);
-
 		changeDirectory(sysDir);
 		installNpmPackages(["deasync"]);
-		runCommand("haxe", ["compile-js.hxml"].concat(args));
+		runCommand("haxe", args.concat(["compile-js.hxml"]));
 		runSysTest("node", ["bin/js/sys.js"]);
 
-		changeDirectory(miscJsDir);
-		runCommand("haxe", ["run.hxml"]);
+		changeDirectory(getMiscSubDir(""));
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "js"]);
 	}
 }

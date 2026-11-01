@@ -418,7 +418,10 @@ import java.lang.System;
 	}
 
 	public function resize(len:Int):Void {
-		if (length < len) {
+		if (len == 0) {
+			this.length = 0;
+			this.__a = new NativeArray(0);
+		} else if (length < len) {
 			if (__a.length < len) {
 				var newArr = new NativeArray<T>(len);
 				if (length > 0)

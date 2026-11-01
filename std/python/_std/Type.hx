@@ -29,6 +29,7 @@ import python.Syntax;
 enum ValueType {
 	TNull;
 	TInt;
+	TInt64;
 	TFloat;
 	TBool;
 	TObject;
@@ -60,13 +61,13 @@ enum ValueType {
 		}
 	}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic> {
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> {
 		if (o == null)
 			return null;
 		return Syntax.field(o, "__class__");
 	}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
 		return python.Boot.getSuperClass(c);
 	}
 
@@ -94,7 +95,7 @@ enum ValueType {
 		return Internal.fieldClassName(e);
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic> {
+	public static function resolveClass(name:String):Null<Class<Dynamic>> {
 		if (name == "Array")
 			return Array;
 		if (name == "Math")
@@ -109,7 +110,7 @@ enum ValueType {
 		return cl;
 	}
 
-	public static function resolveEnum(name:String):Enum<Dynamic> {
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>> {
 		if (name == "Bool")
 			return cast Bool;
 		var o = resolveClass(name);
@@ -184,7 +185,7 @@ enum ValueType {
 		} else if (UBuiltins.isinstance(v, UBuiltins.int)) {
 			return TInt;
 		} else if (UBuiltins.isinstance(v, UBuiltins.float)) {
-			return TFloat;
+			return Std.int(v) == v ? TInt : TFloat;
 		} else if (UBuiltins.isinstance(v, String)) {
 			return TClass(String);
 		} else if (UBuiltins.isinstance(v, Array)) {
@@ -194,7 +195,8 @@ enum ValueType {
 		} else if (UBuiltins.isinstance(v, Enum)) {
 			return TEnum(Syntax.field(v, "__class__"));
 		} else if (UBuiltins.isinstance(v, UBuiltins.type) || Internal.hasClass(v)) {
-			return TClass(Syntax.field(v, "__class__"));
+			var cl = Syntax.field(v, "__class__");
+			return cl == @:privateAccess haxe.Int64.IMPL ? TInt64 : TClass(cl);
 		} else if (UBuiltins.callable(v)) {
 			return TFunction;
 		} else {

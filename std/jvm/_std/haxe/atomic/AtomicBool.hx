@@ -2,7 +2,9 @@ package haxe.atomic;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-abstract AtomicBool(AtomicBoolean) {
+private typedef AtomicBoolData = AtomicBoolean;
+
+abstract AtomicBool(AtomicBoolData) {
 	public inline function new(value:Bool) {
 		this = new AtomicBoolean(value);
 	}

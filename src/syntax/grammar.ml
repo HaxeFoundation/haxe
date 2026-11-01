@@ -85,6 +85,7 @@ let lower_ident_or_macro = function%parser
 
 let property_ident = function%parser
 	| [ ident as i ] -> i
+	| [ (Kwd Private,p1); (Const (Ident i),p2) ] -> "private " ^ i, punion p1 p2
 	| [ (Kwd Dynamic,p) ] -> "dynamic",p
 	| [ (Kwd Default,p) ] -> "default",p
 	| [ (Kwd Null,p) ] -> "null",p
@@ -333,7 +334,13 @@ and parse_type_decl ctx mode s =
 					}, punion p1 p2)
 				| [ ] -> check_type_decl_flag_completion ctx mode c s)
 			| _ ->
-				check_type_decl_flag_completion ctx mode c s
+				begin match meta with
+					| (_,_,p) :: _ ->
+						syntax_error ctx ~pos:(Some p) (Custom "Type or field expected after metadata") s ()
+					| [] ->
+						()
+				end;
+				check_type_decl_flag_completion ctx mode c s;
 
 
 and parse_class ctx doc meta cflags need_name s =
@@ -709,6 +716,8 @@ and parse_complex_type_inner ctx allow_named s = match%parser s with
 		in
 		let p = punion p1 p2 in
 		CTPath (make_ptp (mk_type_path ~params:[TPType hint] (["haxe"],"Rest")) p),p
+	| [ (Kwd Default,p) ] ->
+		CTPath (make_ptp (mk_type_path (["$"],"_hx_default")) p),p
 	| [ dollar_ident as n ] ->
 		(match%parser s with
 		| [ (DblDot,_); [%let t = parse_complex_type ctx] ] when allow_named->
@@ -1098,7 +1107,7 @@ and parse_constraint_param ctx s =
 
 and parse_type_path_or_resume ctx p1 s =
 	let check_resume exc =
-		if would_skip_display_position ctx p1 true s then begin
+		if is_completion ctx && would_skip_display_position ctx p1 true s then begin
 			let p = display_position#with_pos p1 in
 			make_ptp magic_type_path p,true
 		end else
@@ -1164,6 +1173,7 @@ and parse_block_var ctx = function%parser
 and parse_block_elt ctx s = match%parser s with
 	| [ [%let vl,p = parse_block_var ctx] ] ->
 		(EVars vl,p)
+	| [ (Kwd Function,p1); [%let e = parse_function ctx p1 false]; [%let _s = semicolon ctx] ]  -> e
 	| [ (Kwd Inline,p1) ] ->
 		begin match%parser s with
 		| [ (Kwd Function,_); [%let e = parse_function ctx p1 true]; [%let _s = semicolon ctx] ] -> e
@@ -1486,7 +1496,15 @@ and expr (ctx : parser_ctx) s = match%parser s with
 				syntax_error ctx (Expected [")";",";":"]) s (expr_next ctx (EParenthesis e, punion p1 (pos e)) s))
 		)
 	| [ (BkOpen,p1); [%let e = parse_array_decl ctx p1] ] -> expr_next ctx e s
-	| [ (Kwd Function,p1); [%let e = parse_function ctx p1 false]; ] -> e
+	| [ (Kwd Function,p1); [%let e = parse_function ctx p1 false]; [%s s]; ] ->
+		begin match Stream.peek s with
+		| Some (POpen,_) | Some (BkOpen,_) ->
+			e
+		| Some (Unop op, _) when is_postfix op ->
+			e
+		| _ ->
+			expr_next ctx e s
+		end
 	| [ (Unop op,p1); [%let e = expr ctx] ] -> make_unop op e p1
 	| [ (Spread,p1); [%let e = expr ctx] ] -> make_unop Spread e (punion p1 (pos e))
 	| [ (Binop OpSub,p1); [%let e = expr ctx] ] ->
@@ -1610,7 +1628,7 @@ and expr_next' ctx e1 s = match%parser s with
 			make_binop OpGt e1 e2)
 	| [ (Binop op,_); [%let e2 = secure_expr ctx] ] -> make_binop op e1 e2
 	| [ (Spread,_); [%let e2 = secure_expr ctx] ] -> make_binop OpInterval e1 e2
-	| [ (Unop op,p) ] when is_postfix e1 op ->
+	| [ (Unop op,p) ] when is_postfix op ->
 		expr_next ctx (EUnop (op,Postfix,e1), punion (pos e1) p) s
 	| [ (Question,_); [%let e2 = expr ctx] ] ->
 		begin match%parser s with
@@ -1776,11 +1794,11 @@ and secure_expr ctx = function%parser
 		)
 
 let rec validate_macro_cond ctx s e = match fst e with
-	| EConst (Ident _)
 	| EConst (String _)
 	| EConst (Int (_, _))
 	| EConst (Float (_, _))
 		-> e
+	| EConst (Ident t) -> parse_macro_ident ctx t (snd e) s
 	| EUnop (op,p,e1) -> (EUnop (op, p, validate_macro_cond ctx s e1), snd e)
 	| EBinop (op,e1,e2) -> (EBinop(op, (validate_macro_cond ctx s e1), (validate_macro_cond ctx s e2)), snd e)
 	| EParenthesis (e1) -> (EParenthesis (validate_macro_cond ctx s e1), snd e)
@@ -1788,17 +1806,19 @@ let rec validate_macro_cond ctx s e = match fst e with
 	| ECall ((EConst (Ident _),_) as i, args) -> (ECall (i,List.map (validate_macro_cond ctx s) args),snd e)
 	| _ -> syntax_error ctx (Custom ("Invalid conditional expression")) ~pos:(Some (pos e)) s ((EConst (Ident "false"),(pos e)))
 
-let parse_macro_ident ctx t p s =
-	if t = "display" then Option.may (fun h -> ThreadSafeHashtbl.replace h (Path.UniqueKey.create p.pfile) t) ctx.config.special_identifier_files;
-	let e = (EConst (Ident t),p) in
-	None, e
+and parse_macro_ident ctx t p s =
+	if t = "display" then begin
+		syntax_warning_with_pos ctx Warning.WIfDisplay p;
+		Option.may (fun h -> ThreadSafeHashtbl.replace h (Path.UniqueKey.create p.pfile) t) ctx.config.special_identifier_files
+	end;
+	(EConst (Ident t),p)
 
 let rec parse_macro_cond ctx s =
 	parsing_macro_cond := true;
 	try
 		let cond = (match%parser s with
 			| [ (Const (Ident t),p) ] ->
-				parse_macro_ident ctx t p s
+				None, parse_macro_ident ctx t p s
 			| [ (Const (String(s,qs)),p) ] ->
 				None, (EConst (String(s,qs)),p)
 			| [ (Const (Int (i, s)),p) ] ->
@@ -1806,7 +1826,7 @@ let rec parse_macro_cond ctx s =
 			| [ (Const (Float (f, s)),p) ] ->
 				None, (EConst (Float (f, s)),p)
 			| [ (Kwd k,p) ] ->
-				parse_macro_ident ctx (s_keyword k) p s
+				None, parse_macro_ident ctx (s_keyword k) p s
 			| [ (Unop op,p); [%let tk, e = parse_macro_cond ctx] ] ->
 				tk, make_unop op e p
 			| [ (POpen,p1); [%let (e,p) = expr ctx]; (PClose,p2) ] ->

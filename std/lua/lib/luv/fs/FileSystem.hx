@@ -45,7 +45,7 @@ extern class FileSystem {
 
 	@:native("fs_unlink")
 	@:overload(function(file:String, ?cb:String->Bool->Void):Request {})
-	static function unlink(file:String, content:String):Result<Bool>;
+	static function unlink(file:String):Result<Bool>;
 
 	@:native("fs_write")
 	@:overload(function(file:FileDescriptor, content:String, offset:Int, ?cb:String->Int->Void):Int {})
@@ -159,7 +159,7 @@ extern class FileSystem {
 
 	@:native("fs_copyfile")
 	@:overload(function(path:String, newPath:String, flags:Null<CopyFlags>, cb:String->Bool->Void):Request {})
-	static function copyfile(path:String, newPath:String, ?flags:CopyFlags):Bool;
+	static function copyfile(path:String, newPath:String, ?flags:CopyFlags):Result<Bool>;
 
 	@:native("fs_statfs")
 	@:overload(function(path:String, cb:StatFs->Bool->Void):Request {})

@@ -32,8 +32,14 @@ import haxe.ds.ObjectMap;
 
 @:native("_G.table")
 extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
+	/**
+		Generate an inline lua table declaration from an array literal and/or an object literal argument.
+	**/
 	@:pure static function create<A, B>(?arr:Array<B>, ?hsh:Dynamic):Table<A, B>;
 
+	/**
+		Convert the array `arr` into a lua table with lua-style indexing.
+	**/
 	inline static function fromArray<T>(arr:Array<T>):Table<Int, T> {
 		var ret = Table.create();
 		for (idx in 0...arr.length) {
@@ -78,6 +84,42 @@ extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
     inline static function toArray<T>(tbl : Table<Int,T>, ?length:Int) : Array<T> {
 		return Boot.defArray(PairTools.copy(tbl), length);
     }
+
+	/**
+		Returns an iterator over the values in the table.
+		Enables `for (v in table)` syntax.
+	**/
+	inline function iterator():Iterator<B> {
+		var tbl:Table<A, B> = this;
+		var cur:A = Lua.next(tbl, null).index;
+		return {
+			hasNext: function() return cur != null,
+			next: function() {
+				var key = cur;
+				var val = tbl[untyped key];
+				cur = Lua.next(tbl, key).index;
+				return val;
+			}
+		};
+	}
+
+	/**
+		Returns an iterator over the key-value pairs in the table.
+		Enables `for (k => v in table)` syntax.
+	**/
+	inline function keyValueIterator():KeyValueIterator<A, B> {
+		var tbl:Table<A, B> = this;
+		var cur:A = Lua.next(tbl, null).index;
+		return {
+			hasNext: function() return cur != null,
+			next: function() {
+				var key = cur;
+				var val = tbl[untyped key];
+				cur = Lua.next(tbl, key).index;
+				return {key: key, value: val};
+			}
+		};
+	}
 
 	@:overload(function<A, B>(table:Table<A, B>):Void {})
 	static function concat<A, B>(table:Table<A, B>, ?sep:String, ?i:Int, ?j:Int):String;

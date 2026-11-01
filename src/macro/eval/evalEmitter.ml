@@ -127,11 +127,8 @@ let emit_array_declaration execs env =
 
 let emit_type_expr proto env = proto
 
-let emit_mk_pos exec1 exec2 exec3 env =
-	let file = exec1 env in
-	let min = exec2 env in
-	let max = exec3 env in
-	encode_pos { pfile = decode_string file; pmin = decode_int min; pmax = decode_int max }
+let emit_mk_pos p env =
+	encode_pos p
 
 let emit_enum_construction key i execs p env =
 	encode_enum_value key i (Array.map (apply env) execs) p
@@ -231,7 +228,7 @@ let emit_try exec catches env =
 	with RunTimeException(v,_,_) as exc ->
 		eval.caught_exception <- vnull;
 		restore();
-		build_exception_stack ctx env;
+		build_exception_stack eval env;
 		let rec loop () = match eval.env with
 			| Some env' when env' != env ->
 				pop_environment ctx env';
@@ -307,7 +304,7 @@ let emit_super_field_call slot proto i execs p env =
 
 let emit_proto_field_call v execs p env =
 	check_stack_depth env;
-	let f = Lazy.force v in
+	let f = AtomicLazy.force v in
 	let vl = List.map (apply env) execs in
 	env.env_leave_pmin <- p.pmin;
 	env.env_leave_pmax <- p.pmax;
@@ -346,7 +343,7 @@ let emit_field_call exec name execs p env =
 
 let emit_constructor_call proto v execs p env =
 	check_stack_depth env;
-	let f = Lazy.force v in
+	let f = AtomicLazy.force v in
 	let vthis = create_instance_direct proto INormal in
 	let vl = List.map (apply env) execs in
 	env.env_leave_pmin <- p.pmin;
@@ -370,7 +367,7 @@ let emit_special_super_call fnew execs env =
 
 let emit_super_call v execs p env =
 	check_stack_depth env;
-	let f = Lazy.force v in
+	let f = AtomicLazy.force v in
 	let vthis = env.env_locals.(0) in
 	let vl = List.map (apply env) execs in
 	env.env_leave_pmin <- p.pmin;
@@ -534,7 +531,8 @@ let emit_vector_write exec1 p1 exec2 p2 exec3 p env =
 (* Read + write *)
 
 let do_incr v p = match v with
-	| VInt32 i32 -> vint32 (Int32.add i32 Int32.one)
+	| VInt32 i32 -> vint32 (Int32.succ i32)
+	| VInt64 i64 -> vint64 (Int64.succ i64)
 	| VFloat f -> vfloat (f +. 1.)
 	| v -> unexpected_value_p v "number" p
 
@@ -734,6 +732,7 @@ let emit_bool_or exec1 exec2 env =
 let emit_neg exec p env = match exec env with
 	| VFloat f -> vfloat (-.f)
 	| VInt32 i -> vint32 (Int32.neg i)
+	| VInt64 i -> vint64 (Int64.neg i)
 	| _ -> throw_string "Invalid operation" p
 
 (* Function *)
@@ -762,33 +761,33 @@ let process_arguments fl vl env =
 
 let create_function_noret ctx eci exec fl vl =
 	let env = push_environment ctx eci in
-	process_arguments fl vl env;
-	let v = exec env in
-	pop_environment ctx env;
-	v
+	Std.finally (fun () -> pop_environment ctx env) (fun () ->
+		process_arguments fl vl env;
+		exec env
+	) ()
 
 let create_function ctx eci exec fl vl =
 	let env = push_environment ctx eci in
-	process_arguments fl vl env;
-	let v = try exec env with Return v -> v in
-	pop_environment ctx env;
-	v
+	Std.finally (fun () -> pop_environment ctx env) (fun () ->
+		process_arguments fl vl env;
+		try exec env with Return v -> v
+	) ()
 
 let create_closure_noret ctx eci refs exec fl vl =
 	let env = push_environment ctx eci in
-	Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
-	process_arguments fl vl env;
-	let v = exec env in
-	pop_environment ctx env;
-	v
+	Std.finally (fun () -> pop_environment ctx env) (fun () ->
+		Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
+		process_arguments fl vl env;
+		exec env
+	) ()
 
 let create_closure refs ctx eci exec fl vl =
 	let env = push_environment ctx eci in
-	Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
-	process_arguments fl vl env;
-	let v = try exec env with Return v -> v in
-	pop_environment ctx env;
-	v
+	Std.finally (fun () -> pop_environment ctx env) (fun () ->
+		Array.iter (fun (i,vr) -> env.env_captures.(i) <- vr) refs;
+		process_arguments fl vl env;
+		try exec env with Return v -> v
+	) ()
 
 let emit_closure ctx mapping eci hasret exec fl env =
 	let refs = Array.map (fun (i,slot) -> i,emit_capture_read slot env) mapping in

@@ -10,7 +10,7 @@ class Issue11800 {
 	static function test() {
 		static var a = 0;
 
-		for (i in 0...3) {
+		inline for (i in 0...3) {
 			switch i {
 				case n if (n < 2):
 					use(++a);

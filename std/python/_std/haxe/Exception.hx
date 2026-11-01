@@ -10,7 +10,7 @@ private typedef PyStackItem = python.Tuple.Tuple4<String, Int, String, String>;
 @:coreApi
 class Exception extends PyException {
 	public var message(get,never):String;
-	public var stack(get,never):CallStack;
+	public var stack(get,set):CallStack;
 	public var previous(get,never):Null<Exception>;
 	public var native(get,never):Any;
 
@@ -90,5 +90,9 @@ class Exception extends PyException {
 				__exceptionStack = NativeStackTrace.toHaxe(__nativeStack, __skipStack);
 			case s: s;
 		}
+	}
+
+	function set_stack(stack:CallStack) {
+		return __exceptionStack = stack;
 	}
 }

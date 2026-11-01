@@ -10,7 +10,7 @@ import java.io.PrintWriter;
 @:coreApi
 class Exception extends NativeException {
 	public var message(get,never):String;
-	public var stack(get,never):CallStack;
+	public var stack(get,set):CallStack;
 	public var previous(get,never):Null<Exception>;
 	public var native(get,never):Any;
 
@@ -87,6 +87,21 @@ class Exception extends NativeException {
 				__exceptionStack = NativeStackTrace.toHaxe(__nativeException.getStackTrace());
 			case s: s;
 		}
+	}
+
+	function set_stack(stack:CallStack) {
+		var items = stack.asArray();
+		var a = [];
+		for (item in items) {
+			switch (item) {
+				case FilePos(Method(c, m), f, l):
+					a.push(new StackTraceElement(c, m, f, l));
+				case _:
+			}
+		}
+		var a = NativeArray.ofArray(a);
+		setStackTrace(a);
+		return __exceptionStack = stack;
 	}
 }
 

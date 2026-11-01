@@ -11,12 +11,11 @@ class Issue10008 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.SignatureHelp, {
+		var result = runHaxeJson([], DisplayMethods.SignatureHelp, {
 			file: file,
 			offset: offset(1),
 			wasAutoTriggered: true
 		});
-		var result = parseSignatureHelp();
-		Assert.equals(0, result.result.activeParameter);
+		Assert.equals(0, result.activeParameter);
 	}
 }

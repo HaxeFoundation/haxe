@@ -25,13 +25,13 @@ class NativeStackTrace {
 		return { skip:0, stack:untyped __dollar__excstack() };
 	}
 
-	static public function toHaxe(native:NativeTrace, skip:Int = 0):Array<StackItem> {
-		skip += native.skip;
+	static public function toHaxe(nativeStackTrace:NativeTrace, skip:Int = 0):Array<StackItem> {
+		skip += nativeStackTrace.skip;
 		var a = new Array();
-		var l = untyped __dollar__asize(native.stack);
+		var l = untyped __dollar__asize(nativeStackTrace.stack);
 		var i = 0;
 		while (i < l) {
-			var x = native.stack[l - i - 1];
+			var x = nativeStackTrace.stack[l - i - 1];
 			//skip all CFunctions until we skip required amount of hx entries
 			if(x == null && skip > i) {
 				skip++;

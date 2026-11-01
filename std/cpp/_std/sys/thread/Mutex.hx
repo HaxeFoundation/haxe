@@ -22,23 +22,33 @@
 
 package sys.thread;
 
+@:include("hx/thread/RecursiveMutex.hpp")
+@:cpp.ManagedType({ namespace : [ "hx", "thread" ], flags : [ StandardNaming ] })
+private extern class RecursiveMutex {
+	function new():Void;
+
+	function acquire():Void;
+	function tryAcquire():Bool;
+	function release():Void;
+}
+
 @:coreApi
 class Mutex {
-	var m:Dynamic;
+	final m:RecursiveMutex;
 
 	public function new() {
-		m = untyped __global__.__hxcpp_mutex_create();
+		m = new RecursiveMutex();
 	}
 
 	public function acquire():Void {
-		untyped __global__.__hxcpp_mutex_acquire(m);
+		m.acquire();
 	}
 
 	public function tryAcquire():Bool {
-		return untyped __global__.__hxcpp_mutex_try(m);
+		return m.tryAcquire();
 	}
 
 	public function release():Void {
-		untyped __global__.__hxcpp_mutex_release(m);
+		m.release();
 	}
 }

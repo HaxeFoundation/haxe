@@ -26,6 +26,7 @@ import haxe.io.Bytes;
 import haxe.io.Encoding;
 import haxe.io.Input;
 import haxe.io.Output;
+import haxe.Int32;
 import python.io.IFileOutput;
 
 class FileOutput extends Output {
@@ -99,7 +100,7 @@ class FileOutput extends Output {
 		impl.writeUInt24(x);
 	}
 
-	override public function writeInt32(x:Int):Void {
+	override public function writeInt32(x:Int32):Void {
 		impl.writeInt32(x);
 	}
 

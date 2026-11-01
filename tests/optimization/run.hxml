@@ -1,6 +1,7 @@
 -p src
 -D analyzer-optimize
 -D analyzer-user-var-fusion
+-D loop-unroll-max-cost=0
 --each
 
 --main TestAnalyzer
@@ -14,6 +15,12 @@
 --next
 --main TestTreBehavior
 --interp
+
+--next
+--main TestCoroAssert
+-D haxe-next
+--no-output
+-js /dev/null
 
 --next
 -js testopt.js

@@ -5,8 +5,6 @@ class Issue11516 extends TestCase {
 		vfs.putContent("Importson.hx", getTemplate("issues/Issue11516/Importson.hx"));
 		var args = ["Importson", "--interp"];
 		runHaxe(args);
-		runHaxeJsonCb(args, DisplayMethods.Diagnostics, {file: new FsPath("Importson.hx")}, res -> {
-			Assert.equals(0, res.length);
-		});
+		Assert.equals(0, runHaxeJson(args, DisplayMethods.Diagnostics, {file: new FsPath("Importson.hx")}).length);
 	}
 }

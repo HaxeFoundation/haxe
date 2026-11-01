@@ -56,7 +56,7 @@ import haxe.SysTools;
 			return __global__.__get_args();
 		}
 
-	public static function getEnv(s:String):String {
+	public static function getEnv(s:String):Null<String> {
 		var v = NativeSys.get_env(s);
 		if (v == null)
 			return null;

@@ -9,7 +9,11 @@ import sys.io.Process;
 class UtilityProcess {
 	public static var BIN_PATH =
 #if cpp
+	#if cppia
+		Path.join(["bin", "cppia"]);
+	#else
 		Path.join(["bin", "cpp"]);
+	#end
 #elseif hl
 	#if hlc
 		Path.join(["bin", "hlc/utilityProcess"]);
@@ -27,7 +31,7 @@ class UtilityProcess {
 #elseif python
 		Path.join(["bin", "python"]);
 #elseif eval
-		Path.join(["src"]);
+		Path.join(["bin", "eval"]);
 #elseif js
 		Path.join(["bin", "js"]);
 #else
@@ -35,7 +39,9 @@ class UtilityProcess {
 #end
 	public static var BIN_NAME =
 #if cpp
-		#if debug
+		#if cppia
+			"UtilityProcess.cppia";
+		#elseif debug
 			"UtilityProcess-debug";
 		#else
 			"UtilityProcess";
@@ -57,25 +63,24 @@ class UtilityProcess {
 #elseif python
 		"UtilityProcess.py";
 #elseif eval
-		"UtilityProcess.hx";
+		"UtilityProcess.hxb";
 #elseif js
 		"UtilityProcess.js";
 #else
 		null;
 #end
 
-	public static function runUtility(args:Array<String>, ?options:{?stdin:String, ?execPath:String, ?execName:String}):{
+	public static function runUtility(args:Array<String>, ?stdin:String):{
 		exitCode:Int,
 		stdout:String,
 		stderr:String
 	} {
-		if (options == null) options = {};
-		if (options.execPath == null) options.execPath = BIN_PATH;
-		if (options.execName == null) options.execName = BIN_NAME;
-		var execFull = Path.join([options.execPath, options.execName]);
+		var execFull = Path.join([BIN_PATH, BIN_NAME]);
 		var proc =
 		#if (macro || interp)
-		new Process("haxe", ["compile-each.hxml", "-p", options.execPath, "--run", options.execName].concat(args));
+		new Process("haxe", ["--hxb-lib", execFull, "--run", Path.withoutExtension(BIN_NAME)].concat(args));
+		#elseif cppia
+		new Process("haxelib", ["run", "hxcpp", execFull].concat(args).concat(Sys.getEnv("CPPIA_IS_JIT") == null ? [] : ["-jit"]));
 		#elseif cpp
 		new Process(execFull, args);
 		#elseif java
@@ -97,8 +102,8 @@ class UtilityProcess {
 		#else
 		null;
 		#end
-		if (options.stdin != null) {
-			proc.stdin.writeString(options.stdin);
+		if (stdin != null) {
+			proc.stdin.writeString(stdin);
 			proc.stdin.flush();
 		}
 		var exitCode = proc.exitCode();
@@ -117,14 +122,13 @@ class UtilityProcess {
 
 		Returns the exit code of the command.
 	 **/
-	public static function runUtilityAsCommand(args:Array<String>, ?options:{?stdin:String, ?execPath:String, ?execName:String}):Int {
-		if (options == null) options = {};
-		if (options.execPath == null) options.execPath = BIN_PATH;
-		if (options.execName == null) options.execName = BIN_NAME;
-		final execFull = Path.join([options.execPath, options.execName]);
+	public static function runUtilityAsCommand(args:Array<String>):Int {
+		final execFull = Path.join([BIN_PATH, BIN_NAME]);
 		final exitCode =
 		#if (macro || interp)
-		Sys.command("haxe", ["compile-each.hxml", "-p", options.execPath, "--run", options.execName].concat(args));
+		Sys.command("haxe", ["--hxb-lib", execFull, "--run", BIN_NAME.substr(0, -4)].concat(args));
+		#elseif cppia
+		Sys.command("haxelib", ["run", "hxcpp", execFull].concat(args).concat(Sys.getEnv("CPPIA_IS_JIT") == null ? [] : ["-jit"]));
 		#elseif cpp
 		Sys.command(execFull, args);
 		#elseif java
@@ -149,7 +153,11 @@ class UtilityProcess {
 	}
 
 	public static function main():Void {
-		var args = Sys.args();
+		final args = Sys.args();
+		#if cppia
+		args.shift();
+		args.remove("-jit");
+		#end
 		function sequenceIndex(d:String, mode:String):String
 			return switch UnicodeSequences.valid[Std.parseInt(d)] {
 				case Only(ref): UnicodeSequences.codepointsToString(ref);

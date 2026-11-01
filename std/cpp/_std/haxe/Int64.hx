@@ -144,6 +144,10 @@ abstract Int64(__Int64) from __Int64 from Int to __Int64 {
 		return x;
 	}
 
+	public static #if !cppia inline #end function fromInt(x:Int):Int64 {
+		return x;
+	}
+
 	public static #if !cppia inline #end function toInt(x:Int64):Int {
 		if (x.high != x.low >> 31)
 			throw "Overflow";
@@ -182,7 +186,7 @@ abstract Int64(__Int64) from __Int64 from Int to __Int64 {
 	public static #if !cppia inline #end function toStr(x:Int64):String
 		return cast x.val;
 
-	private #if !cppia inline #end function toString():String
+	public #if !cppia inline #end function toString():String
 		return cast this;
 
 	public static function parseString(sParam:String):Int64 {
@@ -191,6 +195,10 @@ abstract Int64(__Int64) from __Int64 from Int to __Int64 {
 
 	public static function fromFloat(f:Float):Int64 {
 		return Int64Helper.fromFloat(f);
+	}
+
+	public #if !cppia inline #end function toFloat():Float {
+		return Int64Helper.toFloat(abstract);
 	}
 
 	public static function divMod(dividend:Int64, divisor:Int64):{quotient:Int64, modulus:Int64} {

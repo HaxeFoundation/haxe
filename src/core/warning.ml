@@ -1,15 +1,7 @@
 open Globals
+open Message
 open Error
 include WarningList
-
-type warning_mode =
-	| WMEnable
-	| WMDisable
-
-type warning_option = {
-	wo_warning : warning;
-	wo_mode : warning_mode;
-}
 
 let parse_options lctx s ps lexbuf =
 	let fail msg p =

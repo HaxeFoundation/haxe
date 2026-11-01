@@ -12,13 +12,11 @@ class Issue9039 extends DisplayTestCase {
 
 		vfs.putContent("Main.hx", transform.source);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Main.hx")});
-		runHaxeJson([], DisplayMethods.Completion, {
+		assertHasNoCompletion(runHaxeJson([], DisplayMethods.Completion, {
 			file: file,
 			offset: transform.markers[1],
 			wasAutoTriggered: true
-		});
-
-		assertHasNoCompletion(parseCompletion(), function(item) {
+		}), function(item) {
 			return switch item.kind {
 				case ClassField: item.args.field.name == "get_prop";
 				case _: false;

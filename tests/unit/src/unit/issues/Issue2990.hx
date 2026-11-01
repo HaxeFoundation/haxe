@@ -5,16 +5,16 @@ class Issue2990 extends Test
 {
 	function test()
 	{
-		var u:UInt = 11;
-		eq(typeof(u << 1), 'TAbstract(UInt,[])');
-		eq(typeof(~u), 'TAbstract(UInt,[])');
-		eq(typeof(u >> 1), 'TAbstract(UInt,[])');
-		eq(typeof(u >>> 1), 'TAbstract(UInt,[])');
-		eq(typeof(u + 1), 'TAbstract(UInt,[])');
-		eq(typeof(u - 1), 'TAbstract(UInt,[])');
+		var u:haxe.UInt32 = 11;
+		eq(typeof(u << 1), 'TAbstract(haxe.UInt32,[])');
+		eq(typeof(~u), 'TAbstract(haxe.UInt32,[])');
+		eq(typeof(u >> 1), 'TAbstract(haxe.UInt32,[])');
+		eq(typeof(u >>> 1), 'TAbstract(haxe.UInt32,[])');
+		eq(typeof(u + 1), 'TAbstract(haxe.UInt32,[])');
+		eq(typeof(u - 1), 'TAbstract(haxe.UInt32,[])');
 		eq(typeof(u / 2), 'TAbstract(Float,[])');
-		eq(typeof(u * 2), 'TAbstract(UInt,[])');
-		eq(typeof(u % 2), 'TAbstract(UInt,[])');
+		eq(typeof(u * 2), 'TAbstract(haxe.UInt32,[])');
+		eq(typeof(u % 2), 'TAbstract(haxe.UInt32,[])');
 		eq(typeof(u % 2.1), 'TAbstract(Float,[])');
 		eq(typeof(u * 2.1), 'TAbstract(Float,[])');
 		eq(typeof(u / 2.1), 'TAbstract(Float,[])');

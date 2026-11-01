@@ -51,6 +51,8 @@ external zlib_crc32 : bytes -> int -> int32 = "zlib_crc32"
 
 external time : unit -> float = "sys_time"
 
+external timestamp_ms : unit -> int64 = "sys_timestamp_ms"
+
 external getch : bool -> int = "sys_getch"
 
 external filetime : string -> float = "sys_filetime"

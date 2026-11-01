@@ -85,4 +85,8 @@ import php.NativeIndexedArray;
 	public inline function clear():Void {
 		data = new NativeIndexedArray();
 	}
+	
+	public inline function size():Int {
+		return Global.count(data);
+	}
 }

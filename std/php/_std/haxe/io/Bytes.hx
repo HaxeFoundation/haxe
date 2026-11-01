@@ -24,6 +24,7 @@ package haxe.io;
 
 import php.Global;
 import php.Syntax;
+import haxe.Int32;
 
 class Bytes {
 	public var length(default, null):Int;
@@ -95,7 +96,7 @@ class Bytes {
 		set(pos + 1, v >> 8);
 	}
 
-	public inline function getInt32(pos:Int):Int {
+	public inline function getInt32(pos:Int):Int32 {
 		var v = get(pos) | (get(pos + 1) << 8) | (get(pos + 2) << 16) | (get(pos + 3) << 24);
 		return if (v & 0x80000000 != 0) v | 0x80000000 else v;
 	}
@@ -104,7 +105,7 @@ class Bytes {
 		return haxe.Int64.make(getInt32(pos + 4), getInt32(pos));
 	}
 
-	public inline function setInt32(pos:Int, v:Int):Void {
+	public inline function setInt32(pos:Int, v:Int32):Void {
 		set(pos, v);
 		set(pos + 1, v >> 8);
 		set(pos + 2, v >> 16);

@@ -1,0 +1,15 @@
+name: Cache Lua environments
+description: Cache lua environments used in haxe tests
+inputs:
+  key-prefix:
+    description: 'Platform/arch-specific cache key prefix (e.g., lua-env-linux-arm64, lua-env-mac-x86_64)'
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/cache@v6
+      with:
+        path: ~/haxe-ci/lua_env
+        key: ${{ inputs.key-prefix }}-${{ hashFiles('tests/runci/targets/Lua.hx') }}-v1
+        restore-keys: |
+          ${{ inputs.key-prefix }}-

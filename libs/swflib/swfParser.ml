@@ -605,28 +605,28 @@ let write_gradient ch = function
 let write_rect ch r =
 	let b = output_bits ch in
 	let nbits = rect_nbits r in
-	write_bits b 5 nbits;
-	write_bits b nbits r.left;
-	write_bits b nbits r.right;
-	write_bits b nbits r.top;
-	write_bits b nbits r.bottom;
+	write_bits b ~nbits:5 nbits;
+	write_bits b ~nbits r.left;
+	write_bits b ~nbits r.right;
+	write_bits b ~nbits r.top;
+	write_bits b ~nbits r.bottom;
 	flush_bits b
 
 let rec write_multi_bits b n l =
 	if n <= 30 then
 		match l with
-		| [] -> write_bits b n 0
-		| [x] -> write_bits b n x
+		| [] -> write_bits b ~nbits:n 0
+		| [x] -> write_bits b ~nbits:n x
 		| _ -> assert false
 	else
 		match l with
-		| [] -> write_bits b 30 0; write_multi_bits b (n - 30) []
-		| x :: l -> write_bits b 30 x; write_multi_bits b (n - 30) l
+		| [] -> write_bits b ~nbits:30 0; write_multi_bits b (n - 30) []
+		| x :: l -> write_bits b ~nbits:30 x; write_multi_bits b (n - 30) l
 
 let write_big_rect ch r =
 	let b = output_bits ch in
 	let nbits = bigrect_nbits r in
-	write_bits b 5 nbits;
+	write_bits b ~nbits:5 nbits;
 	write_multi_bits b nbits r.bleft;
 	write_multi_bits b nbits r.bright;
 	write_multi_bits b nbits r.btop;
@@ -637,22 +637,22 @@ let write_matrix ch m =
 	let b = output_bits ch in
 	let write_matrix_part m =
 		let nbits = matrix_part_nbits m in
-		write_bits b 5 nbits;
-		write_bits b nbits m.mx;
-		write_bits b nbits m.my;
+		write_bits b ~nbits:5 nbits;
+		write_bits b ~nbits m.mx;
+		write_bits b ~nbits m.my;
 	in
 	(match m.scale with
 	| None ->
-		write_bits b 1 0
+		write_bits b ~nbits:1 0
 	| Some s ->
-		write_bits b 1 1;
+		write_bits b ~nbits:1 1;
 		write_matrix_part s
 	);
 	(match m.rotate with
 	| None ->
-		write_bits b 1 0
+		write_bits b ~nbits:1 0
 	| Some r ->
-		write_bits b 1 1;
+		write_bits b ~nbits:1 1;
 		write_matrix_part r);
 	write_matrix_part m.trans;
 	flush_bits b
@@ -662,19 +662,19 @@ let write_cxa ch c =
 	let nbits = cxa_nbits c in
 	(match c.cxa_add , c.cxa_mult with
 	| None , None ->
-		write_bits b 2 0;
-		write_bits b 4 1; (* some strange MM thing... *)
+		write_bits b ~nbits:2 0;
+		write_bits b ~nbits:4 1; (* some strange MM thing... *)
 	| Some c , None ->
-		write_bits b 2 2;
-		write_bits b 4 nbits;
+		write_bits b ~nbits:2 2;
+		write_bits b ~nbits:4 nbits;
 		List.iter (write_bits b ~nbits) [c.r;c.g;c.b;c.a];
 	| None , Some c ->
-		write_bits b 2 1;
-		write_bits b 4 nbits;
+		write_bits b ~nbits:2 1;
+		write_bits b ~nbits:4 nbits;
 		List.iter (write_bits b ~nbits) [c.r;c.g;c.b;c.a];
 	| Some c1 , Some c2 ->
-		write_bits b 2 3;
-		write_bits b 4 nbits;
+		write_bits b ~nbits:2 3;
+		write_bits b ~nbits:4 nbits;
 		List.iter (write_bits b ~nbits) [c2.r;c2.g;c2.b;c2.a;c1.r;c1.g;c1.b;c1.a]
 	);
 	flush_bits b
@@ -1617,11 +1617,11 @@ let write_shape_array ch f sl =
 
 let write_shape_style_change_record ch b nlbits nfbits s =
 	let flags = make_flags [flag s.scsr_move; flag s.scsr_fs0; flag s.scsr_fs1; flag s.scsr_ls; flag s.scsr_new_styles] in
-	write_bits b 6 flags;
+	write_bits b ~nbits:6 flags;
 	opt (fun (n,dx,dy) ->
-		write_bits b 5 n;
-		write_bits b n dx;
-		write_bits b n dy;
+		write_bits b ~nbits:5 n;
+		write_bits b ~nbits:n dx;
+		write_bits b ~nbits:n dy;
 	) s.scsr_move;
 	opt (write_bits b ~nbits:!nfbits) s.scsr_fs0;
 	opt (write_bits b ~nbits:!nfbits) s.scsr_fs1;
@@ -1634,45 +1634,45 @@ let write_shape_style_change_record ch b nlbits nfbits s =
 		write_shape_array ch write_shape_line_style s.sns_line_styles;
 		nfbits := s.sns_nfbits;
 		nlbits := s.sns_nlbits;
-		write_bits b 4 !nfbits;
-		write_bits b 4 !nlbits
+		write_bits b ~nbits:4 !nfbits;
+		write_bits b ~nbits:4 !nlbits
 
 let write_shape_record ch b nlbits nfbits = function
 	| SRStyleChange s ->
 		write_shape_style_change_record ch b nlbits nfbits s
 	| SRCurvedEdge s ->
-		write_bits b 2 2;
-		write_bits b 4 (s.scer_nbits - 2);
-		write_bits b s.scer_nbits s.scer_cx;
-		write_bits b s.scer_nbits s.scer_cy;
-		write_bits b s.scer_nbits s.scer_ax;
-		write_bits b s.scer_nbits s.scer_ay;
+		write_bits b ~nbits:2 2;
+		write_bits b ~nbits:4 (s.scer_nbits - 2);
+		write_bits b ~nbits:s.scer_nbits s.scer_cx;
+		write_bits b ~nbits:s.scer_nbits s.scer_cy;
+		write_bits b ~nbits:s.scer_nbits s.scer_ax;
+		write_bits b ~nbits:s.scer_nbits s.scer_ay;
 	| SRStraightEdge s ->
-		write_bits b 2 3;
-		write_bits b 4 (s.sser_nbits - 2);
+		write_bits b ~nbits:2 3;
+		write_bits b ~nbits:4 (s.sser_nbits - 2);
 		match s.sser_line with
 		| None , None -> assert false
 		| None , Some p
 		| Some p , None ->
-			write_bits b 1 0;
-			write_bits b 1 (if (fst s.sser_line) = None then 1 else 0);
-			write_bits b s.sser_nbits p;
+			write_bits b ~nbits:1 0;
+			write_bits b ~nbits:1 (if (fst s.sser_line) = None then 1 else 0);
+			write_bits b ~nbits:s.sser_nbits p;
 		| Some dx, Some dy ->
-			write_bits b 1 1;
-			write_bits b s.sser_nbits dx;
-			write_bits b s.sser_nbits dy
+			write_bits b ~nbits:1 1;
+			write_bits b ~nbits:s.sser_nbits dx;
+			write_bits b ~nbits:s.sser_nbits dy
 
 let write_shape_without_style ch s =
 	(* write_shape_array ch write_shape_fill_style s.sws_fill_styles; *)
 	(* write_shape_array ch write_shape_line_style s.sws_line_styles; *)
 	let r = s in (* s.sws_records in *)
 	let b = output_bits ch in
-	write_bits b 4 r.srs_nfbits;
-	write_bits b 4 r.srs_nlbits;
+	write_bits b ~nbits:4 r.srs_nfbits;
+	write_bits b ~nbits:4 r.srs_nlbits;
 	let nlbits = ref r.srs_nlbits in
 	let nfbits = ref r.srs_nfbits in
 	List.iter (write_shape_record ch b nlbits nfbits) r.srs_records;
-	(* write_bits b 6 0; *)
+	(* write_bits b ~nbits:6 0; *)
 	flush_bits b
 
 let write_shape_with_style ch s =
@@ -1680,12 +1680,12 @@ let write_shape_with_style ch s =
 	write_shape_array ch write_shape_line_style s.sws_line_styles;
 	let r = s.sws_records in
 	let b = output_bits ch in
-	write_bits b 4 r.srs_nfbits;
-	write_bits b 4 r.srs_nlbits;
+	write_bits b ~nbits:4 r.srs_nfbits;
+	write_bits b ~nbits:4 r.srs_nlbits;
 	let nlbits = ref r.srs_nlbits in
 	let nfbits = ref r.srs_nfbits in
 	List.iter (write_shape_record ch b nlbits nfbits) r.srs_records;
-	write_bits b 6 0;
+	write_bits b ~nbits:6 0;
 	flush_bits b
 
 let write_shape ch s =
@@ -1721,8 +1721,8 @@ let write_text_record ch t r =
 	write_byte ch (List.length r.txr_glyphs);
 	let bits = output_bits ch in
 	List.iter (fun g ->
-		write_bits bits t.txt_ngbits g.txg_index;
-		write_bits bits t.txt_nabits g.txg_advanced;
+		write_bits bits ~nbits:t.txt_ngbits g.txg_index;
+		write_bits bits ~nbits:t.txt_nabits g.txg_advanced;
 	) r.txr_glyphs;
 	flush_bits bits
 

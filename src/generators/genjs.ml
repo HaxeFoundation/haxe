@@ -26,7 +26,7 @@ open JsSourcemap
 
 type ctx = {
 	com : Gctx.t;
-	buf : Rbuffer.t;
+	buf : Buffer.t;
 	mutable chan : out_channel option;
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap option;
@@ -69,17 +69,8 @@ let s_path ctx = if ctx.js_flatten then Path.flat_path else dot_path
 
 let kwds = Hashtbl.create 0
 
-let es3kwds = [
-	"abstract"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "const"; "continue";
-	"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
-	"finally"; "float"; "for"; "function"; "goto"; "if"; "implements"; "import"; "in"; "instanceof"; "int";
-	"interface"; "long"; "native"; "new"; "null"; "package"; "private"; "protected";
-	"public"; "return"; "short"; "static"; "super"; "switch"; "synchronized"; "this"; "throw"; "throws";
-	"transient"; "true"; "try"; "typeof"; "var"; "void"; "volatile"; "while"; "with"
-]
-
 let es5kwds = [
-	"arguments"; "break"; "case"; "catch"; "class"; "const"; "continue";
+	"arguments"; "await"; "break"; "case"; "catch"; "class"; "const"; "continue";
 	"debugger"; "default"; "delete"; "do"; "else"; "enum"; "eval"; "export"; "extends"; "false";
 	"finally"; "for"; "function"; "if"; "implements"; "import"; "in"; "instanceof";
 	"interface"; "let"; "new"; "null"; "package"; "private"; "protected";
@@ -87,11 +78,9 @@ let es5kwds = [
 	"true"; "try"; "typeof"; "var"; "void"; "while"; "with"; "yield"
 ]
 
-let setup_kwds com =
+let setup_kwds (com : Gctx.t) =
 	Hashtbl.reset kwds;
-	let es_version = Gctx.get_es_version com.defines in
-	let lst = if es_version >= 5 then es5kwds else es3kwds in
-	List.iter (fun s -> Hashtbl.add kwds s ()) lst
+	List.iter (fun s -> Hashtbl.add kwds s ()) es5kwds
 
 (* Identifiers Haxe reserves to make the JS output cleaner. These can still be used in untyped code (TLocal),
    but are escaped upon declaration. *)
@@ -161,33 +150,33 @@ let flush ctx =
 			ctx.chan <- Some chan;
 			chan
 	in
-	Rbuffer.output_buffer chan ctx.buf;
-	Rbuffer.clear ctx.buf
+	Buffer.output_buffer chan ctx.buf;
+	Buffer.clear ctx.buf
 
 let spr ctx s =
 	ctx.separator <- false;
 	handle_newlines ctx.smap s;
-	Rbuffer.add_string ctx.buf s
+	Buffer.add_string ctx.buf s
 
 let print ctx =
 	ctx.separator <- false;
 	Printf.kprintf (fun s -> begin
 		handle_newlines ctx.smap s;
-		Rbuffer.add_string ctx.buf s
+		Buffer.add_string ctx.buf s
 	end)
 
 let newline ctx =
-	match Rbuffer.nth ctx.buf (Rbuffer.length ctx.buf - 1) with
+	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '}' | '{' | ':' | ';' when not ctx.separator -> print ctx "\n%s" ctx.tabs
 	| _ -> print ctx ";\n%s" ctx.tabs
 
 let newprop ctx =
-	match Rbuffer.nth ctx.buf (Rbuffer.length ctx.buf - 1) with
+	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '{' -> print ctx "\n%s" ctx.tabs
 	| _ -> print ctx "\n%s," ctx.tabs
 
 let semicolon ctx =
-	match Rbuffer.nth ctx.buf (Rbuffer.length ctx.buf - 1) with
+	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '}' when not ctx.separator -> ()
 	| _ -> spr ctx ";"
 
@@ -221,11 +210,11 @@ let declare_rest_args_legacy com offset rest_arg =
 	]
 
 let fun_block ctx f p =
-	let e = List.fold_left (fun e (a,c) ->
+	let e = List.fold_right (fun (a,c) e ->
 		match c with
 		| None | Some {eexpr = TConst TNull} -> e
 		| Some c -> Type.concat (Texpr.set_default ctx.com.basic a c p) e
-	) f.tf_expr f.tf_args in
+	) f.tf_args f.tf_expr in
 	e
 
 let open_block ctx =
@@ -1138,7 +1127,7 @@ let get_generated_class_path = function
 
 let is_abstract_impl c = match c.cl_kind with KAbstractImpl _ -> true | _ -> false
 
-let generate_class_es3 ctx c =
+let generate_class_es5 ctx c =
 	let cl_path = get_generated_class_path c in
 	let is_abstract_impl = is_abstract_impl c in
 
@@ -1437,7 +1426,7 @@ let generate_class ctx c =
 		if ctx.es_version >= 6 then
 			generate_class_es6 ctx c
 		else
-			generate_class_es3 ctx c
+			generate_class_es5 ctx c
 
 let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
@@ -1613,7 +1602,7 @@ let alloc_ctx com es_version =
 				output_current_col = 0;
 				sources = DynArray.create();
 				sources_hash = Hashtbl.create 0;
-				mappings = Rbuffer.create 16;
+				mappings = Buffer.create 16;
 				current_expr = None;
 			}
 		else
@@ -1621,7 +1610,7 @@ let alloc_ctx com es_version =
 	in
 	let ctx = {
 		com = com;
-		buf = Rbuffer.create 16000;
+		buf = Buffer.create 16000;
 		chan = None;
 		packages = Hashtbl.create 0;
 		smap = smap;
@@ -1660,8 +1649,8 @@ let alloc_ctx com es_version =
 
 let gen_single_expr ctx e expr =
 	if expr then gen_expr ctx e else gen_value ctx e;
-	let str = Rbuffer.unsafe_contents ctx.buf in
-	Rbuffer.reset ctx.buf;
+	let str = Buffer.contents ctx.buf in
+	Buffer.reset ctx.buf;
 	ctx.id_counter <- 0;
 	str
 
@@ -1677,6 +1666,71 @@ let generate js_gen com =
 
 	let ctx = alloc_ctx com es_version in
 	Gctx.map_source_header com.defines (fun s -> print ctx "// %s\n" s);
+
+	let import_statements = ref [] in
+	List.iter (fun mt -> match mt with
+		| TClassDecl c when (has_class_flag c CExtern) && Meta.has Meta.JsImport c.cl_meta && is_directly_used ctx.com c.cl_meta ->
+			let _, args, mp = Meta.get Meta.JsImport c.cl_meta in
+			let id = snd c.cl_path in
+			let flat_path = Path.flat_path (get_generated_class_path c) in
+			let alias = try
+				fst (Native.get_native_name c.cl_meta)
+			with Not_found ->
+				c.cl_meta <- (Meta.Native,[EConst (String(flat_path,SDoubleQuotes)),null_pos],null_pos) :: c.cl_meta;
+				Native.apply_native_paths mt;
+				flat_path
+			in
+			let err () =
+				abort ("Unsupported @:js.import format. Use:\n" ^
+				"	@:js.import('mylib.js')\n" ^
+				"	@:js.import('mylib.js', 'name')\n" ^
+				"	@:js.import(@default 'mylib.js')\n" ^
+				"	@:js.import(@star 'mylib.js')\n" ^
+				"'mylib.js' can also be replaced with mylibjs_path custom define,\nif you set it as -D mylibjs_path=\"mylib.js\"")
+				mp
+			in
+			let get_module_name expr =
+				match expr with
+					| EConst(String(module_name,_)),_ -> module_name
+					| EConst(Ident(define)),_ ->
+						begin try
+							let s = Define.raw_defined_value com.defines define in
+							Helper.unquote s
+						with Not_found ->
+							abort ("Define " ^ define ^ " with js library path is not specified") mp;
+						end
+					| _ -> err()
+			in
+			(match args with
+				(* @:js.import(@star "module") - namespace import *)
+				| [EMeta ((Meta.Custom "star",[],_),ename),_] ->
+					let module_name = get_module_name ename in
+					import_statements := (Printf.sprintf "import * as %s from \"%s\";" alias module_name) :: !import_statements
+				(* @:js.import(@default "module") - default import *)
+				| [EMeta ((Meta.Custom "default",[],_),ename),_] ->
+					let module_name = get_module_name ename in
+					import_statements := (Printf.sprintf "import %s from \"%s\";" alias module_name) :: !import_statements
+				(* @:js.import("module") - named import using class name *)
+				| [ename] ->
+					let module_name = get_module_name ename in
+					import_statements := (Printf.sprintf "import { %s as %s } from \"%s\";" id alias module_name) :: !import_statements
+				(* @:js.import("module", "exportName") - named import with alias *)
+				| [ename; (EConst(String(export_name,_)),_)] ->
+					let module_name = get_module_name ename in
+					import_statements := (Printf.sprintf "import { %s as %s } from \"%s\";" export_name alias module_name) :: !import_statements
+				| exprs ->
+					err ()
+			)
+		| _ -> ()
+	) com.types;
+	(match !import_statements with
+		| [] -> ()
+		| lines ->
+			List.iter (fun line ->
+				print ctx "%s\n" line
+			) (List.rev lines)
+	);
+
 	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "js.Boot.isClass";
 	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
 
@@ -1769,13 +1823,6 @@ let generate js_gen com =
 	else
 		closureArgs
 	in
-	(* Provide console for environments that may not have it. *)
-	let closureArgs = if ctx.es_version < 5 then
-		("console", typeof_join ["console"; "{log:function(){}}"]) :: closureArgs
-	else
-		closureArgs
-	in
-
 	if nodejs then
 		(* Add node globals to pseudo-keywords, so they are not shadowed by local vars *)
 		List.iter (fun s -> Hashtbl.replace kwds2 s ()) [ "global"; "process"; "__filename"; "__dirname"; "module" ];
@@ -1811,15 +1858,8 @@ let generate js_gen com =
 		| _ -> ()
 	) include_files;
 
-	(* If ctx.js_modern, console is defined in closureArgs. *)
-	if (not ctx.js_modern) && (ctx.es_version < 5) then
-		add_feature ctx "js.Lib.global"; (* console polyfill will check console from $global *)
-
 	if (not ctx.js_modern) then
 		print ctx "var %s = %s;\n" (fst var_global) (snd var_global);
-
-	if (not ctx.js_modern) && (ctx.es_version < 5) then
-		spr ctx "var console = $global.console || {log:function(){}};\n";
 
 	let enums_as_objects = not (Gctx.defined com Define.JsEnumsAsArrays) in
 
@@ -1846,12 +1886,7 @@ let generate js_gen com =
 	if ctx.es_version < 6 && List.exists (function TClassDecl ({ cl_super = Some _ } as c) -> not (has_class_flag c CExtern) | _ -> false) com.types then begin
 		let extend_code =
 			"function $extend(from, fields) {\n" ^
-			(
-				if ctx.es_version < 5 then
-					"	function Inherit() {} Inherit.prototype = from; var proto = new Inherit();\n"
-				else
-					"	var proto = Object.create(from);\n"
-			) ^
+			"	var proto = Object.create(from);\n" ^
 			"	for (var name in fields) proto[name] = fields[name];\n" ^
 			"	if( fields.toString !== Object.prototype.toString ) proto.toString = fields.toString;\n" ^
 			"	return proto;\n" ^
@@ -1899,11 +1934,7 @@ let generate js_gen com =
 			newline ctx;
 			has_dollar_underscore := true
 		end;
-		(if ctx.es_version < 5 then
-			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $global.$haxeUID++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; o.hx__closures__[m.__id__] = f; } return f; }"
-		else
-			print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $global.$haxeUID++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = m.bind(o); o.hx__closures__[m.__id__] = f; } return f; }"
-		);
+		print ctx "function $bind(o,m) { if( m == null ) return null; if( m.__id__ == null ) m.__id__ = $global.$haxeUID++; var f; if( o.hx__closures__ == null ) o.hx__closures__ = {}; else f = o.hx__closures__[m.__id__]; if( f == null ) { f = m.bind(o); o.hx__closures__[m.__id__] = f; } return f; }";
 		newline ctx;
 	end;
 	if has_feature ctx "use.$arrayPush" then begin
@@ -1954,6 +1985,10 @@ let generate js_gen com =
 	);
 
 	(match ctx.smap with
+	| Some smap when Gctx.defined_value_safe com Define.SourceMap = "inline" ->
+		(* the map inside the output: no .map file, and none left from an earlier build *)
+		(try Sys.remove (com.file ^ ".map") with _ -> ());
+		print ctx "\n//# sourceMappingURL=%s" (mappings_data_url ctx.com smap "file:///");
 	| Some smap ->
 		write_mappings ctx.com smap "file:///";
 		let basefile = Filename.basename com.file in

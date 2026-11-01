@@ -1,11 +1,12 @@
 open Globals
+open Message
 open Type
 open PlatformConfig
 
 type saved_warning = {
 	w_module : module_def;
 	w_warning : WarningList.warning;
-	w_options : Warning.warning_option list list;
+	w_options : warning_option list list;
 	w_msg : string;
 	w_pos : pos;
 }
@@ -19,6 +20,7 @@ type t = {
 	is_macro_context : bool;
 	foptimize : bool;
 	doinline : bool;
+	dump_config : DumpConfig.t;
 	exceptions : exn list ref;
 	exceptions_mutex : Mutex.t;
 	warnings : saved_warning list ref;
@@ -41,6 +43,7 @@ let of_com (com : Common.context) = {
 	is_macro_context = com.is_macro_context;
 	foptimize = com.foptimize;
 	doinline = com.doinline;
+	dump_config = com.part_scope.dump_config;
 	exceptions = ref [];
 	exceptions_mutex = Mutex.create ();
 	warnings = ref [];

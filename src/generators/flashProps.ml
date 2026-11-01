@@ -29,8 +29,8 @@ let find_property_for_accessor ~isget cl tl accessor_name =
 		match Type.class_field cl tl prop_name with
 		| Some (prop_cl, prop_tl), _, prop_cf ->
 			(match prop_cf.cf_kind with
-			| Var { v_read = AccCall; v_write = AccCall | AccNever } when isget && is_flash_property prop_cf -> Some (prop_cl, prop_tl, prop_cf)
-			| Var { v_read = AccCall | AccNever; v_write = AccCall } when not isget && is_flash_property prop_cf -> Some (prop_cl, prop_tl, prop_cf)
+			| Var { v_read = AccCall | AccPrivateCall; v_write = AccCall | AccPrivateCall | AccNever } when isget && is_flash_property prop_cf -> Some (prop_cl, prop_tl, prop_cf)
+			| Var { v_read = AccCall | AccPrivateCall | AccNever; v_write = AccCall | AccPrivateCall } when not isget && is_flash_property prop_cf -> Some (prop_cl, prop_tl, prop_cf)
 			| _ -> None)
 		| _ -> None
 	with Not_found ->
@@ -47,8 +47,8 @@ let find_static_property_for_accessor ~isget cl accessor_name =
 	try
 		let prop_cf = PMap.find prop_name cl.cl_statics in
 		(match prop_cf.cf_kind with
-		| Var { v_read = AccCall; v_write = AccCall | AccNever } when isget && is_flash_property prop_cf -> Some prop_cf
-		| Var { v_read = AccCall | AccNever; v_write = AccCall } when not isget && is_flash_property prop_cf -> Some prop_cf
+		| Var { v_read = AccCall | AccPrivateCall; v_write = AccCall | AccPrivateCall | AccNever } when isget && is_flash_property prop_cf -> Some prop_cf
+		| Var { v_read = AccCall | AccPrivateCall | AccNever; v_write = AccCall | AccPrivateCall } when not isget && is_flash_property prop_cf -> Some prop_cf
 		| _ -> None)
 	with Not_found ->
 		None

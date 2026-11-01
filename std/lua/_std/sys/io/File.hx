@@ -29,8 +29,20 @@ import lua.Os;
 import lua.FileHandle;
 import lua.Boot;
 
+#if !lua_vanilla
+import lua.lib.luv.fs.FileSystem as LFileSystem;
+#end
+
 @:coreApi
 class File {
+	#if lua.windows_utf8_io
+	private static function __init__():Void {
+		if (lua.Package.config.charAt(0) == "\\") {
+			lua.Os.setlocale(".UTF8", Ctype);
+		}
+	}
+	#end
+
 	public static function getContent(path:String):String {
 		var f = Io.open(path, "r");
 		if (f == null)
@@ -41,7 +53,7 @@ class File {
 	}
 
 	public static function append(path:String, binary:Bool = true):FileOutput {
-		return @:privateAccess new FileOutput(Io.open(path, "a"));
+		return @:privateAccess new FileOutput(Io.open(path, binary ? "ab" : "a"));
 	}
 
 	public static function update(path:String, binary:Bool = true):FileOutput {
@@ -52,14 +64,23 @@ class File {
 	}
 
 	public static function copy(srcPath:String, dstPath:String):Void {
+		#if lua_vanilla
 		var result = switch (Sys.systemName()) {
-			case "Windows": Os.execute('copy ${SysTools.quoteWinArg(srcPath, true)} ${SysTools.quoteWinArg(dstPath, true)}');
+			case "Windows":
+				inline function preparePath(path:String) return StringTools.replace(path, "/", "\\");
+				Os.execute('copy "${preparePath(srcPath)}" "${preparePath(dstPath)}"');
 			default: Os.execute('cp ${SysTools.quoteUnixArg(srcPath)} ${SysTools.quoteUnixArg(dstPath)}');
 		};
 		if (#if (lua_ver >= 5.2) !result.success #elseif (lua_ver < 5.2) result != 0 #else ((result : Dynamic) != true && (result : Dynamic) != 0) #end
 		) {
 			throw 'Failed to copy $srcPath to $dstPath';
 		}
+		#else
+		final ret = LFileSystem.copyfile(srcPath, dstPath);
+		if (ret.result == null) {
+			throw 'Failed to copy $srcPath to $dstPath: ${ret.message}';
+		}
+		#end
 	}
 
 	public static function getBytes(path:String):haxe.io.Bytes {

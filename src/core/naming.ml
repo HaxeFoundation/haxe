@@ -18,6 +18,23 @@ let check_field_name com name p =
 	| "new" -> () (* the only keyword allowed in field names *)
 	| _ -> check_identifier_name com name "field" p
 
+(* Turns the name of a variable into a valid field name, for when the compiler stores a variable in a field.
+   Generators expect field names to be valid identifiers, so they don't deal with names like the `this`
+   of abstracts. Generated variables get the same "_g" prefix that renameVars gives them, and any other
+   invalid name is prefixed with "_hx_", with invalid characters replaced. Target keywords are left
+   to the generators, like they are for user fields. *)
+let field_name_of_var_name name =
+	let name =
+		if starts_with name gen_local_prefix.[0] then
+			"_g" ^ String.sub name 1 (String.length name - 1)
+		else
+			name
+	in
+	if Lexer.is_valid_identifier name then
+		name
+	else
+		"_hx_" ^ String.map (function 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' as c -> c | _ -> '_') name
+
 let check_uppercase_identifier_name ?prepend_msg com name kind p =
 	if String.length name = 0 then
 		display_identifier_error ?prepend_msg com ((StringHelper.capitalize kind) ^ " name must not be empty.") p

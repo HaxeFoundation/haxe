@@ -1,0 +1,3 @@
+enum ReturnTypeHintOption {
+	NonVoid;
+}

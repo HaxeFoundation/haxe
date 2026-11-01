@@ -27,5 +27,6 @@ extern class StringBuf {
 	function add<T>(x:T):Void;
 	function addChar(c:Int):Void;
 	function addSub(s:String, pos:Int, ?len:Int):Void;
+	function clear():Void;
 	function toString():String;
 }

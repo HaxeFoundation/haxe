@@ -1,0 +1,6 @@
+[ERROR] Main7.hx:3: characters 32-39
+
+ 3 | private typedef Bar = Foo<Int, default>
+   |                                ^^^^^^^
+   | Cannot use default with rest type parameters
+

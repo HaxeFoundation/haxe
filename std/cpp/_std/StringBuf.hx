@@ -21,31 +21,34 @@
  */
 
 import cpp.NativeString;
-
-using cpp.NativeArray;
+import cpp.Pointer;
 
 @:coreApi
 class StringBuf {
-	private var b:Array<String>;
+	private var b:Null<Array<String>> = null;
 
 	public var length(get, never):Int;
 
-	var charBuf:Array<cpp.Char>;
+	var charBuf:Null<Array<cpp.Char>> = null;
 
 	public function new():Void {}
 
-	private function charBufAsString():String {
-		var len = charBuf.length;
-		charBuf.push(0);
-		return NativeString.fromGcPointer(charBuf.address(0), len);
+	private function drainCharBuf():String {
+		final buffer = this.charBuf;
+		final length = buffer.length;
+		buffer.push(0);
+		final bufferPtr = Pointer.arrayElem(buffer, 0);
+		final bufferString = NativeString.fromGcPointer(bufferPtr, length);
+		this.charBuf = null;
+		return bufferString;
 	}
 
 	private function flush():Void {
+		final charBufAsString = drainCharBuf();
 		if (b == null)
-			b = [charBufAsString()];
+			b = [charBufAsString];
 		else
-			b.push(charBufAsString());
-		charBuf = null;
+			b.push(charBufAsString);
 	}
 
 	function get_length():Int {
@@ -87,6 +90,11 @@ class StringBuf {
 				charBuf = new Array<cpp.Char>();
 			charBuf.push(c);
 		}
+	}
+
+	public function clear():Void {
+		this.charBuf?.resize(0);
+		this.b?.resize(0);
 	}
 
 	public function toString():String {

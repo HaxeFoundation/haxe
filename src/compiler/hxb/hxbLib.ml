@@ -4,7 +4,7 @@ open ExtString
 
 class hxb_library timer_ctx file_path hxb_times = object(self)
 	inherit abstract_hxb_lib
-	val zip = lazy (Zip.open_in file_path)
+	val zip = AtomicLazy.from_fun (fun () -> Zip.open_in file_path)
 
 	val mutable cached_files = []
 	val modules = Hashtbl.create 0
@@ -25,7 +25,7 @@ class hxb_library timer_ctx file_path hxb_times = object(self)
 					Hashtbl.add modules (pack,name) (filename,entry);
 				end
 		| _ -> ()
-	) (Zip.entries (Lazy.force zip));
+	) (Zip.entries (AtomicLazy.force zip));
 
 	method load =
 		if not loaded then begin
@@ -38,7 +38,7 @@ class hxb_library timer_ctx file_path hxb_times = object(self)
 			let path = (target :: fst path,snd path) in
 			let (filename,entry) = Hashtbl.find modules path in
 			let data = Timer.time timer_ctx ["hxblib";"get bytes"] (fun () ->
-				let zip = Lazy.force zip in
+				let zip = AtomicLazy.force zip in
 				Zip.read_entry zip entry
 			) () in
 			Some (Bytes.unsafe_of_string data)
@@ -48,7 +48,7 @@ class hxb_library timer_ctx file_path hxb_times = object(self)
 	method close =
 		if not closed then begin
 			closed <- true;
-			Zip.close_in (Lazy.force zip)
+			Zip.close_in (AtomicLazy.force zip)
 		end
 
 	method get_file_path = file_path

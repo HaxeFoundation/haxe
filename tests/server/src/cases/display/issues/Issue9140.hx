@@ -26,36 +26,32 @@ class Issue9140 extends DisplayTestCase {
 		// TODO: The starting positions are off by 4. This comes from patch_string_pos in
 		// statistics.ml subtracting the length of get_/set_, while the syntax has the plain
 		// field. This is not a new issue though.
-		runHaxeJson([], DisplayMethods.FindReferences, {
+		var result = runHaxeJson([], DisplayMethods.FindReferences, {
 			file: file,
 			kind: WithBaseAndDescendants,
 			offset: offset(5)
 		});
-		var result = parseGotoDefinitionLocations();
 		Assert.same([range(1, 2)], result.map(l -> l.range));
 
-		runHaxeJson([], DisplayMethods.FindReferences, {
+		var result = runHaxeJson([], DisplayMethods.FindReferences, {
 			file: file,
 			kind: WithBaseAndDescendants,
 			offset: offset(7)
 		});
-		var result = parseGotoDefinitionLocations();
 		Assert.same([range(1, 2)], result.map(l -> l.range));
 
-		runHaxeJson([], DisplayMethods.FindReferences, {
+		var result = runHaxeJson([], DisplayMethods.FindReferences, {
 			file: file,
 			kind: WithBaseAndDescendants,
 			offset: offset(6)
 		});
-		var result = parseGotoDefinitionLocations();
 		Assert.same([range(3, 4)], result.map(l -> l.range));
 
-		runHaxeJson([], DisplayMethods.FindReferences, {
+		var result = runHaxeJson([], DisplayMethods.FindReferences, {
 			file: file,
 			kind: WithBaseAndDescendants,
 			offset: offset(8)
 		});
-		var result = parseGotoDefinitionLocations();
 		Assert.same([range(3, 4)], result.map(l -> l.range));
 	}
 }

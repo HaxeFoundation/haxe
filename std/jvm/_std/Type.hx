@@ -9,6 +9,7 @@ using jvm.NativeTools.ObjectTools;
 enum ValueType {
 	TNull;
 	TInt;
+	TInt64;
 	TFloat;
 	TBool;
 	TObject;
@@ -49,7 +50,7 @@ class Type {
 		return c.haxe();
 	}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic> {
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>> {
 		if (o == null) {
 			return null;
 		}
@@ -60,7 +61,7 @@ class Type {
 		return c.haxeEnum();
 	}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
 		if (c == String) {
 			return null;
 		}
@@ -87,12 +88,12 @@ class Type {
 
 	public static function getEnumName(e:Enum<Dynamic>):String {
 		return switch e.native().getName() {
-			case s if(s.indexOf("haxe.root.") == 0): s.substr(10);
+			case s if (s.indexOf("haxe.root.") == 0): s.substr(10);
 			case s: s;
 		}
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic> {
+	public static function resolveClass(name:String):Null<Class<Dynamic>> {
 		if (name.indexOf(".") == -1) {
 			name = "haxe.root." + name;
 		}
@@ -107,7 +108,7 @@ class Type {
 		}
 	}
 
-	public static function resolveEnum(name:String):Enum<Dynamic> {
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>> {
 		if (name.indexOf(".") == -1) {
 			name = "haxe.root." + name;
 		}
@@ -170,8 +171,7 @@ class Type {
 	public static function createEmptyInstance<T>(cl:Class<T>):T {
 		var annotation = (cl.native().getAnnotation((cast ClassReflectionInformation : java.lang.Class<ClassReflectionInformation>)));
 		if (annotation != null) {
-			return cl.native().getConstructor(emptyClass)
-				.newInstance(emptyArg);
+			return cl.native().getConstructor(emptyClass).newInstance(emptyArg);
 		} else {
 			return cl.native().newInstance();
 		}
@@ -251,6 +251,9 @@ class Type {
 			return TNull;
 		}
 		if (Jvm.instanceof(v, java.lang.Number)) {
+			if (Jvm.instanceof(v, java.lang.Long.LongClass)) {
+				return TInt64;
+			}
 			var v:java.lang.Number = cast v;
 			if (v.intValue() == v.doubleValue()) {
 				return TInt;

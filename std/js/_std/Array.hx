@@ -55,18 +55,8 @@ extern class Array<T> {
 		#end
 	}
 
-	#if (js_es >= 5)
 	@:pure function indexOf(x:T, ?fromIndex:Int):Int;
 	@:pure function lastIndexOf(x:T, ?fromIndex:Int):Int;
-	#else
-	inline function indexOf(x:T, ?fromIndex:Int):Int {
-		return @:privateAccess HxOverrides.indexOf(this, x, (fromIndex != null) ? fromIndex : 0);
-	}
-
-	inline function lastIndexOf(x:T, ?fromIndex:Int):Int {
-		return @:privateAccess HxOverrides.lastIndexOf(this, x, (fromIndex != null) ? fromIndex : length - 1);
-	}
-	#end
 
 	@:pure
 	inline function copy():Array<T> {
