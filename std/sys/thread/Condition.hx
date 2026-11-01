@@ -68,8 +68,33 @@ package sys.thread;
 		and this function should be called in a loop that checks the predicate to protect against spurious wakeups.
 
 		The internal mutex must be locked before this function is called.
+
+		If `timeout` is specified, the thread is blocked for at most `timeout`
+		seconds. A `timeout` that is zero or negative does not block for any
+		meaningful amount of time. Very large values are clamped to the
+		largest timeout supported by the target.
+
+		Returns `false` if the timeout expired, and `true` otherwise, that is
+		when the condition variable was signaled or a spurious wakeup occurred.
+		Without a `timeout`, this function always returns `true`.
+		The internal mutex is re-acquired in all cases, including on timeout.
+
+		Because of spurious wakeups, a timed wait should compute the remaining
+		time on each iteration:
+
+		```haxe
+		final deadline = haxe.Timer.stamp() + 5.0;
+		cond.acquire();
+		while (!ready) {
+			final remaining = deadline - haxe.Timer.stamp();
+			if (remaining <= 0 || !cond.wait(remaining)) {
+				break; // timed out
+			}
+		}
+		cond.release();
+		```
 	**/
-	function wait():Void;
+	function wait(?timeout:Float):Bool;
 
 	/**
 		Unblocks one of the threads that are blocked on the
