@@ -1,0 +1,3 @@
+Main.hx:6: characters 5-7 : Constraint check failure for f.T
+Main.hx:6: characters 5-7 : ... Int should be String
+Main.hx:6: characters 5-7 : ... For function argument 't'
