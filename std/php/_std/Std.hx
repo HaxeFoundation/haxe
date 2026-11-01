@@ -44,8 +44,21 @@ import php.Syntax;
 	}
 
 	public static function string(s:Dynamic):String {
-		return Boot.stringify(s);
+		if (__hx__stringDepth > haxe.runtime.Config.maxToStringDepth) {
+			return '<...>';
+		}
+		__hx__stringDepth++;
+		try {
+			var result = Boot.stringify(s);
+			__hx__stringDepth--;
+			return result;
+		} catch (_:Dynamic) {
+			__hx__stringDepth--;
+			throw Syntax.code("$__hx__caught_e");
+		}
 	}
+
+	static var __hx__stringDepth = 0;
 
 	public static inline function int(x:Float):Int {
 		return Syntax.int(x);
@@ -64,7 +77,8 @@ import php.Syntax;
 
 		switch Global.stripos(x, 'e') {
 			case false:
-			case ePos: x = Global.substr(x, 0, ePos);
+			case ePos:
+				x = Global.substr(x, 0, ePos);
 		}
 
 		final val = Global.intval(x, 10);
