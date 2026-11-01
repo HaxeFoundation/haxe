@@ -26,7 +26,7 @@ let rec make_static_call ctx c cf a pl args t p =
 	end else
 		CallUnification.make_static_call_better ctx c cf pl args t p
 
-and do_check_cast ctx uctx tleft eright p =
+and do_check_cast ?(do_cast=true) ctx uctx tleft eright p =
 	let recurse cf f =
 		(*
 			Without this special check for macro @:from methods we will always get "Recursive implicit cast" error
@@ -45,7 +45,9 @@ and do_check_cast ctx uctx tleft eright p =
 		rec_stack_loop cast_stack cf f ()
 	in
 	let make (a,tl,(tcf,cf)) =
-		if (Meta.has Meta.MultiType cf.cf_meta) then
+		if not do_cast then
+			eright
+		else if (Meta.has Meta.MultiType cf.cf_meta) then
 			mk_cast eright tleft p
 		else match a.a_impl with
 			| Some c -> recurse cf (fun () ->
@@ -110,13 +112,13 @@ and do_check_cast ctx uctx tleft eright p =
 		loop [] tleft eright.etype
 	end
 
-and cast_or_unify_raise ctx ?(uctx=None) tleft eright p =
+and cast_or_unify_raise ctx ?(uctx=None) ?(do_cast=true) tleft eright p =
 	let uctx = match uctx with
 		| None -> default_unification_context ()
 		| Some uctx -> uctx
 	in
 	try
-		do_check_cast ctx uctx tleft eright p
+		do_check_cast ~do_cast:do_cast ctx uctx tleft eright p
 	with Not_found ->
 		unify_raise_custom uctx eright.etype tleft p;
 		eright
@@ -180,22 +182,34 @@ module ArrayWrite = struct
 			| [] ->
 				List.rev acc
 			| cf :: cfl ->
+				let restore = monomorph_transaction ctx in
 				let map,check_constraints,get_ta = prepare_array_access_field ctx a pl cf p in
 				match follow (map cf.cf_type) with
 				| TFun((_,_,tab) :: (_,_,ta1) :: (_,_,ta2) :: args,r) as tf when is_empty_or_pos_infos args ->
 					begin try
 						Type.unify tab (get_ta());
-						let e1 = cast_or_unify_raise ctx ta1 e1 p in
+						ignore(cast_or_unify_raise ~do_cast:false ctx ta1 e1 p);
+						restore();
 						let f e2 =
-							let e2 = cast_or_unify_raise ctx ta2 e2 p in
-							check_constraints();
-							cf,tf,r,e1,e2
+							let restore = monomorph_transaction ctx in
+							try
+								Type.unify tab (get_ta());
+								let e1 = cast_or_unify_raise ctx ta1 e1 p in
+								let e2 = cast_or_unify_raise ctx ta2 e2 p in
+								check_constraints();
+								cf,tf,r,e1,e2
+							with Unify_error _ | Error { err_message = Unify _ } as exc ->
+								restore();
+								raise exc
 						in
 						loop ((f,ta2) :: acc) cfl
 					with Unify_error _ | Error { err_message = Unify _ } ->
+						restore();
 						loop acc cfl
 					end
-				| _ -> loop acc cfl
+				| _ ->
+					restore();
+					loop acc cfl
 		in
 		loop [] a.a_array_write
 
