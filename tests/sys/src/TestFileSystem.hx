@@ -128,6 +128,32 @@ class TestFileSystem extends utest.Test {
 		Assert.isTrue(stat != null);
 	}
 
+	function testStatFile() {
+		var path = dir + "statFile.txt";
+		var before = Date.now().getTime();
+		sys.io.File.saveContent(path, "hello");
+		var stat = FileSystem.stat(path);
+		Assert.equals(5, stat.size);
+		Assert.isTrue(Math.abs(stat.mtime.getTime() - before) < 10000);
+	}
+
+	#if ((hl && hl_ver >= version("2.0.0")) || eval || jvm || python)
+	function testStatSubSecond() {
+		// a file written on an exact second is possible, so try a few
+		var subSecond = false;
+		for (i in 0...5) {
+			var path = dir + "statSubSecond" + i + ".txt";
+			sys.io.File.saveContent(path, "hello");
+			if (FileSystem.stat(path).mtime.getTime() % 1000 != 0) {
+				subSecond = true;
+				break;
+			}
+			Sys.sleep(0.01);
+		}
+		Assert.isTrue(subSecond);
+	}
+	#end
+
 	function testCreateExistingDirectory() {
 		var testDir = dir + "exists";
 		FileSystem.createDirectory(testDir);
