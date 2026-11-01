@@ -220,6 +220,7 @@ The steps below use the `gh` CLI. The checkout may have many remotes (contributo
    - Avoid `gh run view <run-id> --log-failed` for whole runs: it downloads the logs of all jobs and is very slow
    - Logs end with post-step cleanup output; look at roughly the last 100-200 lines of the failing step rather than the very end
    - Look for keywords like `FAILED`, `error`, `exit code`, `assert`, `exception` to locate the relevant failure
+   - Logs can be too large to read in one go: fetch them with a bounded tail (e.g. `tail_lines` for `get_job_logs`) or save them to a file, then search them instead of reading them in full
 
 5. The job name contains the target and platform, e.g. `linux-test (macro, x86)` means the macro target on Linux x86
 
