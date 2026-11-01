@@ -89,29 +89,27 @@ class Hl {
 	// TEMP: run the HL/C unit tests repeatedly to catch an intermittent segfault with a backtrace
 	static function runHlcCrashDiagnostics(exe:String) {
 		final script = '
+			sudo apt-get install -qqy gdb > /dev/null 2>&1 || echo "gdb install failed"
+			gdb --version | head -1
+			nproc
+			lscpu | grep -E "Model name|^CPU\\(s\\)|Flags" | cut -c1-400
 			crashes=0
-			for i in $$(seq 1 60); do
-				./$exe > /tmp/hlc-plain.log 2>&1
-				r=$$?
-				if [ $$r -ne 0 ]; then
-					crashes=$$((crashes+1))
-					echo "plain run $$i exited with $$r"
-					tail -5 /tmp/hlc-plain.log
-				fi
-			done
-			echo "plain runs: $$crashes crashes out of 60"
-			for i in $$(seq 1 60); do
-				gdb -q -batch -ex "set pagination off" -ex run -ex "bt 40" -ex "info registers" -ex "x/8i $$pc-16" -ex "thread apply all bt 25" --args ./$exe > /tmp/hlc-gdb.log 2>&1
+			for i in $$(seq 1 150); do
+				gdb -q -batch -ex "set pagination off" -ex "handle SIGPIPE nostop noprint" -ex run -ex "bt 40" -ex "info registers" -ex "x/8i $$pc-16" -ex "thread apply all bt 25" --args ./$exe > /tmp/hlc-gdb.log 2>&1
 				if grep -q "received signal" /tmp/hlc-gdb.log; then
 					crashes=$$((crashes+1))
 					echo "===== gdb run $$i crashed ====="
 					grep -v -e "^Running " -e "^    test" /tmp/hlc-gdb.log | tail -300
 					grep -B3 "received signal" /tmp/hlc-gdb.log
+				elif ! grep -q "ALL TESTS OK" /tmp/hlc-gdb.log; then
+					echo "===== gdb run $$i did not finish normally ====="
+					tail -30 /tmp/hlc-gdb.log
 				fi
 			done
-			echo "total crashes: $$crashes"
+			echo "total crashes: $$crashes out of 150"
 			[ $$crashes -eq 0 ]
 		';
+
 		runCommand("bash", ["-c", script]);
 	}
 
@@ -188,8 +186,10 @@ class Hl {
 			if (Hl.withHlcTests) {
 				runCommand("haxe", ["compile-hlc.hxml"].concat(extraArgs).concat(haxeArgs));
 				buildAndRunHlc("bin/hlc", "unit", (cmd, ?args) -> {
-					if (systemName == "Linux")
+					if (systemName == "Linux") {
 						runHlcCrashDiagnostics(cmd);
+						Sys.exit(0);
+					}
 					runCommand(cmd, args);
 				});
 			}
