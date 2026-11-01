@@ -473,4 +473,21 @@ class TestThread extends ThreadTestBase {
 		Assert.isTrue(lock.wait(2.0));
 		Assert.equals(1, count.load());
 	}
+
+	#if jvm
+	function testIssue11236_executor() {
+		final exec = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+		var called = false;
+		function greeter():Void {
+			called = true;
+			exec.shutdown();
+		}
+		function schedule(f:() -> Void) {
+			exec.schedule(f, 0, java.util.concurrent.TimeUnit.MILLISECONDS);
+		}
+		schedule(greeter);
+		Assert.isTrue(exec.awaitTermination(haxe.Int64.fromInt(1), java.util.concurrent.TimeUnit.SECONDS));
+		Assert.isTrue(called);
+	}
+	#end
 }
