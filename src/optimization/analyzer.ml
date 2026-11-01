@@ -488,6 +488,12 @@ module ConstPropagationImpl = struct
 					| None -> raise Exit
 					| Some e -> eval bb e
 				end
+			| TCast(e1,None) when ExtType.is_uint32 (follow e.etype) ->
+				(* Keep the type so that constant folding knows to compare unsigned *)
+				begin match eval bb e1 with
+					| Const(ct,_) -> Const(ct,e.etype)
+					| cl -> cl
+				end
 			| TParenthesis e1 | TMeta(_,e1) | TCast(e1,None) ->
 				eval bb e1
 			| _ ->

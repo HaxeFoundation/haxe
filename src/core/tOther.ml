@@ -195,6 +195,10 @@ module ExtType = struct
 		| TAbstract({a_path=[],"Int"},_) -> true
 		| _ -> false
 
+	let is_uint32 t = match t with
+		| TAbstract({a_path=["haxe"],"UInt32"},_) -> true
+		| _ -> false
+
 	let is_float t = match t with
 		| TAbstract({a_path=[],"Float"},_) -> true
 		| _ -> false
