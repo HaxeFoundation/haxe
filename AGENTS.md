@@ -71,8 +71,8 @@ See `extra/BUILDING.md` for full instructions.
 - `unit/` - Unit tests written in Haxe
   - `unit/src/unit/issues/` - Regression tests for specific issues (success cases)
 - `misc/` - Project-based compiler tests, mainly for checking compiler errors and warnings
-  - `misc/projects/` - Target-independent projects
-  - Platform-specific subdirectories (e.g., `misc/python/`, `misc/hl/`) for target-specific projects
+  - `misc/eval/projects/` - Target-independent projects (run on the eval target)
+  - `misc/{target}/projects/` (e.g., `misc/python/projects/`, `misc/hl/projects/`) for target-specific projects
 - `server/` - Compilation server and display/completion tests
 - `nullsafety/` - Tests related to the null-safety feature
 - `optimization/` - Optimization tests that check concrete code output on JavaScript target
@@ -100,11 +100,13 @@ class Issue12345 extends unit.Test {
 }
 ```
 
-**For expected compiler errors/warnings**, add a project to `tests/misc/projects/Issue{NUMBER}/` (or the platform-specific subdirectory):
+**For expected compiler errors/warnings**, add a project to `tests/misc/eval/projects/Issue{NUMBER}/` (or `tests/misc/{target}/projects/Issue{NUMBER}/` for target-specific ones):
 - `compile.hxml` - must compile successfully (exit code 0)
 - `compile-fail.hxml` together with `compile-fail.hxml.stderr` - the compiler's stderr must match the `.stderr` file exactly
 - Multiple cases per project are possible by numbering: `compile1.hxml`, `compile2-fail.hxml` + `compile2-fail.hxml.stderr`, etc.
 - See `tests/misc/README.md` for details
+
+**For anything involving threads** (creating threads, `sys.thread` primitives, thread-related regressions), never use the unit tests. Add a `testIssue{NUMBER}_description` method to the matching case class in `tests/threads/src/cases/` instead (e.g. `TestThread`, `TestMutex`).
 
 **Note**: Not all tests belong in the unit tests. See the Tests section above for other test directories and their purposes.
 
