@@ -119,10 +119,8 @@ let optimize_binop scom e op e1 e2 =
 				iv
 			)
 		in
-		let is_uint32 t = ExtType.is_uint32 (follow t) in
-		let compare = if is_uint32 e1.etype || is_uint32 e2.etype then Int32.unsigned_compare else Int32.compare in
 		let ebool t =
-			{ e with eexpr = TConst (TBool (t (compare a b) 0)) }
+			{ e with eexpr = TConst (TBool (t (Int32.compare a b) 0)) }
 		in
 		(match op with
 		| OpAdd -> check_overflow Int64.add
