@@ -25,7 +25,8 @@ class Cpp {
 			final path = getHaxelibPath("hxcpp");
 			infoMsg('hxcpp has already been installed in $path.');
 		} catch(e:Dynamic) {
-			haxelibInstallGit("HaxeFoundation", "hxcpp", true);
+			// TODO: revert to the default branch once HaxeFoundation/hxcpp#1456 is merged
+			haxelibInstallGit("HaxeFoundation", "hxcpp", "claude/jolly-wozniak-93trgh", null, true);
 			runCommand("haxe", [
 				"--cwd", getHaxelibPath("hxcpp") + "tools/hxcpp/",
 				"-D", "source-header=''",
