@@ -1441,10 +1441,12 @@ module CountingSemaphore = struct
 	(* Uncontended locking goes through trylock, whose binding does not release
 	   the OCaml runtime lock. Only a contended lock takes the blocking path,
 	   which releases it around uv_mutex_lock. *)
-	let lock_mutex lock =
-		match Luv.Mutex.trylock lock.lmutex with
+	let lock_luv_mutex mutex =
+		match Luv.Mutex.trylock mutex with
 		| Ok () -> ()
-		| Error _ -> Luv.Mutex.lock lock.lmutex
+		| Error _ -> Luv.Mutex.lock mutex
+
+	let lock_mutex lock = lock_luv_mutex lock.lmutex
 
 	(* Windows converts the timeout of uv_cond_timedwait to a DWORD of
 	   milliseconds, so a single wait is limited to about 24 days. Longer
@@ -1946,68 +1948,91 @@ module StdCondition = struct
 		| VInstance {ikind=ICondition cond} -> cond
 		| _ -> unexpected_value vthis "Condition"
 
+	let create () =
+		let c = {
+			cond = CountingSemaphore.luv_ok "Condition.init" (Luv.Condition.init ());
+			cmutex = CountingSemaphore.luv_ok "Mutex.init" (Luv.Mutex.init ());
+			cowner = Atomic.make (-1);
+		} in
+		Gc.finalise (fun c ->
+			Luv.Condition.destroy c.cond;
+			Luv.Mutex.destroy c.cmutex
+		) c;
+		c
+
+	let current () = current_thread_id (get_ctx())
+
+	let check_owner c what =
+		if Atomic.get c.cowner <> current () then
+			exc_string (Printf.sprintf "Condition.%s: the mutex is not held by the current thread" what)
+
 	let acquire = vifun0 (fun vthis ->
-		let cond = this vthis in
-		Mutex.lock cond.cmutex;
+		let c = this vthis in
+		let id = current () in
+		if Atomic.get c.cowner = id then
+			exc_string "Condition.acquire: the mutex is already held by the current thread";
+		CountingSemaphore.lock_luv_mutex c.cmutex;
+		Atomic.set c.cowner id;
 		vnull
 	)
 
 	let tryAcquire = vifun0 (fun vthis ->
-		let cond = this vthis in
-		vbool (Mutex.try_lock cond.cmutex);
+		let c = this vthis in
+		let id = current () in
+		(* not recursive, also on Windows where the libuv mutex would be *)
+		if Atomic.get c.cowner = id then
+			vfalse
+		else match Luv.Mutex.trylock c.cmutex with
+			| Ok () ->
+				Atomic.set c.cowner id;
+				vtrue
+			| Error _ ->
+				vfalse
 	)
 
 	let release = vifun0 (fun vthis ->
-		let cond = this vthis in
-		Mutex.unlock cond.cmutex;
+		let c = this vthis in
+		check_owner c "release";
+		Atomic.set c.cowner (-1);
+		Luv.Mutex.unlock c.cmutex;
 		vnull
 	)
 
-	(* OCaml's Condition has no timed wait, so a wait with a timeout polls with
-	   growing sleeps like StdLock.wait. Waking up early is allowed because
-	   condition variables permit spurious wakeups. *)
 	let wait = vifun1 (fun vthis timeout ->
 		let c = this vthis in
+		check_owner c "wait";
+		let id = current () in
 		match timeout with
 		| VNull ->
-			Condition.wait c.cond c.cmutex;
+			Atomic.set c.cowner (-1);
+			Luv.Condition.wait c.cond c.cmutex;
+			Atomic.set c.cowner id;
 			vtrue
 		| _ ->
 			let timeout = num timeout in
+			(* also catches NaN *)
 			if not (timeout > 0.) then
 				vfalse
 			else begin
-				let deadline = Extc.time () +. Float.min timeout 1e9 in
-				let start_generation = c.cgeneration in
-				let rec loop sleep =
-					Mutex.unlock c.cmutex;
-					Unix.sleepf sleep;
-					Mutex.lock c.cmutex;
-					if c.cgeneration <> start_generation then
-						vtrue
-					else begin
-						let remaining = deadline -. Extc.time () in
-						if remaining <= 0. then
-							vfalse
-						else
-							loop (Float.min (Float.min (sleep *. 2.) 0.01) remaining)
-					end
-				in
-				loop 0.0001
+				let capped = timeout > CountingSemaphore.max_single_wait in
+				let timeout = if capped then CountingSemaphore.max_single_wait else timeout in
+				Atomic.set c.cowner (-1);
+				let result = Luv.Condition.timedwait c.cond c.cmutex (int_of_float (timeout *. 1e9)) in
+				Atomic.set c.cowner id;
+				match result with
+				| Ok () -> vtrue
+				(* a capped wait did not reach the requested timeout, so it counts as a spurious wakeup *)
+				| Error _ -> vbool capped
 			end
 	)
 
 	let signal = vifun0 (fun vthis ->
-		let c = this vthis in
-		c.cgeneration <- c.cgeneration + 1;
-		Condition.signal c.cond;
+		Luv.Condition.signal (this vthis).cond;
 		vnull
 	)
 
 	let broadcast = vifun0 (fun vthis ->
-		let c = this vthis in
-		c.cgeneration <- c.cgeneration + 1;
-		Condition.broadcast c.cond;
+		Luv.Condition.broadcast (this vthis).cond;
 		vnull
 	)
 end
@@ -3606,11 +3631,7 @@ let init_constructors builtins =
 		);
 	add key_sys_net_Condition
 		(fun _ ->
-			let cond = {
-				cond = Condition.create ();
-				cmutex = Mutex.create ();
-				cgeneration = 0;
-			} in
+			let cond = StdCondition.create () in
 			encode_instance key_sys_net_Condition ~kind:(ICondition cond)
 		);
 	add key_sys_net_Lock

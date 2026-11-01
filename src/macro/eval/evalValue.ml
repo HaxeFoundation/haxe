@@ -335,12 +335,14 @@ and vlock = {
 	mutable lcount : int;
 }
 
+(* sys.thread.Condition, built on libuv like vlock for its timed wait. libuv's
+   mutexes are recursive on Windows and abort the process on misuse elsewhere,
+   so the owning eval thread is tracked to keep the mutex non-recursive and to
+   report misuse as a Haxe exception on every platform. *)
 and vcondition = {
-	cond : Condition.t;
-	cmutex : Mutex.t;
-	(* Incremented by signal and broadcast while cmutex is held, so that timed
-	   waits, which poll, can detect notifications. *)
-	mutable cgeneration : int;
+	cond : Luv.Condition.t;
+	cmutex : Luv.Mutex.t;
+	cowner : int Atomic.t; (* eval thread id of the owner, or -1 if unlocked *)
 }
 
 let same_handle h1 h2 =
