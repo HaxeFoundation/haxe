@@ -106,6 +106,8 @@ class Issue12345 extends unit.Test {
 - Multiple cases per project are possible by numbering: `compile1.hxml`, `compile2-fail.hxml` + `compile2-fail.hxml.stderr`, etc.
 - See `tests/misc/README.md` for details
 
+**For anything involving threads** (creating threads, `sys.thread` primitives, thread-related regressions), never use the unit tests. Add a `testIssue{NUMBER}_description` method to the matching case class in `tests/threads/src/cases/` instead (e.g. `TestThread`, `TestMutex`).
+
 **Note**: Not all tests belong in the unit tests. See the Tests section above for other test directories and their purposes.
 
 The JavaScript tests are good for checking output syntax.
