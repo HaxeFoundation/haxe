@@ -294,7 +294,8 @@ jobs:
           haxelib git hxtemplo https://github.com/Simn/hxtemplo.git
           haxelib git hxargs https://github.com/Simn/hxargs.git
           haxelib git markdown https://github.com/dpeek/haxe-markdown.git
-          haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git
+          # TODO: drop the branch once HaxeFoundation/hxcpp#1456 is merged
+          haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git claude/jolly-wozniak-93trgh
           cd $(haxelib libpath hxcpp)/tools/hxcpp
           haxe compile.hxml
           cd -
