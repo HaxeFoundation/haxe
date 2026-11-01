@@ -45,7 +45,7 @@ class Hl {
 
 		switch (systemName) {
 			case "Linux":
-				Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev", "libsqlite3-dev"]);
+				Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev", "libsqlite3-dev", "gdb"]);
 			case "Mac":
 			case "Windows":
 				//pass
@@ -56,6 +56,8 @@ class Hl {
 		if (systemName == "Mac") {
 			args.push("-DDOWNLOAD_DEPENDENCIES=ON");
 		}
+		if (systemName == "Linux")
+			args.push("-DCMAKE_C_FLAGS=-g -fno-omit-frame-pointer"); // TEMP: crash diagnostics
 		runCommand("cmake", args.concat([
 			"-DBUILD_TESTING=OFF",
 			"-DWITH_DIRECTX=OFF",
@@ -84,6 +86,35 @@ class Hl {
 		haxelibDev("hashlink", '$hlSrc/other/haxelib/');
 	}
 
+	// TEMP: run the HL/C unit tests repeatedly to catch an intermittent segfault with a backtrace
+	static function runHlcCrashDiagnostics(exe:String) {
+		final script = '
+			crashes=0
+			for i in $$(seq 1 60); do
+				./$exe > /tmp/hlc-plain.log 2>&1
+				r=$$?
+				if [ $$r -ne 0 ]; then
+					crashes=$$((crashes+1))
+					echo "plain run $$i exited with $$r"
+					tail -5 /tmp/hlc-plain.log
+				fi
+			done
+			echo "plain runs: $$crashes crashes out of 60"
+			for i in $$(seq 1 60); do
+				gdb -q -batch -ex "set pagination off" -ex run -ex "bt 40" -ex "info registers" -ex "x/8i $$pc-16" -ex "thread apply all bt 25" --args ./$exe > /tmp/hlc-gdb.log 2>&1
+				if grep -q "received signal" /tmp/hlc-gdb.log; then
+					crashes=$$((crashes+1))
+					echo "===== gdb run $$i crashed ====="
+					grep -v -e "^Running " -e "^    test" /tmp/hlc-gdb.log | tail -300
+					grep -B3 "received signal" /tmp/hlc-gdb.log
+				fi
+			done
+			echo "total crashes: $$crashes"
+			[ $$crashes -eq 0 ]
+		';
+		runCommand("bash", ["-c", script]);
+	}
+
 	static function buildAndRunHlc(dir:String, filename:String, ?run) {
 		if (run == null) run = runCommand;
 
@@ -91,7 +122,7 @@ class Hl {
 		final extraCompilerFlags = switch (systemName) {
 			case "Windows": ["-ldbghelp", "-municode"];
 			case "Mac": ["-rpath", hlInstallLibDir];
-			case _: ['-Wl,-rpath,$hlInstallLibDir'];
+			case _: ['-Wl,-rpath,$hlInstallLibDir', "-g"];
 		};
 
 		runCommand(compiler, [
@@ -156,7 +187,11 @@ class Hl {
 			}
 			if (Hl.withHlcTests) {
 				runCommand("haxe", ["compile-hlc.hxml"].concat(extraArgs).concat(haxeArgs));
-				buildAndRunHlc("bin/hlc", "unit", runCommand);
+				buildAndRunHlc("bin/hlc", "unit", (cmd, ?args) -> {
+					if (systemName == "Linux")
+						runHlcCrashDiagnostics(cmd);
+					runCommand(cmd, args);
+				});
 			}
 		}
 
