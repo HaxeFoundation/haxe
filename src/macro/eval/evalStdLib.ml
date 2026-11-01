@@ -1924,19 +1924,51 @@ module StdCondition = struct
 		vnull
 	)
 
-	let wait = vifun0 (fun vthis ->
+	(* OCaml's Condition has no timed wait, so a wait with a timeout polls with
+	   growing sleeps like StdLock.wait. Waking up early is allowed because
+	   condition variables permit spurious wakeups. *)
+	let wait = vifun1 (fun vthis timeout ->
 		let c = this vthis in
-		Condition.wait c.cond c.cmutex;
-		vnull
+		match timeout with
+		| VNull ->
+			Condition.wait c.cond c.cmutex;
+			vtrue
+		| _ ->
+			let timeout = num timeout in
+			if not (timeout > 0.) then
+				vfalse
+			else begin
+				let deadline = Extc.time () +. Float.min timeout 1e9 in
+				let start_generation = c.cgeneration in
+				let rec loop sleep =
+					Mutex.unlock c.cmutex;
+					Unix.sleepf sleep;
+					Mutex.lock c.cmutex;
+					if c.cgeneration <> start_generation then
+						vtrue
+					else begin
+						let remaining = deadline -. Extc.time () in
+						if remaining <= 0. then
+							vfalse
+						else
+							loop (Float.min (Float.min (sleep *. 2.) 0.01) remaining)
+					end
+				in
+				loop 0.0001
+			end
 	)
 
 	let signal = vifun0 (fun vthis ->
-		Condition.signal (this vthis).cond;
+		let c = this vthis in
+		c.cgeneration <- c.cgeneration + 1;
+		Condition.signal c.cond;
 		vnull
 	)
 
 	let broadcast = vifun0 (fun vthis ->
-		Condition.broadcast (this vthis).cond;
+		let c = this vthis in
+		c.cgeneration <- c.cgeneration + 1;
+		Condition.broadcast c.cond;
 		vnull
 	)
 end
@@ -3538,6 +3570,7 @@ let init_constructors builtins =
 			let cond = {
 				cond = Condition.create ();
 				cmutex = Mutex.create ();
+				cgeneration = 0;
 			} in
 			encode_instance key_sys_net_Condition ~kind:(ICondition cond)
 		);

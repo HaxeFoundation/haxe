@@ -334,6 +334,9 @@ and vlock = {
 and vcondition = {
 	cond : Condition.t;
 	cmutex : Mutex.t;
+	(* Incremented by signal and broadcast while cmutex is held, so that timed
+	   waits, which poll, can detect notifications. *)
+	mutable cgeneration : int;
 }
 
 let same_handle h1 h2 =
