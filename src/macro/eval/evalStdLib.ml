@@ -1262,6 +1262,7 @@ module StdFileSystem = struct
 			key_nlink,vint s.st_nlink;
 			key_rdev,vint s.st_rdev;
 			key_size,vint s.st_size;
+			key_size64,vint64 (Signed.Int64.of_int s.st_size);
 			key_mode,vint s.st_perm;
 		]
 	)
