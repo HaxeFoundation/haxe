@@ -1421,15 +1421,87 @@ module StdHost = struct
 	)
 end
 
-(* Yield between spin-loop iterations when waiting on a lock or semaphore
-   with a timeout. Unix.sleepf 0.0 calls caml_enter_blocking_section /
-   caml_leave_blocking_section, which releases the OCaml domain lock for the
-   duration of the nanosleep. This is required for Thread and LuvThread modes,
-   where all threads share one domain lock: without it, the spinning thread
-   holds the domain lock and prevents other threads from running OCaml code
-   (including the code that would release the lock), causing a deadlock.
-   For Domain mode this is also safe — each domain has its own lock — and the
-   brief syscall is a reasonable price for correct cross-mode behaviour. *)
+module CountingSemaphore = struct
+	let luv_ok what = function
+		| Ok x -> x
+		| Error e -> failwith (Printf.sprintf "%s: %s" what (Luv.Error.strerror e))
+
+	let create count =
+		let lock = {
+			lmutex = luv_ok "Mutex.init" (Luv.Mutex.init ());
+			lcond = luv_ok "Condition.init" (Luv.Condition.init ());
+			lcount = count;
+		} in
+		Gc.finalise (fun lock ->
+			Luv.Condition.destroy lock.lcond;
+			Luv.Mutex.destroy lock.lmutex
+		) lock;
+		lock
+
+	(* Uncontended locking goes through trylock, whose binding does not release
+	   the OCaml runtime lock. Only a contended lock takes the blocking path,
+	   which releases it around uv_mutex_lock. *)
+	let lock_mutex lock =
+		match Luv.Mutex.trylock lock.lmutex with
+		| Ok () -> ()
+		| Error _ -> Luv.Mutex.lock lock.lmutex
+
+	(* Windows converts the timeout of uv_cond_timedwait to a DWORD of
+	   milliseconds, so a single wait is limited to about 24 days. Longer
+	   waits are split up by the loop in try_acquire_timeout. *)
+	let max_single_wait = 2e6
+
+	let release lock =
+		lock_mutex lock;
+		lock.lcount <- lock.lcount + 1;
+		Luv.Condition.signal lock.lcond;
+		Luv.Mutex.unlock lock.lmutex
+
+	let acquire lock =
+		lock_mutex lock;
+		while lock.lcount = 0 do
+			Luv.Condition.wait lock.lcond lock.lmutex
+		done;
+		lock.lcount <- lock.lcount - 1;
+		Luv.Mutex.unlock lock.lmutex
+
+	(* Takes one unit if one is available right away, without waiting. *)
+	let try_acquire lock =
+		lock_mutex lock;
+		let acquired = lock.lcount > 0 in
+		if acquired then lock.lcount <- lock.lcount - 1;
+		Luv.Mutex.unlock lock.lmutex;
+		acquired
+
+	(* Waits at most [timeout] seconds for a unit. Spurious wakeups and early
+	   timeouts of the condition variable are handled by re-checking the count
+	   and the remaining time. *)
+	let try_acquire_timeout lock timeout =
+		(* about 31 years, so that the nanosecond count cannot overflow *)
+		let timeout = if timeout > 1e9 then 1e9 else timeout in
+		let deadline = Extc.time () +. timeout in
+		lock_mutex lock;
+		let rec loop () =
+			if lock.lcount > 0 then begin
+				lock.lcount <- lock.lcount - 1;
+				true
+			end else begin
+				let remaining = deadline -. Extc.time () in
+				(* also catches NaN *)
+				if not (remaining > 0.) then
+					false
+				else begin
+					(* Ok or Error `ETIMEDOUT: loop to re-check either way *)
+					let wait = Float.min remaining max_single_wait in
+					ignore (Luv.Condition.timedwait lock.lcond lock.lmutex (int_of_float (wait *. 1e9)));
+					loop ()
+				end
+			end
+		in
+		let acquired = loop () in
+		Luv.Mutex.unlock lock.lmutex;
+		acquired
+end
 
 module StdLock = struct
 	let this vthis = match vthis with
@@ -1437,11 +1509,7 @@ module StdLock = struct
 		| v -> unexpected_value v "Lock"
 
 	let release = vifun0 (fun vthis ->
-		let lock = this vthis in
-		Mutex.lock lock.lmutex;
-		lock.lcount <- lock.lcount + 1;
-		Condition.signal lock.lcond;
-		Mutex.unlock lock.lmutex;
+		CountingSemaphore.release (this vthis);
 		vnull
 	)
 
@@ -1449,32 +1517,10 @@ module StdLock = struct
 		let lock = this vthis in
 		match timeout with
 		| VNull ->
-			Mutex.lock lock.lmutex;
-			while lock.lcount = 0 do
-				Condition.wait lock.lcond lock.lmutex
-			done;
-			lock.lcount <- lock.lcount - 1;
-			Mutex.unlock lock.lmutex;
+			CountingSemaphore.acquire lock;
 			vtrue
 		| _ ->
-			let timeout = num timeout in
-			let deadline = Extc.time () +. timeout in
-			let rec loop () =
-				Mutex.lock lock.lmutex;
-				if lock.lcount > 0 then begin
-					lock.lcount <- lock.lcount - 1;
-					Mutex.unlock lock.lmutex;
-					vtrue
-				end else begin
-					Mutex.unlock lock.lmutex;
-					if Extc.time () >= deadline then vfalse
-					else begin
-						Unix.sleepf 0.0;
-						loop ()
-					end
-				end
-			in
-			loop ()
+			vbool (CountingSemaphore.try_acquire_timeout lock (num timeout))
 	)
 end
 
@@ -1876,7 +1922,7 @@ module StdSemaphore = struct
 		| _ -> unexpected_value vthis "Semaphore"
 
 	let acquire = vifun0 (fun vthis ->
-		Semaphore.Counting.acquire (this vthis);
+		CountingSemaphore.acquire (this vthis);
 		vnull
 	)
 
@@ -1884,20 +1930,13 @@ module StdSemaphore = struct
 		let sem = this vthis in
 		match vtimeout with
 		| VNull ->
-			vbool (Semaphore.Counting.try_acquire sem)
+			vbool (CountingSemaphore.try_acquire sem)
 		| _ ->
-			let timeout = num vtimeout in
-			let t = Extc.time () +. timeout in
-			let rec loop () =
-				if Semaphore.Counting.try_acquire sem then vtrue
-				else if Extc.time () >= t then vfalse
-				else begin Unix.sleepf 0.0; loop () end
-			in
-			loop ()
+			vbool (CountingSemaphore.try_acquire_timeout sem (num vtimeout))
 	)
 
 	let release = vifun0 (fun vthis ->
-		Semaphore.Counting.release (this vthis);
+		CountingSemaphore.release (this vthis);
 		vnull
 	)
 end
@@ -3530,7 +3569,7 @@ let init_constructors builtins =
 	add key_sys_net_Semaphore
 		(fun vl ->
 			let v = List.hd vl in
-			let sem = Semaphore.Counting.make (decode_int v) in
+			let sem = CountingSemaphore.create (decode_int v) in
 			encode_instance key_sys_net_Semaphore ~kind:(ISemaphore sem)
 		);
 	add key_sys_net_Condition
@@ -3543,11 +3582,7 @@ let init_constructors builtins =
 		);
 	add key_sys_net_Lock
 		(fun _ ->
-			let lock = {
-				lmutex = Mutex.create ();
-				lcond = Condition.create ();
-				lcount = 0;
-			} in
+			let lock = CountingSemaphore.create 0 in
 			encode_instance key_sys_net_Lock ~kind:(ILock lock)
 		);
 	let tls_counter = Atomic.make 0 in

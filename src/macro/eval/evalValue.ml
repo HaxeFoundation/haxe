@@ -261,7 +261,7 @@ and vinstance_kind =
 	| ISocket of Unix.file_descr
 	| IThread of vthread
 	| IMutex of DomainMutex.t
-	| ISemaphore of Semaphore.Counting.t
+	| ISemaphore of vlock
 	| ICondition of vcondition
 	| ILock of vlock
 	| ITls of int
@@ -325,9 +325,13 @@ and vdeque = {
 	dcond : Condition.t;
 }
 
+(* A counting semaphore, used for both sys.thread.Lock and sys.thread.Semaphore.
+   It is built on libuv's mutex and condition variable because those provide a
+   timed wait, and luv's bindings for the blocking calls release the OCaml
+   runtime lock while they block. *)
 and vlock = {
-	lmutex : Mutex.t;
-	lcond : Condition.t;
+	lmutex : Luv.Mutex.t;
+	lcond : Luv.Condition.t;
 	mutable lcount : int;
 }
 
