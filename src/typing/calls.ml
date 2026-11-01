@@ -316,12 +316,6 @@ let rec build_call_access ctx acc el mode with_type p =
 let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 	acc_get ctx (build_call_access ctx acc el mode with_type p)
 
-let rec needs_temp_var e =
-	match e.eexpr with
-	| TLocal _ | TTypeExpr _ | TConst _ -> false
-	| TField (e, _) | TParenthesis e -> needs_temp_var e
-	| _ -> true
-
 let call_to_string ctx ?(resume=false) e =
 	if not ctx.allow_transform then
 		{ e with etype = ctx.t.tstring }
@@ -335,25 +329,8 @@ let call_to_string ctx ?(resume=false) e =
 	in
 	if ctx.com.config.pf_static && not (is_nullable e.etype) then
 		gen_to_string e
-	else begin (* generate `if(e == null) 'null' else e.toString()` *)
-		let string_null = mk (TConst (TString "null")) ctx.t.tstring e.epos in
-		if needs_temp_var e then
-			let tmp = alloc_var VGenerated "tmp" e.etype e.epos in
-			let tmp_local = mk (TLocal tmp) tmp.v_type tmp.v_pos in
-			let check_null = mk (TBinop (OpEq, tmp_local, mk (TConst TNull) tmp.v_type tmp.v_pos)) ctx.t.tbool e.epos in
-			{
-				eexpr = TBlock([
-					mk (TVar (tmp, Some e)) tmp.v_type tmp.v_pos;
-					mk (TIf (check_null, string_null, Some (gen_to_string tmp_local))) ctx.t.tstring tmp.v_pos;
-
-				]);
-				etype = ctx.t.tstring;
-				epos = e.epos;
-			}
-		else
-			let check_null = mk (TBinop (OpEq, e, mk (TConst TNull) e.etype e.epos)) ctx.t.tbool e.epos in
-			mk (TIf (check_null, string_null, Some (gen_to_string e))) ctx.t.tstring e.epos
-	end
+	else
+		Texpr.Builder.make_null_safe_to_string ctx.t gen_to_string e e.epos
 
 let type_bind ctx (e : texpr) (args,ret) params safe p =
 	let vexpr v = mk (TLocal v) v.v_type p in

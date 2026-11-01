@@ -277,21 +277,23 @@ let handle_abstract_casts (scom : SafeCom.t) e =
 				let e = ExceptionFunctions.make_call scom ef ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
 				{e with etype = m}
 			end
-		| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))},[e1]) when (match follow e1.etype with TAbstract({a_impl = Some _},_) -> true | _ -> false) ->
+		| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))} as ef,[e1]) when (match follow e1.etype with TAbstract({a_impl = Some _},_) -> true | _ -> false) ->
 			begin match follow e1.etype with
 				| TAbstract({a_impl = Some c},tl) ->
+					(* @:multiType rewrites change the argument to the underlying type; cast back so toString gets the abstract type *)
+					let e1 = match loop e1 with
+						| e1' when e1'.etype == e1.etype -> e1'
+						| e1' -> mk (TCast(e1',None)) e1.etype e1'.epos
+					in
 					begin try
 						let cf = PMap.find "toString" c.cl_statics in
-						let call() = ExceptionFunctions.make_static_call scom c cf [e1] scom.basic.tstring e.epos in
+						let call e1 = ExceptionFunctions.make_static_call scom c cf [e1] scom.basic.tstring e.epos in
 						if not (is_nullable e1.etype) then
-							call()
-						else begin
-							let p = e.epos in
-							let chk_null = mk (TBinop (Ast.OpEq, e1, mk (TConst TNull) e1.etype p)) scom.basic.tbool p in
-							mk (TIf (chk_null, mk (TConst (TString "null")) scom.basic.tstring p, Some (call()))) scom.basic.tstring p
-						end
+							call e1
+						else
+							Texpr.Builder.make_null_safe_to_string scom.basic call e1 e.epos
 					with Not_found ->
-						e
+						{e with eexpr = TCall(ef,[e1])}
 					end
 				| _ ->
 					die "" __LOC__
