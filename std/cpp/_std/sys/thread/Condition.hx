@@ -9,6 +9,7 @@ private extern class ConditionVariable {
 	public function tryAcquire():Bool;
 	public function release():Void;
 	public function wait():Void;
+	public function timedWait(seconds:Float):Bool;
 	public function signal():Void;
 	public function broadcast():Void;
 }
@@ -33,8 +34,12 @@ class Condition {
 		c.release();
 	}
 
-	public function wait():Void {
-		c.wait();
+	public function wait(?timeout:Float):Bool {
+		if (timeout == null) {
+			c.wait();
+			return true;
+		}
+		return c.timedWait(timeout);
 	}
 
 	public function signal():Void {
