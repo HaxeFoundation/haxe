@@ -59,6 +59,21 @@ let join sep sl =
 	) (true,0) sl in
 	create_with_length (Buffer.contents buf) length
 
+(* How to store a new offset pair, relative to the cached pairs that were read. *)
+type offset_update =
+	| Single
+	| Before of (int * int)
+	| After of (int * int)
+
+(* Other threads may read or replace the cache at any time, so this builds a new list
+   instead of modifying the one that was read. A concurrent update may be lost, which
+   only means that the offset is computed again later. *)
+let set_offsets s update pair =
+	s.soffsets <- match update with
+		| Single -> [pair]
+		| Before pair' -> [pair;pair']
+		| After pair' -> [pair';pair]
+
 let get_offset' s c_index =
 	let rec get_b_offset c_len b_offset =
 		if c_len = 0 then b_offset else
@@ -70,13 +85,8 @@ let get_offset' s c_index =
 	in
 	match s.soffsets with
 	| [] ->
-		let b_offset = get_b_offset c_index 0 in
-		let r = (ref c_index,ref b_offset) in
-		s.soffsets <- r :: s.soffsets;
-		b_offset,r
-	| [(cr_index1,br_offset1) as r1] ->
-		let c_index1 = !cr_index1 in
-		let b_offset1 = !br_offset1 in
+		get_b_offset c_index 0,Single
+	| [(c_index1,b_offset1) as r1] ->
 		let diff = c_index - c_index1 in
 		let b_offset = match diff with
 			| 0 -> b_offset1
@@ -93,31 +103,26 @@ let get_offset' s c_index =
 		in
 		(* If our jump is larger than the scientifically determined value 20, upgrade
 		   to two offset pointers. *)
-		let r = if diff > 20 || diff < -20 then begin
-			let r2 = (ref c_index,ref b_offset) in
-			s.soffsets <- r2 :: s.soffsets;
-			r2
-		end else
-			r1
-		in
-		b_offset,r
-	| [(cr_index1,br_offset1) as r1;(cr_index2,br_offset2) as r2] ->
-		let (c_index1,b_offset1) = !cr_index1,!br_offset1 in
-		let (c_index2,b_offset2) = !cr_index2,!br_offset2 in
+		let update = if diff > 20 || diff < -20 then Before r1 else Single in
+		b_offset,update
+	| [(c_index1,b_offset1) as r1;(c_index2,b_offset2) as r2] ->
 		let diff1 = c_index - c_index1 in
 		let diff2 = c_index - c_index2 in
-		let r,b_offset = match diff1,diff2 with
-			| 0,_ -> r1,b_offset1
-			| _,0 -> r2,b_offset2
-			| 1,_ -> r1,UTF8.next s.sstring b_offset1
-			| _,1 -> r2,UTF8.next s.sstring b_offset2
-			| -1,_ -> r1,UTF8.prev s.sstring b_offset1
-			| _,-1 -> r2,UTF8.prev s.sstring b_offset2
+		(* Updating the first pair keeps the second one and vice versa. *)
+		let update1 = Before r2 in
+		let update2 = After r1 in
+		begin match diff1,diff2 with
+			| 0,_ -> b_offset1,update1
+			| _,0 -> b_offset2,update2
+			| 1,_ -> UTF8.next s.sstring b_offset1,update1
+			| _,1 -> UTF8.next s.sstring b_offset2,update2
+			| -1,_ -> UTF8.prev s.sstring b_offset1,update1
+			| _,-1 -> UTF8.prev s.sstring b_offset2,update2
 			| _ ->
-				let r,diff,b_offset' = if abs diff1 > abs diff2 then
-					r2,diff2,b_offset2
+				let update,diff,b_offset' = if abs diff1 > abs diff2 then
+					update2,diff2,b_offset2
 				else
-					r1,diff1,b_offset1
+					update1,diff1,b_offset1
 				in
 				let b_offset = if diff > 0 then
 					get_b_offset diff b_offset'
@@ -127,20 +132,20 @@ let get_offset' s c_index =
 				else
 					rget_b_offset diff b_offset'
 				in
-				r,b_offset
-		in
-		b_offset,r
+				b_offset,update
+		end
 	| _ ->
-		Globals.die "" __LOC__
+		(* The cache never has more than two pairs, but start over if it does. *)
+		get_b_offset c_index 0,Single
 
 let get_offset s c_index =
-	let b_offset,(cr_index,br_offset) = get_offset' s c_index in
-	cr_index := c_index;
-	br_offset := b_offset;
+	let b_offset,update = get_offset' s c_index in
+	set_offsets s update (c_index,b_offset);
 	b_offset
 
 let char_at s c_index =
-	let b_offset,(cr_index,br_offset) = get_offset' s c_index in
+	let b_offset,update = get_offset' s c_index in
+	let vs = s in
 	let i = b_offset in
 	let s = s.sstring in
     let n = Char.code s.[i] in
@@ -186,8 +191,7 @@ let char_at s c_index =
 		n' lsl 6 lor (0x7f land m0),6
 		else invalid_arg "UTF8.look"
 	in
-	cr_index := c_index + 1;
-	br_offset := b_offset + diff;
+	set_offsets vs update (c_index + 1,b_offset + diff);
 	char
 
 let string_of_char_code i =

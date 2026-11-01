@@ -44,5 +44,38 @@ class TestEval extends ThreadTestBase {
 		eval.luv.ThreadPool.queueWork(eval.luv.Loop.defaultLoop(), null, threadEntry, _ -> {});
 		mainThreadCheck();
 	}
+
+	/**
+		Strings cache character offsets, and threads that use the same string share that cache.
+		Updating it from several threads used to corrupt it, which ended a thread with an
+		internal compiler error. `join` re-raises such an error in this thread.
+	**/
+	function testSharedStringOffsetCache() {
+		final strings = [for (i in 0...NUM_STRINGS) '/some/path/to/a/file/in/a/package/File$i.hx'];
+		final hits = [for (_ in 0...NUM_THREADS) 0];
+		final threads = [
+			for (t in 0...NUM_THREADS) new NativeThread(() -> {
+				for (s in strings) {
+					// The start indices of these calls are more than 20 characters apart,
+					// which adds a second entry to the cache.
+					if (StringTools.endsWith(s, ".hx")) {
+						hits[t]++;
+					}
+					if (StringTools.endsWith(s, "path/to/a/file/in/a/package/File")) {
+						hits[t]++;
+					}
+				}
+			})
+		];
+		for (thread in threads) {
+			NativeThread.join(thread);
+		}
+		for (t in 0...NUM_THREADS) {
+			Assert.equals(NUM_STRINGS, hits[t]);
+		}
+	}
+
+	static inline final NUM_THREADS = 4;
+	static inline final NUM_STRINGS = 20000;
 	#end
 }

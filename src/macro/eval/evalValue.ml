@@ -73,8 +73,9 @@ type vstring = {
 	sstring : UTF8.t;
 	(* The length of the string. *)
 	slength : int;
-	(* The current (character * byte) offsets. *)
-	mutable soffsets : (int ref * int ref) list;
+	(* The current (character * byte) offsets. Threads share this cache, so it is
+	   only ever replaced as a whole and its pairs are immutable. *)
+	mutable soffsets : (int * int) list;
 }
 
 type vstring_buffer = {
