@@ -7,7 +7,10 @@ class TestUnspecified extends Test
 		#if neko
 			exc(function() 1 % 0);
 		#elseif cpp
-			// Crashes
+			// constant `1 % 0` is NaN, but a runtime Int modulo by zero throws (#7034)
+			t(Math.isNaN(1 % 0));
+			var zero = 0;
+			exc(function() return 1 % zero);
 		#elseif (php || flash)
 			eq(1 % 0, 0);
 		#else
