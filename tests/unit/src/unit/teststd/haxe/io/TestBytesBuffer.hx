@@ -20,8 +20,10 @@ class TestBytesBuffer extends unit.Test {
 		var b = out.getBytes();
 		var str = "ABCDEF\x01\x02\x03\x04\x05BCD";
 		eq(b.length, str.length);
+		#if !hlc // https://github.com/HaxeFoundation/haxe/issues/12832
 		for( i in 0...str.length )
 			eq(b.get(i), str.charCodeAt(i));
+		#end
 
 		var out = new haxe.io.BytesBuffer();
 		out.addInt32(0xABCDEF00);
