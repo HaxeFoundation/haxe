@@ -77,7 +77,7 @@ class FileSystem {
 		}
 		for (part in parts) {
 			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part))
-				if (!sys_create_dir(Sys.getPath(part), 493))
+				if (!sys_create_dir(Sys.getPath(part), 493) && !exists(part))
 					throw new Sys.SysError("Failed to create directory " + part);
 		}
 	}
