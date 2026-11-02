@@ -28,8 +28,8 @@ class TestInlineXml extends unit.Test {
 		eq(unit.HelperMacros.pipeMarkupLiteral(<>abc</>), "<>abc</>");
 
 		// No check for string literal balancing
-		unit.HelperMacros.pipeMarkupLiteral(<xml a=" </xml>) == "<xml a=\" </xml>";
-		unit.HelperMacros.pipeMarkupLiteral(<xml a=' </xml>) == "<xml a=' </xml>";
+		eq(unit.HelperMacros.pipeMarkupLiteral(<xml a=" </xml>), "<xml a=\" </xml>");
+		eq(unit.HelperMacros.pipeMarkupLiteral(<xml a=' </xml>), "<xml a=' </xml>");
 
 		// comments are fine
 		eq(unit.HelperMacros.pipeMarkupLiteral(<xml a=// </xml>), "<xml a=// </xml>");
