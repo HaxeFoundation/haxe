@@ -151,10 +151,9 @@ class Hl {
 
 		final extraArgsList = [
 			for (analyzerArgs in [[], ["--undefine", "analyzer-optimize"]])
-				for (legacyArgs in [[], ["-D", "hl_legacy32"]])
-					analyzerArgs.concat(legacyArgs)
+				for (versionArgs in [["-D", "hl-ver=1.16.0"], ["-D", "hl-ver=1.16.0", "-D", "hl_legacy32"], ["-D", "hl-ver=2.0.0"]])
+					analyzerArgs.concat(versionArgs)
 		];
-
 		for (extraArgs in extraArgsList) {
 			if (Hl.withJitTests) {
 				runCommand("haxe", ["compile-hl.hxml"].concat(extraArgs).concat(haxeArgs));
