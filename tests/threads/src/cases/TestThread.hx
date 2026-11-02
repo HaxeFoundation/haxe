@@ -441,4 +441,53 @@ class TestThread extends ThreadTestBase {
 
 		Assert.isTrue(order.indexOf("onCreate") < order.indexOf("onStart"));
 	}
+
+	static function returnsValue()
+		return 0;
+
+	function testIssue11236_valueReturningFunctions() {
+		// the last statement of the block returns a value
+		final lock = new Lock();
+		Thread.create(() -> {
+			lock.release();
+			returnsValue();
+		});
+		Assert.isTrue(lock.wait(2.0));
+
+		final lock = new Lock();
+		Thread.create(() -> {
+			returnsValue();
+			lock.release();
+		});
+		Assert.isTrue(lock.wait(2.0));
+
+		// the function itself returns a value
+		final count = new AtomicInt(0);
+		final lock = new Lock();
+		final f = function():Int {
+			count.add(1);
+			lock.release();
+			return count.load();
+		}
+		Thread.create(f);
+		Assert.isTrue(lock.wait(2.0));
+		Assert.equals(1, count.load());
+	}
+
+	#if jvm
+	function testIssue11236_executor() {
+		final exec = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+		var called = false;
+		function greeter():Void {
+			called = true;
+			exec.shutdown();
+		}
+		function schedule(f:() -> Void) {
+			exec.schedule(f, 0, java.util.concurrent.TimeUnit.MILLISECONDS);
+		}
+		schedule(greeter);
+		Assert.isTrue(exec.awaitTermination(haxe.Int64.fromInt(1), java.util.concurrent.TimeUnit.SECONDS));
+		Assert.isTrue(called);
+	}
+	#end
 }

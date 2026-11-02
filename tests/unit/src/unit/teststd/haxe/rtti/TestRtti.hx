@@ -42,7 +42,7 @@ class TestRtti extends unit.Test {
 		eq(cf.params.length, 0);
 		eq(cf.platforms.length, 0);
 		eq(cf.meta.length, 0);
-		//cf.line == null;
+		// eq(cf.line, null);
 		eq(cf.overloads, null);
 
 		var cl = haxe.rtti.Rtti.getRtti(RttiClass2);
@@ -80,7 +80,7 @@ class TestRtti extends unit.Test {
 		eq(cf.params.length, 0);
 		eq(cf.platforms.length, 0);
 		eq(cf.meta.length, 0);
-		//cf.line == null;
+		//eq(cf.line, null);
 		eq(cf.overloads, null);
 	}
 }

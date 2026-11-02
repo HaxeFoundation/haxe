@@ -113,8 +113,10 @@ let maybe_type_against_enum ctx f with_type iscall p =
 			let e = try
 				f()
 			with
-			| Error { err_message = Unknown_ident n; err_sub = sub } ->
+			| Error ({ err_message = Unknown_ident n; err_sub = sub } as err) ->
 				restore();
+				if ctx.f.in_display && ctx.com.display.dms_kind = DMDefault then
+					raise_error err;
 				raise_or_display_message ctx (StringError.string_error n fields ("Identifier '" ^ n ^ "' is not part of " ^ s_type_path path)) p;
 				AKExpr (mk (TConst TNull) (mk_mono()) p)
 			| exc ->
@@ -1823,12 +1825,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		in
 		let e1_null_t = ctx.t.tnull e1.etype in
 		let var_name = match WithType.get_expected_name with_type with
-			| None
-			(* TODO: why does this happen? *)
-			| Some "" ->
-				"tmp"
-			| Some name ->
-				name
+			| Some name when Lexer.is_valid_identifier name -> name
+			| _ -> "tmp"
 		in
 		let e1 = vr#as_var var_name {e1 with etype = e1_null_t} in
 		let e_null = Builder.make_null e1_null_t e1.epos in

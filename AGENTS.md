@@ -71,8 +71,8 @@ See `extra/BUILDING.md` for full instructions.
 - `unit/` - Unit tests written in Haxe
   - `unit/src/unit/issues/` - Regression tests for specific issues (success cases)
 - `misc/` - Project-based compiler tests, mainly for checking compiler errors and warnings
-  - `misc/projects/` - Target-independent projects
-  - Platform-specific subdirectories (e.g., `misc/python/`, `misc/hl/`) for target-specific projects
+  - `misc/eval/projects/` - Target-independent projects (run on the eval target)
+  - `misc/{target}/projects/` (e.g., `misc/python/projects/`, `misc/hl/projects/`) for target-specific projects
 - `server/` - Compilation server and display/completion tests
 - `nullsafety/` - Tests related to the null-safety feature
 - `optimization/` - Optimization tests that check concrete code output on JavaScript target
@@ -100,11 +100,15 @@ class Issue12345 extends unit.Test {
 }
 ```
 
-**For expected compiler errors/warnings**, add a project to `tests/misc/projects/Issue{NUMBER}/` (or the platform-specific subdirectory):
+**For expected compiler errors/warnings**, add a project to `tests/misc/eval/projects/Issue{NUMBER}/` (or `tests/misc/{target}/projects/Issue{NUMBER}/` for target-specific ones):
 - `compile.hxml` - must compile successfully (exit code 0)
 - `compile-fail.hxml` together with `compile-fail.hxml.stderr` - the compiler's stderr must match the `.stderr` file exactly
 - Multiple cases per project are possible by numbering: `compile1.hxml`, `compile2-fail.hxml` + `compile2-fail.hxml.stderr`, etc.
 - See `tests/misc/README.md` for details
+
+**For anything involving threads** (creating threads, `sys.thread` primitives, thread-related regressions), never use the unit tests. Add a `testIssue{NUMBER}_description` method to the matching case class in `tests/threads/src/cases/` instead (e.g. `TestThread`, `TestMutex`).
+
+**For anything involving processes** (`sys.io.Process`, `Sys.command`, spawning executables), never use the unit tests either. Add a `testIssue{NUMBER}_description` method to the matching class in `tests/sys/src/` instead (e.g. `io/TestProcess.hx`).
 
 **Note**: Not all tests belong in the unit tests. See the Tests section above for other test directories and their purposes.
 
@@ -220,6 +224,7 @@ The steps below use the `gh` CLI. The checkout may have many remotes (contributo
    - Avoid `gh run view <run-id> --log-failed` for whole runs: it downloads the logs of all jobs and is very slow
    - Logs end with post-step cleanup output; look at roughly the last 100-200 lines of the failing step rather than the very end
    - Look for keywords like `FAILED`, `error`, `exit code`, `assert`, `exception` to locate the relevant failure
+   - Logs can be too large to read in one go: fetch them with a bounded tail (e.g. `tail_lines` for `get_job_logs`) or save them to a file, then search them instead of reading them in full
 
 5. The job name contains the target and platform, e.g. `linux-test (macro, x86)` means the macro target on Linux x86
 

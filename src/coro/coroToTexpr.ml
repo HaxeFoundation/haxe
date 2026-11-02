@@ -51,6 +51,19 @@ let handle_locals ctx cls params states tf_args econtinuation =
 	let fst_state     = List.hd states in
 	let arg_state_set = IntSet.of_list [ fst_state.cs_id ] in
 
+	(* Expand deferred expressions first so that the usage analysis below sees the locals they reference. *)
+	let rec expand_deferred e =
+		match e.eexpr with
+		| TCall ({eexpr = TLocal v},[]) when Hashtbl.mem ctx.deferred_exprs v.v_id ->
+			expand_deferred ((Hashtbl.find ctx.deferred_exprs v.v_id) ())
+		| _ ->
+			Type.map_expr expand_deferred e
+	in
+	List.iter (fun state ->
+		state.cs_el <- List.map expand_deferred state.cs_el;
+		state.cs_el_tail <- Option.map (List.map expand_deferred) state.cs_el_tail
+	) states;
+
 	(* Keep an extra table of all vars and what states they appear in, easier check if a var is used across states this way. *)
 	let var_usages = tf_args |> List.map (fun (v, _) -> v.v_id, arg_state_set) |> List.to_seq |> Hashtbl.of_seq in
 
@@ -92,16 +105,53 @@ let handle_locals ctx cls params states tf_args econtinuation =
 			false
 	in
 
+	(* Hoisted fields are named after their variable so that debuggers show recognizable names.
+	   Naming.field_name_of_var_name turns the variable name into a valid field name, and a numeric suffix
+	   avoids clashes with other hoisted fields (e.g. from shadowed variables) and inherited fields. *)
+	let used_field_names = Hashtbl.create 0 in
+	let next_field_suffix = Hashtbl.create 0 in
+	(* Added to the class later, see Coro.create_continuation_class. *)
+	Hashtbl.replace used_field_names "_hx_captured" ();
+	let rec is_inherited_field c name =
+		PMap.mem name c.cl_fields || match c.cl_super with
+			| Some (csup, _) -> is_inherited_field csup name
+			| None -> false
+	in
+	let field_name_of_var v =
+		let base = Naming.field_name_of_var_name v.v_name in
+		let is_taken name = Hashtbl.mem used_field_names name || is_inherited_field cls name in
+		(* Continue counting where the previous clash on this base name stopped. Generated variables
+		   all share the base name _g, so starting at 1 every time would be quadratic. *)
+		let rec loop count =
+			let name = base ^ string_of_int count in
+			if is_taken name then loop (count + 1) else begin
+				Hashtbl.replace next_field_suffix base (count + 1);
+				name
+			end
+		in
+		let name = if is_taken base then loop (try Hashtbl.find next_field_suffix base with Not_found -> 1) else base in
+		Hashtbl.replace used_field_names name ();
+		name
+	in
+	let add_field v =
+		if not (Hashtbl.mem fields v.v_id) then
+			Hashtbl.replace fields v.v_id (mk_field (field_name_of_var v) v.v_type v.v_pos v.v_pos)
+	in
+	(* The restored locals keep the name of their variable. With -debug they also keep its kind, which makes
+	   them show up in debuggers. Otherwise they stay generated, so the analyzer can still fuse them. *)
+	let alloc_restored_var v =
+		let kind = if ctx.typer.com.debug then v.v_kind else VGenerated in
+		alloc_var kind v.v_name v.v_type v.v_pos
+	in
+
 	let force_hoisted_ids = Hashtbl.create 0 in
 	List.iter (fun (v, _) ->
 		begin
-			let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type v.v_pos v.v_pos in
-
-			Hashtbl.replace fields v.v_id field;
+			add_field v;
 			(* Create a fresh restored var rather than reusing the original argument variable.
 			   This prevents the same v_id appearing as both an outer function parameter and
 			   a TVar declaration inside the state machine body (which confuses renameVars). *)
-			let restored_var = alloc_var VGenerated (Printf.sprintf "_hx_restored%i" v.v_id) v.v_type v.v_pos in
+			let restored_var = alloc_restored_var v in
 			Hashtbl.replace fst_state.cs_mapped_local v.v_id restored_var;
 			Hashtbl.replace force_hoisted_ids v.v_id ();
 		end) tf_args;
@@ -112,7 +162,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 			match Hashtbl.find_opt state.cs_mapped_local v.v_id with
 			| Some v -> v
 			| None ->
-				let new_v = alloc_var VGenerated (Printf.sprintf "_hx_restored%i" v.v_id) v.v_type v.v_pos in
+				let new_v = alloc_restored_var v in
 				Hashtbl.replace state.cs_mapped_local v.v_id new_v;
 				new_v
 		in
@@ -123,9 +173,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 				if Option.is_some eo then
 					state.cs_writes <- IntSet.add v.v_id state.cs_writes;
 
-				let field = mk_field (Printf.sprintf "_hx_hoisted%i" v.v_id) v.v_type v.v_pos v.v_pos in
-
-				Hashtbl.replace fields v.v_id field;
+				add_field v;
 				Hashtbl.replace state.cs_mapped_local v.v_id v;
 
 				{ e with eexpr = TVar (v, Option.map mapper eo) }
@@ -156,8 +204,6 @@ let handle_locals ctx cls params states tf_args econtinuation =
 				state.cs_reads <- IntSet.add v.v_id state.cs_reads;
 
 				{ e with eexpr = TLocal (get_or_create_local_mapping v) }
-			| TCall ({eexpr = TLocal v},[]) when Hashtbl.mem ctx.deferred_exprs v.v_id ->
-				mapper ((Hashtbl.find ctx.deferred_exprs v.v_id) ())
 			| _ ->
 				Type.map_expr mapper e
 		in
@@ -204,7 +250,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 		states;
 
 	fields
-	|> Hashtbl.to_seq_values
+	|> Hashtbl.to_seq
 	|> List.of_seq
 
 (* These fields only exist when BaseContinuation is compiled with coro.stack-traces, which may
@@ -400,9 +446,13 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 		| _ ->
 			die "" __LOC__
 	in
+	(* Resume states are also entered from call sites whose callee returned synchronously, so the error
+	   field is cleared once the error of a resumption has been taken. Otherwise a resume state entered
+	   later would find it again, even if it has already been caught. *)
 	let eif_error cb =
 		let el = [
 			b#assign etmp_error eerror;
+			b#assign eerror (b#null eerror.etype p);
 			b#break p;
 		] in
 		let e_then = b#void_block el in
