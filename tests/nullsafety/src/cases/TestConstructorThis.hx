@@ -6,6 +6,7 @@ import Validator.shouldFail;
  * Tests for using `this` in constructors with uninitialized fields.
  * Both Loose and Strict modes now behave the same way: error on `this` before fields are initialized.
  * Related to issue: https://github.com/HaxeFoundation/haxe/issues/12572
+ * `TestConstructorThisStrict_ConstructorOff` also covers https://github.com/HaxeFoundation/haxe/issues/10584
  * 
  * This file tests the null-safety behavior with various @:nullSafety annotations.
  */
