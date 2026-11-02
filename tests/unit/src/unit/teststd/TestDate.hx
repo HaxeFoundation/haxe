@@ -33,6 +33,14 @@ class TestDate extends unit.Test {
 		eq(date.getUTCDate(), 10);
 		eq(date.getUTCDay(), 3);
 
+		// milliseconds
+		#if (hl && hl_ver >= version("2.0.0"))
+		var date = Date.fromTime(405781340123.);
+		eq(date.getTime(), 405781340123.);
+		eq(date.getUTCSeconds(), 20);
+		eq(Date.fromTime(date.getTime()).getTime(), 405781340123.);
+		#end
+
 		// timezone issues
 		var date1 = Date.fromTime(1455555555 * 1000.); // 15 Feb 2016 16:59:15 GMT
 		var date2 = new Date(2016, 1, 15, 16, 59, 15);
@@ -83,7 +91,7 @@ class TestDate extends unit.Test {
 
 		// Y2038 (outside of signed 32-bit integer range)
 		// disabled - see #8600
-		#if false // !neko
+		#if (hl && hl_ver >= version("2.0.0")) // previously: !neko
 		var date = new Date(2039, 0, 1, 1, 59, 59);
 		eq(date.getHours(), 1);
 		eq(date.getMinutes(), 59);
@@ -97,7 +105,7 @@ class TestDate extends unit.Test {
 
 		// Y2112 (outside of unsigned 32-bit integer range)
 		// disabled - see #8600
-		#if false // !(hl || neko)
+		#if (hl && hl_ver >= version("2.0.0")) // previously: !(hl || neko)
 		var date = new Date(2112, 0, 1, 1, 59, 59);
 		eq(date.getHours(), 1);
 		eq(date.getMinutes(), 59);
@@ -191,6 +199,16 @@ class TestDate extends unit.Test {
 		eq(Date.fromString("2015-12-08 12:22:00").getTimezoneOffset() % 15, 0);
 
 		eq(Date.fromString("2015-06-15 10:00:00").getTimezoneOffset(), Date.fromString("2016-06-15 10:00:00").getTimezoneOffset());
+
+		// timezone offset matches local - UTC, also right after epoch
+		#if (hl && hl_ver >= version("2.0.0"))
+		for (time in [0., 1800000., 1718459130000.]) {
+			var date = Date.fromTime(time);
+			var local = date.getHours() * 60 + date.getMinutes();
+			var utc = date.getUTCHours() * 60 + date.getUTCMinutes();
+			eq((local - utc + date.getTimezoneOffset() + 1440) % 1440, 0);
+		}
+		#end
 
 	}
 }
