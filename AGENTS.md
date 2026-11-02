@@ -108,6 +108,8 @@ class Issue12345 extends unit.Test {
 
 **For anything involving threads** (creating threads, `sys.thread` primitives, thread-related regressions), never use the unit tests. Add a `testIssue{NUMBER}_description` method to the matching case class in `tests/threads/src/cases/` instead (e.g. `TestThread`, `TestMutex`).
 
+**For anything involving processes** (`sys.io.Process`, `Sys.command`, spawning executables), never use the unit tests either. Add a `testIssue{NUMBER}_description` method to the matching class in `tests/sys/src/` instead (e.g. `io/TestProcess.hx`).
+
 **Note**: Not all tests belong in the unit tests. See the Tests section above for other test directories and their purposes.
 
 The JavaScript tests are good for checking output syntax.
