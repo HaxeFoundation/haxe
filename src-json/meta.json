@@ -715,12 +715,6 @@
 		"doc": "Prevents a type or field from being included in documentation generation."
 	},
 	{
-		"name": "NoExpr",
-		"metadata": ":noExpr",
-		"doc": "Internally used to mark abstract fields which have no expression by design.",
-		"internal": true
-	},
-	{
 		"name": "NoImportGlobal",
 		"metadata": ":noImportGlobal",
 		"doc": "Prevents a static field from being imported with `import Class.*`.",

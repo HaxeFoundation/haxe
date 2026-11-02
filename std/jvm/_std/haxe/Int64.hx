@@ -122,7 +122,18 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	}
 
 	public static function fromFloat(f:Float):Int64 {
-		return Int64Helper.fromFloat(f);
+		if (Math.isNaN(f) || !Math.isFinite(f)) {
+			throw "Number is NaN or Infinite";
+		}
+		// Same limits as Int64Helper.fromFloat: beyond 2^53-1, not every integer is representable.
+		if (f >= 9007199254740992.) {
+			throw "Conversion overflow";
+		}
+		if (f <= -9007199254740992.) {
+			throw "Conversion underflow";
+		}
+		// The native conversion truncates toward zero, like Int64Helper.fromFloat.
+		return (f : __Int64);
 	}
 
 	public inline function toFloat():Float

@@ -50,7 +50,7 @@ class TestFloat32Array extends unit.Test {
 		eq(b[4], 5);
 
 
-		b.view == b.view; // no alloc
+		eq(b.view, b.view); // no alloc
 
 		eq(b.view.buffer, b2.view.buffer);
 		eq(b.view.byteLength, 20);

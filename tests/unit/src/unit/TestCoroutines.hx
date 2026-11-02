@@ -70,6 +70,59 @@ private class NothrowCoroutines {
 	}
 }
 
+private class HoistedNames {
+	// `result` clashes with an inherited field, the inner `total` with the outer one.
+	@:coroutine public static function run(sus:Suspender<haxe.Unit>, count:Int, result:String) {
+		var total = count;
+		{
+			var total = "shadow";
+			sus.suspend();
+			total += "ed";
+		}
+		sus.suspend();
+		return '$result $total';
+	}
+}
+
+private class Issue13101 {
+	// `start` is only read in the return expression, which is built after the usage analysis of locals.
+	@:coroutine public static function run(sus:Suspender<haxe.Unit>, x:Int):Int {
+		final start = x;
+		var i = start;
+		while (true) {
+			if (i == 3) {
+				return i - start;
+			}
+			sus.suspend();
+			i++;
+		}
+	}
+}
+
+#if jvm
+private class OverloadedJavaMethod {
+	// Calls of overloaded Java methods used to resolve to the first overload in coroutines with
+	// several states, here `write(int)` instead of `write(byte[], int, int)`. This has to be a
+	// static coroutine, because those that capture variables are generated differently.
+	@:coroutine public static function write(sus:Suspender<Int>):Int {
+		final out = new java.io.ByteArrayOutputStream();
+		final bytes = haxe.io.Bytes.ofString("abc");
+		out.write(bytes.getData(), 0, sus.suspend());
+		return out.size();
+	}
+}
+#end
+
+#if cpp
+private class OverloadedNativeStatic {
+	// The C++ generator used to crash on this call, because the coroutine transform turned it
+	// into a call of the first overload, `getByteCount(Char32):Int`.
+	@:coroutine public static function getByteCount():Int {
+		return haxe.Int64.toInt(cpp.encoding.Utf8.getByteCount("hello"));
+	}
+}
+#end
+
 private class SimpleCont<T> implements IContinuation<T> {
 	public var context(get, never):Context;
 
@@ -191,6 +244,23 @@ private abstract CoroAbstract(Int) {
 	}
 
 	public function getValue():Int
+		return this;
+}
+
+// Abstract type with a @:coroutine method that uses `this` across a suspension point, so
+// `this` is hoisted into a field of the continuation class (#13091).
+private abstract HoistedThisAbstract(Array<Int>) {
+	public function new() {
+		this = [];
+	}
+
+	@:coroutine public function pushSuspended(sus:AlwaysSuspender<Int>):Int {
+		final v = sus.suspend();
+		this.push(v);
+		return this.length;
+	}
+
+	public function toArray():Array<Int>
 		return this;
 }
 
@@ -395,6 +465,20 @@ class TestCoroutines extends Test {
 		sus.cont.resume(null, null);
 		t(resumed); // now resumed
 		eq(null, cont.lastError);
+	}
+
+	// Hoisted fields are named after their variables so that debuggers show recognizable names.
+	function testHoistedFieldNames() {
+		final sus = new Suspender<haxe.Unit>();
+		final cont = new TrackingCont<String>();
+		HoistedNames.run(cont, sus, 3, "result");
+		final fields = Type.getInstanceFields(Type.getClass(sus.cont));
+		for (name in ["sus", "count", "result1", "total", "total1"]) {
+			t(fields.contains(name));
+		}
+		sus.cont.resume(null, null);
+		sus.cont.resume(null, null);
+		eq("result 3", cont.lastResult);
 	}
 
 	// Regression test for hxcoro#95: overriding a coroutine method used to cause infinite
@@ -660,7 +744,85 @@ class TestCoroutines extends Test {
 		eq(null, cont.lastError);
 	}
 
+	function testIssue13091() {
+		final a = new HoistedThisAbstract();
+		final sus = new AlwaysSuspender<Int>();
+		var cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, @:coroutine function() {
+			return a.pushSuspended(sus);
+		});
+		eq(0, cont.resumeCount);
+		sus.cont.resume(5, null);
+		eq(1, cont.resumeCount);
+		eq(1, cont.lastResult);
+		eq(null, cont.lastError);
+		aeq([5], a.toArray());
+	}
+
+	// Regression test: resume states used to check the continuation's error field, including when
+	// they were entered from a call that returned synchronously. A coroutine call in a catch block
+	// then saw the error that resumed the coroutine again, and rethrew it.
+	function testCoroutineCallInCatchAfterErrorResumption() {
+		final sus = new Suspender<Int>();
+		@:coroutine function id(x:Int):Int {
+			return x;
+		}
+		@:coroutine function caller():Int {
+			try {
+				return sus.suspend();
+			} catch (e:Exception) {
+				return id(1) + id(2);
+			}
+		}
+		var cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, caller);
+		eq(0, cont.resumeCount);
+		sus.cont.resume(null, new Exception("oops"));
+		eq(1, cont.resumeCount);
+		eq(null, cont.lastError);
+		eq(3, cont.lastResult);
+	}
+
+	function testIssue13101() {
+		final sus = new Suspender<haxe.Unit>();
+		final cont = new TrackingCont<Int>();
+		Issue13101.run(cont, sus, 0);
+		while (sus.cont != null) {
+			final c = sus.cont;
+			sus.cont = null;
+			c.resume(null, null);
+		}
+		eq(1, cont.resumeCount);
+		eq(null, cont.lastError);
+		eq(3, cont.lastResult);
+	}
+
+	// The error of a resumption that isn't caught completes the coroutine.
+	function testUncaughtErrorResumption() {
+		final sus = new Suspender<Int>();
+		@:coroutine function caller():Int {
+			return sus.suspend() + 1;
+		}
+		var cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, caller);
+		sus.cont.resume(null, new Exception("oops"));
+		eq(1, cont.resumeCount);
+		eq("oops", cont.lastError.message);
+	}
+
 	#if jvm
+
+	function testOverloadedJavaMethod() {
+		final sus = new Suspender<Int>();
+		var cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, @:coroutine function() {
+			return OverloadedJavaMethod.write(sus);
+		});
+		sus.cont.resume(2, null);
+		eq(1, cont.resumeCount);
+		eq(null, cont.lastError);
+		eq(2, cont.lastResult);
+	}
 
 	function testIssue13080Throwable() {
 		var cont = new TrackingCont();
@@ -674,6 +836,20 @@ class TestCoroutines extends Test {
 		eq(1, cont.resumeCount);
 		eq("oops", cont.lastResult.getMessage());
 		eq(null, cont.lastError);
+	}
+
+	#end
+
+	#if cpp
+
+	function testIssue13099() {
+		var cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, @:coroutine function() {
+			return OverloadedNativeStatic.getByteCount();
+		});
+		eq(1, cont.resumeCount);
+		eq(null, cont.lastError);
+		eq(5, cont.lastResult);
 	}
 
 	#end

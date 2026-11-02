@@ -3542,7 +3542,7 @@ let generate_static ctx c f =
 					in
 					(match f.cf_expr with
 					| Some { eexpr = TFunction fn } -> ignore(make_fun ctx ~gen_content (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) fn None None)
-					| _ -> if not (Meta.has Meta.NoExpr f.cf_meta) then abort "Missing function body" f.cf_pos)
+					| _ -> if not (has_class_field_flag f CfNoExpr) then abort "Missing function body" f.cf_pos)
 
 				else
 				add_native "std" f.cf_name
@@ -3554,7 +3554,7 @@ let generate_static ctx c f =
 				let gen_content = if is_excluded c then Some (fun() -> op ctx (OAssert 0)) else None in
 				(match f.cf_expr with
 				| Some { eexpr = TFunction fn } -> ignore(make_fun ?gen_content ctx (s_type_path c.cl_path,f.cf_name) (alloc_fid ctx c f) fn None None)
-				| _ -> if not (Meta.has Meta.NoExpr f.cf_meta) then abort "Missing function body" f.cf_pos)
+				| _ -> if not (has_class_field_flag f CfNoExpr) then abort "Missing function body" f.cf_pos)
 			| _ :: l ->
 				loop l
 		in

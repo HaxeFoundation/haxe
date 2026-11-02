@@ -34,16 +34,26 @@ class Adler32 {
 		a2 = 0;
 	}
 
-	public function get() {
+	public inline function get() {
 		return (a2 << 16) | a1;
 	}
 
-	public function update(b:haxe.io.Bytes, pos, len) {
+	// Take modulo once per block: worst case a2 stays below 2^31 for 3800 bytes.
+	static inline var BLOCK = 3800;
+
+	public function update(b:haxe.io.Bytes, pos:Int, len:Int) {
 		var a1 = a1, a2 = a2;
-		for (p in pos...pos + len) {
-			var c = b.get(p);
-			a1 = (a1 + c) % 65521;
-			a2 = (a2 + a1) % 65521;
+		var p = pos, end = pos + len;
+		while (p < end) {
+			var n = p + BLOCK;
+			if (n > end)
+				n = end;
+			while (p < n) {
+				a1 += b.get(p++);
+				a2 += a1;
+			}
+			a1 %= 65521;
+			a2 %= 65521;
 		}
 		this.a1 = a1;
 		this.a2 = a2;
