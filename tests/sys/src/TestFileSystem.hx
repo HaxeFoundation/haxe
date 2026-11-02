@@ -133,7 +133,9 @@ class TestFileSystem extends utest.Test {
 		sys.io.File.saveContent(path, "hello");
 		var stat = FileSystem.stat(path);
 		Assert.equals(5, stat.size);
-		#if !js // hxnodejs doesn't set size64 yet
+		#if (js || cpp || neko || (hl && !(hl_ver >= version("2.0.0"))))
+		Assert.isNull(stat.size64);
+		#else
 		Assert.isTrue(stat.size64 == 5);
 		#end
 	}
