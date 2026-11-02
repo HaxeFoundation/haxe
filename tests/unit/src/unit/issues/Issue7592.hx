@@ -14,10 +14,12 @@ class Issue7592 extends Test {
 		t(xmap.remove("1"));
 		f(xmap.exists("1"));
 
+		#if !cppia // https://github.com/HaxeFoundation/hxcpp/pull/1460
 		var imap:IMap<String, String> = new XStringMap();
 		imap.set("3", "three");
 		eq("three", imap.get("3"));
 		eq(1, imap.size());
+		#end
 	}
 }
 
