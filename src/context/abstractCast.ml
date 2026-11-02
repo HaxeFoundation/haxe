@@ -280,20 +280,18 @@ let handle_abstract_casts (scom : SafeCom.t) e =
 		| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))} as ef,[e1]) when (match follow e1.etype with TAbstract({a_impl = Some _},_) -> true | _ -> false) ->
 			begin match follow e1.etype with
 				| TAbstract({a_impl = Some c},tl) ->
-					(* @:multiType rewrites change the argument to the underlying type; cast back so toString gets the abstract type *)
-					let e1 = match loop e1 with
-						| e1' when e1'.etype == e1.etype -> e1'
-						| e1' -> mk (TCast(e1',None)) e1.etype e1'.epos
-					in
+					let e1' = loop e1 in
 					begin try
 						let cf = PMap.find "toString" c.cl_statics in
+						(* @:multiType rewrites change the argument to the underlying type; cast back so toString gets the abstract type *)
+						let e1 = if fast_eq e1'.etype e1.etype then e1' else mk_cast e1' e1.etype e1'.epos in
 						let call e1 = ExceptionFunctions.make_static_call scom c cf [e1] scom.basic.tstring e.epos in
 						if not (is_nullable e1.etype) then
 							call e1
 						else
 							Texpr.Builder.make_null_safe_to_string scom.basic call e1 e.epos
 					with Not_found ->
-						{e with eexpr = TCall(ef,[e1])}
+						{e with eexpr = TCall(ef,[e1'])}
 					end
 				| _ ->
 					die "" __LOC__
