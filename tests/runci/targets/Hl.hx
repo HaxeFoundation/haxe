@@ -39,7 +39,7 @@ class Hl {
 			return;
 		}
 		if (!FileSystem.exists(hlSrc))
-			runCommand("git", ["clone", "--depth=1", "--branch", "dev-hl-date-float-ms", "https://github.com/yuxiaomao/hashlink.git", hlSrc]);
+			runCommand("git", ["clone", "--depth=1", "--branch", "dev-date-double-ms","https://github.com/yuxiaomao/hashlink.git", hlSrc]);
 		else
 			infoMsg("Reusing hashlink repository");
 
