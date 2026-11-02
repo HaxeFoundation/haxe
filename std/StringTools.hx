@@ -337,6 +337,29 @@ class StringTools {
 	}
 
 	/**
+		Repeats `s` until `s.length` is at least `l`.
+
+		If `s` is the empty String `""` or if `l` does not exceed `s.length`,
+		`s` is returned unchanged.
+
+		If `s.length` is 1, the resulting String length is exactly `l`.
+
+		Otherwise the length may exceed `l`.
+
+		If `s` is null, the result is unspecified.
+	**/
+	public static function pad(s:String, l:Int):String {
+        if (s.length <= 0)
+            return s;
+
+        var buf = new StringBuf();
+        while (buf.length < l) {
+            buf.add(s);
+        }
+        return buf.toString();
+    }
+
+    /**
 		Concatenates `c` to `s` until `s.length` is at least `l`.
 
 		If `c` is the empty String `""` or if `l` does not exceed `s.length`,
@@ -352,13 +375,8 @@ class StringTools {
 		if (c.length <= 0)
 			return s;
 
-		var buf = new StringBuf();
-		l -= s.length;
-		while (buf.length < l) {
-			buf.add(c);
-		}
-		buf.add(s);
-		return buf.toString();
+        final amount = (l - s.length) / c.length; // how much we have left to fill / how many we can fit in
+		return pad(c, Math.ceil(amount)) + s; // length should be at-LEAST l or bigger i think
 	}
 
 	/**
@@ -377,12 +395,8 @@ class StringTools {
 		if (c.length <= 0)
 			return s;
 
-		var buf = new StringBuf();
-		buf.add(s);
-		while (buf.length < l) {
-			buf.add(c);
-		}
-		return buf.toString();
+		final amount = (l - s.length) / c.length; // how much we have left to fill / how many we can fit in
+		return s + pad(c, Math.ceil(amount)); // length should be at-LEAST l or bigger i think
 	}
 
 	/**
