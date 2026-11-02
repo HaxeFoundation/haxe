@@ -85,12 +85,12 @@ private abstract MonoKeyPolluteRead(Array<String>) {
 		this = ["hello"];
 	}
 
-	@:arrayAccess public function get1<T>(k:Array<T>):String {
+	@:arrayAccess public function get1<T:Float>(k:{a:Array<T>, b:T}):String {
 		return this[0];
 	}
 
-	@:arrayAccess public function get2(k:Array<String>):Int {
-		return this.length;
+	@:arrayAccess public function get2<T>(k:{a:Array<T>, b:String}):String {
+		return this[0];
 	}
 }
 
@@ -154,7 +154,7 @@ class Issue10655 extends Test {
 	function testMonoKeyPolluteRead() {
 		var rp = new MonoKeyPolluteRead();
 		var arr = [];
-		var v = rp[arr];
+		var v = rp[{a: arr, b: "hello"}];
 		arr.push(1);
 		eq(1, arr[0]);
 		eq("hello", v);

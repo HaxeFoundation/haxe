@@ -153,6 +153,7 @@ let find_array_read_access_raise ctx a pl e1 p =
 		match cfl with
 		| [] -> raise Not_found
 		| cf :: cfl ->
+			let restore = monomorph_transaction ctx in
 			let map,check_constraints,get_ta = prepare_array_access_field ctx a pl cf p in
 			match follow (map cf.cf_type) with
 			| TFun((_,_,tab) :: (_,_,ta1) :: args,r) as tf when is_empty_or_pos_infos args ->
@@ -162,9 +163,12 @@ let find_array_read_access_raise ctx a pl e1 p =
 					check_constraints();
 					cf,tf,r,e1
 				with Unify_error _ | Error { err_message = Unify _ } ->
+					restore();
 					loop cfl
 				end
-			| _ -> loop cfl
+			| _ ->
+				restore();
+				loop cfl
 	in
 	loop a.a_array_read
 
