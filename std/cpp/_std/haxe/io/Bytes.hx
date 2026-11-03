@@ -26,6 +26,7 @@ import cpp.NativeArray;
 import cpp.marshal.View;
 import cpp.encoding.Utf8;
 import cpp.encoding.Ascii;
+import haxe.Int32;
 import haxe.iterators.StringIterator;
 
 using cpp.marshal.Marshal;
@@ -161,7 +162,7 @@ class Bytes {
 		Returns the 32-bit integer at the given position `pos` (in little-endian
 		encoding).
 	**/
-	public function getInt32(pos:Int):Int {
+	public function getInt32(pos:Int):Int32 {
 		return this.asView().slice(pos).readInt32();
 	}
 
@@ -177,7 +178,7 @@ class Bytes {
 		Stores the given 32-bit integer `v` at the given position `pos` (in
 		little-endian encoding).
 	**/
-	public function setInt32(pos:Int, v:Int):Void {
+	public function setInt32(pos:Int, v:Int32):Void {
 		this.asView().slice(pos).writeInt32(v);
 	}
 
@@ -252,14 +253,7 @@ class Bytes {
 		if (Ascii.isEncoded(s)) {
 			return s.asCharView().asBytesView().toBytes();
 		} else {
-			final count = Utf8.getByteCount(s);
-			final bytes = Bytes.alloc(Int64.toInt(count));
-
-			if (Utf8.encode(s, bytes.asView()) != count) {
-				throw new haxe.Exception('Failed to encode string to UTF8');
-			} else {
-				return bytes;
-			}
+			return Bytes.ofData(Utf8.encode(s));
 		}
 	}
 

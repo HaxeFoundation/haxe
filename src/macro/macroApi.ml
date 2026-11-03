@@ -74,6 +74,64 @@ type 'value compiler_api = {
 	set_hxb_writer_config : 'value -> unit;
 }
 
+(** A null compiler API that holds no references to any compilation context.
+    Used to clear the eval interpreter's curapi between compilations so that
+    the compilation context can be garbage collected. Any accidental access
+    raises [Globals.Ice]. *)
+let null_api () = {
+	pos = null_pos;
+	get_com = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_macro_com = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_macro_stack = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	init_macros_done = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_type = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_module = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	include_module = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	after_init_macros = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	after_typing = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	on_generate = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	after_generate = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	on_type_not_found = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	parse_string = (fun _ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	register_file_contents = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	parse = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	type_expr = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	resolve_type = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	resolve_complex_type = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	store_typed_expr = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	allow_package = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_local_type = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_expected_type = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_call_arguments = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_local_method = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_local_imports = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_local_using = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_local_vars = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_build_fields = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	define_type = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	define_module = (fun _ _ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	module_dependency = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	current_module = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	format_string = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	cast_or_unify = (fun _ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	add_global_metadata = (fun _ _ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	register_define = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	register_metadata = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	add_module_check_policy = (fun _ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	decode_expr = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	encode_expr = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	encode_ctype = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	decode_type = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	info = (fun ?depth:_ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	warning = (fun ?depth:_ _ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	display_error = (fun ?sub:_ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	with_imports = (fun _ _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	with_options = (fun _ _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	exc_string = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+	get_hxb_writer_config = (fun () -> die "Macro API accessed after compilation cleanup" __LOC__);
+	set_hxb_writer_config = (fun _ -> die "Macro API accessed after compilation cleanup" __LOC__);
+}
+
 type enum_type =
 	| IExpr
 	| IEFieldKind
@@ -123,7 +181,7 @@ module type InterpApi = sig
 	val encode_array : value list -> value
 	val encode_string  : string -> value
 	val encode_obj : (string * value) list -> value
-	val encode_lazy : value Lazy.t -> value
+	val encode_lazy : value AtomicLazy.t -> value
 
 	val vfun0 : (unit -> value) -> value
 	val vfun1 : (value -> value) -> value
@@ -175,6 +233,8 @@ module type InterpApi = sig
 
 	val get_api_call_pos : unit -> pos
 
+	val get_current_com : unit -> Common.context
+
 	val associate_enum_value_pos : value -> pos -> unit
 end
 
@@ -207,6 +267,16 @@ open InterpImpl
 let null f = function
 	| None -> vnull
 	| Some v -> f v
+
+(* Where display recovery is enabled, typing errors raised while building or forcing types lazily from a macro
+   are reported and become exceptions the macro can catch, so that they don't abort the whole request.
+   Otherwise, e.g. in compilation, they are raised as before so that a macro catching them cannot hide them. *)
+let protect_typing f =
+	try
+		f ()
+	with Error err when display_recovery_enabled (get_current_com ()) ->
+		display_error_ext (get_current_com ()) err;
+		compiler_error err
 
 let encode_enum ?(pos=None) k tag vl = encode_enum k pos tag vl
 
@@ -520,8 +590,8 @@ and encode_package_rule pr =
 	encode_enum IPackageRule tag pl
 
 and encode_message cm =
-	let tag, pl = match cm.cm_severity with
-		| Globals.MessageSeverity.Information -> 0, [(encode_string cm.cm_message); (encode_pos cm.cm_pos)]
+	let tag, pl = match Message.cm_severity cm with
+		| Information -> 0, [(encode_string cm.cm_message); (encode_pos cm.cm_pos)]
 		| Warning | Hint -> 1, [(encode_string cm.cm_message); (encode_pos cm.cm_pos)]
 		| Error -> Globals.die "" __LOC__
 	in
@@ -631,7 +701,7 @@ and encode_expr e =
 			"expr", encode_enum IExpr tag pl;
 		]
 	in
-	encode_lazy (lazy (loop e))
+	encode_lazy (AtomicLazy.from_fun (fun () -> loop e))
 
 and encode_null_expr e =
 	match e with
@@ -1163,7 +1233,7 @@ and encode_class_kind k =
 	encode_enum IClassKind tag pl
 
 and encode_tclass c =
-	ignore(c.cl_build());
+	protect_typing (fun () -> ignore(c.cl_build()));
 	encode_mtype (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
 		"isExtern", vbool (has_class_flag c CExtern);
@@ -1251,7 +1321,7 @@ and encode_type t =
 		| TDynamic (Some tsub) ->
 			6, [encode_type tsub]
 		| TLazy f ->
-			loop (lazy_type f)
+			loop (protect_typing (fun () -> lazy_type f))
 		| TAbstract (a, pl) ->
 			8, [encode_abref a; encode_tparams pl]
 	in
@@ -1274,7 +1344,7 @@ and encode_lazy_type t =
 					| LAvailable t ->
 						encode_type t
 					| LWait _ ->
-						encode_type (lazy_type f)
+						encode_type (protect_typing (fun () -> lazy_type f))
 					| LProcessing _ ->
 						(* our type in on the processing stack, error instead of returning most likely an unbound mono *)
 						error_message "Accessing a type while it's being typed");
@@ -1810,7 +1880,7 @@ let macro_api ccom get_api =
 				|| (
 					let com = ccom() in
 					(Filename.is_relative p.pfile || Filename.is_relative dfile)
-					&& (com.file_keys#get dfile = com.file_keys#get p.pfile)
+					&& (com.part_scope.file_keys#get dfile = com.part_scope.file_keys#get p.pfile)
 				)
 			in
 			vbool (display_pos#enclosed_in p && same_file())
@@ -2175,11 +2245,11 @@ let macro_api ccom get_api =
 				| TLazy f ->
 					lazy_type f
 			in
-			encode_type (if decode_opt_bool once then follow_once t else Abstract.follow_with_abstracts t)
+			encode_type (protect_typing (fun () -> if decode_opt_bool once then follow_once t else Abstract.follow_with_abstracts t))
 		);
 		"follow", vfun2 (fun v once ->
 			let t = decode_type v in
-			encode_type (if decode_opt_bool once then follow_once t else follow t)
+			encode_type (protect_typing (fun () -> if decode_opt_bool once then follow_once t else follow t))
 		);
 		"get_build_fields", vfun0 (fun() ->
 			(get_api()).get_build_fields()
@@ -2213,7 +2283,7 @@ let macro_api ccom get_api =
 		"add_native_lib", vfun1 (fun file ->
 			let file = decode_string file in
 			let com = ccom() in
-			let open CompilationContext in
+			let open ParsedArg in
 			let kind = match com.platform with
 				| Jvm -> JavaLib
 				| Flash -> SwfLib
@@ -2267,8 +2337,8 @@ let macro_api ccom get_api =
 		"get_configuration", vfun0 (fun() ->
 			let com = ccom() in
 			encode_obj [
-				"version", vint com.version.version;
-				"args", encode_array (List.map encode_string com.args);
+				"version", vint com.sctx.version.version;
+				"args", encode_array (List.map encode_string (Args.to_raw_args com.parsed_args));
 				"debug", vbool com.debug;
 				"verbose", vbool com.verbose;
 				"foptimize", vbool com.foptimize;
@@ -2369,13 +2439,15 @@ let macro_api ccom get_api =
 			let cs = com.cs in
 			List.iter (fun v ->
 				let s = decode_string v in
-				let s = com.file_keys#get s in
+				let s = com.part_scope.file_keys#get s in
 				cs#taint_modules s ServerInvalidateFiles;
 				cs#remove_files s;
 			) (decode_array a);
 			vnull
 		);
 		"server_stats", vfun0 (fun () ->
+			let com = ccom() in
+			let stats = com.request_scope.stats in
 			encode_obj [
 				"filesParsed", vint !(stats.s_files_parsed);
 				"modulesTyped", vint !(stats.s_modules_typed);
@@ -2460,18 +2532,6 @@ let macro_api ccom get_api =
 			let name = decode_string name in
 			v.v_name <- name;
 			vnull;
-		);
-		"send_json", vfun1 (fun json ->
-			begin match (ccom()).json_out with
-			| Some api ->
-				let json = decode_string json in
-				let lexbuf = Sedlexing.Utf8.from_string json in
-				let parse = Json.Reader.read_json lexbuf in
-				api.send_result parse;
-				vbool true
-			| None ->
-				vbool false
-			end
 		);
 		"get_hxb_writer_config", vfun0 (fun () ->
 			(get_api()).get_hxb_writer_config ()

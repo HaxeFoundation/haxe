@@ -1,0 +1,12 @@
+# Step 1: compile to an hxb archive, excluding the `pack` package via wildcard
+-cp src
+-main Main
+-js bin/out.js
+--hxb config.json
+
+--next
+
+# Step 2: inspect the archive to confirm the wildcard exclude was honored
+-cp src
+-main Check
+--interp

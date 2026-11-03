@@ -20,12 +20,18 @@ let write_callable_header callable_name captures func return_type_str prefix out
   | None ->
     Printf.sprintf "\t%s() {} \n" callable_name |> output);
   
+  (* Override __Compare *)
   output "\tint __Compare(const ::hx::Object* inRhs) const override {\n";
   Printf.sprintf "\t\tauto casted = dynamic_cast<const %s*>(inRhs);\n" callable_name |> output;
   output "\t\tif (!casted) { return -1; }\n";
   if Option.is_some captures then
     output "\t\tif (__this != casted->__this) return 1;\n";
   output "\t\treturn 0;\n";
+  output "\t}\n";
+
+  (* Override callableId, Haxe function closures are only compared based on name, not signature *)
+  output "\tstd::type_index callableId() const override {\n";
+  Printf.sprintf "\t\treturn std::type_index{ typeid(%s) };\n" callable_name |> output;
   output "\t}\n";
 
   Printf.sprintf "\t%s HX_LOCAL_RUN(%s) override {\n" return_type_str (cpp_callable_args func.tcf_args prefix) |> output
@@ -43,7 +49,7 @@ let write_callable_trailer captures output =
 
 let gen_function ctx tcpp_class is_static func =
   let output      = ctx.ctx_output in
-  let return_type = cpp_type_of func.tcf_func.tf_type in
+  let return_type = cpp_type_of ctx.ctx_common.basic func.tcf_func.tf_type in
 
   let ret, is_void, return_type_str =
     match return_type with
@@ -101,8 +107,8 @@ let gen_function ctx tcpp_class is_static func =
 let gen_function_closures ctx tcpp_class is_static func =
   if (not func.tcf_is_virtual || not func.tcf_is_overriding) && func.tcf_is_reflective then
     let output          = ctx.ctx_output in
-    let return_type_str = type_to_string func.tcf_func.tf_type in
-    let return_type     = cpp_type_of func.tcf_func.tf_type in
+    let return_type_str = type_to_string ctx.ctx_common.basic func.tcf_func.tf_type in
+    let return_type     = cpp_type_of ctx.ctx_common.basic func.tcf_func.tf_type in
     let is_void         = return_type = TCppVoid in
     let callable_name   = Printf.sprintf "__%s%s" tcpp_class.tcl_name func.tcf_name in
     let full_name       = (tcpp_class.tcl_class.cl_path |> fst |> List.map keyword_remap |> String.concat "::") ^ "::" ^ tcpp_class.tcl_name in
@@ -198,12 +204,15 @@ let gen_init_function ctx output_cpp tcpp_class =
   | None ->
     ()
 
+let new_default_closure func obj =
+  Printf.sprintf "%s(new __default_%s(%s))" (func_to_callable_string "::hx::Callable" func) func.tcf_name obj
+
 let gen_dynamic_function_allocator ctx output_cpp tcpp_class =
   match tcpp_class.tcl_dynamic_functions with
   | [] -> ()
   | functions ->
     let mapper func =
-      Printf.sprintf "\tif (!_hx_obj->%s.mPtr) { _hx_obj->%s = new __default_%s(_hx_obj); }" func.tcf_name func.tcf_name func.tcf_name in
+      Printf.sprintf "\tif (!_hx_obj->%s.mPtr) { _hx_obj->%s = %s; }" func.tcf_name func.tcf_name (new_default_closure func "_hx_obj") in
     let rec folder acc class_def =
       if has_dynamic_member_functions class_def then
         let super_name = join_class_path_remap class_def.cl_path "::" ^ "_obj" in
@@ -327,7 +336,7 @@ let generate_managed_class base_ctx tcpp_class =
   let class_super_name =
     match class_def.cl_super with
     | Some (klass, params) ->
-        tcpp_to_string_suffix "_obj" (cpp_instance_type klass params CppRetyper.with_stack_value_type)
+        tcpp_to_string_suffix "_obj" (cpp_instance_type ctx.ctx_common.basic klass params CppRetyper.with_stack_value_type)
     | _ -> ""
   in
 
@@ -548,7 +557,7 @@ let generate_managed_class base_ctx tcpp_class =
   (* Initialise non-static variables *)
   output_cpp (class_name ^ "::" ^ class_name ^ "()\n{\n");
   List.iter
-    (fun func -> output_cpp ("\t" ^ func.tcf_name ^ " = new __default_" ^ func.tcf_name ^ "(this);\n"))
+    (fun func -> output_cpp (Printf.sprintf "\t%s = %s;\n" func.tcf_name (new_default_closure func "this")))
     tcpp_class.tcl_dynamic_functions;
   output_cpp "}\n\n";
 
@@ -556,7 +565,7 @@ let generate_managed_class base_ctx tcpp_class =
     let rec find_next_super_iteration cls =
       match cls.tcl_super with
       | Some ({ tcl_container = Some Current } as super) ->
-        Some (tcpp_to_string_suffix "_obj" (cpp_instance_type super.tcl_class super.tcl_params CppRetyper.with_stack_value_type))
+        Some (tcpp_to_string_suffix "_obj" (cpp_instance_type ctx.ctx_common.basic super.tcl_class super.tcl_params CppRetyper.with_stack_value_type))
       | Some super ->
         find_next_super_iteration super
       | None ->
@@ -617,7 +626,7 @@ let generate_managed_class base_ctx tcpp_class =
   in
 
   let get_wrapper field value =
-    match CppRetyper.cpp_type_of CppRetyper.with_promoted_value_type field.cf_type with
+    match CppRetyper.cpp_type_of ctx.ctx_common.basic CppRetyper.with_promoted_value_type field.cf_type with
     | TCppInst (t, _) as inst when Meta.has Meta.StructAccess t.cl_meta ->
       Printf.sprintf "(::cpp::Struct< %s >) %s" (tcpp_to_string inst) value
     | TCppStar _ ->
@@ -684,10 +693,8 @@ let generate_managed_class base_ctx tcpp_class =
       |> List.fold_right (print_property prop_printer) tcpp_class.tcl_properties
       |> List.fold_right (print_function fun_printer) tcpp_class.tcl_functions in
 
-    if List.length all_fields > 0 then (
-      dump_quick_field_test all_fields;
-      output_cpp "\treturn super::__Field(inName,inCallProp);\n}\n\n");
-    );
+    dump_quick_field_test all_fields;
+    output_cpp "\treturn super::__Field(inName,inCallProp);\n}\n\n");
 
   if has_tcpp_class_flag tcpp_class StaticGet then (
     Printf.sprintf "bool %s::__GetStatic(const ::String &inName, ::Dynamic &outValue, ::hx::PropertyAccess inCallProp)\n{\n" class_name |> output_cpp;
@@ -812,7 +819,7 @@ let generate_managed_class base_ctx tcpp_class =
     Printf.sprintf "void %s::__GetFields(::Array< ::String >& outFields)\n{\n%s\n}\n\n" class_name fields |> output_cpp);
 
   let storage field =
-    match cpp_type_of field.cf_type with
+    match cpp_type_of ctx.ctx_common.basic field.cf_type with
     | TCppScalar "bool" -> "::hx::fsBool"
     | TCppScalar "int" -> "::hx::fsInt"
     | TCppScalar "Float" -> "::hx::fsFloat"
@@ -943,7 +950,7 @@ let generate_managed_class base_ctx tcpp_class =
       let ret         = if return_type = "Void" || return_type = "void" then " " else "return " in
       let vtable      = Printf.sprintf "__scriptVTable[%i]" (idx + 1) in
 
-      Printf.sprintf "\t%s %s(%s) {\n" return_type func.tcf_name args |> output_cpp;
+      Printf.sprintf "\t%s %s(%s) override {\n" return_type func.tcf_name args |> output_cpp;
       Printf.sprintf ("\tif (%s) {\n") vtable |> output_cpp;
       output_cpp "\t\t::hx::CppiaCtx *__ctx = ::hx::CppiaCtx::getCurrent();\n";
       output_cpp "\t\t::hx::AutoStack __as(__ctx);\n";
@@ -984,17 +991,33 @@ let generate_managed_class base_ctx tcpp_class =
     in
 
     let script_name = class_name ^ "__scriptable" in
-    let has_funky_toString =
+    let has_funky_toString cls =
       List.exists
         (fun func -> func.tcf_name = "toString")
-        tcpp_class.tcl_static_functions ||
+        cls.tcl_static_functions ||
       List.exists
         (fun func -> func.tcf_name = "toString" && List.length func.tcf_func.tf_args <> 0)
-        tcpp_class.tcl_functions
+        cls.tcl_functions
     in
-    let super_string =
-      if has_funky_toString then class_name ^ "::super" else class_name
+    let has_toString cls =
+      List.exists (fun func -> func.tcf_name = "toString") cls.tcl_functions
     in
+    (* A funky toString hides hx::Object::toString(), also in the classes that inherit it,
+       so look it up from above the nearest one *)
+    let rec find_super_string start cls path =
+      if has_funky_toString cls then
+        let above = path ^ "::super" in
+        match cls.tcl_super with
+        | Some super -> find_super_string above super above
+        | None -> above
+      else if has_toString cls then
+        start
+      else
+        match cls.tcl_super with
+        | Some super -> find_super_string start super (path ^ "::super")
+        | None -> start
+    in
+    let super_string = find_super_string class_name tcpp_class class_name in
 
     Printf.sprintf "class %s : public %s {\n" script_name class_name |> output_cpp;
     Printf.sprintf "\ttypedef %s __ME;\n" script_name |> output_cpp;

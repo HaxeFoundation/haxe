@@ -386,8 +386,19 @@ module TClass = struct
 			c.cl_init <- Some cf
 
 	let get_singular_interface_field fields =
+		(* Re-declarations of java.lang.Object members (equals/hashCode/toString)
+		   on an interface must not count toward the SAM check — JLS §9.8.
+		   Matched by name+arity since these are unique on Object. *)
+		let is_object_member cf = match cf.cf_name, follow cf.cf_type with
+			| "equals", TFun([_],_) -> true
+			| "hashCode", TFun([],_) -> true
+			| "toString", TFun([],_) -> true
+			| _ -> false
+		in
 		let is_normal_field cf =
-			not (has_class_field_flag cf CfDefault) && match cf.cf_kind with
+			not (has_class_field_flag cf CfDefault)
+			&& not (is_object_member cf)
+			&& match cf.cf_kind with
 				| Method MethNormal -> true
 				| _ -> false
 		in

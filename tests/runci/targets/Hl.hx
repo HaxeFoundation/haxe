@@ -1,41 +1,45 @@
 package runci.targets;
 
-import haxe.io.Path;
 import sys.FileSystem;
 import runci.System.*;
 import runci.Config.*;
 
 using StringTools;
+using haxe.io.Path;
 
 class Hl {
 	static final hlSrc = Path.join([getDownloadPath(), "hashlink"]);
 
 	static final hlBuild = Path.join([getDownloadPath(), "hashlink_build"]);
 
-	static final hlInstallDir = Path.join([getInstallPath(), "hashlink"]);
-	static final hlInstallBinDir = if (systemName == "Windows") hlInstallDir else Path.join([hlInstallDir, "bin"]);
-	static final hlInstallLibDir = if (systemName == "Windows") hlInstallDir else Path.join([hlInstallDir, "lib"]);
-
-	static final hlBinary =
-		if (!commandSucceed("hl", ["--version"])){
-			Path.join([hlInstallBinDir, "hl"]) + ((systemName == "Windows") ? ".exe" : "");
+	static final hlBinary = if (!commandSucceed("hl", ["--version"])) {
+			Path.join([getInstallPath(), "hashlink", systemName == 'Windows' ? '' : 'bin', "hl" + ((systemName == "Windows") ? ".exe" : "")]);
 		} else {
-			commandResult(if(systemName == "Windows") "where" else "which", ["hl"]).stdout.trim();
+			commandResult(if (systemName == "Windows") "where" else "which", ["hl"]).stdout.trim();
 		};
 
-	static final miscHlDir = getMiscSubDir('hl');
-	static final miscHlcDir = getMiscSubDir('hlc');
+	static final hlInstallBinDir = hlBinary.directory();
+	static final hlInstallDir = if (systemName == "Windows") hlInstallBinDir else hlInstallBinDir.directory();
+	static final hlInstallLibDir = if (systemName == "Windows") hlInstallDir else Path.join([hlInstallDir, "lib"]);
 
 	static var withJitTests = true;
 	static var withHlcTests = true;
 
+	static var msbuildPlatform:String = 'x64';
+
 	static public function getHlDependencies() {
+		Sys.putEnv("HASHLINK", hlInstallDir);
+		if (systemName == "Windows") {
+			Sys.putEnv("HASHLINK_SRC", hlInstallDir);
+			Sys.putEnv("HASHLINK_BIN", hlInstallBinDir);
+		}
+
 		if (FileSystem.exists(hlBinary)) {
 			infoMsg('hl has already been installed at $hlBinary.');
 			return;
 		}
 		if (!FileSystem.exists(hlSrc))
-			runCommand("git", ["clone", "https://github.com/HaxeFoundation/hashlink.git", hlSrc]);
+			runCommand("git", ["clone", "--depth=1", "https://github.com/HaxeFoundation/hashlink.git", hlSrc]);
 		else
 			infoMsg("Reusing hashlink repository");
 
@@ -73,18 +77,11 @@ class Hl {
 		runCommand("cmake", ["--build", hlBuild, "--target", "install"]);
 
 		addToPATH(hlInstallBinDir);
-		addToLIBPATH(hlInstallLibDir);
 		if (withJitTests) {
 			runCommand(hlBinary, ["--version"]);
 		}
 
 		haxelibDev("hashlink", '$hlSrc/other/haxelib/');
-
-		Sys.putEnv("HASHLINK", hlInstallDir);
-		if (systemName == "Windows") {
-			Sys.putEnv("HASHLINK_SRC", hlSrc);
-			Sys.putEnv("HASHLINK_BIN", hlInstallBinDir);
-		}
 	}
 
 	static function buildAndRunHlc(dir:String, filename:String, ?run) {
@@ -93,7 +90,8 @@ class Hl {
 		final compiler = if (systemName == "Mac") "clang" else "gcc";
 		final extraCompilerFlags = switch (systemName) {
 			case "Windows": ["-ldbghelp", "-municode"];
-			case _: [];
+			case "Mac": ["-rpath", hlInstallLibDir];
+			case _: ['-Wl,-rpath,$hlInstallLibDir'];
 		};
 
 		runCommand(compiler, [
@@ -118,9 +116,9 @@ class Hl {
 				'-nologo', '-verbosity:minimal',
 				'-t:$filename',
 				'-property:Configuration=Release',
-				'-property:Platform=x64'
+				'-property:Platform=$msbuildPlatform'
 			]);
-			run('$dir/x64/Release/$filename.exe', []);
+			run('$dir${msbuildPlatform == 'x64' ? '/x64' : ''}/Release/$filename.exe', []);
 		}
 	}
 
@@ -138,19 +136,31 @@ class Hl {
 		}
 	}
 
-	static public function run(args:Array<String>, withJitTests:Bool, withHlcTests:Bool) {
-		Hl.withJitTests = withJitTests;
-		Hl.withHlcTests = withHlcTests;
+	static public function run(testArgs:Array<String>, haxeArgs:Array<String>) {
+		final msbuildPlatformArgIndex = testArgs.lastIndexOf("--msbuild-platform");
+		if (msbuildPlatformArgIndex != -1) {
+			msbuildPlatform = testArgs[msbuildPlatformArgIndex + 1] ?? throw "--msbuild-platform needs an argument";
+			testArgs.splice(msbuildPlatformArgIndex, 2);
+		}
+		withJitTests = !testArgs.remove("--skip-hl-jit");
+		withHlcTests = !testArgs.remove("--skip-hlc");
+
+		haxeArgs = haxeArgs.concat(testArgs);
 
 		getHlDependencies();
 
-		for (extraArgs in [[], ["--undefine", "analyzer-optimize"]]) {
+		final extraArgsList = [
+			for (analyzerArgs in [[], ["--undefine", "analyzer-optimize"]])
+				for (versionArgs in [["-D", "hl-ver=1.16.0"], ["-D", "hl-ver=1.16.0", "-D", "hl_legacy32"], ["-D", "hl-ver=2.0.0"]])
+					analyzerArgs.concat(versionArgs)
+		];
+		for (extraArgs in extraArgsList) {
 			if (Hl.withJitTests) {
-				runCommand("haxe", ["compile-hl.hxml"].concat(extraArgs).concat(args));
+				runCommand("haxe", ["compile-hl.hxml"].concat(extraArgs).concat(haxeArgs));
 				runCommand(hlBinary, ['bin/unit.hl']);
 			}
 			if (Hl.withHlcTests) {
-				runCommand("haxe", ["compile-hlc.hxml"].concat(extraArgs).concat(args));
+				runCommand("haxe", ["compile-hlc.hxml"].concat(extraArgs).concat(haxeArgs));
 				buildAndRunHlc("bin/hlc", "unit", runCommand);
 			}
 		}
@@ -158,15 +168,13 @@ class Hl {
 		changeDirectory(threadsDir);
 		buildAndRun("build.hxml", "export/threads");
 
-		Display.maybeRunDisplayTests(Hl);
-
 		changeDirectory(sysDir);
 		if (Hl.withJitTests) {
-			runCommand("haxe", ["compile-hl.hxml"].concat(args));
+			runCommand("haxe", haxeArgs.concat(["compile-hl.hxml"]));
 			runSysTest(hlBinary, ["bin/hl/sys.hl"]);
 		}
 		if (Hl.withHlcTests) {
-			runCommand("haxe", ["compile-hlc.hxml"].concat(args));
+			runCommand("haxe", haxeArgs.concat(["compile-hlc.hxml"]));
 			function dontRun(cmd,?args) {}
 			buildAndRunHlc("bin/hlc/testArguments", "TestArguments", dontRun);
 			buildAndRunHlc("bin/hlc/exitCode", "ExitCode", dontRun);
@@ -174,22 +182,20 @@ class Hl {
 			buildAndRunHlc("bin/hlc/sys", "sys", (cmd, ?args) -> runSysTest(FileSystem.fullPath(cmd), args));
 		}
 
-		changeDirectory(getMiscSubDir("eventLoop"));
+		changeDirectory(getMiscSubDir("cross", "eventLoop"));
 		buildAndRun("build-hl.hxml", "bin/eventLoop");
 
 		// these are generic tests for genhl which shouldn't actually execute the .hl using hl jit,
 		// so they are not skipped with --skip-hl-jit
-		changeDirectory(miscHlDir);
-		runCommand("haxe", ["run.hxml"]);
+		changeDirectory(hlcodeDir);
+		runCommand("haxe", ["compile.hxml"]);
+
+		changeDirectory(getMiscSubDir(""));
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "hl"]);
 
 		if (Hl.withHlcTests) {
-			final hlcTemplateDefine = systemName == "Windows" ? "hlgen.makefile=vs2022" : "hlgen.makefile=make";
-			changeDirectory(getMiscSubDir("hlc/reservedKeywords"));
-			runCommand("haxe", ["compile.hxml", "-D", hlcTemplateDefine]);
-			buildAndRunHlc("bin", "reservedKeywords");
-
-			changeDirectory(miscHlcDir);
-			runCommand("haxe", ["run.hxml", "-D", hlcTemplateDefine]);
+			final hlcTemplateDefine = systemName == "Windows" ? "hlgen.makefile=vs2026" : "hlgen.makefile=make";
+			runCommand("haxe", ["run-base.hxml", "--run", "Main", "hlc", "-D", hlcTemplateDefine].concat(haxeArgs));
 		}
 	}
 }

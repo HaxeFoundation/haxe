@@ -29,11 +29,42 @@
 
 @:hlNative("uv")
 class Fs extends Handle {
+
+	#if (hl_ver >= version("1.16.0"))
+	/**
+		Contains the path of the file that has changed when onContentChanged
+		is called, or null if either the path is the watched folder, or if
+		there was an error retrieving the path
+	**/
+	public var contentChangedPath : Null<String>;
+
+	/**
+		Raise an exception if the file couldn't be watched.
+		If `recursive` is true and the current OS is not Windows or Mac, watching the file will also fail (because libUv doesn't support
+		recursive filewatches on non Windows/Mac platforms)
+	**/
+	public function new(?loop : Loop, path : String, onContentChanged : (events: Event)  -> Void, recursive: Bool = false) {
+		if(loop == null)
+			loop = Loop.getCurrent();
+
+		var handle = fs_start_wrap_ex(loop, (path, events) -> {
+			contentChangedPath = path == null ? null : @:privateAccess String.fromUTF8(path);
+			onContentChanged(cast(events, Event));
+			contentChangedPath = null;
+		}, @:privateAccess path.toUtf8(), recursive);
+
+		if (handle == null)
+			throw "Couldn't create a watch file for file " + path;
+		super(handle);
+	}
+	#else
 	public function new(?loop : Loop, path : String, onContentChanged : Event -> Void) {
 		if(loop == null)
 			loop = Loop.getCurrent();
 		super(fs_start_wrap(loop, (e) -> onContentChanged(cast(e, Event)), @:privateAccess path.toUtf8()));
 	}
+	#end
+
 
 	public function stop() {
 		if(handle == null)
@@ -44,6 +75,13 @@ class Fs extends Handle {
 	static function fs_start_wrap(loop:Loop, cb : Int -> Void, path : hl.Bytes) : HandleData {
 		return null;
 	}
+
+	#if (hl_ver >= version("1.16.0"))
+	@:hlNative("?uv", "fs_start_wrap_ex")
+	static function fs_start_wrap_ex(loop:Loop, cb : (hl.Bytes, Int) -> Void, path : hl.Bytes, recursive: Bool) : HandleData {
+		return null;
+	}
+	#end
 
 	static function fs_stop_wrap(handle:HandleData) : Bool {
 		return false;

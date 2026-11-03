@@ -9,7 +9,7 @@
 		{"label": "Python", "args": ["compile-python.hxml", "-cmd", "python3 bin/unit.py"]},
 	],
 	"[haxe]": {
-		"editor.formatOnSave": true,
+		"editor.formatOnSave": false,
 		"editor.formatOnPaste": true
 	},
 	"editor.codeActionsOnSave": {

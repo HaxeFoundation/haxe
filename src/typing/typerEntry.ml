@@ -186,9 +186,9 @@ let load_local_wrapper ctx =
 		end
 
 let load_coro ctx =
-	ctx.t.tcoro.tcoro <- lazy begin
+	ctx.t.tcoro.tcoro <- AtomicLazy.from_fun (fun () ->
 		let m = TypeloadModule.load_module ctx (["haxe";"coro"],"Coroutine") null_pos in
-		ExtList.List.find_map_exn (function
+		(try ExtList.List.find_map_exn (function
 			| TAbstractDecl({a_path = (["haxe";"coro"],"Coroutine")} as a) ->
 				let mk_coro args ret =
 					TAbstract(a,[TFun(args,ret)])
@@ -196,26 +196,39 @@ let load_coro ctx =
 				Some mk_coro
 			| _ ->
 				None
-		) m.m_types;
-	end;
-	ctx.t.tcoro.continuation <- lazy begin
+		) m.m_types
+		with Not_found -> die "Could not locate abstract Coroutine<T> (was it redefined?)" __LOC__)
+	);
+	ctx.t.tcoro.continuation <- AtomicLazy.from_fun (fun () ->
 		let m = TypeloadModule.load_module ctx (["haxe";"coro"],"IContinuation") null_pos in
-		ExtList.List.find_map_exn (function
+		(try ExtList.List.find_map_exn (function
 			| TClassDecl({ cl_path = (["haxe";"coro"], "IContinuation") } as cl) ->
 				Some (TInst(cl, [ ctx.t.tany ]))
 			| _ ->
 				None
-		) m.m_types;
-	end;
-	ctx.t.tcoro.suspension_result_class <- lazy begin
+		) m.m_types
+		with Not_found -> die "Could not locate class IContinuation<T> (was it redefined?)" __LOC__)
+	);
+	ctx.t.tcoro.suspension_result_class <- AtomicLazy.from_fun (fun () ->
 		let m = TypeloadModule.load_module ctx (["haxe";"coro"],"SuspensionResult") null_pos in
-		ExtList.List.find_map_exn (function
+		(try ExtList.List.find_map_exn (function
 			| TClassDecl({ cl_path = (["haxe";"coro"], "SuspensionResult") } as cl) ->
 				Some cl
 			| _ ->
 				None;
-		) m.m_types;
-	end;
+		) m.m_types
+		with Not_found -> die "Could not locate class SuspensionResult<T> (was it redefined?)" __LOC__)
+	);
+	ctx.t.tcoro.tasync_iterator <- AtomicLazy.from_fun (fun () ->
+		let m = TypeloadModule.load_module ctx (["haxe";"coro"],"AsyncIterator") null_pos in
+		(try ExtList.List.find_map_exn (function
+			| TTypeDecl({ t_path = (["haxe";"coro"],"AsyncIterator") } as td) ->
+				Some (fun t -> TType(td,[t]))
+			| _ ->
+				None
+		) m.m_types
+		with Not_found -> die "Could not locate typedef AsyncIterator<T> (was it redefined?)" __LOC__)
+	);
 	let m = TypeloadModule.load_module ctx (["haxe"],"Exception") null_pos in
 	List.iter (function
 		| TClassDecl({ cl_path = (["haxe"], "Exception") } as cl) ->
@@ -232,7 +245,7 @@ let create com macros =
 			core_api = None;
 			macros = macros;
 			module_check_policies = [];
-			delayed = Array.init TyperPass.all_typer_passes_length (fun _ -> { tasks = []});
+			delayed = Array.init TyperPass.all_typer_passes_length (fun _ -> { tasks = []; tasks_late = []});
 			delayed_min_index = 0;
 			debug_delayed = [];
 			retain_meta = Common.defined com Define.RetainUntypedMeta;
@@ -252,6 +265,7 @@ let create com macros =
 			do_format_string = format_string;
 			do_load_core_class = Typeload.load_core_class;
 			delayed_display = None;
+			call_arg_context = None;
 			root_typer = ctx;
 		};
 		m = {
@@ -290,4 +304,3 @@ let create com macros =
 
 ;;
 create_context_ref := create;
-Inline.maybe_reapply_overload_call_ref := CallUnification.maybe_reapply_overload_call;

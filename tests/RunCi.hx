@@ -11,13 +11,20 @@ class RunCi {
 	static function main():Void {
 		Sys.putEnv("OCAMLRUNPARAM", "b");
 
-		var args = Sys.args();
-		var tests:Array<TestTarget> = switch (args.length >= 1 ? args[0] : Sys.getEnv("TEST")) {
+		function parseTargetArg(args:Array<String>) {
+			if (args[0] == null || args[0].startsWith("-")) {
+				return null;
+			}
+			return args.shift();
+		}
+
+		final testArgs = Sys.args();
+		final tests:Array<TestTarget> = switch (parseTargetArg(testArgs) ?? Sys.getEnv("TEST")) {
 			case null:
 				[Macro];
 			case env:
 				[for (v in env.split(",")) v.trim().toLowerCase()];
-		}
+		};
 
 		infoMsg('Going to test: $tests');
 
@@ -68,9 +75,7 @@ class RunCi {
 					case Flash:
 						runci.targets.Flash.run(args);
 					case Hl:
-						final withJitTests = !Sys.args().contains("--skip-hl-jit");
-						final withHlcTests = !Sys.args().contains("--skip-hlc");
-						runci.targets.Hl.run(args, withJitTests, withHlcTests);
+						runci.targets.Hl.run(testArgs, args);
 					case t:
 						throw new Exception("unknown target: " + t);
 				}

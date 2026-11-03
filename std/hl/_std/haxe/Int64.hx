@@ -72,6 +72,9 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	@:from public static inline function ofInt(x:Int):Int64
 		return cast x;
 
+	public static inline function fromInt(x:Int):Int64
+		return cast x;
+
 	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
 	inline public static function is(val:Dynamic):Bool
 		return isInt64(val);
@@ -128,6 +131,9 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	public static function fromFloat(f:Float):Int64 {
 		return Int64Helper.fromFloat(f);
 	}
+
+	public inline function toFloat():Float
+		return Int64Helper.toFloat(abstract);
 
 	@:op(-A) public static function neg(x:Int64):Int64
 		return -x.val;
@@ -269,6 +275,9 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	@:from public static inline function ofInt(x:Int):Int64
 		return make(x >> 31, x);
 
+	public static inline function fromInt(x:Int):Int64
+		return make(x >> 31, x);
+
 	public static inline function toInt(x:Int64):Int {
 		if (x.high != x.low >> 31)
 			throw "Overflow";
@@ -344,6 +353,10 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	public static inline function fromFloat(f:Float):Int64 {
 		return Int64Helper.fromFloat(f);
+	}
+
+	public inline function toFloat():Float {
+		return Int64Helper.toFloat(abstract);
 	}
 
 	public static function divMod(dividend:Int64, divisor:Int64):{quotient:Int64, modulus:Int64} {
@@ -588,6 +601,8 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	private inline function set_low(x)
 		return this.low = x;
+
+	static var IMPL = ___Int64;
 }
 
 private typedef __Int64 = ___Int64;

@@ -159,5 +159,10 @@
 		"name": "WUnclosedMonomorph",
 		"doc": "Hxb writer failed to close a monomorph (that monomorph should have been closed in the first place)",
 		"parent": "WHxb"
+	},
+	{
+		"name": "WPointlessCode",
+		"doc": "Expression or code block has no effect",
+		"parent": "WTyper"
 	}
 ]

@@ -60,19 +60,10 @@ type type_param_host =
 	| TPHLocal
 	| TPHUnbound
 
-type warning_mode =
-	| WMEnable
-	| WMDisable
-
-type warning_option = {
-	wo_warning : WarningList.warning;
-	wo_mode : warning_mode;
-}
-
 type cache_bound_object =
 	| Resource of string * string
 	| IncludeFile of string * string
-	| Warning of WarningList.warning * (warning_option list list) * string * pos
+	| Message of Message.t
 
 type t =
 	| TMono of tmono
@@ -130,7 +121,7 @@ and typed_type_param = {
 	ttp_class : tclass;
 	ttp_host : type_param_host;
 	mutable ttp_type : t;
-	mutable ttp_constraints : t list Lazy.t option;
+	mutable ttp_constraints : t list AtomicLazy.t option;
 	mutable ttp_default : t option;
 }
 
@@ -483,9 +474,10 @@ and build_state =
 exception Type_exception of t
 
 type coro_types = {
-	mutable tcoro : ((string * bool * t) list -> t -> t) Lazy.t;
-	mutable continuation : t Lazy.t;
-	mutable suspension_result_class : tclass Lazy.t;
+	mutable tcoro : ((string * bool * t) list -> t -> t) AtomicLazy.t;
+	mutable continuation : t AtomicLazy.t;
+	mutable suspension_result_class : tclass AtomicLazy.t;
+	mutable tasync_iterator : (t -> t) AtomicLazy.t;
 }
 
 type basic_types = {
@@ -539,10 +531,11 @@ type flag_tclass_field =
 	| CfMaybeUsed (* Marker for DCE *)
 	| CfNoLookup (* Field cannot be accessed by-name. *)
 	| CfAbstractConstructor
+	| CfNoExpr (* Marker for abstract fields which have no expression *)
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [
-	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed";"CfNoLookup";"CfAbstractConstructor"
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed";"CfNoLookup";"CfAbstractConstructor";"CfNoExpr"
 ]
 
 type flag_tenum =

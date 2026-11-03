@@ -56,6 +56,8 @@
 	all : [std] allow setting haxe.Exception.stack (#12213)
 	all : [std] Serializer: implement reset method (#12068)
 	all : [std] use Vectors in haxe.zip (#11034)
+	all : [std] add haxe.IHandle interface (#12766)
+	all : [std] add haxe.GcFinalizer with handle-based API (#12766)
 	all : [messageReparting] pretty errors as default message reporting (#11587)
 	all : [messageReporting] add config to use absolute positions (#11439)
 	all : [display] diagnostics as json rpc (#11412)

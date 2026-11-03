@@ -11,9 +11,8 @@ class ReplaceRanges extends TestCase {
 	function complete<S, T>(content:String, markerIndex:Int) {
 		var transform = Marker.extractMarkers(content);
 		vfs.putContent("Main.hx", transform.source);
-		runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[markerIndex], wasAutoTriggered: true});
-		var result = parseCompletion();
-		return {response: result.result, markers: transform.markers};
+		var result = runHaxeJson([], DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: transform.markers[markerIndex], wasAutoTriggered: true});
+		return {response: result, markers: transform.markers};
 	}
 
 	function checkReplaceRange<S, T>(markers:Map<Int, Int>, startIndex:Int, endIndex:Int, response:CompletionResponse<S, T>, ?p:PosInfos) {

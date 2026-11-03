@@ -192,7 +192,7 @@ let find_referenced_types_flags ctx obj filter super_deps constructor_deps heade
           | _ ->
               print_endline
                 ("TSuper : Odd etype ?"
-                ^ (CppRetyper.cpp_type_of CppRetyper.with_reference_value_type expression.etype |> tcpp_to_string)))
+                ^ (CppRetyper.cpp_type_of ctx.ctx_common.basic CppRetyper.with_reference_value_type expression.etype |> tcpp_to_string)))
       | _ -> ());
       Type.iter visit_expression expression;
       visit_type (follow expression.etype)

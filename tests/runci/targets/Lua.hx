@@ -6,8 +6,6 @@ import haxe.io.*;
 using StringTools;
 
 class Lua {
-	static final miscLuaDir = getMiscSubDir('lua');
-
 	static var useWindowsVcpkg = false;
 	static var msys2Path = Sys.getEnv("MSYS2_LOCATION") ?? "C:\\msys64";
 
@@ -56,7 +54,7 @@ class Lua {
 			infoMsg('hererocks has already been installed.');
 		} else {
 			runCommand("pipx", ["ensurepath"]);
-			runCommand("pipx", ["install", "git+https://github.com/tobil4sk/hererocks.git@fix/windows-msys-shell"]);
+			runCommand("pipx", ["install", "git+https://github.com/luarocks/hererocks.git"]);
 		}
 	}
 
@@ -92,18 +90,23 @@ class Lua {
 
 		getLuaDependencies();
 
-		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-l5.4", "-j2.0", "-j@v2.1"]) {
+		for (lv in ["-l5.1", "-l5.2", "-l5.3", "-l5.4", "-l5.5", "-j2.0", "-j2.1"]) {
 			// luajit 2.0 was missing arm64 support
 			if (System.arch == Arm64 && lv == "-j2.0") continue;
 
-			final envpath = getInstallPath() + '/lua_env/lua${lv.replace("@v", "")}';
+			final envpath = getInstallPath() + '/lua_env/lua$lv';
 			addToPATH(envpath + '/bin');
 
 			Sys.println('--------------------');
 			Sys.println('Lua Version: $lv');
 
 			final targetFlags = if (systemName == "Windows") ["--target", if (useWindowsVcpkg) "vs" else "mingw"] else [];
-			runCommand("hererocks", [envpath, lv, "-r@v3.13.0", "-i"].concat(targetFlags));
+			final luaBin = envpath + '/bin/lua' + (systemName == "Windows" ? ".exe" : "");
+			if (!sys.FileSystem.exists(luaBin)) {
+				runCommand("hererocks", [envpath, lv, "-r@v3.13.0", "-i"].concat(targetFlags));
+			} else {
+				infoMsg('Lua environment at $envpath already exists, skipping hererocks.');
+			}
 			trace('path: ' + Sys.getEnv("PATH"));
 
 
@@ -135,12 +138,12 @@ class Lua {
 
 			installLib("lrexlib-pcre2", "2.9.1-1");
 
-			//Install bit32 for lua 5.1 and 5.4
-			if (lv == "-l5.1" || lv == "-l5.4")
+			//Install bit32 for lua 5.1 (5.3+ uses native bit operators)
+			if (lv == "-l5.1")
 				installLib("https://raw.githubusercontent.com/lunarmodules/lua-compat-5.3/refs/heads/master/rockspecs/bit32-scm-1.rockspec", "");
 
 			installLib("https://raw.githubusercontent.com/luvit/luv/refs/heads/master/luv-scm-0.rockspec", "");
-			installLib("luautf8", "0.1.6-1");
+			installLib("luautf8", "0.2.1-1");
 
 			installLib("https://raw.githubusercontent.com/HaxeFoundation/hx-lua-simdjson/master/hx-lua-simdjson-scm-1.rockspec", "");
 
@@ -150,17 +153,15 @@ class Lua {
 				runCommand("lua", ["bin/unit.lua"]);
 			}
 
-			Display.maybeRunDisplayTests(Lua);
-
 			changeDirectory(sysDir);
-			runCommand("haxe", ["compile-lua.hxml"].concat(args));
+			runCommand("haxe", args.concat(["compile-lua.hxml"]));
 			runSysTest("lua", ["bin/lua/sys.lua"]);
 
-			changeDirectory(getMiscSubDir("luaDeadCode", "stringReflection"));
+			changeDirectory(getMiscSubDir("lua", "luaDeadCode", "stringReflection"));
 			runCommand("haxe", ["compile.hxml"]);
 
-			changeDirectory(miscLuaDir);
-			runCommand("haxe", ["run.hxml"]);
+			changeDirectory(getMiscSubDir(""));
+			runCommand("haxe", ["run-base.hxml", "--run", "Main", "lua"]);
 		}
 	}
 }

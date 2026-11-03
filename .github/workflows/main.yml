@@ -1,7 +1,9 @@
 # TODO: support skip ci (https://github.community/t/github-actions-does-not-respect-skip-ci/17325/8)
 
 name: CI
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
 
 env:
   OCAML_VERSION: 5.3.0
@@ -12,18 +14,19 @@ concurrency:
 
 jobs:
   windows64-build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: windows-latest
     env:
       PLATFORM: windows64
       ARCH: 64
       MINGW_ARCH: x86_64
-      CYG_ROOT: C:\cygwin
+      CYG_ROOT: C:\.opam\.cygwin\root
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
-      - uses: repolevedavaj/install-nsis@v1.1.0
+      - uses: repolevedavaj/install-nsis@v1.2.0
         with:
           nsis-version: '3.10'
 
@@ -51,13 +54,14 @@ jobs:
           ls ./out
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: win${{env.ARCH}}Binaries
           path: out
 
 
   linux-build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       matrix:
         arch: [x86_64, arm64]
@@ -66,17 +70,22 @@ jobs:
     env:
       PLATFORM: linux${{ matrix.arch == 'arm64' && '-arm' || '' }}64
       OPAMYES: 1
+      OPAMROOT: /opt/opam
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
+      # The opam root lives at a fixed path so that agents can reuse it (see below).
+      - name: Create opam root
+        run: sudo mkdir -p $OPAMROOT && sudo chown $USER $OPAMROOT
+
       - name: Cache opam
         id: cache-opam
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
-          path: ~/.opam/
-          key: ${{ runner.os }}-${{ runner.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
+          path: /opt/opam/
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-2
 
       - uses: ./.github/actions/setup-neko
 
@@ -95,6 +104,21 @@ jobs:
           opam install haxe --deps-only --assume-depexts
           opam list
           ocamlopt -v
+
+      # Coding agents outside GitHub Actions can't use the cache, so development also
+      # publishes the opam root for extra/agent-setup.sh (see publish-opam-root).
+      - name: Package the opam root for agents
+        if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+        run: tar -C /opt --zstd -cf opam-root.tar.zst opam
+
+      - name: Upload the opam root for agents
+        if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+        uses: actions/upload-artifact@v7
+        with:
+          name: opam-root-${{ matrix.arch == 'arm64' && 'aarch64' || 'x86_64' }}
+          path: opam-root.tar.zst
+          retention-days: 1
+          compression-level: 0
 
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -118,7 +142,7 @@ jobs:
         run: echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux${{ matrix.arch == 'arm64' && 'Arm64' || '' }}Binaries
           path: out
@@ -137,10 +161,59 @@ jobs:
 
       - name: Upload xmldoc artifact
         if: matrix.arch == 'x86_64'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: xmldoc
           path: extra/doc
+
+  # Publishes new opam roots from linux-build for coding agents (extra/agent-setup.sh),
+  # and removes the ones they replace, so the release holds one archive per architecture.
+  publish-opam-root:
+    needs: linux-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: extra/agent-setup.sh
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: opam-root-*
+          path: assets
+
+      # Each artifact is named opam-root-<arch>; extra/agent-setup.sh names the asset it
+      # will look for. Upload it if it's missing, and drop the older ones for that arch.
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -e
+          if ! gh release view opam-root >/dev/null 2>&1; then
+            gh release create opam-root --prerelease --target "$GITHUB_SHA" \
+              --title "Prebuilt OCaml dependencies" \
+              --notes "Prebuilt opam roots used by extra/agent-setup.sh. Updated automatically from CI's linux-build job."
+          fi
+          existing=$(gh release view opam-root --json assets -q '.assets[].name')
+          for dir in assets/opam-root-*; do
+            arch=${dir#assets/opam-root-}
+            asset=$(OPAM_ROOT_ARCH=$arch extra/agent-setup.sh --print-asset)
+            if grep -qxF "$asset" <<<"$existing"; then
+              echo "$asset is already published"
+              continue
+            fi
+            mv "$dir/opam-root.tar.zst" "$asset"
+            gh release upload opam-root "$asset"
+            for old in $existing; do
+              if [[ "$old" == *"-$arch-"*.tar.zst ]]; then
+                echo "Deleting $old"
+                gh release delete-asset opam-root "$old" -y
+              fi
+            done
+          done
 
   linux-test:
     needs: linux-build
@@ -173,10 +246,11 @@ jobs:
           - target: flash
             arch: arm64
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
-      - uses: actions/download-artifact@v4
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
         with:
           name: linux${{ matrix.arch == 'arm64' && 'Arm64' || '' }}Binaries
           path: linuxBinaries
@@ -215,10 +289,27 @@ jobs:
         if: matrix.target == 'flash'
         run: export DISPLAY=:99.0
 
+      - name: Cache Lua environments
+        uses: ./.github/actions/cache-lua
+        if: matrix.target == 'lua'
+        with:
+          key-prefix: lua-env-linux-${{ matrix.arch }}
+
+      - name: Download d8 (Android build-tools)
+        if: matrix.target == 'jvm'
+        run: |
+          set -ex
+          curl -fsSLo /tmp/build-tools.zip https://dl.google.com/android/repository/build-tools_r34-linux.zip
+          mkdir -p "$HOME/d8"
+          unzip -q /tmp/build-tools.zip -d "$HOME/d8"
+          d8=$(find "$HOME/d8" -name d8 -type f -executable | head -n1)
+          test -x "$d8"
+          echo "D8=$d8" >> "$GITHUB_ENV"
+
       - name: Test
-        run: haxe -D include_legacy --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
+        run: haxe --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
-        timeout-minutes: 20
+        timeout-minutes: 25
 
   test-docgen:
     needs: linux-build
@@ -227,17 +318,17 @@ jobs:
       PLATFORM: linux64
       HXCPP_COMPILE_CACHE: ${{ github.workspace }}/hxcache
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: linuxBinaries
           path: linuxBinaries
 
       - name: Download xmldoc artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: xmldoc
           path: xmldoc
@@ -283,6 +374,7 @@ jobs:
         working-directory: ${{github.workspace}}/tests/docgen
 
   mac-build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     strategy:
       fail-fast: false
       matrix:
@@ -293,13 +385,13 @@ jobs:
       OPAMYES: 1
       MACOSX_DEPLOYMENT_TARGET: ${{ matrix.arch == 'arm64' && 11.0 || 10.13 }}
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
       - name: Cache opam
         id: cache-opam
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.opam/
           key: macos-${{ matrix.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
@@ -376,14 +468,14 @@ jobs:
 
       - name: Upload artifact (x64)
         if: matrix.arch == 'x86_64'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macX64Binaries
           path: out
 
       - name: Upload artifact (arm)
         if: matrix.arch == 'arm64'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macArmBinaries
           path: out
@@ -391,7 +483,7 @@ jobs:
 
   windows64-test:
     needs: windows64-build
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     env:
       PLATFORM: windows64
       TEST: ${{matrix.target}}
@@ -402,20 +494,21 @@ jobs:
       matrix:
         target: [macro, js, hl, cpp, jvm, php, python, lua, flash, neko]
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
-      - uses: actions/download-artifact@v4
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
         with:
           name: win${{env.ARCH}}Binaries
           path: win${{env.ARCH}}Binaries
 
       - uses: ./.github/actions/setup-neko
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: matrix.target == 'js'
         with:
-          node-version: 18.17.1
+          node-version: 24
 
       # - name: Quick test
       #   shell: pwsh
@@ -466,16 +559,22 @@ jobs:
           haxelib setup "$env:HAXELIB_ROOT"
 
       - name: Add msbuild to PATH (hl/c)
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@v3
         if: matrix.target == 'hl'
         with:
           msbuild-architecture: x64
 
+      - name: Cache Lua environments
+        uses: ./.github/actions/cache-lua
+        if: matrix.target == 'lua'
+        with:
+          key-prefix: lua-env-windows64
+
       - name: Test
         shell: pwsh
-        run: haxe RunCi.hxml -D include_legacy
+        run: haxe RunCi.hxml
         working-directory: ${{github.workspace}}/tests
-        timeout-minutes: 20
+        timeout-minutes: 25
         env:
           MSYS2_LOCATION: ${{ matrix.target == 'lua' && steps.msys2.outputs.msys2-location || '' }}
 
@@ -485,12 +584,12 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@main
-      - uses: actions/download-artifact@v4
+        uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           name: macX64Binaries
           path: macX64Binaries
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: macArmBinaries
           path: macArmBinaries
@@ -508,7 +607,7 @@ jobs:
           otool -L ./haxelib
 
       - name: Upload artifact (universal)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macBinaries
           path: out
@@ -534,10 +633,11 @@ jobs:
 
     runs-on: ${{ matrix.runner || 'macos-latest' }}
     steps:
-      - uses: actions/checkout@main
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
-      - uses: actions/download-artifact@v4
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
         with:
           name: macBinaries
           path: macBinaries
@@ -566,11 +666,17 @@ jobs:
           mkdir ~/haxelib
           haxelib setup ~/haxelib
 
+      - name: Cache Lua environments
+        uses: ./.github/actions/cache-lua
+        if: matrix.target == 'lua'
+        with:
+          key-prefix: lua-env-mac-${{ matrix.arch }}
+
       - name: Test
         run: |
           # disable invalid Unicode filenames on APFS
           echo "" > sys/compile-fs.hxml
-          haxe -D include_legacy --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
+          haxe --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 60
 
@@ -584,10 +690,13 @@ jobs:
       # maybe https://github.community/t/expose-commit-timestamp-in-the-github-context-data/16460/3
       # would be faster
       - name: Checkout the repository
-        uses: actions/checkout@main
+        uses: actions/checkout@v7
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
+        with:
+          # Only the binaries; this skips e.g. the opam-root-* artifacts of linux-build.
+          pattern: '*Binaries'
 
       - name: Install rclone
         run: |
@@ -653,6 +762,8 @@ jobs:
           RCLONE_CONFIG_R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
           RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
           RCLONE_CONFIG_R2_ACL: "private"
+          CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -ex
 
@@ -672,6 +783,22 @@ jobs:
           rclone copyto win64Binaries/*_installer.zip   s3:hxbuilds/builds/haxe/windows64-installer/haxe_latest.zip
           rclone copyto win64Binaries/*.nupkg           s3:hxbuilds/builds/haxe/windows64-choco/haxe_latest.nupkg
 
+          curl "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
+              -fsS \
+              -H 'Content-Type: application/json' \
+              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -d '{
+                      "files": [
+                          "https://build.haxe.org/builds/haxe/linux64/haxe_latest.tar.gz",
+                          "https://build.haxe.org/builds/haxe/linux-arm64/haxe_latest.tar.gz",
+                          "https://build.haxe.org/builds/haxe/mac/haxe_latest.tar.gz",
+                          "https://build.haxe.org/builds/haxe/mac-installer/haxe_latest.tar.gz",
+                          "https://build.haxe.org/builds/haxe/windows64/haxe_latest.zip",
+                          "https://build.haxe.org/builds/haxe/windows64-installer/haxe_latest.zip",
+                          "https://build.haxe.org/builds/haxe/windows64-choco/haxe_latest.nupkg"
+                      ]
+                  }'
+
   deploy_apidoc:
     if: success() && github.repository_owner == 'HaxeFoundation' && github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/development')
     needs: [linux-test, mac-test, windows64-test]
@@ -683,7 +810,7 @@ jobs:
           sudo apt-get install -qqy libc6
 
       - name: Download Haxe
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: linuxBinaries
           path: linuxBinaries
@@ -699,7 +826,7 @@ jobs:
           sudo ln -s `pwd`/linuxBinaries/std /usr/local/share/haxe/std
 
       - name: Download xmldoc artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: xmldoc
           path: xmldoc

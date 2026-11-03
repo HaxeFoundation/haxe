@@ -5,7 +5,7 @@ import haxe.EventLoop;
 
 @:timeout(10000)
 @:depends(cases.TestEvents)
-class TestMainLoop extends utest.Test {
+class TestMainLoop extends ThreadTestBase {
 	@:keep static var init = MainLoop.add(() -> {
 		staticInit = true;
 		init.stop();

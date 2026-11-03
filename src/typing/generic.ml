@@ -160,7 +160,7 @@ let generic_substitute_expr gctx e =
 		| _ ->
 			map_expr_type build_expr (generic_substitute_type gctx) build_var e
 		in
-		CallUnification.maybe_reapply_overload_call gctx.ctx e
+		OverloadResolution.maybe_reapply_overload_call e
 	in
 	build_expr e
 
@@ -187,7 +187,7 @@ let static_method_container gctx c cf p =
 			m_path = (pack,name);
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake gctx.ctx.com.compilation_step m.m_extra.m_check_policy;
+			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake gctx.ctx.com.part_scope.compilation_step m.m_extra.m_check_policy;
 		} in
 		gctx.mg <- Some mg;
 		let cg = mk_class mg (pack,name) c.cl_pos c.cl_name_pos in
@@ -243,7 +243,7 @@ let clone_type_parameter map path ttp =
 	let def = Option.map map ttp.ttp_default in
 	let constraints = match ttp.ttp_constraints with
 		| None -> None
-		| Some constraints -> Some (lazy (List.map map (Lazy.force constraints)))
+		| Some constraints -> Some (AtomicLazy.from_fun (fun () -> List.map map (AtomicLazy.force constraints)))
 	in
 	mk_type_param c ttp.ttp_host def constraints
 
@@ -299,7 +299,7 @@ let build_generic_class ctx c p tl =
 			m_path = (pack,name);
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake gctx.ctx.com.compilation_step m.m_extra.m_check_policy;
+			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake gctx.ctx.com.part_scope.compilation_step m.m_extra.m_check_policy;
 		} in
 		let ctx = TyperManager.clone_for_module ctx.g.root_typer (TypeloadModule.make_curmod ctx.com ctx.g mg) in
 		gctx.mg <- Some mg;

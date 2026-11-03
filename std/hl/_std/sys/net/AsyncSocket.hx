@@ -22,6 +22,7 @@
 
 package sys.net;
 
+@:coreApi(check = Off)
 class AsyncSocket {
 
 	var loop : haxe.EventLoop;

@@ -22,6 +22,12 @@ open EvalValue
 open EvalHash
 open EvalString
 
+module TlsStorage = Ephemeron.K1.Make(struct
+	type t = value
+	let equal = (==)
+	let hash v = match v with VInstance {ikind = ITls i} -> i | _ -> 0
+end)
+
 type var_info = {
 	vi_name : string;
 	vi_pos : pos;
@@ -122,6 +128,7 @@ and eval = {
 	mutable last_return : value option;
 	(* The debug channel used to synchronize with the debugger. *)
 	debug_channel : unit Event.channel;
+	eval_storage : value TlsStorage.t;
 }
 
 and debug_state =
@@ -275,16 +282,20 @@ and context = {
 	mutable type_cache : Type.module_type IntMap.t;
 	overrides : (Globals.path * string,bool) Hashtbl.t;
 	timer_ctx : Timer.timer_context;
+	mutable args : string list;
 	(* prototypes *)
 	mutable array_prototype : vprototype;
 	mutable string_prototype : vprototype;
 	mutable vector_prototype : vprototype;
 	mutable instance_prototypes : vprototype IntMap.t;
 	mutable static_prototypes : static_prototypes;
-	mutable constructors : value Lazy.t IntMap.t;
+	mutable constructors : value AtomicLazy.t IntMap.t;
+	fake_proto_cache : (int,vprototype) Hashtbl.t;
 	file_keys : Common.file_keys;
+	object_name_cache : (int list,int) Hashtbl.t;
 	get_object_prototype : 'a . context -> (int * 'a) list -> vprototype * (int * 'a) list;
 	(* eval *)
+	mutable next_thread_id : int Atomic.t;
 	toplevel : value;
 	eval : eval Thread_local_storage.t;
 	evals : (int,eval) ThreadSafeHashtbl.t;
@@ -322,6 +333,9 @@ let s_debug_state = function
 
 let get_eval ctx =
 	Thread_local_storage.get_exn ctx.eval
+
+let current_thread_id ctx =
+	(get_eval ctx).thread.thread_id
 
 let kind_name eval kind =
 	let rec loop kind env = match kind with

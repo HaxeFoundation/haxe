@@ -339,8 +339,7 @@ module Graph = struct
 	let alloc_id =
 		let r = Atomic.make 1 in
 		(fun () ->
-			Atomic.incr r;
-			Atomic.get r
+			Atomic.fetch_and_add r 1 + 1
 		)
 
 	let create_node g kind t p =

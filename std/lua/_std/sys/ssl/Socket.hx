@@ -46,7 +46,8 @@ import lua.lib.luasec.SslTcpClient;
 import haxe.io.Bytes;
 import haxe.io.Error;
 
-class Socket extends sys.net.Socket { 
+@:coreApi(check = Off)
+class Socket extends sys.net.Socket {
     var _sslSocket:SslTcpClient;
 
     private function wrap(sock:LuaSocket):SslTcpClient {
@@ -56,7 +57,7 @@ class Socket extends sys.net.Socket {
         }
         return res.result;
     }
- 
+
     public function handshake():Void {
         var res = this._sslSocket.dohandshake();
         if (res.message != null) {

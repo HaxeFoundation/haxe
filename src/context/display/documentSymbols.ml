@@ -125,7 +125,7 @@ module Printer = struct
 	open DisplayTypes.SymbolKind
 	open DisplayTypes.SymbolInformation
 
-	let print_module_symbols com symbols filter =
+	let json_of_module_symbols com symbols filter =
 		let regex = Option.map Str.regexp_case_fold filter in
 		let reported = Hashtbl.create 0 in
 		let add si =
@@ -162,6 +162,5 @@ module Printer = struct
 					"symbols",JArray jl
 				]) :: acc
 		) [] symbols in
-		let js = JArray ja in
-		string_of_json js
+		JArray ja
 end

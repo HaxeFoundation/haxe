@@ -1,3 +1,3 @@
 package jvm;
 
-@:notNull @:runtimeValue @:coreType extern abstract Int8 from Int {}
+@:coreType @:notNull @:runtimeValue abstract Int8 from Int to Int {}

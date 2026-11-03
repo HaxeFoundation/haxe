@@ -1,5 +1,6 @@
 package unit;
 
+import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.test.Base.Base_InnerClass;
 import haxe.test.Base.Base___InnerClass3__;
@@ -65,9 +66,9 @@ class TestJava extends Test {
 
 		var i:java.lang.Long = null;
 		eq(cl.longTest(i), 100);
-		eq(cl.longTest(haxe.Int64.ofInt(-1)), -1);
-		eq(cl.longTest(haxe.Int64.ofInt(1000)), 1000);
-		i = 10;
+		eq(cl.longTest(haxe.Int64.fromInt(-1)), -1);
+		eq(cl.longTest(haxe.Int64.fromInt(1000)), 1000);
+		i = Int64.fromInt(10);
 		eq(cl.longTest(i), 10);
 	}
 
@@ -185,7 +186,7 @@ class TestJava extends Test {
 		t(c.boolCalled);
 		c.normalOverload(6161);
 		t(c.intCalled);
-		c.normalOverload(haxe.Int64.ofInt(0));
+		c.normalOverload(haxe.Int64.fromInt(0));
 		t(c.int64Called);
 		c.normalOverload("");
 		t(c.stringCalled);
@@ -199,7 +200,7 @@ class TestJava extends Test {
 		t(c.boolCalled);
 		b.normalOverload(10);
 		t(c.intCalled);
-		b.normalOverload(haxe.Int64.ofInt(0));
+		b.normalOverload(haxe.Int64.fromInt(0));
 		t(c.int64Called);
 		b.normalOverload("");
 		t(c.stringCalled);
@@ -252,6 +253,24 @@ class TestJava extends Test {
 		eq(Base.throwsTest(42), 42);
 		eq(b.throwsMemberTest(), 6);
 		eq(b.throwsMemberTest(true), 10);
+	}
+
+	// Lambda passed where a SAM-parametered overload is expected: the overload
+	// resolver used to discard SAM candidates because strict unify rejects
+	// TFun-vs-TInst. With FI-aware candidate filtering, the right overload is
+	// picked and the cast happens during arg processing.
+	function testSamOverloadDisambiguation() {
+		var o = new Overloaded();
+		eq(7, o.call((a, b) -> a + b, 3, 4));
+		eq("HI!", o.call(s -> s + "!", "HI"));
+	}
+
+	// Non-overloaded SAM call site — sanity check that the simple path still
+	// works (was already supported, kept here so the overload test sits next
+	// to a baseline that bisects nicely if either path regresses).
+	function testSamSingleOverload() {
+		var o = new Overloaded();
+		eq(7, o.single((a, b) -> a + b));
 	}
 
 	function testJavaLibEnum() {
@@ -348,5 +367,24 @@ class MyDefaultInterfaceClass implements MyDefaultInterface {
 
 class MyDefaultSubInterfaceClass implements MyDefaultSubInterface {
 	public function new() {}
+}
+
+@:functionalInterface
+private interface IntOp {
+	function apply(a:Int, b:Int):Int;
+}
+
+@:functionalInterface
+private interface StrOp {
+	function apply(a:String):String;
+}
+
+private class Overloaded {
+	public function new() {}
+
+	@:overload public function call(op:IntOp, a:Int, b:Int):Int return op.apply(a, b);
+	@:overload public function call(op:StrOp, s:String):String return op.apply(s);
+
+	@:overload public function single(op:IntOp):Int return op.apply(3, 4);
 }
 #end

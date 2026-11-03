@@ -1,6 +1,10 @@
 open Globals
 open Type
 
+type coro_for =
+	| LocalFunc of tfunc * tvar
+	| ClassField of tclass * tclass_field * tfunc * pos (* expr pos *)
+
 type suspend_expr =
 	| SusBlock
 	| SusResult
@@ -51,16 +55,32 @@ and coro_suspend = {
 	cs_args : texpr list;
 	cs_pos : pos;
 	cs_result : suspend_expr;
+	cs_kind : CoroConfig.coro_outcome;
+}
+
+type coro_deferred_api = {
+	make_inline_return : texpr option -> pos -> texpr;
+	make_inline_tail_call : coro_suspend -> texpr;
+	make_sync_call : coro_suspend -> texpr option -> texpr;
+	make_this : texpr -> texpr;
+	make_super_field : texpr -> texpr;
 }
 
 type coro_ctx = {
 	builder : CoroElsewhere.texpr_builder;
 	typer : Typecore.typer;
 	config : CoroConfig.t;
-	mutable vthis : tvar option;
+	coro_type : coro_for;
+	class_name_pos : pos;
+	deferred_exprs : (int, unit -> texpr) Hashtbl.t;
+	wildcard_catches : path list;
+	stack_traces : bool;
+	mutable has_capture_vars : bool;
+	mutable captures_this : bool;
 	mutable next_block_id : int;
 	mutable current_catch : coro_block option;
 	mutable has_catch : bool;
+	mutable num_states : int;
 }
 
 type cb_flag =
@@ -72,3 +92,7 @@ type coro_scope = {
 	scope_var : tvar;
 	restricted_suspension : bool;
 }
+
+type coro_gen_mode =
+	| GenThunk of tclass_field
+	| GenInline of (texpr * tclass_field) option

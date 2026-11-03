@@ -1,40 +1,27 @@
 package haxe.atomic;
 
-#if doc_gen
-@:coreApi
-@:coreType
-abstract AtomicInt {
-	public function new(value:Int):Void;
+@:include("hx/atomic/AtomicInt.hpp")
+@:cpp.ManagedType({type: "AtomicInt", namespace: ["hx", "atomic"], flags: [StandardNaming]})
+private extern class AtomicIntImpl {
+	function new(value:Int);
 
-	public function add(b:Int):Int;
-
-	public function sub(b:Int):Int;
-
-	public function and(b:Int):Int;
-
-	public function or(b:Int):Int;
-
-	public function xor(b:Int):Int;
-
-	public function compareExchange(expected:Int, replacement:Int):Int;
-
-	public function exchange(value:Int):Int;
-
-	public function load():Int;
-
-	public function store(value:Int):Int;
+	function fetchAdd(value:Int):Int;
+	function fetchSub(value:Int):Int;
+	function fetchAnd(value:Int):Int;
+	function fetchOr(value:Int):Int;
+	function fetchXor(value:Int):Int;
+	function load():Int;
+	function store(value:Int):Int;
+	function exchange(value:Int):Int;
+	function compareExchange(expected:Int, replacement:Int):Int;
 }
-#else
-private final class Data {
-	public var value:Int;
-	public function new(value:Int) {
-		this.value = value;
-	}
-}
+
+private typedef AtomicIntData = AtomicIntImpl;
+
 #if cppia
 extern
 #end
-abstract AtomicInt(Data) {
+abstract AtomicInt(AtomicIntData) {
 	#if cppia
 	public function new(value:Int):Void;
 
@@ -56,45 +43,44 @@ abstract AtomicInt(Data) {
 
 	public function store(value:Int):Int;
 	#else
-	public #if !scriptable inline #end function new(value:Int) {
-		this = new Data(value);
+	public #if !scriptable inline #end function new(value:Int):Void {
+		this = new AtomicIntImpl(value);
 	}
 
 	public #if !scriptable inline #end function add(b:Int):Int {
-		return untyped __cpp__("_hx_atomic_add(&{0}, {1})", this.value, b);
+		return this.fetchAdd(b);
 	}
 
 	public #if !scriptable inline #end function sub(b:Int):Int {
-		return untyped __cpp__("_hx_atomic_sub(&{0}, {1})", this.value, b);
+		return this.fetchSub(b);
 	}
 
 	public #if !scriptable inline #end function and(b:Int):Int {
-		return untyped __cpp__("_hx_atomic_and(&{0}, {1})", this.value, b);
+		return this.fetchAnd(b);
 	}
 
 	public #if !scriptable inline #end function or(b:Int):Int {
-		return untyped __cpp__("_hx_atomic_or(&{0}, {1})", this.value, b);
+		return this.fetchOr(b);
 	}
 
 	public #if !scriptable inline #end function xor(b:Int):Int {
-		return untyped __cpp__("_hx_atomic_xor(&{0}, {1})", this.value, b);
+		return this.fetchXor(b);
 	}
 
 	public #if !scriptable inline #end function compareExchange(expected:Int, replacement:Int):Int {
-		return untyped __cpp__("_hx_atomic_compare_exchange(&{0}, {1}, {2})", this.value, expected, replacement);
+		return this.compareExchange(expected, replacement);
 	}
 
 	public #if !scriptable inline #end function exchange(value:Int):Int {
-		return untyped __cpp__("_hx_atomic_exchange(&{0}, {1})", this.value, value);
+		return this.exchange(value);
 	}
 
 	public #if !scriptable inline #end function load():Int {
-		return untyped __cpp__("_hx_atomic_load(&{0})", this.value);
+		return this.load();
 	}
 
 	public #if !scriptable inline #end function store(value:Int):Int {
-		return untyped __cpp__("_hx_atomic_store(&{0}, {1})", this.value, value);
+		return this.store(value);
 	}
 	#end
 }
-#end

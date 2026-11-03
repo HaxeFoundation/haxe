@@ -18,33 +18,41 @@ jobs:
       PLATFORM: linux64
       OCAML_VERSION: 5.3.0
       OPAMYES: 1
+      OPAMROOT: /opt/opam
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 0
 
       - name: Install system dependencies
         run: |
           set -ex
           sudo apt-get update -qqy
-          sudo apt-get install -qqy opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Use-Pty=0 install -y \
+            opam libpcre2-dev zlib1g-dev libzstd-dev libgtk2.0-dev libmbedtls-dev ninja-build \
+            cmake gcc-multilib g++-multilib \
+            libturbojpeg-dev libvorbis-dev \
+            libuv1-dev libreadline-dev
 
-      - name: Cache opam
-        id: cache-opam
-        uses: actions/cache@v4
-        with:
-          path: ~/.opam/
-          key: ${{ runner.os }}-${{ runner.arch }}-5.3.0-${{ hashFiles('./haxe.opam', './libs/') }}-1
+      # Neko has to come first: building the opam dependencies from source needs it (conf-neko).
+      - name: Setup Neko
+        uses: ./.github/actions/setup-neko
+        env:
+          PLATFORM: linux64
 
-      - name: Initialize opam and install OCaml 5.3.0
-        if: steps.cache-opam.outputs.cache-hit != 'true'
+      - name: Make Neko shared libraries available to the dynamic linker
+        run: |
+          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/local.conf
+          sudo ldconfig
+
+      # Downloads the prebuilt opam root published by CI, or builds it if there is none yet.
+      - name: Set up OCaml
         run: |
           set -ex
-          opam init -c 5.3.0 --no-setup
-          opam pin add haxe . --no-action
-          opam install haxe --deps-only --assume-depexts
+          extra/agent-setup.sh --no-apt --no-build --no-profile
           opam list
           ocamlopt -v
 
@@ -57,17 +65,6 @@ jobs:
           echo "CAML_LD_LIBRARY_PATH=$CAML_LD_LIBRARY_PATH" >> $GITHUB_ENV
           echo "OCAML_TOPLEVEL_PATH=$OCAML_TOPLEVEL_PATH" >> $GITHUB_ENV
 
-      - name: Setup Neko
-        uses: ./.github/actions/setup-neko
-        env:
-          PLATFORM: linux64
-
-      - name: Install dependencies
-        run: |
-          set -ex
-          sudo apt-get update -qqy
-          sudo apt-get install -qqy opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
-
       - name: Build Haxe
         run: |
           set -ex
@@ -78,3 +75,19 @@ jobs:
           ls -l out
           ldd -v ./haxe
           ldd -v ./haxelib
+
+      - name: Add workspace to PATH
+        run: echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
+
+      - name: Setup haxelib
+        run: |
+          set -ex
+          mkdir ~/haxelib
+          haxelib setup ~/haxelib
+          haxelib git utest https://github.com/haxe-utest/utest.git
+          haxelib git hxcoro https://github.com/HaxeFoundation/hxcoro.git
+          haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git
+          cd ~/haxelib/hxcpp/git/tools/hxcpp && haxe compile.hxml && cd -
+          haxelib git hxjava https://github.com/HaxeFoundation/hxjava.git
+          haxelib git hxnodejs https://github.com/HaxeFoundation/hxnodejs.git
+          haxelib git haxeserver https://github.com/Simn/haxeserver.git

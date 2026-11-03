@@ -24,6 +24,11 @@ class Main {
 	}
 
 	static public function compileProjects(args:Array<String>):Result {
+		if (args.length == 0) {
+			Sys.print("Missing subdir argument");
+		}
+		final subdir = args.shift();
+		Sys.setCwd(subdir);
 		var count = 0;
 		var failures = 0;
 		var failuresSummary = [];

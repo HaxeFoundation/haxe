@@ -33,7 +33,7 @@ open Error
 type class_init_ctx = {
 	tclass : tclass; (* I don't trust ctx.c.curclass because it's mutable. *)
 	is_lib : bool;
-	is_core_api : bool;
+	core_api_check : CoreApiConfig.core_api_check;
 	is_class_debug : bool;
 	extends_public : bool;
 	abstract : tabstract option;
@@ -104,7 +104,7 @@ let dump_class_context cctx =
 	Printer.s_record_fields "" [
 		"tclass",Printer.s_tclass "\t" cctx.tclass;
 		"is_lib",string_of_bool cctx.is_lib;
-		"is_core_api",string_of_bool cctx.is_core_api;
+		"core_api_check",CoreApiConfig.s_core_api_check cctx.core_api_check;
 		"is_class_debug",string_of_bool cctx.is_class_debug;
 		"extends_public",string_of_bool cctx.extends_public;
 		"abstract",Printer.s_opt (Printer.s_tabstract "\t") cctx.abstract;
@@ -153,18 +153,19 @@ let get_struct_init_super_info ctx c p =
 	match c.cl_super with
 		| Some ({ cl_constructor = Some ctor } as csup, cparams) ->
 			let args = (try get_method_args ctor with Not_found -> []) in
-			let tl_rev,el_rev =
-				List.fold_left (fun (args,exprs) (v,value) ->
+			let args_rev,tl_rev,el_rev =
+				List.fold_left (fun (args,tl,exprs) (v,value) ->
 					let opt = match value with
 						| Some _ -> true
 						| None -> Meta.has Meta.Optional v.v_meta
 					in
 					let t = if opt then ctx.t.tnull v.v_type else v.v_type in
-					(v.v_name,opt,t) :: args,(mk (TLocal v) v.v_type p) :: exprs
-				) ([],[]) args
+					let v' = copy_var v in
+					(v',value) :: args,(v.v_name,opt,t) :: tl,(mk (TLocal v') v.v_type p) :: exprs
+				) ([],[],[]) args
 			in
 			let super_expr = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p, List.rev el_rev)) ctx.t.tvoid p in
-			(args,Some super_expr,List.rev tl_rev)
+			(List.rev args_rev,Some super_expr,List.rev tl_rev)
 		| _ ->
 			[],None,[]
 
@@ -407,7 +408,10 @@ let build_module_def ctx mt meta fvars fbuild =
 				let r = try ctx.g.do_macro ctx MBuild cpath meth el p with e -> ctx.c.get_build_infos <- old; raise e in
 				ctx.c.get_build_infos <- old;
 				(match r with
-				| MError | MMacroInMacro -> raise_typing_error (Printf.sprintf "Build failure (%s.%s)" (s_type_path cpath) meth) p
+				| MError | MMacroInMacro ->
+					let msg = Printf.sprintf "Build failure (%s.%s)" (s_type_path cpath) meth in
+					(* if this build was triggered from another macro, raise so that the error reaches that macro *)
+					if display_recovery_enabled ctx.com && ctx.com.part_scope.running_macros = 0 then display_error ctx.com msg p else raise_typing_error msg p
 				| MSuccess e -> fbuild e)
 			) :: f_build
 		| _ ->
@@ -469,7 +473,7 @@ let create_class_context c p =
 	let cctx = {
 		tclass = c;
 		is_lib = is_lib;
-		is_core_api = Meta.has Meta.CoreApi c.cl_meta;
+		core_api_check = CoreApiConfig.get_core_api_check c.cl_meta (Path.UniqueKey.lazy_path c.cl_module.m_extra.m_file);
 		is_class_debug = Meta.has (Meta.Custom ":debug.typeload") c.cl_meta;
 		extends_public = extends_public c;
 		abstract = abstract;
@@ -481,7 +485,7 @@ let create_class_context c p =
 	cctx
 
 let create_typer_context_for_class ctx cctx p =
-	incr stats.s_classes_built;
+	incr ctx.com.request_scope.stats.s_classes_built;
 	let c = cctx.tclass in
 	if cctx.is_lib && not (has_class_flag c CExtern) then ctx.com.error "@:libType can only be used in extern classes" c.cl_pos;
 	TyperManager.clone_for_class ctx c
@@ -835,7 +839,7 @@ module TypeBinding = struct
 		let c = cctx.tclass in
 		let ctx = TyperManager.clone_for_expr ctx_f fmode function_mode in
 		let bind () =
-			incr stats.s_methods_typed;
+			incr ctx_f.com.request_scope.stats.s_methods_typed;
 			if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.com.is_macro_context then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 			begin match ctx.com.platform with
 				| Jvm when is_java_native_function ctx cf.cf_meta cf.cf_pos ->
@@ -845,23 +849,22 @@ module TypeBinding = struct
 					cf.cf_type <- t
 				| _ ->
 					if Meta.has Meta.DisplayOverride cf.cf_meta then DisplayEmitter.check_field_modifiers ctx c cf fctx.override fctx.display_modifier;
-					let f_check = match fctx.field_kind with
-						| CfrMember ->
-							begin match TypeloadCheck.check_overriding ctx c cf with
-							| NothingToDo ->
-								(fun () -> ())
-							| NormalOverride rctx ->
-								(fun () ->
-									TypeloadCheck.check_override_field ctx cf.cf_name_pos rctx
-								)
-							| OverloadOverride f ->
-								f
-							end
-						| _ ->
-							(fun () -> ())
+					let check_result = match fctx.field_kind with
+						| CfrMember -> TypeloadCheck.check_overriding ctx c cf
+						| _ -> NothingToDo
+					in
+					let f_check () = match check_result with
+						| NothingToDo -> ()
+						| NormalOverride rctx ->
+							TypeloadCheck.check_override_field ctx cf.cf_name_pos rctx
+						| OverloadOverride f ->
+							f ()
 					in
 					let e = TypeloadFunction.type_function ctx args ret e fctx.is_display_field p in
 					f_check();
+					(match check_result with
+					| NormalOverride rctx -> TypeloadCheck.check_call_super ctx.com rctx e
+					| _ -> ());
 					(* Disabled for now, see https://github.com/HaxeFoundation/haxe/issues/3033 *)
 					(* List.iter (fun (v,_) ->
 						if v.v_name <> "_" && has_mono v.v_type then warning ctx WTemp "Uninferred function argument, please add a type-hint" v.v_pos;
@@ -877,7 +880,7 @@ module TypeBinding = struct
 						| _ -> TClass.set_cl_init c e);
 					let e = mk (TFunction tf) t p in
 					let e = match get_coro_config ctx cf.cf_meta with
-						| Some config -> Coro.fun_to_coro (Coro.create_coro_context ctx config) (ClassField(c, cf, tf, p))
+						| Some config -> Coro.fun_to_coro (Coro.create_coro_context ctx config (CoroTypes.ClassField(c, cf, tf, p)))
 						| None -> e
 					in
 					cf.cf_expr <- Some e;
@@ -1106,7 +1109,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		if fctx.is_inline then missing_expression ctx.com fctx "Inline functions must have an expression" cf.cf_pos;
 		if fd.f_type = None then raise_typing_error ("Functions without expressions must have an explicit return type") cf.cf_pos;
 		if !allows_no_expr then begin
-			cf.cf_meta <- (Meta.NoExpr,[],null_pos) :: cf.cf_meta;
+			add_class_field_flag cf CfNoExpr;
 			fctx.do_bind <- false;
 		end
 	end
@@ -1121,7 +1124,7 @@ let type_opt (ctx,cctx,fctx) p mode t =
 	| None when is_truly_extern || (has_class_flag c CInterface) ->
 		display_error ctx.com "Type required for extern classes and interfaces" p;
 		t_dynamic
-	| None when cctx.is_core_api ->
+	| None when cctx.core_api_check = CoreApiConfig.On ->
 		display_error ctx.com "Type required for core api classes" p;
 		t_dynamic
 	| None when fctx.is_abstract ->
@@ -1132,7 +1135,7 @@ let type_opt (ctx,cctx,fctx) p mode t =
 
 let setup_args_ret ctx cctx fctx name fd p =
 	let c = cctx.tclass in
-	let mk = lazy (
+	let mk = AtomicLazy.from_fun (fun () ->
 		if String.length name < 4 then
 			MKNormal
 		else match String.sub name 0 4 with
@@ -1152,7 +1155,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 	let try_find_property_type () =
 		let name = String.sub name 4 (String.length name - 4) in
 		let cf = if fctx.is_static then PMap.find name c.cl_statics else PMap.find name c.cl_fields (* TODO: inheritance? *) in
-		match Lazy.force mk, cf.cf_kind with
+		match AtomicLazy.force mk, cf.cf_kind with
 			| MKGetter, Var({v_read = AccCall | AccPrivateCall})
 			| MKSetter, Var({v_write = AccCall | AccPrivateCall}) -> cf.cf_type
 			| _ -> raise Not_found;
@@ -1172,7 +1175,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 		let def () =
 			type_opt (ctx,cctx,fctx) p LoadReturn fd.f_type
 		in
-		maybe_use_property_type fd.f_type (fun () -> match Lazy.force mk with MKGetter | MKSetter -> true | _ -> false) def
+		maybe_use_property_type fd.f_type (fun () -> match AtomicLazy.force mk with MKGetter | MKSetter -> true | _ -> false) def
 	end in
 	let abstract_this = match cctx.abstract with
 		| Some a when fctx.is_abstract_member && not fctx.is_abstract_constructor && not fctx.is_macro ->
@@ -1185,7 +1188,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 		let def () =
 			type_opt (ctx,cctx,fctx) p LoadNormal cto
 		in
-		if i = 0 then maybe_use_property_type cto (fun () -> match Lazy.force mk with MKSetter -> true | _ -> false) def else def()
+		if i = 0 then maybe_use_property_type cto (fun () -> match AtomicLazy.force mk with MKSetter -> true | _ -> false) def else def()
 	in
 	let args = new FunctionArguments.function_arguments ctx.com type_arg is_extern fctx.is_display_field abstract_this fd.f_args in
 	args,ret
@@ -1244,6 +1247,7 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 			if fctx.is_inline && (has_class_flag c CInterface) then invalid_modifier ctx.com fctx "inline" "method of interface" p;
 		| false,CfrConstructor ->
 			if fctx.is_static then invalid_modifier ctx.com fctx "static" "constructor" p;
+			if Meta.has Meta.Coroutine f.cff_meta then raise_typing_error "Invalid modifier: @:coroutine on constructor" p;
 			begin match fd.f_type with
 				| None -> ()
 				| Some (CTPath ({ path = {tpackage = []; tname = "Void" } as tp}),p) ->
@@ -1283,11 +1287,11 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 				| t ->
 					raise_typing_error (Printf.sprintf "Return type of @:coroutine(transformed) functions must be SuspensionResult (found %s)" (s_type (print_context()) t)) p;
 				in
-				(Lazy.force ctx.t.tcoro.tcoro) (List.rev targs) ret
+				(AtomicLazy.force ctx.t.tcoro.tcoro) (List.rev targs) ret
 			| _ ->
 				die "" __LOC__
 	end else
-		(Lazy.force ctx.t.tcoro.tcoro) targs ret
+		(AtomicLazy.force ctx.t.tcoro.tcoro) targs ret
 	in
 	cf.cf_type <- t;
 	cf.cf_kind <- Method (if fctx.is_macro then MethMacro else if fctx.is_inline then MethInline else if dynamic then MethDynamic else MethNormal);
@@ -1304,6 +1308,8 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 			invalid_modifier ctx.com fctx "abstract" "constructor" p
 		end;
 		add_class_field_flag cf CfAbstract;
+		if Meta.has Meta.CallSuper cf.cf_meta then
+			invalid_modifier ctx.com fctx "@:callSuper" "abstract method" cf.cf_name_pos;
 	end;
 	if fctx.is_abstract_member then add_class_field_flag cf CfImpl;
 	if fctx.is_abstract_constructor then add_class_field_flag cf CfAbstractConstructor;
@@ -1461,8 +1467,8 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 						mf_fields = [(cf_accessor,t,CompletionItem.CompletionType.from_type (Display.get_import_status ctx) t)];
 						mf_cause = PropertyAccessor(cf,is_getter);
 					} in
-					let display = ctx.com.display_information in
-					display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
+					let cm = DiagnosticsPrinter.make_missing_fields_message diag in
+					CompilerMessage.add_module_diagnostic ctx.com c.cl_module cm
 				end else if not (has_class_flag c CExtern) then begin
 					try
 						let _, _, f2 = (if not fctx.is_static then let f = PMap.find m c.cl_statics in None, f.cf_type, f else class_field c (extract_param_types c.cl_params) m) in
@@ -1577,6 +1583,8 @@ let init_field (ctx,cctx,fctx) f cf =
 	end;
 	let cf =
 		match f.cff_kind with
+		| (FVar _ | FProp _) when fctx.field_kind = CfrConstructor ->
+			raise_typing_error "A constructor must be a function" p
 		| FVar (t,e) ->
 			create_variable (ctx,cctx,fctx) c f cf t e p
 		| FFun fd ->
@@ -1642,14 +1650,6 @@ let finalize_class cctx =
 		| Some r -> delay ctx.g PTypeField (fun() -> ignore(lazy_type r)))
 	) cctx.delayed_expr
 
-let check_functional_interface ctx c =
-	match TClass.get_singular_interface_field c.cl_ordered_fields with
-	| None ->
-		()
-	| Some cf ->
-		add_class_flag c CFunctionalInterface;
-		ctx.com.functional_interface_lut#add c.cl_path (c,cf)
-
 let create_class_field cctx f  =
 	let cf = {(mk_field (fst f.cff_name) ~public:(is_public cctx f.cff_access None) t_dynamic f.cff_pos (pos f.cff_name)) with
 		cf_doc = f.cff_doc;
@@ -1661,7 +1661,18 @@ let init_class ctx_c cctx c p herits fields =
 	let com = ctx_c.com in
 	if cctx.is_class_debug then print_endline ("Created class context: " ^ dump_class_context cctx);
 	let fields = build_fields (ctx_c,cctx) c fields in
-	if cctx.is_core_api && com.display.dms_check_core_api then delay ctx_c.g PForce (fun() -> init_core_api ctx_c c);
+	begin match cctx.core_api_check with
+	| CoreApiConfig.On ->
+		if com.display.dms_check_core_api then delay ctx_c.g PForce (fun() -> init_core_api ctx_c c)
+	| CoreApiConfig.Implied ->
+		if com.display.dms_check_core_api then delay ctx_c.g PForce (fun() ->
+			try init_core_api ctx_c c
+			with
+			| Error { err_message = Module_not_found _ | Type_not_found _ } -> ()
+			| Error err -> com.error_ext err
+		)
+	| CoreApiConfig.Off -> ()
+	end;
 	if not cctx.is_lib then begin
 		delay ctx_c.g PForce (fun() -> check_overloads ctx_c c);
 		begin match c.cl_super with
@@ -1780,7 +1791,7 @@ let init_class ctx_c cctx c p herits fields =
 			a.a_unops <- List.rev a.a_unops;
 			a.a_array <- List.rev a.a_array;
 		| None ->
-			if (has_class_flag c CFunctionalInterface) && com.platform = Jvm then check_functional_interface ctx_c c;
+			()
 	end;
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
@@ -1814,8 +1825,8 @@ let init_class ctx_c cctx c p herits fields =
 					mf_fields = [];
 					mf_cause = FinalFields (cf :: cfl);
 				} in
-				let display = com.display_information in
-				display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
+				let cm = DiagnosticsPrinter.make_missing_fields_message diag in
+				CompilerMessage.add_module_diagnostic com c.cl_module cm
 			end else begin
 				display_error_ext com (make_error (Custom "This class has uninitialized final vars, which requires a constructor") ~sub:[
 					make_error (Custom "Example of an uninitialized final var") cf.cf_name_pos;

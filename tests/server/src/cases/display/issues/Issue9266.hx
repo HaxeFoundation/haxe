@@ -11,8 +11,7 @@ class Issue9266 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
-		var result = parseHover().result;
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: offset(1)});
 		Assert.equals('MethInline', result.item.args.field.kind.args);
 	}
 }

@@ -499,7 +499,7 @@ module Printer = struct
 		s_record_fields tabs [
 			"cf_name",cf.cf_name;
 			"cf_doc",s_doc cf.cf_doc;
-			"cf_type",s_type_kind (follow cf.cf_type);
+			"cf_type",s_type_kind (follow_lazy_and_mono cf.cf_type);
 			"cf_pos",s_pos cf.cf_pos;
 			"cf_name_pos",s_pos cf.cf_name_pos;
 			"cf_meta",s_metadata cf.cf_meta;
@@ -541,7 +541,7 @@ module Printer = struct
 			"t_doc",s_doc t.t_doc;
 			"t_meta",s_metadata t.t_meta;
 			"t_params",s_type_params (tabs ^ "\t") t.t_params;
-			"t_type",s_type_kind t.t_type
+			"t_type",s_type_kind (follow_lazy_and_mono t.t_type);
 		]
 
 	let s_tenum_field tabs ef =
@@ -585,11 +585,11 @@ module Printer = struct
 			"a_ops",s_list ", " (fun (op,cf) -> Printf.sprintf "%s: %s" (s_binop op) cf.cf_name) a.a_ops;
 			"a_unops",s_list ", " (fun (op,flag,cf) -> Printf.sprintf "%s (%s): %s" (s_unop op) (if flag = Postfix then "postfix" else "prefix") cf.cf_name) a.a_unops;
 			"a_impl",s_opt (fun c -> s_type_path c.cl_path) a.a_impl;
-			"a_this",s_type_kind a.a_this;
-			"a_from",s_list ", " s_type_kind a.a_from;
-			"a_to",s_list ", " s_type_kind a.a_to;
-			"a_from_field",s_list ", " (fun (t,cf) -> Printf.sprintf "%s: %s" (s_type_kind t) cf.cf_name) a.a_from_field;
-			"a_to_field",s_list ", " (fun (t,cf) -> Printf.sprintf "%s: %s" (s_type_kind t) cf.cf_name) a.a_to_field;
+			"a_this",s_type_kind (follow_lazy_and_mono a.a_this);
+			"a_from", s_list ", " s_type_kind (List.map follow_lazy_and_mono a.a_from);
+			"a_to",s_list ", " s_type_kind (List.map follow_lazy_and_mono a.a_to);
+			"a_from_field",s_list ", " (fun (t,cf) -> Printf.sprintf "%s: %s" (s_type_kind (follow_lazy_and_mono t)) cf.cf_name) a.a_from_field;
+			"a_to_field",s_list ", " (fun (t,cf) -> Printf.sprintf "%s: %s" (s_type_kind (follow_lazy_and_mono t)) cf.cf_name) a.a_to_field;
 			"a_array",s_list ", " (fun cf -> cf.cf_name) a.a_array;
 			"a_read",s_opt (fun cf -> cf.cf_name) a.a_read;
 			"a_write",s_opt (fun cf -> cf.cf_name) a.a_write;
@@ -653,15 +653,29 @@ module Printer = struct
 		| ServerInvalidateModule -> "server_invalidate_module"
 
 	let s_module_skip_reason reason =
-		let rec loop stack = function
+		(* A dependency chain can be as long as the module graph is deep: a buffer and a set, so
+		   that the string costs linear time (Printf from the inside out and List.mem on the stack
+		   were quadratic, which the server pays once per skipped module). *)
+		let buf = Buffer.create 64 in
+		let seen = Hashtbl.create 16 in
+		let rec loop first = function
 			| DependencyDirty(path,reason) ->
-				(Printf.sprintf "%s%s - %s" (if stack = [] then "DependencyDirty " else "") (s_type_path path) (if List.mem path stack then "rec" else loop (path :: stack) reason))
-			| Tainted cause -> "Tainted " ^ (s_module_tainting_reason cause)
-			| FileChanged file -> "FileChanged " ^ file
-			| Shadowed file -> "Shadowed " ^ file
-			| LibraryChanged -> "LibraryChanged"
+				if first then Buffer.add_string buf "DependencyDirty ";
+				Buffer.add_string buf (s_type_path path);
+				Buffer.add_string buf " - ";
+				if Hashtbl.mem seen path then
+					Buffer.add_string buf "rec"
+				else begin
+					Hashtbl.replace seen path ();
+					loop false reason
+				end
+			| Tainted cause -> Buffer.add_string buf ("Tainted " ^ (s_module_tainting_reason cause))
+			| FileChanged file -> Buffer.add_string buf ("FileChanged " ^ file)
+			| Shadowed file -> Buffer.add_string buf ("Shadowed " ^ file)
+			| LibraryChanged -> Buffer.add_string buf "LibraryChanged"
 		in
-		loop [] reason
+		loop true reason;
+		Buffer.contents buf
 
 	let s_module_cache_state = function
 		| MSGood -> "Good"

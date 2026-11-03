@@ -30,7 +30,8 @@
 	{
 		"name": "Analyzer",
 		"metadata": ":analyzer",
-		"doc": "Used to configure the static analyzer."
+		"doc": "Used to configure the static analyzer.",
+		"links": ["https://haxe.org/manual/cr-static-analyzer.html"]
 	},
 	{
 		"name": "Annotation",
@@ -111,6 +112,12 @@
 		"targets": ["TAbstract"]
 	},
 	{
+		"name": "CallSuper",
+		"metadata": ":callSuper",
+		"doc": "Requires the overriding method to call super.",
+		"targets": ["TClassField"]
+	},
+	{
 		"name": "Commutative",
 		"metadata": ":commutative",
 		"doc": "Declares an abstract operator as commutative.",
@@ -132,7 +139,7 @@
 	{
 		"name": "CoreApi",
 		"metadata": ":coreApi",
-		"doc": "Identifies this class as a core API class (forces API check).",
+		"doc": "Identifies this class as a core API class. Accepts optional `check = On | Off | Implied` configuration.",
 		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"]
 	},
 	{
@@ -176,7 +183,7 @@
 		"name": "Dce",
 		"metadata": ":dce",
 		"doc": "Forces dead code elimination even when `--dce full` is not specified.",
-		"targets": ["TClass", "TEnum"],
+		"targets": ["TClass", "TEnum", "TClassField"],
 		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
@@ -708,12 +715,6 @@
 		"doc": "Prevents a type or field from being included in documentation generation."
 	},
 	{
-		"name": "NoExpr",
-		"metadata": ":noExpr",
-		"doc": "Internally used to mark abstract fields which have no expression by design.",
-		"internal": true
-	},
-	{
 		"name": "NoImportGlobal",
 		"metadata": ":noImportGlobal",
 		"doc": "Prevents a static field from being imported with `import Class.*`.",
@@ -1131,7 +1132,7 @@
 		"name": "Using",
 		"metadata": ":using",
 		"doc": "Automatically uses the argument types as static extensions for the annotated type.",
-		"targets": ["TClass", "TEnum", "TAbstract"],
+		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"],
 		"links": ["https://haxe.org/manual/lf-static-extension-metadata.html"]
 	},
 	{

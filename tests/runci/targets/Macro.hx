@@ -8,13 +8,7 @@ class Macro {
 		runCommand("haxe", ["compile-macro.hxml", "--hxb", "bin/hxb/eval.zip"].concat(args));
 		runCommand("haxe", ["compile-macro.hxml", "--hxb-lib", "bin/hxb/eval.zip"].concat(args));
 
-		changeDirectory(displayDir);
 		haxelibInstallGit("Simn", "haxeserver");
-
-		#if include_legacy
-		runCommand("haxe", ["build.hxml", "-D", "display.protocol=xml"]);
-		#end
-		runCommand("haxe", ["build.hxml", "-D", "display.protocol=jsonrpc"]);
 
 		changeDirectory(sourcemapsDir);
 		runCommand("haxe", ["run.hxml"]);
@@ -28,20 +22,22 @@ class Macro {
 		changeDirectory(getMiscSubDir());
 		runCommand("haxe", ["compile.hxml"]);
 
-		changeDirectory(getMiscSubDir("resolution"));
-		runCommand("haxe", ["run.hxml"]);
-
-		Display.maybeRunDisplayTests(Eval);
+		changeDirectory(getMiscSubDir());
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "eval/resolution"]);
 
 		changeDirectory(sysDir);
-		runSysTest("haxe", ["compile-macro.hxml"].concat(args));
+		runCommand("haxe", args.concat(["compile-eval-hxb.hxml"]));
+		runSysTest("haxe", ["--hxb-lib", "bin/eval/sys.hxb", "--run", "Main"]);
 
 		switch Sys.systemName() {
 			case 'Linux':
-				changeDirectory(getMiscSubDir('compiler_loops'));
-				runCommand("haxe", ["run.hxml"]);
+				changeDirectory(getMiscSubDir());
+				runCommand("haxe", ["run-base.hxml", "-D", "timeout=3", "--run", "Main", "eval/compiler_loops"]);
 			case _: // TODO
 		}
+
+		changeDirectory(getMiscSubDir("eval", "connect_stdin"));
+		runCommand("haxe", ["run.hxml"]);
 
 		changeDirectory(threadsDir);
 		runCommand("haxe", ["build.hxml", "--interp"]);
@@ -53,7 +49,7 @@ class Macro {
 
 	static function party() {
 		changeDirectory(partyDir);
-		runCommand("git", ["clone", "https://github.com/haxetink/tink_core", "tink_core"]);
+		runCommand("git", ["clone", "--depth=1", "https://github.com/haxetink/tink_core", "tink_core"]);
 		changeDirectory("tink_core");
 		runCommand("haxelib", ["newrepo"]);
 		runCommand("haxelib", ["install", "tests.hxml", "--always"]);
@@ -61,7 +57,7 @@ class Macro {
 		runCommand("haxe", ["tests.hxml", "-w", "-WDeprecated", "--interp", "--macro", "addMetadata('@:exclude','Futures','testDelay')"]);
 
 		changeDirectory(partyDir);
-		runCommand("git", ["clone", "-b", Config.hxcoroVersion, "https://github.com/HaxeFoundation/hxcoro", "hxcoro"]);
+		runCommand("git", ["clone", "--depth=1", "-b", Config.hxcoroVersion, "https://github.com/HaxeFoundation/hxcoro", "hxcoro"]);
 		changeDirectory("hxcoro");
 		runCommand("haxelib", ["newrepo"]);
 		runCommand("haxelib", ["git", "utest", "https://github.com/haxe-utest/utest.git"]);

@@ -48,6 +48,7 @@ class DisplayTestBuilder {
 			case null:
 				macro {}
 			case src:
+				var src = StringTools.replace(src, "**\\/", "**/");
 				macro {
 					_markers = utils.Markers.parse($v{src});
 					vfs.putContent("Main.hx", markers.source);

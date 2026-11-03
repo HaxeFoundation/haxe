@@ -113,8 +113,10 @@ let maybe_type_against_enum ctx f with_type iscall p =
 			let e = try
 				f()
 			with
-			| Error { err_message = Unknown_ident n; err_sub = sub } ->
+			| Error ({ err_message = Unknown_ident n; err_sub = sub } as err) ->
 				restore();
+				if ctx.f.in_display && ctx.com.display.dms_kind = DMDefault then
+					raise_error err;
 				raise_or_display_message ctx (StringError.string_error n fields ("Identifier '" ^ n ^ "' is not part of " ^ s_type_path path)) p;
 				AKExpr (mk (TConst TNull) (mk_mono()) p)
 			| exc ->
@@ -399,6 +401,7 @@ and type_ident ctx i p mode with_type =
 					if ctx.f.in_display then begin
 						raise_error_msg err p
 					end;
+					if ctx.f.in_call_args then raise (WithTypeError (make_error err p));
 					if Diagnostics.error_in_diagnostics_run ctx.com p then begin
 						DisplayToplevel.handle_unresolved_identifier ctx i p false;
 						DisplayFields.handle_missing_ident ctx i mode with_type p;
@@ -410,9 +413,6 @@ and type_ident ctx i p mode with_type =
 						| _ ->
 							display_error ctx.com (error_msg err) p;
 							let t = mk_mono() in
-							(* Add a fake local for #8751. *)
-							if !ServerConfig.legacy_completion then
-								ignore(add_local ctx VGenerated i t p);
 							AKExpr (mk (TIdent i) t p)
 				end
 			end
@@ -469,10 +469,7 @@ and handle_efield ctx e p0 mode with_type =
 						(* if there was no module name part, last guess is that we're trying to get package completion *)
 						if ctx.f.in_display then begin
 							let sl = List.map (fun part -> part.name) path in
-							if is_legacy_completion ctx.com then
-								raise (Parser.TypePath (sl,None,false,p))
-							else
-								DisplayToplevel.collect_and_raise ctx TKType WithType.no_value (CRToplevel None) (String.concat "." sl,p0) p0
+							DisplayToplevel.collect_and_raise ctx TKType WithType.no_value (CRToplevel None) (String.concat "." sl,p0) p0
 						end;
 						raise_error e
 	in
@@ -643,7 +640,13 @@ and type_block ctx el with_type p =
 	let rec loop acc = function
 		| [] -> List.rev acc
 		| e :: l ->
-			let acc = try merge acc (type_expr ctx e (if l = [] then with_type else WithType.no_value)) with Error err -> check_error ctx err; acc in
+			let with_type = if l = [] then with_type else WithType.no_value in
+			let acc =
+				try merge acc (type_expr ctx e with_type)
+				with Error err ->
+					check_error ctx err;
+					(match with_type with | WithType.NoValue -> acc | _ -> mk (TConst TNull) (mk_mono()) (pos e) :: acc)
+			in
 			loop acc l
 	in
 	let l = loop [] el in
@@ -792,6 +795,10 @@ and type_object_decl ctx fl with_type p =
 		let fields = List.fold_left (fun acc ((n,opt,t),parg) ->
 			let f = mk_field n t parg parg in
 			if opt then f.cf_meta <- [(Meta.Optional,[],null_pos)];
+			(try
+				let cf = PMap.find n c.cl_fields in
+				f.cf_doc <- cf.cf_doc
+			with Not_found -> ());
 			PMap.add n f acc
 		) PMap.empty args in
 		let t,fl = type_fields fields in
@@ -1095,7 +1102,9 @@ and type_map_declaration ctx e1 el with_type p =
 	let m = TypeloadModule.load_module ctx (["haxe";"ds"],"Map") null_pos in
 	let a,c = match m.m_types with
 		| (TAbstractDecl ({a_impl = Some c} as a)) :: _ -> a,c
-		| _ -> die "" __LOC__
+		| _ ->
+			let s_mt = String.concat ", " (List.map TPrinting.s_module_type_kind m.m_types) in
+			raise_typing_error (Printf.sprintf "Module haxe.ds.Map is expected to contain an abstract type with an implementation, but found [%s]" s_mt) p
 	in
 	let tmap = TAbstract(a,[tkey;tval]) in
 	let cf = PMap.find "set" c.cl_statics in
@@ -1132,7 +1141,7 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 	let vname,pname= match name with
 		| None ->
 			if params <> [] || is_coroutine then begin
-				Some(gen_local_prefix,VGenerated),null_pos
+				Some(gen_local_prefix,VGenerated),p
 			end else
 				None,p
 		| Some (name,pn) ->
@@ -1237,7 +1246,7 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 	| _ ->
 		()
 	);
-	let ft = if is_coroutine then (Lazy.force ctx.t.tcoro.tcoro) targs rt else TFun(targs,rt) in
+	let ft = if is_coroutine then (AtomicLazy.force ctx.t.tcoro.tcoro) targs rt else TFun(targs,rt) in
 	let ft = match with_type with
 		| WithType.NoValue ->
 			ft
@@ -1253,7 +1262,22 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 			if params <> [] then v.v_extra <- Some (var_extra params None);
 			Some v
 	in
-	let e = TypeloadFunction.type_function ctx args rt f.f_expr ctx.f.in_display p in
+	let e =
+		let old_in_call_args = ctx.f.in_call_args in
+		let resets_call_args = old_in_call_args && not (in_overload_call_args ctx) in
+		if resets_call_args then ctx.f.in_call_args <- false;
+		let deactivate_capture = match (if resets_call_args then call_arg_body_capture ctx else None) with
+			| Some buf -> activate_message_capture ctx.com buf
+			| None -> (fun () -> ())
+		in
+		Std.finally (fun () -> deactivate_capture (); ctx.f.in_call_args <- old_in_call_args)
+			(fun () ->
+				try TypeloadFunction.type_function ctx args rt f.f_expr ctx.f.in_display p
+				with Error err when resets_call_args ->
+					check_error ctx err;
+					mk (TBlock []) ctx.t.tvoid p
+			) ()
+	in
 	let tf = {
 		tf_args = args#for_expr ctx;
 		tf_type = rt;
@@ -1261,7 +1285,7 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 	} in
 	let e = mk (TFunction tf) ft p in
 	let e = match TypeloadFields.get_coro_config ctx ctx.f.meta with
-		| Some config -> Coro.fun_to_coro (Coro.create_coro_context ctx config) (LocalFunc(tf,Option.get v))
+		| Some config -> Coro.fun_to_coro (Coro.create_coro_context ctx config (CoroTypes.LocalFunc(tf,Option.get v)))
 		| None -> e
 	in
 	match v with
@@ -1778,7 +1802,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 			let call     = ECall (field, [ arg_high; arg_low ]), p in
 			type_expr ctx call with_type
 		| "u32" ->
-			let check = ECheckType ((EConst (Int (s, None)), p), (make_ptp_th (mk_type_path ([],"UInt")) p)), p in
+			let check = ECheckType ((EConst (Int (s, None)), p), (make_ptp_th (mk_type_path (["haxe"],"UInt32")) p)), p in
 			type_expr ctx check with_type
 		| other -> raise_typing_error (other ^ " is not a valid integer suffix") p)
 	| EConst (Float (s, Some suffix) as c) ->
@@ -1801,12 +1825,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		in
 		let e1_null_t = ctx.t.tnull e1.etype in
 		let var_name = match WithType.get_expected_name with_type with
-			| None
-			(* TODO: why does this happen? *)
-			| Some "" ->
-				"tmp"
-			| Some name ->
-				name
+			| Some name when Lexer.is_valid_identifier name -> name
+			| _ -> "tmp"
 		in
 		let e1 = vr#as_var var_name {e1 with etype = e1_null_t} in
 		let e_null = Builder.make_null e1_null_t e1.epos in

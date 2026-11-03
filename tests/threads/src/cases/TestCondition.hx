@@ -4,7 +4,7 @@ import utest.Assert;
 import sys.thread.Condition;
 import sys.thread.Thread;
 
-class TestCondition extends utest.Test {
+class TestCondition extends ThreadTestBase {
 	function test() {
 		final cond = new Condition();
 		cond.acquire();

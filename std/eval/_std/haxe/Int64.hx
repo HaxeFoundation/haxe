@@ -37,6 +37,9 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	@:from public static inline function ofInt(x:Int):Int64
 		return I64.ofInt(x);
 
+	public static inline function fromInt(x:Int):Int64
+		return I64.ofInt(x);
+
 	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
 	inline public static function is(val:Dynamic):Bool {
 		return isInt64(val);
@@ -93,6 +96,9 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	public static function fromFloat(f:Float):Int64 {
 		return Int64Helper.fromFloat(f);
 	}
+
+	public inline function toFloat():Float
+		return Int64Helper.toFloat(abstract);
 
 	@:op(-A) public static function neg(x:Int64):Int64
 		return -x.val;
