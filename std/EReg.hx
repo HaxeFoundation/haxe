@@ -74,7 +74,7 @@ class EReg {
 		If no sub-group with index `n` exists in the pattern, the result is
 		unspecified.
 	**/
-	public function matched(n:Int):Null<String> {
+	public function matched(n:Int):String {
 		return null;
 	}
 
