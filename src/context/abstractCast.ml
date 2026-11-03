@@ -279,11 +279,11 @@ let handle_abstract_casts (scom : SafeCom.t) e =
 			end
 		| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))},[e1]) when (match follow e1.etype with TAbstract({a_impl = Some _},_) -> true | _ -> false) ->
 			begin match follow e1.etype with
-				| TAbstract({a_impl = Some c},tl) ->
+				| TAbstract({a_impl = Some c; a_this},tl) ->
 					begin try
 						let cf = PMap.find "toString" c.cl_statics in
 						let call() = ExceptionFunctions.make_static_call scom c cf [e1] scom.basic.tstring e.epos in
-						if not (is_nullable e1.etype) then
+						if is_explicit_null a_this || not (is_nullable e1.etype) then
 							call()
 						else begin
 							let p = e.epos in
