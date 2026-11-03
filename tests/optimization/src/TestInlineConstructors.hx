@@ -44,6 +44,21 @@ class NestedInlineClass {
 	}
 }
 
+class TempAliasClass {
+	public var x : Int;
+	public var y : Int;
+
+	public inline function new( a : Int, b : Int ) {
+		this.x = a + 1;
+		this.y = b * 2;
+	}
+
+	public inline function viaThisTemp() {
+		var self = this;
+		return self.x + self.y;
+	}
+}
+
 class P {
 	public var x:Float;
 
@@ -140,7 +155,7 @@ class TestInlineConstructors extends TestBase {
 		return [arr[0], arr[1]];
 	}
 
-	@:js('var v_i = 0;var acc = 0;while(v_i < 10) acc += v_i++;return acc;')
+	@:js('var iter_i = 0;var acc = 0;while(iter_i < 10) acc += iter_i++;return acc;')
 	static function testIteratorMethodInliningInForLoop() {
 		var iter : Iterator<Int> = new InlineIterator();
 		var acc = 0;
@@ -165,5 +180,18 @@ class TestInlineConstructors extends TestBase {
 	static function testForwardAbstract() {
 		var p2 = {v: new PA(5)};
 		return [p2.v.x];
+	}
+
+	static var seed = 1;
+
+	static inline function viaArgTemp( v : TempAliasClass ) {
+		var tmp = v;
+		return tmp.x - tmp.y;
+	}
+
+	@:js('var potentialMove_x = TestInlineConstructors.seed + 1;var potentialMove_y = TestInlineConstructors.seed * 2;return [potentialMove_x + potentialMove_y,potentialMove_x - potentialMove_y];')
+	static function testInliningTempDoesNotStealVariableName() {
+		var potentialMove = new TempAliasClass(seed, seed);
+		return [potentialMove.viaThisTemp(), viaArgTemp(potentialMove)];
 	}
 }

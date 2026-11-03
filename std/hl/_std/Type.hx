@@ -244,6 +244,10 @@ class Type {
 				var c:Dynamic = Type.getClass(v);
 				if (c == Class || c == null)
 					return TObject;
+				#if (hl_ver < version("1.12.0") || hl_legacy32)
+				if (c == @:privateAccess haxe.Int64.IMPL)
+					return TInt64;
+				#end
 				return TClass(c);
 			case HEnum:
 				return TEnum(Type.getEnum(v));

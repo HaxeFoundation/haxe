@@ -51,6 +51,19 @@ let unify_type_pattern ctx mt t p =
 		| TAbstract(a,_) -> unify ctx (TAbstract(a,[spawn_monomorph ctx p])) t p
 		| _ -> die "" __LOC__
 
+(* Array patterns apply to values which can be accessed by index (#8012). Abstracts with a single `from` type leading
+   to an array or to Dynamic have their patterns typed against the `from` type, but are read by their own access too.
+   This returns how to access values of type `t`, or None if they can't be accessed by index. *)
+let get_array_access ctx t p =
+	try
+		Some (ArrayAccess.get_array_access ctx t p)
+	with Not_found ->
+		None
+
+(* The error for array patterns on values of type `t`, which can't be accessed by index. *)
+let no_array_access t p =
+	raise_typing_error ("Array patterns are not allowed on " ^ s_type (print_context()) t) p
+
 let rec make pctx toplevel t e =
 	let ctx = pctx.ctx in
 	let p = pos e in
@@ -297,6 +310,23 @@ let rec make pctx toplevel t e =
 				| Bad_pattern s -> raise_typing_error s p
 			end
 		| EArrayDecl el ->
+			let array_pattern t2 =
+				let patterns = ExtList.List.mapi (fun i e ->
+					make pctx false t2 e
+				) el in
+				PatConstructor(con_array (List.length patterns) (pos e),patterns)
+			in
+			let array_access_pattern () = match get_array_access ctx t p with
+				| Some aa -> array_pattern aa.aa_type
+				| None -> fail()
+			in
+			(* Patterns on an array or Dynamic are typed against its element type `t2`, and so are patterns on an
+			   abstract whose single `from` types lead to one. The matched values are still read by the array access of
+			   their own type `t` (see compile.ml), which an abstract may lack, and so does Dynamic<T>. *)
+			let indexed_pattern t2 = match get_array_access ctx t p with
+				| Some _ -> array_pattern t2
+				| None -> no_array_access t p
+			in
 			let rec pattern seen t = match follow t with
 				| TFun(tl,tr) when tr == fake_tuple_type ->
 					let rec loop el tl = match el,tl with
@@ -310,17 +340,14 @@ let rec make pctx toplevel t e =
 					let patterns = loop el tl in
 					PatTuple patterns
 				| TInst({cl_path=[],"Array"},[t2]) | (TDynamic _ as t2) ->
-					let patterns = ExtList.List.mapi (fun i e ->
-						make pctx false t2 e
-					) el in
-					PatConstructor(con_array (List.length patterns) (pos e),patterns)
+					indexed_pattern t2
 				| TAbstract(a,tl) as t when not (List.exists (fun t' -> shallow_eq t t') seen) ->
 					begin match TyperBase.get_abstract_froms ctx a tl with
 						| [(_,t2)] -> pattern (t :: seen) t2
-						| _ -> fail()
+						| _ -> array_access_pattern()
 					end
 				| _ ->
-					fail()
+					array_access_pattern()
 			in
 			pattern [] t
 		| EObjectDecl fl ->

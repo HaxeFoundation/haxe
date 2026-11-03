@@ -14,7 +14,6 @@ class Config {
 	static public final unitDir = Path.join([cwd, "unit"]);
 	static public final sysDir = Path.join([cwd, "sys"]);
 	static public final optDir = cwd + "optimization/";
-	static public final displayDir = Path.join([cwd, "display"]);
 	static public final serverDir = Path.join([cwd, "server"]);
 	static public final sourcemapsDir = Path.join([cwd, "sourcemaps"]);
 	static public final nullSafetyDir = Path.join([cwd, "nullsafety"]);

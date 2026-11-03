@@ -408,7 +408,10 @@ let build_module_def ctx mt meta fvars fbuild =
 				let r = try ctx.g.do_macro ctx MBuild cpath meth el p with e -> ctx.c.get_build_infos <- old; raise e in
 				ctx.c.get_build_infos <- old;
 				(match r with
-				| MError | MMacroInMacro -> raise_typing_error (Printf.sprintf "Build failure (%s.%s)" (s_type_path cpath) meth) p
+				| MError | MMacroInMacro ->
+					let msg = Printf.sprintf "Build failure (%s.%s)" (s_type_path cpath) meth in
+					(* if this build was triggered from another macro, raise so that the error reaches that macro *)
+					if display_recovery_enabled ctx.com && ctx.com.part_scope.running_macros = 0 then display_error ctx.com msg p else raise_typing_error msg p
 				| MSuccess e -> fbuild e)
 			) :: f_build
 		| _ ->
@@ -1106,7 +1109,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		if fctx.is_inline then missing_expression ctx.com fctx "Inline functions must have an expression" cf.cf_pos;
 		if fd.f_type = None then raise_typing_error ("Functions without expressions must have an explicit return type") cf.cf_pos;
 		if !allows_no_expr then begin
-			cf.cf_meta <- (Meta.NoExpr,[],null_pos) :: cf.cf_meta;
+			add_class_field_flag cf CfNoExpr;
 			fctx.do_bind <- false;
 		end
 	end

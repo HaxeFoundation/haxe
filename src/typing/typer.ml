@@ -113,8 +113,10 @@ let maybe_type_against_enum ctx f with_type iscall p =
 			let e = try
 				f()
 			with
-			| Error { err_message = Unknown_ident n; err_sub = sub } ->
+			| Error ({ err_message = Unknown_ident n; err_sub = sub } as err) ->
 				restore();
+				if ctx.f.in_display && ctx.com.display.dms_kind = DMDefault then
+					raise_error err;
 				raise_or_display_message ctx (StringError.string_error n fields ("Identifier '" ^ n ^ "' is not part of " ^ s_type_path path)) p;
 				AKExpr (mk (TConst TNull) (mk_mono()) p)
 			| exc ->
@@ -1541,7 +1543,8 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 		| (Meta.ToString,_,_) ->
 			let e = e() in
 			(match follow e.etype with
-				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics -> call_to_string ctx e
+				| TAbstract({a_impl = Some c; a_this},_) when PMap.mem "toString" c.cl_statics ->
+					call_to_string ~no_null_check:(is_explicit_null a_this) ctx e
 				| _ -> e)
 		| (Meta.Markup,_,_) ->
 			raise_typing_error "Markup literals must be processed by a macro" p
@@ -1680,8 +1683,8 @@ and type_call_builtin ctx e el mode with_type p =
 			if ExtType.is_void (follow e.etype) then raise_typing_error "Cannot use Void as value" e.epos;
 			let infos = type_expr ctx infos WithType.value in
 			let e = match follow e.etype with
-				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics ->
-					call_to_string ctx e
+				| TAbstract({a_impl = Some c; a_this},_) when PMap.mem "toString" c.cl_statics ->
+					call_to_string ~no_null_check:(is_explicit_null a_this) ctx e
 				| _ ->
 					e
 			in
@@ -1823,12 +1826,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		in
 		let e1_null_t = ctx.t.tnull e1.etype in
 		let var_name = match WithType.get_expected_name with_type with
-			| None
-			(* TODO: why does this happen? *)
-			| Some "" ->
-				"tmp"
-			| Some name ->
-				name
+			| Some name when Lexer.is_valid_identifier name -> name
+			| _ -> "tmp"
 		in
 		let e1 = vr#as_var var_name {e1 with etype = e1_null_t} in
 		let e_null = Builder.make_null e1_null_t e1.epos in

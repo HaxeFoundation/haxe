@@ -90,7 +90,7 @@ class NativeStackTrace {
 		for (i in 0...nativeStackTrace.length-1) {
 			if( i < skip ) continue;
 			#if (hl_ver >= version("1.12.0"))
-			var len = maxLen;
+			var len = maxLen >> 1;
 			var bytes = resolveSymbol(nativeStackTrace[i],tmpBuf,len);
 			if( bytes == null ) continue;
 			#else

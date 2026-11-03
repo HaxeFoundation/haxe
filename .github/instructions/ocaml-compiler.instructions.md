@@ -20,6 +20,12 @@ applyTo: "src/**/*.{ml,mli}"
 - Avoid behavior changes that break backward compatibility unless explicitly requested.
 - Keep performance-sensitive paths simple and avoid unnecessary allocations in hot code.
 
+## Useful Entry Points
+- Compile errors: `raise_typing_error msg p` (`src/core/error.ml`). Unreachable cases and broken internal invariants: `die "" __LOC__` (`src/core/globals.ml`).
+- Warnings: `warning ctx WSomething msg p` (`src/context/typecore.ml`).
+- Defines: `Common.defined com Define.SomeDefine`. Metadata: `Meta.has Meta.SomeMeta meta`.
+- The `Define.*`, `Meta.*` and `W*` constructors are generated at build time from `src-json/define.json`, `meta.json` and `warning.json` (the `name` field is the constructor name), so new ones are added there, not in OCaml code.
+
 ## Build And Verification
 - Build compiler changes with `make haxe` (or `opam exec -- make ADD_REVISION=1 -f Makefile.win -s -j haxe` on Windows setups using OPAM/Cygwin).
 - If debugging typed/generator input, use `-D dump=pretty` and inspect the `dump/` output.
