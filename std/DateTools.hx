@@ -194,16 +194,19 @@ class DateTools {
 	}
 
 	/**
-		Returns the number of days since the beginning of the year.
+		Returns the day of the year of Date `d`, starting with 1 for January 1st.
+
+		This method handles leap years.
 	**/
 	public static function getDayOfYear(d:Date):Int {
-		var startOfYear = new Date(d.getFullYear(), 0, 0, 0, 0, 0);
-		var days = Std.int((d.getTime() - startOfYear.getTime()) / DateTools.days(1));
-	        #if (neko || php || python)
-	            return days + 1;
-	        #else
-	            return days;
-	        #end
+		var month = d.getMonth();
+		var year = d.getFullYear();
+		var day = d.getDate();
+		for (m in 0...month)
+			day += DAYS_OF_MONTH[m];
+		if (month > 1 && (((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0)))
+			day++;
+		return day;
 	}
 
 	/**

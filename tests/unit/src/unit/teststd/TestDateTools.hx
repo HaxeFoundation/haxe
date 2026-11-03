@@ -34,6 +34,14 @@ class TestDateTools extends unit.Test {
 		eq(DateTools.format(d, "%j"), "124"); // day of the year
 		#end
 
+		eq(DateTools.getDayOfYear(new Date(2026, 0, 1, 0, 0, 0)), 1);
+		eq(DateTools.getDayOfYear(new Date(2026, 11, 31, 23, 59, 59)), 365);
+		eq(DateTools.getDayOfYear(new Date(2024, 11, 31, 0, 0, 0)), 366);
+		eq(DateTools.getDayOfYear(new Date(2000, 2, 1, 0, 0, 0)), 61);
+		// during daylight saving time in time zones that have it
+		eq(DateTools.getDayOfYear(new Date(2026, 3, 1, 0, 30, 0)), 91);
+		eq(DateTools.getDayOfYear(new Date(2026, 6, 1, 0, 0, 0)), 182);
+
 		//UTC based timestamp generation
 		#if (js || flash || php || cpp || python)
 		eq(DateTools.makeUtc(1982, 10, 10, 14, 2, 20), 405784940000.);
