@@ -108,22 +108,15 @@ jobs:
       # Coding agents outside GitHub Actions can't use the cache, so development also
       # publishes the opam root for extra/agent-setup.sh (see publish-opam-root).
       - name: Package the opam root for agents
-        id: package-opam
         if: github.event_name == 'push' && github.ref == 'refs/heads/development'
-        run: |
-          set -ex
-          asset=$(extra/agent-setup.sh --print-asset)
-          if ! curl -fsSIL -o /dev/null "$(extra/agent-setup.sh --print-url)"; then
-            tar -C /opt --zstd -cf "$asset" opam
-            echo "asset=$asset" >> $GITHUB_OUTPUT
-          fi
+        run: tar -C /opt --zstd -cf opam-root.tar.zst opam
 
       - name: Upload the opam root for agents
-        if: steps.package-opam.outputs.asset != ''
+        if: github.event_name == 'push' && github.ref == 'refs/heads/development'
         uses: actions/upload-artifact@v7
         with:
-          name: opam-root-${{ matrix.arch }}
-          path: ${{ steps.package-opam.outputs.asset }}
+          name: opam-root-${{ matrix.arch == 'arm64' && 'aarch64' || 'x86_64' }}
+          path: opam-root.tar.zst
           retention-days: 1
           compression-level: 0
 
@@ -182,35 +175,40 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: extra/agent-setup.sh
+
       - uses: actions/download-artifact@v8
         with:
           pattern: opam-root-*
           path: assets
-          merge-multiple: true
 
+      # Each artifact is named opam-root-<arch>; extra/agent-setup.sh names the asset it
+      # will look for. Upload it if it's missing, and drop the older ones for that arch.
       - name: Upload to the release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          shopt -s nullglob
-          files=(assets/*.tar.zst)
-          if [ ${#files[@]} = 0 ]; then
-            echo "Nothing new to publish"
-            exit 0
-          fi
+          set -e
           if ! gh release view opam-root >/dev/null 2>&1; then
             gh release create opam-root --prerelease --target "$GITHUB_SHA" \
               --title "Prebuilt OCaml dependencies" \
-              --notes "Prebuilt opam roots used by extra/agent-setup.sh. Updated automatically by the linux-build job."
+              --notes "Prebuilt opam roots used by extra/agent-setup.sh. Updated automatically from CI's linux-build job."
           fi
-          gh release upload opam-root "${files[@]}" --clobber
-          # Asset names end in -<arch>-<key>.tar.zst; drop older keys for the same arch.
-          for f in "${files[@]}"; do
-            new=$(basename "$f")
-            arch=$(sed -E 's/.*-([^-]+)-[0-9a-f]+\.tar\.zst$/\1/' <<<"$new")
-            gh release view opam-root --json assets -q '.assets[].name' | while read -r old; do
-              if [ "$old" != "$new" ] && [[ "$old" == *"-$arch-"*.tar.zst ]]; then
+          existing=$(gh release view opam-root --json assets -q '.assets[].name')
+          for dir in assets/opam-root-*; do
+            arch=${dir#assets/opam-root-}
+            asset=$(OPAM_ROOT_ARCH=$arch extra/agent-setup.sh --print-asset)
+            if grep -qxF "$asset" <<<"$existing"; then
+              echo "$asset is already published"
+              continue
+            fi
+            mv "$dir/opam-root.tar.zst" "$asset"
+            gh release upload opam-root "$asset"
+            for old in $existing; do
+              if [[ "$old" == *"-$arch-"*.tar.zst ]]; then
                 echo "Deleting $old"
                 gh release delete-asset opam-root "$old" -y
               fi

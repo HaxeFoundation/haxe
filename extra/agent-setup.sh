@@ -18,6 +18,7 @@
 #
 # Environment:
 #   OPAM_ROOT_RELEASE_URL  where to download the prebuilt opam root from
+#   OPAM_ROOT_ARCH  the architecture to name the archive for (default: uname -m)
 #   OPAMROOT  where the opam root lives (default /opt/opam; the prebuilt archive only
 #             works at that path, because opam roots are not relocatable)
 
@@ -59,7 +60,7 @@ cache_key() {
 		cat "$REPO_ROOT/haxe.opam"
 	} | sha256sum | cut -c1-16
 }
-ASSET="opam-$OCAML_VERSION-$BUILD_OS-$(uname -m)-$(cache_key).tar.zst"
+ASSET="opam-$OCAML_VERSION-$BUILD_OS-${OPAM_ROOT_ARCH:-$(uname -m)}-$(cache_key).tar.zst"
 
 case "$PRINT" in
 	asset) echo "$ASSET"; exit 0 ;;
