@@ -198,10 +198,10 @@ class Printer {
 			+ switch (field.kind) {
 				case FVar(t, eo):
 					final acc = field.access != null && field.access.has(AFinal) ? '' : 'var ';
-					acc + '${field.name}' + opt(t, printComplexType, " : ") + opt(eo, printExpr, " = ");
+					acc + printFieldName(field.name) + opt(t, printComplexType, " : ") + opt(eo, printExpr, " = ");
 				case FProp(get, set, t, eo):
 					final acc = field.access != null && field.access.has(AFinal) ? '' : 'var ';
-					acc + '${field.name}($get, $set)' + opt(t, printComplexType, " : ") + opt(eo, printExpr, " = ");
+					acc + '${printFieldName(field.name)}($get, $set)' + opt(t, printComplexType, " : ") + opt(eo, printExpr, " = ");
 				case FFun(func): 'function ${field.name}' + printFunction(func);
 			}}
 
@@ -237,6 +237,24 @@ class Printer {
 		}
 	}
 
+	static final keywords = [
+		"abstract", "break", "case", "cast", "catch", "class", "continue", "default", "do", "dynamic", "else", "enum", "extends", "extern",
+		"false", "final", "for", "function", "if", "implements", "import", "in", "inline", "interface", "macro", "new", "null", "operator",
+		"overload", "override", "package", "private", "public", "return", "static", "switch", "this", "throw", "true", "try", "typedef",
+		"untyped", "using", "var", "while"
+	];
+
+	public function printFieldName(name:String) {
+		return keywords.contains(name) ? '"$name"' : name;
+	}
+
+	function printFieldAccessName(name:String) {
+		return switch (name) {
+			case "macro" | "extern" | "function" | "new": name;
+			case _: printFieldName(name);
+		}
+	}
+
 	public function printObjectFieldKey(of:ObjectField) {
 		return switch (of.quotes) {
 			case null | Unquoted: of.field;
@@ -253,7 +271,7 @@ class Printer {
 			case EConst(c): printConstant(c);
 			case EArray(e1, e2): '${printExpr(e1)}[${printExpr(e2)}]';
 			case EBinop(op, e1, e2): '${printExpr(e1)} ${printBinop(op)} ${printExpr(e2)}';
-			case EField(e1, n, kind): kind == Safe ? '${printExpr(e1)}?.$n' : '${printExpr(e1)}.$n';
+			case EField(e1, n, kind): kind == Safe ? '${printExpr(e1)}?.${printFieldAccessName(n)}' : '${printExpr(e1)}.${printFieldAccessName(n)}';
 			case EParenthesis(e1): '(${printExpr(e1)})';
 			case EObjectDecl(fl):
 				"{ " + fl.map(function(fld) return printObjectField(fld)).join(", ") + " }";
