@@ -31,6 +31,8 @@ import haxe.Constraints.Function;
 
 	Documentation [Instance](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Instance) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Instance$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
+@:deprecated("Use js.web.wasm.Instance from the js-std externs (js-core-api, js-window-api...)")
+@:haxe.warning("-WDeprecated")
 @:native("WebAssembly.Instance")
 extern class Instance {
 	/**

@@ -31,6 +31,8 @@ package js.lib.webassembly;
 
 	Documentation [Memory](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Memory) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Memory$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
+@:deprecated("Use js.web.wasm.Memory from the js-std externs (js-core-api, js-window-api...)")
+@:haxe.warning("-WDeprecated")
 @:native("WebAssembly.Memory")
 extern class Memory {
 	/**
@@ -47,6 +49,7 @@ extern class Memory {
 	function grow(number:Int):Int;
 }
 
+@:deprecated("Use js.web.wasm.MemoryDescriptor from the js-std externs (js-core-api, js-window-api...)")
 typedef MemoryDescriptor = {
 	/**
 		The initial size of the WebAssembly Memory, in units of WebAssembly pages.

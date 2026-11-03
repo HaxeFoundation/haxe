@@ -34,6 +34,7 @@ import haxe.extern.EitherType;
 
 	@see <https://developer.mozilla.org/en-US/docs/Web/API/BufferSource>
  */
+@:deprecated("Use js.web.dom.BufferSource from the js-std externs (js-core-api, js-window-api...)")
 abstract BufferSource(Dynamic) from ArrayBuffer from ArrayBufferView {
 	
 	public var byteLength(get, never): Int;

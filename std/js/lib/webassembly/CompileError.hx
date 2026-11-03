@@ -28,6 +28,8 @@ package js.lib.webassembly;
 
 	Documentation [CompileError](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/CompileError) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/CompileError$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
+@:deprecated("Use js.web.wasm.CompileError from the js-std externs (js-core-api, js-window-api...)")
+@:haxe.warning("-WDeprecated")
 @:native("WebAssembly.CompileError")
 extern class CompileError extends js.lib.Error {
 	function new(?message:String):Void;

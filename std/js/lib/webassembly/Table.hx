@@ -33,6 +33,8 @@ import haxe.Constraints.Function;
 
 	Documentation [Table](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Table) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Table$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
+@:deprecated("Use js.web.wasm.Table from the js-std externs (js-core-api, js-window-api...)")
+@:haxe.warning("-WDeprecated")
 @:native("WebAssembly.Table")
 extern class Table {
 	/**
@@ -58,6 +60,7 @@ extern class Table {
 	function set(index:Int, value:Function):Void;
 }
 
+@:deprecated("Use js.web.wasm.TableDescriptor from the js-std externs (js-core-api, js-window-api...)")
 typedef TableDescriptor = {
 	/**
 		A string representing the type of value to be stored in the table.
@@ -76,6 +79,7 @@ typedef TableDescriptor = {
 	var ?maximum:Int;
 }
 
+@:deprecated("Use js.web.wasm.TableKind from the js-std externs (js-core-api, js-window-api...)")
 enum abstract TableKind(String) {
 	var Anyfunc = "anyfunc";
 }

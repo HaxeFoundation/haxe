@@ -32,6 +32,8 @@ import js.lib.BufferSource;
 
 	Documentation [Module](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
+@:deprecated("Use js.web.wasm.Module from the js-std externs (js-core-api, js-window-api...)")
+@:haxe.warning("-WDeprecated")
 @:native("WebAssembly.Module")
 extern class Module {
 	@:pure function new(bufferSource:BufferSource):Void;
@@ -53,17 +55,20 @@ extern class Module {
 	@:pure static function imports(module:Module):Array<ModuleImportDescriptor>;
 }
 
+@:deprecated("Use js.web.wasm.ModuleExportDescriptor from the js-std externs (js-core-api, js-window-api...)")
 typedef ModuleExportDescriptor = {
 	var name:String;
 	var kind:ImportExportKind;
 }
 
+@:deprecated("Use js.web.wasm.ModuleImportDescriptor from the js-std externs (js-core-api, js-window-api...)")
 typedef ModuleImportDescriptor = {
 	var module:String;
 	var name:String;
 	var kind:ImportExportKind;
 }
 
+@:deprecated("Use js.web.wasm.ImportExportKind from the js-std externs (js-core-api, js-window-api...)")
 enum abstract ImportExportKind(String) {
 	var Function = "function";
 	var Table = "table";
