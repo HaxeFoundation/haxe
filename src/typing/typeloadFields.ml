@@ -746,7 +746,7 @@ module TypeBinding = struct
 							has_class_field_flag cf_parent CfPublic
 							&& not (has_class_field_flag cf CfPublic)
 						) then
-							display_error ctx.com ("Variable " ^ cf.cf_name ^ " has less visibility (public/private) than superclass one") cf.cf_pos
+							display_error ctx.com ("Variable " ^ cf.cf_name ^ " has less visibility (public/private) than superclass one") cf.cf_name_pos
 						else if is_physical_var_field cf_parent then
 							error_redefinition ()
 						else begin
