@@ -75,6 +75,8 @@ class Sys {
 
 	extern static public function time():Float;
 
+	extern static function timestamp_ms():haxe.Int64;
+
 	extern static public function cpuTime():Float;
 
 	extern static public function programPath():String;

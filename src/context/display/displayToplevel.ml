@@ -39,7 +39,7 @@ let perform_type_voodoo t tl' tr' =
 			| _ -> (List.rev acc) @ tl'
 		in
 		let tl = loop [] tl tl' in
-		TFun(tl,if tr == t_dynamic then tr' else tr')
+		TFun(tl,if tr == t_dynamic then tr' else tr)
 	| _ ->
 		TFun(tl',tr')
 
@@ -89,7 +89,9 @@ class explore_class_path_task com checked recursive f_pack f_module dir pack = o
 									let name = String.sub file 0 (l - 3) in
 									try
 										let dot_pos = String.rindex name '.' in
-										if platform_str = String.sub file dot_pos (String.length name - dot_pos) then
+										(* The second extension without the dot, e.g. "js" for Foo.js.hx. *)
+										let second_ext = String.sub file (dot_pos + 1) (String.length name - dot_pos - 1) in
+										if (Option.map_default (fun custom_ext -> custom_ext = second_ext) false com.custom_ext) || platform_str = second_ext then
 											String.sub file 0 dot_pos
 										else
 											raise Exit
@@ -127,10 +129,10 @@ let explore_class_paths com timer class_paths recursive f_pack f_module =
 let read_class_paths com timer =
 	explore_class_paths com timer (com.class_paths#filter (fun cp -> cp#path <> "")) true (fun _ -> ()) (fun file path ->
 		(* Don't parse the display file as that would maybe overwrite the content from stdin with the file contents. *)
-		if not (DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then begin
-			let rfile,_,pack,_ = Display.parse_module' com path Globals.null_pos in
+		if not (DisplayPosition.display_position#is_in_file (com.part_scope.file_keys#get file)) then begin
+			let rfile,_,pack,_,_ = Display.parse_module' com path Globals.null_pos in
 			if pack <> fst path then begin
-				let file_key = com.file_keys#get file in
+				let file_key = com.part_scope.file_keys#get file in
 				(CommonCache.get_cache com)#remove_file_for_real file_key
 			end
 		end
@@ -227,16 +229,10 @@ let is_pack_visible pack =
 let collect ctx tk with_type sort =
 	let cctx = CollectionContext.create ctx in
 	let curpack = fst ctx.c.curclass.cl_path in
-	(* Note: This checks for the explicit `ServerConfig.legacy_completion` setting instead of using
-	   `is_legacy_completion com` because the latter is always false for the old protocol, yet we have
-	   tests which assume advanced completion even in the old protocol. This means that we can only
-	   use "legacy mode" in the new protocol. *)
-	let is_legacy_completion = !ServerConfig.legacy_completion in
 	let packages = Hashtbl.create 0 in
 	let add_package path = Hashtbl.replace packages path true in
 
 	let add item name = add_item cctx item name in
-
 	let add_type mt =
 		match mt with
 		| TClassDecl {cl_kind = KAbstractImpl _ | KModuleFields _} -> ()
@@ -447,17 +443,15 @@ let collect ctx tk with_type sort =
 					()
 			end;
 
-			if not is_legacy_completion then begin
-				(* keywords *)
-				let kwds = [
-					Function; Var; Final; If; Else; While; Do; For; Break; Return; Continue; Switch;
-					Try; New; Throw; Untyped; Cast; Inline;
-				] in
-				List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
+			(* keywords *)
+			let kwds = [
+				Function; Var; Final; If; Else; While; Do; For; Break; Return; Continue; Switch;
+				Try; New; Throw; Untyped; Cast; Inline;
+			] in
+			List.iter (fun kwd -> add(make_ci_keyword kwd) (Some (s_keyword kwd))) kwds;
 
-				(* builtins *)
-				add (make_ci_literal "trace" (tpair (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid)))) (Some "trace")
-			end;
+			(* builtins *)
+			add (make_ci_literal "trace" (tpair (TFun(["value",false,t_dynamic],ctx.com.basic.tvoid)))) (Some "trace");
 		) ();
 	end;
 
@@ -492,13 +486,7 @@ let collect ctx tk with_type sort =
 		List.iter (fun ((file_key,cfile),_) ->
 			let module_name = CompilationCache.get_module_name_of_cfile cfile.c_file_path.file cfile in
 			let dot_path = s_type_path (cfile.c_package,module_name) in
-			(* In legacy mode we only show toplevel types. *)
-			if is_legacy_completion && cfile.c_package <> [] then begin
-				(* And only toplevel packages. *)
-				match cfile.c_package with
-				| [s] -> add_package ([],s)
-				| _ -> ()
-			end else if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
+			if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
 				()
 			else begin
 				ctx.com.module_to_file#add (cfile.c_package,module_name) cfile.c_file_path;
@@ -530,9 +518,7 @@ let collect ctx tk with_type sort =
 	Timer.time ctx.com.timer_ctx ["display";"toplevel sorting"] (fun () ->
 		(* sorting *)
 		let l = DynArray.to_list cctx.items in
-		let l = if is_legacy_completion then
-			List.sort (fun item1 item2 -> compare (get_name item1) (get_name item2)) l
-		else if sort then
+		let l = if sort then
 			Display.sort_fields l with_type tk
 		else
 			l
@@ -561,4 +547,5 @@ let handle_unresolved_identifier ctx i p only_types =
 	) l in
 	let cl = List.sort (fun (_,c1) (_,c2) -> compare c1 c2) cl in
 	let cl = StringError.filter_similar (fun (s,_,_) r -> r <= (min (String.length s) (String.length i)) / 3) cl in
-	ctx.com.display_information.unresolved_identifiers <- (i,p,cl) :: ctx.com.display_information.unresolved_identifiers
+	let cm = DiagnosticsPrinter.make_unresolved_identifier_message i p cl in
+	CompilerMessage.add_module_diagnostic ctx.com ctx.m.curmod cm

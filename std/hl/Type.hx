@@ -114,4 +114,10 @@ enum abstract TypeKind(Int) {
 	@:hlNative("std", "alloc_enum_dyn") public function allocEnum(index:Int, args:NativeArray<Dynamic>, nargs:Int):Dynamic {
 		return null;
 	}
+
+	#if (hl_ver >= version("1.16.0"))
+	@:hlNative("std", "type_data_size") public function getDataSize() : Int {
+		return 0;
+	}
+	#end
 }

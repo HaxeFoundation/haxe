@@ -7,7 +7,7 @@ open Error
 open FieldAccess
 open FieldCallCandidate
 
-let unify_call_args ctx el args r callp inline force_inline in_overload =
+let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inline in_overload =
 	let call_error err p = raise_error_msg (Call_error err) p in
 
 	let arg_error e name opt =
@@ -126,7 +126,8 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 					die "" __LOC__
 			end
 		| [],(_,false,_) :: _ ->
-			call_error (Not_enough_arguments args) callp
+			let tail_p = { callp with pmin = call_field_p.pmin } in
+			call_error (Not_enough_arguments args) tail_p
 		| [],(name,true,t) :: args ->
 			if not ctx.allow_transform then begin
 				ignore(loop [] args);
@@ -150,34 +151,55 @@ let unify_call_args ctx el args r callp inline force_inline in_overload =
 				| (s,ul) :: _ -> arg_error ul s true
 			end
 		| e :: el,(name,opt,t) :: args ->
-			let might_skip = List.length el < List.length args in
+			let body_capture = reset_call_arg_body_capture ctx in
+			let restore_monos = if opt then monomorph_transaction ctx else (fun () -> ()) in
+			let committed = ref false in
+			let commit () = if not !committed then begin committed := true; commit_captured_messages ctx.com !body_capture end in
+			let drop () = committed := true in
+			let might_skip = opt && List.length el < List.length args in
+			let opt_followed_by_rest = opt && match args with
+					| [(_,_,t)] -> ExtType.is_rest (follow t)
+					| _ -> false
+			in
+			let maybe_raise_captured_error () =
+				if might_skip || opt_followed_by_rest then
+					match (List.find_opt (fun cm -> Message.cm_severity cm = Message.MessageSeverity.Error) !body_capture) with
+					| Some cm -> raise (WithTypeError (make_error (Custom cm.cm_message) cm.cm_pos))
+					| None -> ()
+			in
 			begin try
-				let e = type_against name t e in
-				e :: loop el args
-			with
-				WithTypeError ul ->
-					if opt && might_skip then begin
+				begin try
+					let e_typed = type_against name t e in
+					maybe_raise_captured_error();
+					commit();
+					e_typed :: loop el args
+				with WithTypeError ul ->
+					if might_skip || opt_followed_by_rest then begin
+						drop();
+						restore_monos();
 						let e_def = skip name ul t in
 						e_def :: loop (e :: el) args
-					end else
+					end else if !body_capture <> [] && (match follow t with TFun _ -> false | _ -> true) then begin
+						commit();
+						restore_monos();
+						let e_def = default_value name t in
+						e_def :: loop el args
+					end else begin
+						commit();
 						match List.rev !skipped with
 						| [] -> arg_error ul name opt
 						| (s,ul) :: _ -> arg_error ul s true
+					end
+				end
+			with exc ->
+				commit ();
+				raise exc
 			end
 	in
-	let restore =
-		let in_call_args = ctx.f.in_call_args in
-		let in_overload_call_args = ctx.f.in_overload_call_args in
-		ctx.f.in_call_args <- true;
-		ctx.f.in_overload_call_args <- in_overload;
-		(fun () ->
-			ctx.f.in_call_args <- in_call_args;
-			ctx.f.in_overload_call_args <- in_overload_call_args;
-		)
-	in
+	let restore = enter_call_args ctx ~in_overload in
 	let el = try loop el args with exc -> restore(); raise exc; in
 	restore();
-	el,TFun(args,r)
+	el
 
 type overload_kind =
 	| OverloadProper (* @:overload or overload *)
@@ -191,7 +213,7 @@ type overload_kind =
 	Returns a tuple of a part of `args` covered by `el_typed`, and a part of `args`
 	not used for `el_typed` unification.
 *)
-let unify_typed_args ctx tmap args el_typed call_pos =
+let unify_typed_args tmap args el_typed call_pos =
 	let rec loop acc_args tmap args el =
 		match args,el with
 		| [], _ :: _ ->
@@ -209,6 +231,45 @@ let unify_typed_args ctx tmap args el_typed call_pos =
 			loop (arg :: acc_args) (fun t -> t) args el
 	in
 	loop [] tmap args el_typed
+
+let ensure_coro_availability com =
+	(* In cases where we never actually built a coro state machine, the SuspensionResult structure might
+	   not have been initialized yet. This would normally be handled via the pass flushing in `load_module`,
+	   but because all coro data is loaded from a `build-module` pass, this doesn't trigger in time. *)
+	ignore ((AtomicLazy.force com.basic.tcoro.suspension_result_class).cl_build())
+
+(* Wrap a coroutine call expression from a non-coroutine context with a `.resolveTo(cont)` call.
+   This ensures that if the coroutine completes synchronously, its result or error is propagated
+   to the continuation immediately. If the continuation expression `econt` is not pure (e.g. a
+   constructor call), a temp var is introduced to avoid evaluating it twice. *)
+let wrap_with_resolve_to com ecall econt p =
+	let basic = com.basic in
+	let b = new CoroElsewhere.texpr_builder basic p in
+	let suspension_result_class = AtomicLazy.force basic.tcoro.suspension_result_class in
+	let t_param = match follow ecall.etype with TInst(_, [t]) -> t | _ -> die "Expected SuspensionResult with one type parameter for coroutine call result" __LOC__ in
+	let resolve_to_cf = PMap.find "resolveTo" suspension_result_class.cl_fields in
+	let resolve_to_type = apply_params suspension_result_class.cl_params [t_param] resolve_to_cf.cf_type in
+	let make_resolve_call ecall econt =
+		let efield = b#instance_field ecall suspension_result_class [t_param] resolve_to_cf resolve_to_type in
+		b#call efield [econt] basic.tvoid
+	in
+	let is_pure e = match e.eexpr with TLocal _ | TConst _ -> true | _ -> false in
+	if is_pure econt then
+		make_resolve_call ecall econt
+	else begin
+		(* Introduce a temp var for the continuation so it is evaluated exactly once, and replace
+		   its occurrence in ecall's argument list with a reference to the local var. *)
+		let v = alloc_var VGenerated "_hx_cont" econt.etype econt.epos in
+		let elocal = b#local v v.v_pos in
+		let new_ecall = match ecall.eexpr with
+			| TCall(ef, _ :: rest) -> { ecall with eexpr = TCall(ef, elocal :: rest) }
+			| _ -> die "Expected TCall with at least one argument (continuation)" __LOC__
+		in
+		b#void_block [
+			b#var_init v econt;
+			make_resolve_call new_ecall elocal
+		]
+	end
 
 let unify_field_call ctx fa el_typed el p inline =
 	let expand_overloads cf =
@@ -239,7 +300,7 @@ let unify_field_call ctx fa el_typed el p inline =
 		else if fa.fa_field.cf_overloads <> [] then OverloadMeta
 		else OverloadNone
 	in
-	(* Delayed display handling works like this: If ctx.e.in_overload_call_args is set (via attempt_calls calling unify_call_args' below),
+	(* Delayed display handling works like this: If in_overload_call_args is set (via attempt_calls calling unify_call_args' below),
 	   the code which normally raises eager Display exceptions (in typerDisplay.ml handle_display) instead stores them in ctx.g.delayed_display.
 	   The overload handling here extracts them and associates the exception with the field call candidates. Afterwards, normal overload resolution
 	   can take place and only then the display callback is actually committed.
@@ -286,24 +347,44 @@ let unify_field_call ctx fa el_typed el p inline =
 	let attempt_call cf in_overload =
 		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
-		match follow t with
-		| TFun(args,ret) ->
-			let args_typed,args = unify_typed_args ctx tmap args el_typed p in
-			let el,_ =
+		let make args ret coro =
+			let args_typed,args = unify_typed_args tmap args el_typed p in
+			let el =
 				try
-					unify_call_args ctx el args ret p inline is_forced_inline in_overload
+					unify_call_args ctx el args ret ?call_field_p:fa.fa_field_pos p inline is_forced_inline in_overload
 				with DisplayException.DisplayException de ->
 					raise_augmented_display_exception cf de;
 			in
 			(* here *)
 			let el = el_typed @ el in
-			let tf = TFun(args_typed @ args,ret) in
+			let args = (args_typed @ args) in
+			let tf = if coro then (AtomicLazy.force ctx.t.tcoro.tcoro) args ret else TFun(args,ret) in
 			let mk_call () =
 				let ef = mk (TField(fa.fa_on,FieldAccess.apply_fa cf fa.fa_host)) t fa.fa_pos in
 				!make_call_ref ctx ef el ret ~force_inline:inline p
 			in
 			make_field_call_candidate el ret monos tf cf (mk_call,extract_delayed_display())
-		| t ->
+		in
+		match follow_with_coro t with
+		| Coro(args,ret) when not (TyperManager.is_coroutine_context ctx) ->
+			let args, ret = expand_coro_type ctx.com.basic args ret in
+			ensure_coro_availability ctx.com;
+			let fcc = make args ret false in
+			begin match fcc with
+				| { fc_args = econt :: _; fc_data = (original_mk_call,_) } ->
+					let wrapped_mk_call () =
+						let ecall = original_mk_call () in
+						wrap_with_resolve_to ctx.com ecall econt p
+					in
+					{ fcc with fc_data = (wrapped_mk_call, snd fcc.fc_data) }
+				| _ ->
+					raise_typing_error "Unexpected overload candidate without arguments for coroutine call" p
+			end
+		| Coro(args,ret) ->
+			make args ret true
+		| NotCoro (TFun(args,ret)) ->
+			make args ret false
+		| NotCoro t ->
 			raise_typing_error (s_type (print_context()) t ^ " cannot be called") p
 	in
 	let unknown_ident_error = ref None in
@@ -343,8 +424,9 @@ let unify_field_call ctx fa el_typed el p inline =
 					) known_monos;
 					ctx.e.monomorphs <- current_monos;
 					check_unknown_ident err;
+					let delayed_display = extract_delayed_display() in
 					let candidates,failures = loop candidates in
-					candidates,(cf,err,extract_delayed_display()) :: failures
+					candidates,(cf,err,delayed_display) :: failures
 				end
 		in
 		loop candidates
@@ -407,13 +489,12 @@ let unify_field_call ctx fa el_typed el p inline =
 				| None ->
 					let sub = List.fold_left (fun acc (cf,err) ->
 						(make_error
-							~depth:1 (* pretty much optional here *)
 							~sub:[err]
 							(Custom ("Overload resolution failed for " ^ (s_type (print_context()) cf.cf_type)))
 							p
 						) :: acc
 					) [] failures in
-					let sub = (make_error ~depth:1 (Custom "End of overload failure reasons") p) :: sub in
+					let sub = (make_error (Custom "End of overload failure reasons") p) :: sub in
 					raise_typing_error_ext (make_error ~sub (Custom "Could not find a suitable overload, reasons follow") p)
 				| Some err ->
 					raise_typing_error_ext err
@@ -428,7 +509,7 @@ let unify_field_call ctx fa el_typed el p inline =
 			| fcc :: l ->
 				let st = s_type (print_context()) in
 				let sub = List.map (fun fcc ->
-					make_error ~depth:1 (Custom (compl_msg (st fcc.fc_type))) fcc.fc_field.cf_name_pos
+					make_error (Custom (compl_msg (st fcc.fc_type))) fcc.fc_field.cf_name_pos
 				) (fcc :: l) in
 				display_error_ext ctx.com (make_error (Custom "Ambiguous overload, candidates follow") ~sub:(List.rev sub) p);
 				commit_delayed_display fcc
@@ -512,7 +593,7 @@ object(self)
 				if ep = null_pos then
 					old { err with err_pos = p }
 				else
-					old { err with err_sub = (make_error ~depth:(err.err_depth+1) (Custom (compl_msg "Called from macro here")) p) :: err.err_sub }
+					old { err with err_sub = (make_error (Custom (compl_msg "Called from macro here")) p) :: err.err_sub }
 			end else
 				old err;
 		);
@@ -537,19 +618,35 @@ object(self)
 				t_dynamic
 			else if ctx.f.untyped then
 				mk_mono()
-			else
-				raise_typing_error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
+			else (
+				let pos = match e.eexpr with
+					| TField(_,(FAnon cf | FInstance (_,_,cf) | FStatic (_,cf) | FClosure (_,cf))) ->
+						patch_string_pos e.epos cf.cf_name
+					| _ -> e.epos
+				in
+				raise_typing_error (s_type (print_context()) e.etype ^ " cannot be called") pos
+			)
 			in
 			mk (TCall (e,el)) t p
 		in
-		let rec loop t = match follow t with
-		| TFun (args,r) ->
-			let args_typed,args_left = unify_typed_args ctx (fun t -> t) args el_typed p in
-			let el, tfunc = unify_call_args ctx el args_left r p false false false in
+		let make args ret =
+			let args_typed,args_left = unify_typed_args (fun t -> t) args el_typed p in
+			let el = unify_call_args ctx el args_left ret p false false false in
 			let el = el_typed @ el in
-			let r = match tfunc with TFun(_,r) -> r | _ -> die "" __LOC__ in
-			mk (TCall (e,el)) r p
-		| TAbstract(a,tl) as t ->
+			mk (TCall (e,el)) ret p
+		in
+		let rec loop t = match follow_with_coro t with
+		| Coro(args,ret) when not (TyperManager.is_coroutine_context ctx) ->
+			let args, ret = expand_coro_type ctx.com.basic args ret in
+			ensure_coro_availability ctx.com;
+			let ecall = make args ret in
+			let econt = (match ecall.eexpr with TCall(_, econt :: _) -> econt | _ -> die "Expected TCall with at least one argument (continuation)" __LOC__) in
+			wrap_with_resolve_to ctx.com ecall econt p
+		| Coro(args,ret) ->
+			make args ret
+		| NotCoro(TFun(args,ret)) ->
+			make args ret
+		| NotCoro(TAbstract(a,tl) as t) ->
 			let check_callable () =
 				if Meta.has Meta.Callable a.a_meta then
 					loop (Abstract.get_underlying_type a tl)
@@ -564,12 +661,12 @@ object(self)
 			| _ ->
 				check_callable();
 			end
-		| TMono _ ->
+		| NotCoro (TMono _)->
 			let t = mk_mono() in
 			let el = el_typed @ List.map (fun e -> type_expr ctx e WithType.value) el in
 			unify ctx (tfun (List.map (fun e -> e.etype) el) t) e.etype e.epos;
 			mk (TCall (e,el)) t p
-		| t ->
+		| NotCoro t ->
 			default t
 		in
 		loop e.etype
@@ -626,34 +723,12 @@ object(self)
 			end;
 		| Var v ->
 			begin match (if is_set then v.v_write else v.v_read) with
-			| AccCall ->
+			| AccCall | AccPrivateCall ->
 				self#accessor_call fa el_typed el
 			| _ ->
 				self#expr_call (FieldAccess.get_field_expr fa FCall) el_typed el
 			end
 end
-
-let maybe_reapply_overload_call ctx e =
-	match e.eexpr with
-		| TCall({eexpr = TField(e1,fa)} as ef,el) ->
-			let recall fh cf =
-				let fa = FieldAccess.create e1 cf fh false ef.epos in
-				let fcc = unify_field_call ctx fa el [] e.epos false in
-				let e1 = fcc.fc_data() in
-				(try Type.unify e1.etype e.etype
-				with Unify_error _ -> die ~p:e.epos "Failed to reapply overload call" __LOC__);
-				e1
-			in
-			begin match fa with
-			| FStatic(c,cf) when has_class_field_flag cf CfOverload ->
-				recall (FHStatic c) cf
-			| FInstance(c,tl,cf) when has_class_field_flag cf CfOverload ->
-				recall (FHInstance(c,tl)) cf
-			| _ ->
-				e
-			end
-		| _ ->
-			e
 
 let make_static_call_better ctx c cf tl el t p =
 	let fh = match c.cl_kind with

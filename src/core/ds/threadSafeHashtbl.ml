@@ -9,13 +9,13 @@ let create size = {
 }
 
 let add h k v =
-	Mutex.protect h.mutex (fun () -> Hashtbl.add h.h k) v
+	Mutex.protect h.mutex (fun () -> Hashtbl.add h.h k v)
 
 let replace h k v =
-	Mutex.protect h.mutex (fun () -> Hashtbl.replace h.h k) v
+	Mutex.protect h.mutex (fun () -> Hashtbl.replace h.h k v)
 
 let find h k =
-	Mutex.protect h.mutex (fun () -> Hashtbl.find h.h) k
+	Mutex.protect h.mutex (fun () -> Hashtbl.find h.h k)
 
 let find_or_add h k f =
 	Mutex.lock h.mutex;
@@ -30,10 +30,10 @@ let find_or_add h k f =
 		r
 
 let mem h k =
-	Mutex.protect h.mutex (fun () -> Hashtbl.mem h.h) k
+	Mutex.protect h.mutex (fun () -> Hashtbl.mem h.h k)
 
 let remove h k =
-	Mutex.protect h.mutex (fun () -> Hashtbl.remove h.h) k
+	Mutex.protect h.mutex (fun () -> Hashtbl.remove h.h k)
 
 let fold f h acc =
-	Mutex.protect h.mutex (fun () -> Hashtbl.fold f h.h) acc
+	Mutex.protect h.mutex (fun () -> Hashtbl.fold f h.h acc)

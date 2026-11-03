@@ -51,8 +51,9 @@ extern class Exception {
 	/**
 		The call stack at the moment of the exception creation.
 	**/
-	public var stack(get,never):CallStack;
+	public var stack(get,set):CallStack;
 	private function get_stack():CallStack;
+	private function set_stack(stack:CallStack):CallStack;
 
 	/**
 		Contains an exception, which was passed to `previous` constructor argument.

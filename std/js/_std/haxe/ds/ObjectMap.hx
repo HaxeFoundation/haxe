@@ -86,6 +86,10 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 	public inline function clear():Void {
 		m.clear();
 	}
+
+	public inline function size():Int {
+		return m.size;
+	}
 }
 #else
 @:coreApi
@@ -183,6 +187,12 @@ class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 
 	public inline function clear():Void {
 		h = {__keys__: {}};
+	}
+
+	public inline function size():Int {
+		var s:Any = 0;
+		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}++", h.__keys__, s);
+		return s;
 	}
 }
 #end

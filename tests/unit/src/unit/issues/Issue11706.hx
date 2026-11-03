@@ -1,7 +1,6 @@
 package unit.issues;
 
 import utest.Assert;
-import utest.UTest;
 
 @:callable
 private abstract EndFun(Void->Void) {

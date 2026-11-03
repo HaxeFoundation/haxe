@@ -1,0 +1,7 @@
+
+<pkg-info format-version="2" identifier="org.haxe.haxeToolkit.haxe.pkg" version="%%VERSION%%" install-location="/tmp/haxe" auth="root">
+    <payload installKBytes="%%INSTKB%%" numberOfFiles="5"/>
+    <scripts>
+        <postinstall file="./postinstall"/>
+    </scripts>
+</pkg-info>

@@ -22,6 +22,8 @@
 
 package haxe.io;
 
+import haxe.Int32;
+
 @:coreApi
 class Bytes {
 	public var length(default, null):Int;
@@ -34,11 +36,11 @@ class Bytes {
 	}
 
 	inline function out(pos:Int):Bool {
-		return (pos : UInt) >= (length : UInt);
+		return (pos : haxe.UInt32) >= (length : haxe.UInt32);
 	}
 
 	inline function outRange(pos:Int, len:Int):Bool {
-		return pos < 0 || len < 0 || ((pos + len) : UInt) > (length : UInt);
+		return pos < 0 || len < 0 || ((pos + len) : haxe.UInt32) > (length : haxe.UInt32);
 	}
 
 	public function get(pos:Int):Int {
@@ -147,17 +149,17 @@ class Bytes {
 		b.setUI16(pos, v);
 	}
 
-	public function getInt32(pos:Int):Int {
+	public function getInt32(pos:Int):Int32 {
 		return if (out(pos + 3)) 0 else b.getI32(pos);
 	}
 
 	public function getInt64(pos:Int):haxe.Int64 {
 		if (out(pos + 7))
-			return haxe.Int64.ofInt(0);
+			return haxe.Int64.fromInt(0);
 		return haxe.Int64.make(b.getI32(pos + 4), b.getI32(pos));
 	}
 
-	public function setInt32(pos:Int, v:Int):Void {
+	public function setInt32(pos:Int, v:Int32):Void {
 		if (out(pos + 3))
 			throw Error.OutsideBounds;
 		b.setI32(pos, v);
@@ -191,14 +193,11 @@ class Bytes {
 
 	public function toHex():String {
 		var s = new StringBuf();
-		var chars = [];
 		var str = "0123456789abcdef";
-		for (i in 0...str.length)
-			chars.push(str.charCodeAt(i));
 		for (i in 0...length) {
 			var c = get(i);
-			s.addChar(chars[c >> 4]);
-			s.addChar(chars[c & 15]);
+			s.addChar(StringTools.fastCodeAt(str,c >> 4));
+			s.addChar(StringTools.fastCodeAt(str,c & 15));
 		}
 		return s.toString();
 	}

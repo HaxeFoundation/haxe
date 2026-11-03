@@ -1,6 +1,6 @@
 open Globals
 open Common
-open CompilationContext
+open ParsedArg
 open DisplayProcessingGlobals
 
 type display_path_kind =
@@ -12,93 +12,21 @@ type display_path_kind =
 
 (* 1. Argument processing from --display *)
 
-let handle_display_argument_old com file_pos actx =
-	match file_pos with
-	| "classes" ->
-		actx.pre_compilation <- (fun() -> raise (Parser.TypePath (["."],None,true,null_pos))) :: actx.pre_compilation;
-	| "keywords" ->
-		raise (Completion (DisplayOutput.print_keywords ()))
-	| "memory" ->
-		actx.did_something <- true;
-		(try DisplayMemory.display_memory com with e -> prerr_endline (Printexc.get_backtrace ()));
-	| "diagnostics" ->
-		com.report_mode <- RMLegacyDiagnostics []
-	| _ ->
-		let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format: " ^ file_pos) in
-		let file = Helper.unquote file in
-		let file_unique = com.file_keys#get file in
-		let pos, smode = try ExtString.String.split pos "@" with _ -> pos,"" in
-		let create mode =
-			DisplayTypes.DisplayMode.create mode
-		in
-		let dm = match smode with
-			| "position" ->
-				create DMDefinition
-			| "usage" ->
-				create (DMUsage (false,false,false))
-			| "package" ->
-				create DMPackage
-			| "type" ->
-				create DMHover
-			| "toplevel" ->
-				create DMDefault
-			| "module-symbols" ->
-				create (DMModuleSymbols None)
-			| "diagnostics" ->
-				com.report_mode <- RMLegacyDiagnostics [file_unique];
-				let dm = create DMNone in
-				{dm with dms_display_file_policy = DFPOnly; dms_per_file = true; dms_populate_cache = false}
-			| "statistics" ->
-				com.report_mode <- RMStatistics;
-				let dm = create DMNone in
-				{dm with dms_display_file_policy = DFPAlso; dms_error_policy = EPIgnore; dms_per_file = true}
-			| "signature" ->
-				create DMSignature
-			| "" ->
-				create DMDefault
-			| _ ->
-				let smode,arg = try ExtString.String.split smode "@" with _ -> pos,"" in
-				match smode with
-					| "workspace-symbols" ->
-						create (DMModuleSymbols (Some arg))
-					| _ ->
-						create DMDefault
-		in
-		let pos = try int_of_string pos with _ -> failwith ("Invalid format: "  ^ pos) in
-		com.display <- dm;
-		if not com.display.dms_full_typing then Common.define_value com Define.Display (if smode <> "" then smode else "1");
-		DisplayPosition.display_position#set {
-			pfile = Path.get_full_path file;
-			pmin = pos;
-			pmax = pos;
-		}
-
-let process_display_arg ctx actx =
-	match actx.display_arg with
-	| Some input ->
-		let input = String.trim input in
-		if String.length input > 0 && (input.[0] = '[' || input.[0] = '{') then begin
-			actx.did_something <- true;
-			actx.force_typing <- true;
-			DisplayJson.parse_input ctx.com input
-		end else
-			handle_display_argument_old ctx.com input actx;
-	| None ->
-		()
+let process_display_arg com actx =
+	let result_handler = com.request_scope.result_handler in
+	result_handler.set_com com
 
 (* 2. Compilation start, setup display configuration in context *)
 
-let process_display_configuration ctx =
-	let com = ctx.com in
+let process_display_configuration com =
 	if is_diagnostics com then begin
-		com.info <- (fun ?depth ?from_macro s p ->
-			add_diagnostics_message ?depth com s p DKCompilerMessage Information
+		com.info <- (fun ?(depth = 0) s p ->
+			add_diagnostics_message ~depth com s p MKInfo
 		);
-		com.warning <- (fun ?(depth = 0) ?from_macro w options s p ->
+		com.warning <- (fun ?(depth = 0) w options s p ->
 			match Warning.get_mode w (options @ com.warning_options) with
 			| WMEnable ->
-				let wobj = Warning.warning_obj w in
-				add_diagnostics_message ~depth ~code:(Some wobj.w_name) com s p DKCompilerMessage Warning
+				add_diagnostics_message ~depth com s p (MKWarning(w,options))
 			| WMDisable ->
 				()
 		);
@@ -148,7 +76,7 @@ let process_display_file com actx =
 				let real = Path.get_real_path (Path.UniqueKey.to_string file_key) in
 				let dpk = match get_module_path_from_file_path com real with
 				| Some path ->
-					if com.display.dms_kind = DMPackage then DisplayException.raise_package (fst path);
+					if com.display.dms_kind = DMPackage then DisplayException.send_package_raise com (fst path);
 					let dpk = match ExtString.String.nsplit (snd path) "." with
 						| [name;"macro"] ->
 							(* If we have a .macro.hx path, don't add the file to classes because the compiler won't find it.
@@ -207,7 +135,7 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 			let _ = MacroContext.load_macro_module (MacroContext.get_macro_context tctx) tctx.com cpath true p in
 			Finalization.finalize mctx;
 			Some mctx
-		with DisplayException.DisplayException _ | Parser.TypePath _ as exc ->
+		with DisplayException.DisplayException _ | Parser.TypePath _ | DisplayJson.JsonCompleted as exc ->
 			raise exc
 		| _ ->
 			None
@@ -217,7 +145,7 @@ let load_display_module_in_macro tctx display_file_dot_path clear = match displa
 
 let load_display_file_standalone (ctx : Typecore.typer) file =
 	let com = ctx.com in
-	let pack,decls = TypeloadParse.parse_module_file com (ClassPaths.create_resolved_file file ctx.com.empty_class_path) null_pos in
+	let (pack,decls),_ = TypeloadParse.parse_module_file com (ClassPaths.create_resolved_file file ctx.com.empty_class_path) null_pos in
 	let path = Path.FilePath.parse file in
 	let name = match path.file_name with
 		| None -> "?DISPLAY"
@@ -239,7 +167,7 @@ let load_display_content_standalone (ctx : Typecore.typer) input =
 	let file = file_input_marker in
 	let p = file_pos file in
 	let parsed = TypeloadParse.parse_file_from_string com file p input in
-	let pack,decls = TypeloadParse.handle_parser_result com p parsed in
+	let (pack,decls),_ = TypeloadParse.handle_parser_result com p parsed in
 	ignore(TypeloadModule.type_module ctx.com ctx.g (pack,"?DISPLAY") file ~dont_check_path:true decls p)
 
 (* 4. Display processing before typing *)
@@ -261,24 +189,25 @@ let maybe_load_display_file_before_typing tctx display_file_dot_path = match dis
 
 (* 5. Display processing after typing *)
 
-let handle_display_after_typing ctx tctx display_file_dot_path =
-	let com = ctx.com in
-	if ctx.com.display.dms_kind = DMNone && ctx.has_error then raise Abort;
-	begin match ctx.com.display.dms_kind,Atomic.get ctx.com.parser_state.delayed_syntax_completion with
+let handle_display_after_typing com tctx display_file_dot_path =
+	if com.display.dms_kind = DMNone && com.part_scope.has_error && Common.is_compilation com then
+		true
+	else begin
+	begin match com.display.dms_kind,Atomic.get com.part_scope.parser_state.delayed_syntax_completion with
 		| DMDefault,Some(kind,subj) -> DisplayOutput.handle_syntax_completion com kind subj
 		| _ -> ()
 	end;
-	if ctx.com.display.dms_exit_during_typing then begin
-		if ctx.has_next || ctx.has_error then raise Abort;
+	if com.display.dms_exit_during_typing then begin
+		if com.part_scope.has_next || Common.has_error_to_report com then
+			true
+		else begin
 		(* If we didn't find a completion point, load the display file in macro mode. *)
-		if com.display_information.display_module_has_macro_defines then
+		if com.part_scope.parser_state.display_module_has_macro_defines then
 			ignore(load_display_module_in_macro tctx display_file_dot_path true);
-		let no_completion_point_found = "No completion point was found" in
-		match com.json_out with
-		| Some _ ->
-			raise (DisplayException.DisplayException DisplayNoResult)
-		| None ->
-			failwith no_completion_point_found;
+		DisplayException.send_no_result_raise com
+		end
+	end else
+		false
 	end
 
 (* 6. Display processing after finalization *)
@@ -313,25 +242,24 @@ let process_global_display_mode com tctx =
 			let l = cs#get_context_files ((Define.get_signature com.defines) :: (match com.get_macros() with None -> [] | Some com -> [Define.get_signature com.defines])) in
 			List.fold_left (fun acc (file_key,cfile) ->
 				let file = cfile.c_file_path.file in
-				if (filter <> None || DisplayPosition.display_position#is_in_file (com.file_keys#get file)) then
+				if (filter <> None || DisplayPosition.display_position#is_in_file (com.part_scope.file_keys#get file)) then
 					(file,DocumentSymbols.collect_module_symbols (Some (file,get_module_name_of_cfile file cfile)) (filter = None) (cfile.c_package,cfile.c_decls)) :: acc
 				else
 					acc
 			) [] l
 		in
-		DisplayException.raise_module_symbols (DocumentSymbols.Printer.print_module_symbols com symbols filter)
+		DisplayException.send_module_symbols_raise com (DocumentSymbols.Printer.json_of_module_symbols com symbols filter)
 	| _ -> ()
 
-let handle_display_after_finalization ctx tctx display_file_dot_path =
-	let com = ctx.com in
+let handle_display_after_finalization com tctx display_file_dot_path =
 	(* Special case for diagnostics: We don't want to load the display file in macro mode because there's a chance it might not be
 		macro-compatible. This means that we might some macro-specific diagnostics, but I don't see what we could do about that. *)
 	let should_load_in_macro =
 		(* Special case for the special case: If the display file has a block which becomes active if `macro` is defined, we can safely
 			type the module in macro context. (#8682). *)
-		not (is_diagnostics com) || com.display_information.display_module_has_macro_defines
+		not (is_diagnostics com) || com.part_scope.parser_state.display_module_has_macro_defines
 	in
-	if ctx.com.display.dms_force_macro_typing && should_load_in_macro then begin
+	if com.display.dms_force_macro_typing && should_load_in_macro then begin
 		match load_display_module_in_macro tctx display_file_dot_path false with
 		| None -> ()
 		| Some mctx ->
@@ -341,9 +269,7 @@ let handle_display_after_finalization ctx tctx display_file_dot_path =
 			mctx.Typecore.com.Common.modules <- modules
 	end;
 	process_global_display_mode com tctx;
-	begin match com.report_mode with
-	| RMLegacyDiagnostics _ ->
-		DisplayOutput.emit_legacy_diagnostics com
+	begin match com.part_scope.report_mode with
 	| RMDiagnostics _ ->
 		DisplayOutput.emit_diagnostics com
 	| RMStatistics ->

@@ -16,55 +16,9 @@
 	along with this program; if not, write to the Free Software
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *)
-open Globals
 open SafeCom
 open Type
 open LocalUsage
-
-let get_wrapper_implementation com =
-	let t = com.Common.basic in
-	match com.platform with
-	(* optimized version for Java - use native arrays *)
-	| Jvm ->
-		let cnativearray =
-			match (List.find (fun md -> match md with
-					| TClassDecl ({ cl_path = ["jvm"],"NativeArray" }) -> true
-					| _ -> false
-				) com.types)
-			with TClassDecl cl -> cl | _ -> die "" __LOC__
-		in
-
-		object
-			method captured_type t = TInst (cnativearray,[t])
-
-			method mk_ref v ve p =
-				match ve with
-				| None ->
-					let eone = mk (TConst (TInt (Int32.of_int 1))) t.tint p in
-					let t = match v.v_type with TInst (_, [t]) -> t | _ -> die "" __LOC__ in
-					mk (TNew (cnativearray,[t],[eone])) v.v_type p
-				| Some e ->
-					{ (Inline.mk_untyped_call "__array__" p [e]) with etype = v.v_type }
-
-			method mk_ref_access e v =
-				mk (TArray ({ e with etype = v.v_type }, mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
-
-			method mk_init av v pos =
-				let elocal = mk (TLocal v) v.v_type pos in
-				let earray = { (Inline.mk_untyped_call "__array__" pos [elocal]) with etype = av.v_type } in
-				mk (TVar (av,Some earray)) t.tvoid pos
-		end
-	(* default implementation - use haxe array *)
-	| _ ->
-		object
-			method captured_type = t.tarray
-			method mk_ref v ve p =
-				mk (TArrayDecl (match ve with None -> [] | Some e -> [e])) v.v_type p
-			method mk_ref_access e v =
-				mk (TArray ({ e with etype = v.v_type }, mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
-			method mk_init av v pos =
-				mk (TVar (av,Some (mk (TArrayDecl [mk (TLocal v) v.v_type pos]) av.v_type pos))) t.tvoid pos
-		end
 
 (* BLOCK VARIABLES CAPTURE *)
 (*
@@ -84,7 +38,7 @@ let get_wrapper_implementation com =
 		funs.push(function(x) { function() return x[0]++; }(x));
 	}
 *)
-let captured_vars scom impl e =
+let captured_vars scom impl for_coro e =
 
 	let mk_var v used =
 		let v2 = alloc_var v.v_kind v.v_name (PMap.find v.v_id used) v.v_pos in
@@ -183,6 +137,8 @@ let captured_vars scom impl e =
 				let vt = v.v_type in
 				v.v_type <- impl#captured_type vt;
 				add_var_flag v VCaptured;
+				if for_coro then
+					add_var_flag v VCoroCaptured;
 				vt
 			) used in
 			wrap used e
@@ -225,8 +181,26 @@ let captured_vars scom impl e =
 	and all_vars e =
 		let vars = ref PMap.empty in
 		let used = ref PMap.empty in
+		let in_loop = ref false in
+		let loop_vars = ref PMap.empty in
 		let assigned = ref PMap.empty in
 		let depth = ref 0 in
+		let mark_assigned v =
+			assigned := PMap.add v.v_id v !assigned;
+			(* Remove from vars lookup because we're done with it *)
+			vars := PMap.remove v.v_id !vars;
+		in
+		let check_loop_var v is_assign =
+			try
+				let is_assign' = PMap.find v.v_id !loop_vars in
+				(* If we have both read and write in the same loop we need to wrap. *)
+				if is_assign <> is_assign' then mark_assigned v
+			with Not_found ->
+				loop_vars := PMap.add v.v_id is_assign !loop_vars
+		in
+		let check_loop_var v is_assign =
+			if !in_loop then check_loop_var v is_assign
+		in
 		let rec collect_vars = function
 		| Block f ->
 			let old = !vars in
@@ -234,20 +208,27 @@ let captured_vars scom impl e =
 			vars := old;
 		| Loop f ->
 			let old = !vars in
+			let old_loop_vars = !loop_vars in
+			let old_loop = !in_loop in
+			in_loop := true;
 			f collect_vars;
+			in_loop := old_loop;
+			loop_vars := old_loop_vars;
 			vars := old;
 		| Function f ->
 			incr depth;
 			f collect_vars;
 			decr depth;
+		| Declare v when not for_coro && has_var_flag v VCoroCaptured ->
+			()
 		| Declare v ->
 			vars := PMap.add v.v_id !depth !vars;
 		| Use v ->
 			(try
 				let d = PMap.find v.v_id !vars in
 				if d <> !depth then begin
+					check_loop_var v false;
 					used := PMap.add v.v_id v !used;
-					if has_var_flag v VAssigned then assigned := PMap.add v.v_id v !assigned;
 				end
 			with Not_found -> ())
 		| Assign v ->
@@ -256,19 +237,18 @@ let captured_vars scom impl e =
 				(* different depth - needs wrap *)
 				if d <> !depth then begin
 					used := PMap.add v.v_id v !used;
-					assigned := PMap.add v.v_id v !assigned;
-				end
+					mark_assigned v
 				(* same depth but assigned after being used on a different depth - needs wrap *)
-				else if PMap.mem v.v_id !used then
-					assigned := PMap.add v.v_id v !assigned
+				end else if PMap.mem v.v_id !used then
+					mark_assigned v
 				else
-					add_var_flag v VAssigned;
+					check_loop_var v true
 			with Not_found -> ())
 		in
 		local_usage collect_vars e;
 
 		(* mark all capture variables - also used in rename_local_vars at later stage *)
-		PMap.iter (fun _ v -> add_var_flag v VCaptured) !used;
+		PMap.iter (fun _ v -> add_var_flag v VCaptured; if for_coro then add_var_flag v VCoroCaptured) !used;
 
 		!assigned
 	in

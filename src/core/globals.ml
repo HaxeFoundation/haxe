@@ -19,6 +19,15 @@ module IntHashtbl = Hashtbl.Make(struct
 	let hash = Int.hash
 end)
 
+module Int64Hashtbl = Hashtbl.Make(struct
+	type t = Signed.Int64.t
+
+	let equal =
+		Signed.Int64.equal
+
+	let hash = Hashtbl.hash
+end)
+
 module StringHashtbl = Hashtbl.Make(struct
 	type t = string
 
@@ -56,7 +65,7 @@ let version = 5000
 let version_major = version / 1000
 let version_minor = (version mod 1000) / 100
 let version_revision = (version mod 100)
-let version_pre = Some "alpha.1"
+let version_pre = Some "preview.1"
 
 let file_pos file = { pfile = file; pmin = 0; pmax = 0 }
 let fake_pos p = { pfile = p; pmin = -1; pmax = -1 }
@@ -176,6 +185,9 @@ let gen_local_prefix = "`"
 (* msg * backtrace *)
 exception Ice of string * string
 
+(* Raised to cooperatively cancel an ongoing compiler operation *)
+exception Cancelled
+
 (**
 	Terminates compiler process and prints user-friendly instructions about filing an issue.
 	Usage: `die message __LOC__`, where `__LOC__` is a built-in ocaml constant
@@ -204,77 +216,5 @@ let dump_callstack () =
 
 let dump_backtrace () =
 	print_endline (Printexc.raw_backtrace_to_string (Printexc.get_raw_backtrace ()))
-
-module MessageSeverity = struct
-	type t =
-		| Error
-		| Warning
-		| Information
-		| Hint
-
-	let to_int = function
-		| Error -> 1
-		| Warning -> 2
-		| Information -> 3
-		| Hint -> 4
-end
-
-module MessageKind = struct
-	type t =
-		| DKUnusedImport
-		| DKUnresolvedIdentifier
-		| DKCompilerMessage
-		| DKReplacableCode
-		| DKParserError
-		| DKDeprecationWarning
-		| DKInactiveBlock
-		| DKMissingFields
-
-	let to_int = function
-		| DKUnusedImport -> 0
-		| DKUnresolvedIdentifier -> 1
-		| DKCompilerMessage -> 2
-		| DKReplacableCode -> 3
-		| DKParserError -> 4
-		| DKDeprecationWarning -> 5
-		| DKInactiveBlock -> 6
-		| DKMissingFields -> 7
-end
-
-type compiler_message = {
-	cm_message : string;
-	cm_pos : pos;
-	cm_depth : int;
-	cm_from_macro : bool;
-	cm_kind : MessageKind.t;
-	cm_severity : MessageSeverity.t;
-}
-
-let make_compiler_message ?(from_macro = false) msg p depth kind sev = {
-	cm_message = msg;
-	cm_pos = p;
-	cm_depth = depth;
-	cm_from_macro = from_macro;
-	cm_kind = kind;
-	cm_severity = sev;
-}
-
-type diagnostic = {
-	diag_message : string;
-	diag_code : string option;
-	diag_pos : pos;
-	diag_kind : MessageKind.t;
-	diag_severity : MessageSeverity.t;
-	diag_depth : int;
-}
-
-let make_diagnostic ?(depth = 0) ?(code = None) message pos kind sev = {
-	diag_message = message;
-	diag_pos = pos;
-	diag_code = code;
-	diag_kind = kind;
-	diag_severity = sev;
-	diag_depth = depth;
-}
 
 let i32_31 = Int32.of_int 31

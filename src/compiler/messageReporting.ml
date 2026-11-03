@@ -1,65 +1,44 @@
 open Extlib_leftovers
 open Globals
+open Message
 open Common
-open CompilationContext
 
-let resolve_source file l1 p1 l2 p2 =
-	if l1 = l2 && p1 = p2 && l1 = 1 && p1 = 1 then []
-	else begin
-		let ch = open_in_bin file in
-		let curline = ref 1 in
-		let lines = ref [] in
-		let rec loop p line =
-			let inc i line =
-				if (!curline >= l1) && (!curline <= l2) then lines := (!curline, line) :: !lines;
-				incr curline;
-				(i, "")
-			in
-
-			let input_char_or_done ch line =
-				try input_char ch with End_of_file -> begin
-					ignore(inc 0 line);
-					raise End_of_file
-				end
-			in
-
-			let read_char line = match input_char_or_done ch line with
-				| '\n' -> inc 1 line
-				| '\r' ->
-					ignore(input_char_or_done ch line);
-					inc 2 line
-				| c -> begin
-					let line = ref (line ^ (String.make 1 c)) in
-					let rec skip n =
-						if n > 0 then begin
-							let c = input_char_or_done ch !line in
-							line := !line ^ (String.make 1 c);
-							skip (n - 1)
-						end
-					in
-
-					let code = int_of_char c in
-					if code < 0xC0 then ()
-					else if code < 0xE0 then skip 1
-					else if code < 0xF0 then skip 2
-					else skip 3;
-
-					(1, !line)
-				end
-			in
-
-			let (delta, line) = read_char line in
-			loop (p + delta) line
-		in
-
-		try loop 0 ""; with End_of_file -> close_in ch;
-		List.rev !lines
-	end
+let read_source_lines file =
+	let ch = open_in_bin file in
+	let lines = DynArray.create () in
+	let buf = Buffer.create 80 in
+	let flush_line () =
+		DynArray.add lines (Buffer.contents buf);
+		Buffer.clear buf
+	in
+	let input_char_or_done () =
+		try input_char ch with End_of_file -> begin
+			flush_line ();
+			raise End_of_file
+		end
+	in
+	begin try
+		while true do
+			match input_char_or_done () with
+			| '\n' ->
+				flush_line ()
+			| '\r' ->
+				ignore(input_char_or_done ());
+				flush_line ()
+			| c ->
+				Buffer.add_char buf c
+		done
+	with End_of_file ->
+		()
+	end;
+	close_in ch;
+	DynArray.to_array lines
 
 let error_printer file line = Printf.sprintf "%s:%d:" file line
 
 type error_context = {
 	absolute_positions : bool;
+	source_lines : (string, string array) Hashtbl.t;
 	mutable last_positions : pos IntMap.t;
 	mutable max_lines : int IntMap.t;
 	mutable gutter : int IntMap.t;
@@ -68,11 +47,28 @@ type error_context = {
 
 let create_error_context absolute_positions = {
 	absolute_positions = absolute_positions;
+	source_lines = Hashtbl.create 0;
 	last_positions = IntMap.empty;
 	max_lines = IntMap.empty;
 	gutter = IntMap.empty;
 	previous = None;
 }
+
+let resolve_source ectx file l1 p1 l2 p2 =
+	if l1 = l2 && p1 = p2 && l1 = 1 && p1 = 1 then []
+	else begin
+		let lines = try
+			Hashtbl.find ectx.source_lines file
+		with Not_found ->
+			let lines = read_source_lines file in
+			Hashtbl.add ectx.source_lines file lines;
+			lines
+		in
+		let rec loop acc i =
+			if i < l1 then acc else loop ((i, lines.(i - 1)) :: acc) (i - 1)
+		in
+		loop [] (min l2 (Array.length lines))
+	end
 
 let compiler_pretty_message_string defines ectx cm =
 	match cm.cm_message with
@@ -90,7 +86,7 @@ let compiler_pretty_message_string defines ectx cm =
 				(-1, -1, -1, -1, epos, [])
 			end else try begin
 				let l1, p1, l2, p2 = Lexer.get_pos_coords cm.cm_pos in
-				let lines = resolve_source cm.cm_pos.pfile l1 p1 l2 p2 in
+				let lines = resolve_source ectx cm.cm_pos.pfile l1 p1 l2 p2 in
 				let epos =
 					if lines = [] then cm.cm_pos.pfile
 					else if ectx.absolute_positions then TPrinting.Printer.s_pos cm.cm_pos
@@ -128,7 +124,7 @@ let compiler_pretty_message_string defines ectx cm =
 			| Some (p, sev, depth) -> (Some p, Some sev, depth)
 		in
 
-		let sev_changed = prev_sev = None || Some cm.cm_severity <> prev_sev in
+		let sev_changed = prev_sev = None || Some (cm_severity cm) <> prev_sev in
 		let pos_changed = (prev_pos = None || cm.cm_pos <> Option.get prev_pos || (cm.cm_depth <> prev_nl && cm.cm_depth <> prev_nl + 1)) && (parent_pos = null_pos || cm.cm_pos <> parent_pos) in
 		let file_changed = prev_pos = None || (pos_changed && match (cm.cm_pos.pfile, (Option.get prev_pos).pfile) with
 			| (f1, f2) when (is_unknown_file f1) && (is_unknown_file f2) -> false
@@ -142,12 +138,12 @@ let compiler_pretty_message_string defines ectx cm =
 
 		let gutter_len = (try String.length (Printf.sprintf "%d" (IntMap.find cm.cm_depth ectx.max_lines)) with Not_found -> 0) + 2 in
 
-		let no_color = Define.defined defines Define.MessageNoColor in
+		let no_color = not (Define.defined defines Define.MessageColor) in
 		let c_reset = if no_color then "" else "\x1b[0m" in
 		let c_bold = if no_color then "" else "\x1b[1m" in
 		let c_dim = if no_color then "" else "\x1b[2m" in
 
-		let (c_sev, c_sev_bg) = if no_color then ("", "") else match cm.cm_severity with
+		let (c_sev, c_sev_bg) = if no_color then ("", "") else match cm_severity cm with
 			| MessageSeverity.Warning -> ("\x1b[33m", "\x1b[30;43m")
 			| Information | Hint -> ("\x1b[34m", "\x1b[30;44m")
 			| Error -> ("\x1b[31m", "\x1b[30;41m")
@@ -155,7 +151,7 @@ let compiler_pretty_message_string defines ectx cm =
 
 		let sev_label = if cm.cm_depth > 0 then " -> " else Printf.sprintf
 			(if no_color then "[%s]" else " %s ")
-			(match cm.cm_severity with
+			(match cm_severity cm with
 				| MessageSeverity.Warning -> "WARNING"
 				| Information -> "INFO"
 				| Hint -> "HINT"
@@ -238,7 +234,7 @@ let compiler_pretty_message_string defines ectx cm =
 			(if (ExtString.String.starts_with str "... ") then String.sub str 4 ((String.length str) - 4) else str)
 		) !out (ExtString.String.nsplit cm.cm_message "\n");
 
-		ectx.previous <- Some ((if is_null_pos then null_pos else cm.cm_pos), cm.cm_severity, cm.cm_depth);
+		ectx.previous <- Some ((if is_null_pos then null_pos else cm.cm_pos), cm_severity cm, cm.cm_depth);
 		ectx.gutter <- (IntMap.add cm.cm_depth gutter_len ectx.gutter);
 
 		(* Indent sub errors *)
@@ -256,8 +252,8 @@ let compiler_pretty_message_string defines ectx cm =
 		)
 	end
 
-let compiler_message_string ectx cm =
-	let str = match cm.cm_severity with
+let message_string ectx cm =
+	let str = match cm_severity cm with
 		| MessageSeverity.Warning -> "Warning : " ^ cm.cm_message
 		| Information | Error | Hint -> cm.cm_message
 	in
@@ -285,7 +281,7 @@ let compiler_indented_message_string ectx cm =
 	(* Filter some messages that don't add much when using this message renderer *)
 	| "End of overload failure reasons" -> None
 	| _ ->
-		let str = match cm.cm_severity with
+		let str = match cm_severity cm with
 			| MessageSeverity.Warning -> "Warning : " ^ cm.cm_message
 			| Information -> "Info : " ^ cm.cm_message
 			| Error | Hint -> cm.cm_message
@@ -319,7 +315,7 @@ let get_max_line max_lines messages =
 let display_source_at defines p =
 	let absolute_positions = Define.defined defines Define.MessageAbsolutePositions in
 	let ectx = create_error_context absolute_positions in
-	let msg = make_compiler_message "" p 0 MessageKind.DKCompilerMessage MessageSeverity.Information in
+	let msg = make_message false "" p 0 MKInfo in
 	ectx.max_lines <- get_max_line ectx.max_lines [msg];
 	match compiler_pretty_message_string defines ectx msg with
 		| None -> ()
@@ -332,7 +328,7 @@ let get_formatter defines def default =
 	match format_mode with
 		| "pretty" -> compiler_pretty_message_string defines
 		| "indent" -> compiler_indented_message_string
-		| "classic" -> compiler_message_string
+		| "classic" -> message_string
 		| m -> begin
 			let def = Define.get_define_key def in
 			raise (ConfigError (Printf.sprintf "Invalid message reporting mode: \"%s\", expected classic | pretty | indent (for -D %s)." m def))
@@ -340,7 +336,7 @@ let get_formatter defines def default =
 
 let print_error (err : Error.error) =
 	let ret = ref "" in
-	Error.recurse_error (fun depth err ->
+	Error.recurse_error (fun _ err ->
 		ret := !ret ^ (Lexer.get_error_pos (Printf.sprintf "%s:%d: ") err.err_pos) ^ (Error.error_msg err.err_message) ^ "\n"
 	) err;
 	!ret
@@ -358,35 +354,40 @@ let format_messages defines messages =
 	) in
 	ExtLib.String.join "\n" lines
 
-let display_messages ctx on_message = begin
-	let absolute_positions = Define.defined ctx.com.defines Define.MessageAbsolutePositions in
+(** Format and dispatch compiler messages.
+    [defines] controls formatting options, [messages] is the ordered list of
+    messages (oldest first, i.e. already reversed from the accumulation order),
+    [set_error] is called when a formatter configuration
+    error is encountered, and [on_message sev str] receives each formatted message. *)
+let display_messages_from defines messages ~set_error on_message = begin
+	let absolute_positions = Define.defined defines Define.MessageAbsolutePositions in
 	let ectx = create_error_context absolute_positions in
-	ectx.max_lines <- get_max_line ectx.max_lines ctx.messages;
+	ectx.max_lines <- get_max_line ectx.max_lines messages;
 
 	let error msg =
-		ctx.has_error <- true;
+		set_error ();
 		on_message MessageSeverity.Error msg
 	in
 
 	let get_formatter _ def default =
-		try get_formatter ctx.com.defines def default
+		try get_formatter defines def default
 		with | ConfigError s ->
 			error s;
-			compiler_message_string
+			message_string
 	in
 
-	let message_formatter = get_formatter ctx.com.defines Define.MessageReporting "pretty" in
-	let log_formatter = get_formatter ctx.com.defines Define.MessageLogFormat "indent" in
+	let message_formatter = get_formatter defines Define.MessageReporting "pretty" in
+	let log_formatter = get_formatter defines Define.MessageLogFormat "indent" in
 
-	let log_messages = ref (Define.defined ctx.com.defines Define.MessageLogFile) in
+	let log_messages = ref (Define.defined defines Define.MessageLogFile) in
 	let log_message = ref None in
 	let close_logs = ref None in
 
 	if !log_messages then begin
 		try begin
-			let buf = Rbuffer.create 16000 in
+			let buf = Buffer.create 16000 in
 
-			let file = Define.defined_value ctx.com.defines Define.MessageLogFile in
+			let file = Define.defined_value defines Define.MessageLogFile in
 			let chan =
 				Path.mkdir_from_path file;
 				open_out_bin file
@@ -395,11 +396,11 @@ let display_messages ctx on_message = begin
 			log_message := (Some (fun msg ->
 				match (log_formatter ectx msg) with
 					| None -> ()
-					| Some str -> Rbuffer.add_string buf (str ^ "\n")));
+					| Some str -> Buffer.add_string buf (str ^ "\n")));
 
 			close_logs := (Some (fun () ->
-				Rbuffer.output_buffer chan buf;
-				Rbuffer.clear buf;
+				Buffer.output_buffer chan buf;
+				Buffer.clear buf;
 				close_out chan
 			));
 		end with
@@ -415,9 +416,15 @@ let display_messages ctx on_message = begin
 
 		match (message_formatter ectx cm) with
 			| None -> ()
-			| Some str -> on_message cm.cm_severity str
-	) (List.rev ctx.messages);
+			| Some str -> on_message (cm_severity cm) str
+	) messages;
 
 	if !log_messages then (Option.get !close_logs) ();
 end
+
+(** Convenience wrapper that extracts defines and messages from a compilation context.
+    Reverses [ctx.messages] (which accumulates newest-first) to oldest-first order. *)
+let display_messages com on_message =
+	display_messages_from com.defines (List.rev com.part_scope.messages)
+		~set_error:(fun () -> com.part_scope.has_error <- true) on_message
 

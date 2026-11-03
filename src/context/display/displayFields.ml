@@ -35,7 +35,7 @@ let get_submodule_fields ctx path =
 	) tl in
 	tl
 
-let collect_static_extensions ctx items e p =
+let collect_static_extensions ctx blocked_items items e p =
 	let opt_type t =
 		match t with
 		| TLazy f ->
@@ -81,7 +81,13 @@ let collect_static_extensions ctx items e p =
 			end
 		| _ ->
 			acc
-		in
+	in
+	let handle_field c cf acc =
+		if Hashtbl.mem blocked_items cf.cf_name then
+			acc
+		else
+			handle_field c cf acc
+	in
 	let rec loop acc = function
 		| [] ->
 			acc
@@ -141,6 +147,17 @@ let collect ctx e_ast e dk with_type p =
 	let make_class_field origin cf =
 		let ct = CompletionType.from_type (get_import_status ctx) ~values:(get_value_meta cf.cf_meta) cf.cf_type in
 		make_ci_class_field (CompletionClassField.make cf CFSMember origin true) (cf.cf_type,ct)
+	in
+	let blocked_items = Hashtbl.create 0 in
+	let should_access c cf stat =
+		if Hashtbl.mem blocked_items cf.cf_name then
+			false
+		else if should_access c cf stat then
+			true
+		else begin
+			Hashtbl.add blocked_items cf.cf_name ();
+			false
+		end
 	in
 	let rec loop items t =
 		let is_new_item items name = not (PMap.mem name items) in
@@ -231,7 +248,7 @@ let collect ctx e_ast e dk with_type p =
 				(* If there's a @:forward, get the fields of the underlying type and filter them. *)
 				let _,el,_ = Meta.get Meta.Forward a.a_meta in
 				let sl = ExtList.List.filter_map (fun e -> match fst e with
-					| EConst(Ident s) -> Some s
+					| EConst(Ident s | String(s,_)) -> Some s
 					| _ -> None
 				) el in
 				let forwarded_fields = loop PMap.empty (apply_params a.a_params tl a.a_this) in
@@ -239,7 +256,7 @@ let collect ctx e_ast e dk with_type p =
 					PMap.mem field_name c.cl_fields || PMap.mem field_name c.cl_statics
 				in
 				PMap.foldi (fun name item acc ->
-					if (sl = [] || List.mem name sl && is_new_item acc name) && not (abstract_has_own_field name) then
+					if (sl = [] || List.mem name sl) && is_new_item acc name && not (abstract_has_own_field name) then
 						PMap.add name item acc
 					else
 						acc
@@ -345,7 +362,7 @@ let collect ctx e_ast e dk with_type p =
 	(* Collect fields of the type *)
 	let items = loop items e.etype in
 	(* Add static extensions *)
-	let items = collect_static_extensions ctx items e p in
+	let items = collect_static_extensions ctx blocked_items items e p in
 	let items = PMap.fold (fun item acc -> item :: acc) items [] in
 	let items = sort_fields items WithType.value (TKField p) in
 	try
@@ -358,7 +375,17 @@ let collect ctx e_ast e dk with_type p =
 let handle_missing_field_raise ctx tthis i mode with_type pfield =
 	let tret = match with_type with
 		| WithType.WithType(t,_) -> t
-		| WithType.Value _ -> mk_mono()
+		| WithType.Value _ ->
+			begin match mode with
+				| MSet (Some e) ->
+					begin try
+						let e = type_expr ctx e WithType.value in
+						e.etype
+					with _ ->
+						mk_mono()
+					end
+				| _ -> mk_mono()
+			end
 		| WithType.NoValue ->
 			match mode with
 			| MCall _ -> ctx.t.tvoid
@@ -419,8 +446,8 @@ let handle_missing_field_raise ctx tthis i mode with_type pfield =
 		mf_fields = [(cf,t,CompletionItem.CompletionType.from_type (Display.get_import_status ctx) t)];
 		mf_cause = FieldAccess;
 	} in
-	let display = ctx.com.display_information in
-	display.module_diagnostics <- MissingFields diag :: display.module_diagnostics
+	let cm = DiagnosticsPrinter.make_missing_fields_message diag in
+	CompilerMessage.add_module_diagnostic ctx.com ctx.m.curmod cm
 
 let handle_missing_ident ctx i mode with_type p =
 	match ctx.e.curfun with

@@ -1,0 +1,3 @@
+NoConstructorException
+--interp
+--macro exclude("haxe.Exception")

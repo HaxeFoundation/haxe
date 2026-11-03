@@ -32,17 +32,19 @@ type define_infos = {
 	d_links : string list;
 	d_deprecated : string option;
 	d_default : string option;
+	d_reserved : bool option;
 }
 
 let infos ?user_defines d =
 	let extract_infos (t, (doc, flags), origin) =
-		let params = ref [] and pfs = ref [] and links = ref [] and deprecated = ref None and default = ref None in
+		let params = ref [] and pfs = ref [] and links = ref [] and deprecated = ref None and default = ref None and reserved = ref None in
 		List.iter (function
 			| HasParam s -> params := s :: !params
 			| Platforms fl -> pfs := fl @ !pfs
 			| Link url -> links := url :: !links
 			| Deprecated s -> deprecated := Some s
 			| DefaultValue s -> default := Some s
+			| Reserved b -> reserved := Some b
 		) flags;
 		(t, {
 			d_doc = doc;
@@ -52,6 +54,7 @@ let infos ?user_defines d =
 			d_links = !links;
 			d_deprecated = !deprecated;
 			d_default = !default;
+			d_reserved = !reserved;
 		})
 	in
 
@@ -155,16 +158,13 @@ let get_signature def =
 	| None ->
 		let defines = PMap.foldi (fun k v acc ->
 			(* don't make much difference between these special compilation flags *)
-			match String.concat "_" (ExtString.String.nsplit k "-") with
+			let sanitized = String.concat "_" (ExtString.String.nsplit k "-") in
 			(* If we add something here that might be used in conditional compilation it should be added to
-			   Parser.parse_macro_ident as well (issue #5682).
-			   Note that we should removed flags like use_rtti_doc here.
+			   Grammar.parse_macro_ident as well (issue #5682).
 			*)
-			| "display" | "use_rtti_doc" | "macro_times" | "display_details" | "no_copt" | "display_stdin" | "disable-hxb-cache" | "hxb.stats" | "fail_fast"
-			| "message.reporting" | "message.log_file" | "message.log_format" | "message.no_color"
-			| "dump" | "dump_dependencies" | "dump_ignore_var_ids" -> acc
-			| _ -> (k ^ "=" ^ v) :: acc
+			if DefineList.is_signature_neutral sanitized then acc else (sanitized ^ "=" ^ v) :: acc
 		) def.values [] in
+		let defines = Ast.remove_duplicates (fun a b -> a != b) defines in
 		let str = String.concat "@" (List.sort compare defines) in
 		let s = Digest.string str in
 		def.defines_signature <- Some s;

@@ -166,7 +166,7 @@ let check_display_file ctx cs =
 	| Some cc ->
 		begin try
 			let p = DisplayPosition.display_position#get in
-			let cfile = cc#find_file (ctx.com.file_keys#get p.pfile) in
+			let cfile = cc#find_file (ctx.com.part_scope.file_keys#get p.pfile) in
 			let path = (cfile.c_package,get_module_name_of_cfile p.pfile cfile) in
 			TypeloadParse.PdiHandler.handle_pdi ctx.com cfile.c_pdi;
 			(* We have to go through type_module_hook because one of the module's dependencies could be
@@ -175,7 +175,7 @@ let check_display_file ctx cs =
 				ctx.com.module_lut#find path
 			with Not_found ->
 				begin match !TypeloadCacheHook.type_module_hook ctx.com (delay ctx.g) path null_pos with
-				| NoModule | BadModule _ -> raise Not_found
+				| NoModule | BadModule _ | BadBinaryModule _ -> raise Not_found
 				| BinaryModule mc ->
 					let api = (new TypeloadModule.hxb_reader_api_typeload ctx.com ctx.g TypeloadModule.load_module' p :> HxbReaderApi.hxb_reader_api) in
 					let reader = new HxbReader.hxb_reader path ctx.com.hxb_reader_stats (if Common.defined ctx.com Define.HxbTimes then Some ctx.com.timer_ctx else None) in
@@ -187,10 +187,7 @@ let check_display_file ctx cs =
 			in
 			check_display_module ctx cfile.c_decls m
 		with Not_found ->
-			let fkey = DisplayPosition.display_position#get_file_key in
-			(* force parsing again : if the completion point have been changed *)
-			cs#remove_files fkey;
-			cs#taint_modules fkey CheckDisplayFile;
+			()
 		end
 	| None ->
 		()

@@ -9,7 +9,7 @@ abstract CArray<T>(Abstract<"hl_carray">) {
 
 	@:arrayAccess inline function get( index : Int ) : T return untyped this[index];
 
-	public inline function unsafeSet( index : Int, v : T ) return untyped this[index] = v;
+	public inline function unsafeSet( index : Int, v : T ) : T return untyped this[index] = v;
 
 	public static inline function alloc<T>( cl : Class<T>, size : Int ) : CArray<T> {
 		return cast alloc_carray( (cast cl:BaseType).__type__ , size );
@@ -20,7 +20,19 @@ abstract CArray<T>(Abstract<"hl_carray">) {
 		return null;
 	}
 
+	public static function fromBytes<T>( bytes : haxe.io.Bytes ) : CArray<T> {
+		return bytes == null ? null : hl.Api.unsafeCast(@:privateAccess bytes.b);
+	}
+
 	#if (hl_ver >= version("1.16.0"))
+
+	public function toBytes( cl : Class<T>, count : Int ) : haxe.io.Bytes {
+		if( this == null )
+			return null;
+		var size = (cast cl:BaseType).__type__.getDataSize();
+		return @:privateAccess new haxe.io.Bytes(hl.Api.unsafeCast(this),size * count);
+	}
+
 	public inline function blit( cl : Class<T>, pos : Int, src : CArray<T>, srcPos : Int, srcLen : Int ) : Void {
 		carray_blit( cast this, (cast cl:BaseType).__type__, pos, src, srcPos, srcLen );
 	}

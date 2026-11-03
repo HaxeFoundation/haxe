@@ -9,6 +9,10 @@ private enum DummyEnum {
 
 typedef TWrap<T> = T;
 
+class TestClassWithAnon {
+	public var a:Null<{b:Null<Int>}> = cast null;
+}
+
 abstract AWrap<T>(T) from T to T {
 	function abstracts_shouldBeChecked(?a:String) {
 		shouldFail(var s:String = a);
@@ -22,12 +26,22 @@ class Generic<T> {
 	}
 }
 
-typedef AnonAsClass = {
-	var ?optional:String;
+@:structInit
+class ClassWithNullableField {
+	public var field:Null<String> = null;
 }
 
-typedef AnonAsStruct = {
-	?optional:String
+@:structInit
+class ClassWithField {
+	public var field:String;
+}
+
+typedef ObjWithNullableField = {
+	?field:String
+}
+
+typedef ObjWithField = {
+	field:String
 }
 
 typedef AnonDefaultNever = {
@@ -126,7 +140,6 @@ class TestStrict {
 	extern static final something:String;
 
 	public var field:Null<String>;
-	// @:shouldWarn public var publiclyModifiableField:String = 'hello';
 	@:shouldFail var notInitializedField:Int;
 	@:shouldFail var notInitializedProperty(default,null):Float;
 	@:shouldFail @:isVar var notInitializedIsVar(get,set):String;
@@ -149,15 +162,34 @@ class TestStrict {
 		shouldFail(return v);
 	}
 
+	@:shouldFail static var badInit:Int;
+	static var init:Int;
+	@:shouldFail static var init2:Int = null;
+
 	/**
 	 *  Null safety should work in __init__ functions
 	 */
 	static function __init__() {
 		var s:Null<String> = null;
 		shouldFail(s.length);
+
+		final v:Int = shouldFail(init);
+
+		if (true) init = 1;
+		else init = 1;
+		init2 = 1;
+
+		final v:Int = init;
+		final v:Int = shouldFail(badInit);
+
+		function name():Void {
+			badInit = 1;
+		}
+		if (true) badInit = 1;
 	}
 
-	static public function main() {
+	static public function main() { // not a real main
+		badInit = 1;
 	}
 
 	/**
@@ -297,14 +329,143 @@ class TestStrict {
 	static function ternary_nullableElse_assignToNotNullableValue_shouldFail() {
 		var v:Null<String> = null;
 		var a:String;
-		shouldFail((true ? 'hello' : v).length);
+		shouldFail((false ? 'hello' : v).length);
 	}
 
 	static function inlineCallWithNullArg_shouldFail() {
 		inline function check(value: Int): Int {
+			value++;
 			return value;
 		}
 		shouldFail(check((null : Null<Int>)));
+		var foo:Null<Int> = null;
+		shouldFail(check(foo));
+		final v:Int = shouldFail(check(foo));
+	}
+
+	static function fancyInlineCallWithNullArg_shouldFail() {
+		inline function check(value: Int): Int {
+			badInit = cast value;
+			return value;
+		}
+		shouldFail(check((null : Null<Int>)));
+		var foo:Null<Int> = null;
+		// different error range for some fancy reason
+		#if (js_es >= 6)
+		shouldFail(final v:Int = check(foo));
+		#else
+		final v:Int = shouldFail(check(foo));
+		#end
+		// don't know how to detect fancy inline yet
+		// shouldFail(check(foo));
+	}
+
+
+	static var anyNotNull:Any = "";
+
+	static function inlineCallWithNullArg2_shouldFail() {
+		anyNotNull = shouldFail(pathRelativeToRoot(null));
+	}
+
+	static inline function pathRelativeToRoot(uri:String):String {
+		return eatNotNulls(uri);
+	}
+
+	static function eatNotNulls(s:String):String {
+		return s;
+	}
+
+	static function nullCoal_onNull_shouldPass():Void {
+		var a:String = null ?? "";
+		var b = null ?? "";
+		var c:String = b;
+	}
+
+	static function constants_shouldPass():Void {
+		// var a:String = null == null ? "" : null;
+		// var b:Int = true ? 0 : null;
+		// var c:Int = (false) ? null : 0;
+	}
+
+	static function constants_shouldFail():Void {
+		shouldFail(var a:String = null == null ? null : "");
+		shouldFail(var b:Int = false ? 0 : null);
+		shouldFail(var c:Int = true ? null : 0);
+	}
+
+	static function nullCoal_onNullField_shouldPass():Void {
+		final object:{field:Null<String>} = {field: null};
+		final notOk:String = (Std.random(0) == 0 ? object.field : object.field) ?? "";
+	}
+
+	static function nullCoal_returnNull_shouldPass(?foo:String):Null<String> {
+		final name = foo ?? cast return null;
+		final name2 = foo ?? return null;
+		var s:String = name;
+		var s2:String = name2;
+		return s;
+	}
+
+	static function call_objOptField_shouldFail():Void {
+		var a:{?a:Int} = {a: null};
+		shouldFail(var b:{a:Int} = a);
+
+		var foo:{a:{b:Null<Int>}} = {
+			a: {
+				b: null
+			}
+		};
+		objOptField_shouldPass(shouldFail(foo));
+
+		var a:{?a:{b:Null<Int>}} = cast null;
+		var b:{?a:{b:Int}} = cast null;
+		shouldFail(b = a);
+
+		var t:TestClassWithAnon = cast null;
+		var t2:Null<{a:{b:Int}}> = cast null;
+		shouldFail(t2 = t);
+
+		var bar:{a:{b:Int}};
+		shouldFail(bar = foo);
+
+		var a:ObjWithNullableField = {};
+		var b:ClassWithNullableField = {};
+		shouldFail(passSafeClass(a));
+		shouldFail(passSafeClass(b));
+	}
+
+	static function objOptField_shouldPass(test:{?a:{b:Int}}):Void {
+		if (test.a == null) return;
+		final v:Int = test.a.b;
+	}
+
+	static function passSafeClass(obj:ObjWithField):Void {}
+
+	static function promise_then_nullableArg_shouldFail():Void {
+		showQuickPick(shouldFail((choice:Int) -> {}));
+		showQuickPick((choice:Null<Int>) -> {});
+	}
+
+	static function showQuickPick<T:Int>(callback:(choice:Null<T>) -> Void):Void {};
+
+
+	static function objOptFieldNullable_shouldFail(test:{?a:{?b:Int}}):Void {
+		if (test.a == null) return;
+		shouldFail(final v:Int = test.a.b);
+	}
+
+	static function emptyObjTypeAssign_shouldPass():Void {
+		final other:{a:Int} = {a: 10};
+		final data:{} = other;
+		final anything:{} = {a: 10};
+	}
+
+	function objIterationAfterNullCheck_shouldPass(result:{?leaks:Array<String>}):Void {
+		if (result.leaks != null) {
+			for (leak in result.leaks) {
+				final v:String = leak;
+			}
+		}
 	}
 
 	static function ternary_returnedFromInlinedFunction_shouldPass() {
@@ -533,6 +694,12 @@ class TestStrict {
 		var s:String = b;
 	}
 
+	static function checkAgainstNull_deadEndTernary_shouldPass():Void {
+		var nullable:Null<Int> = null;
+		var a:Int = nullable == null ? return : nullable;
+		var b:Int = nullable;
+	}
+
 	static function checkAgainstNull_deadEndOfLoop_shouldPassAfterCheckedBlock(?a:String, ?b:String) {
 		var s:String;
 		while(Std.random(2) == 1) {
@@ -619,6 +786,32 @@ class TestStrict {
 		} while (a != null);
 
 		shouldFail(a.value);
+	}
+
+	static function while_assignmentInCondition_shouldPass() {
+		var arr:Array<Null<String>> = [];
+		var event:Null<String> = null;
+		// Test the pattern: while ((event = arr.pop()) != null)
+		while ((event = arr.pop()) != null) {
+			var s:String = event; // event should be known to be non-null here
+			event.charAt(0); // this should not fail
+		}
+
+		// Test with null on left side: while (null != (event = arr.pop()))
+		while (null != (event = arr.pop())) {
+			var s:String = event;
+			event.charAt(0);
+		}
+
+		// Test with == null (should be null inside)
+		while ((event = arr.pop()) == null) {
+			shouldFail(event.charAt(0)); // event is null here
+		}
+
+		// Test with null on left: while (null == (event = arr.pop()))
+		while (null == (event = arr.pop())) {
+			shouldFail(event.charAt(0)); // event is null here
+		}
 	}
 
 	static function nullable_doWhile_shouldPass(?a:Int) {
@@ -722,10 +915,18 @@ class TestStrict {
 	}
 
 	static function anonymousObjects() {
-		var o:AnonAsClass = {};
-		shouldFail(var s:String = o.optional);
-		var o:AnonAsStruct = {};
-		shouldFail(var s:String = o.optional);
+		var nullableClass:ClassWithNullableField = {};
+		var basicClass:ClassWithField = {field: ""};
+		shouldFail(var s:String = nullableClass.field);
+		var nullableObj:ObjWithNullableField = {};
+		var basicObj:ObjWithField = {field: ""};
+		shouldFail(var s:String = nullableObj.field);
+
+		nullableObj = nullableClass;
+		nullableObj = basicClass;
+		basicObj = basicClass;
+		shouldFail(basicObj = nullableObj);
+		shouldFail(basicObj = nullableClass);
 	}
 
 	static function safetyInference_safeValueAssignedToNullable_shouldBecomeSafe(?a:String, ?b:String) {
@@ -841,8 +1042,7 @@ class TestStrict {
 
 	static public function closure_storedSomewhere_shouldFail(?s:String) {
 		if(s != null) {
-			// unstable, see #12187
-			// passesSomewhereElse(() -> shouldFail(s.length));
+			passesSomewhereElse(() -> shouldFail(s.length));
 			storesSomewhere(() -> shouldFail(s.length));
 		}
 	}
@@ -1119,9 +1319,9 @@ typedef Recursive<T1> = {
 }
 
 // @see https://github.com/HaxeFoundation/haxe/issues/7733
-// class RecClass<T1> {
-// 	public function rec<T2>(a:Recursive<T1>):Recursive<T2> return a;
-// }
+class RecClass<T1> {
+	public function rec<T2>(a:Recursive<T1>):Recursive<T2> return a;
+}
 
 private class Parent {
 	public function new() {}
@@ -1146,13 +1346,13 @@ abstract NullFloat(Null<Float>) from Null<Float> to Null<Float> {
 }
 
 class BinopFlow {
-	function ifAndTrue_shoudPass(?a:Int):Void {
+	function ifAndTrue_shouldPass(?a:Int):Void {
 		if (a == null) return;
 		if (a == 2 && true) {}
 		a++;
 	}
 
-	function ifOrTrue_shoudPass(?a:Int):Void {
+	function ifOrTrue_shouldPass(?a:Int):Void {
 		if (a == null) return;
 		if (a == null || true) {}
 		a++;
@@ -1341,4 +1541,126 @@ class BinopFlow {
 		if (a == null || {safe = a; true;}) {}
 		if (a != null || {shouldFail(safe = a); true;}) {}
 	}
+
+	// Test that coroutines work correctly with null-safety
+	// (previously failed with "Cannot assign nullable value here")
+	static function coroutine_anonymousLambda_shouldPass() {
+		function runWith<T>(lambda:haxe.coro.Coroutine<() -> Void>) { }
+		runWith(() -> {});
+	}
+
+	static function coroutine_namedLocalFunction_shouldPass() {
+		function runWith<T>(lambda:haxe.coro.Coroutine<() -> Void>) { }
+		@:coroutine function localCoro() {}
+		runWith(localCoro);
+	}
+
+	// Test that parameterized functions work correctly with null-safety
+	static function parameterizedFunction_anonymousLambda_shouldPass() {
+		function acceptFunc<T>(f:T->T) {
+			return f;
+		}
+		// Anonymous function with type parameter
+		acceptFunc(function<T>(x:T):T {
+			return x;
+		});
+	}
+
+	static function coroDispatcher_shouldFail() {
+		var dispatcher = haxe.coro.context.Context.create().get(haxe.coro.dispatchers.Dispatcher);
+		shouldFail(dispatcher.scheduler);
+	}
 }
+
+@:build(Validator.checkFields())
+class ConstructorThrowNoElse {
+	final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			throw "no";
+		}
+		s = "foo";
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorReturn {
+	@:shouldFail final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			return;
+		} else {
+			s = "foo";
+		}
+	}
+}
+
+#if todo // https://github.com/HaxeFoundation/haxe/issues/12560
+@:build(Validator.checkFields())
+class ConstructorThrowWithElse {
+	final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			throw "no";
+		} else {
+			s = "foo";
+		}
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorMixedThrowReturn {
+	final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			throw "error";
+		} else {
+			s = "three";
+			return;
+		}
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorEarlyReturnNoElse {
+	@:shouldFail final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			return;
+		}
+		s = "foo";
+	}
+}
+
+// These are currently rejected by the typer's own final field check ("Some final fields are uninitialized")
+@:build(Validator.checkFields())
+class ConstructorThrowBothBranches {
+	final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			throw "no";
+		} else {
+			throw "also no";
+		}
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorMixedThrowReturnFail {
+	@:shouldFail final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			throw "error";
+		} else {
+			return;
+		}
+	}
+}
+#end

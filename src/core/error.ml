@@ -28,30 +28,37 @@ and type_not_found_reason =
 type error = {
 	err_message : error_msg;
 	err_pos : pos;
-	(* TODO Should probably be deprecated at some point and be derived from err_sub *)
-	err_depth : int;
 	(* Reverse list of sub errors. Use Error.recurse_error to handle an error and its sub errors with depth. *)
 	err_sub : error list;
-	err_from_macro : bool;
 }
 
-let make_error ?(depth = 0) ?(from_macro = false) ?(sub = []) msg p = {
+type macro_error = {
+	msg : string;
+	pos : pos;
+	sub : macro_error list;
+}
+
+let make_error ?(sub = []) msg p = {
 	err_message = msg;
 	err_pos = p;
-	err_depth = depth;
-	err_from_macro = from_macro;
 	err_sub = sub;
 }
 
-let rec recurse_error ?(depth = 0) cb err =
-	let depth = if depth > 0 then depth else err.err_depth in
-	cb depth err;
-	List.iter (recurse_error ~depth:(depth+1) cb) (List.rev err.err_sub);
+let rec convert_error (err:macro_error) =
+	let sub = List.rev_map convert_error err.sub in
+	make_error ~sub (Custom err.msg) err.pos
+
+let recurse_error cb err =
+	let rec loop depth err =
+		cb depth err;
+		List.iter (loop (depth+1)) (List.rev err.err_sub)
+	in
+	loop 0 err
 
 exception Fatal_error of error
 exception Error of error
 
-let abort ?(depth = 0) msg p = raise (Fatal_error (make_error ~depth (Custom msg) p))
+let abort msg p = raise (Fatal_error (make_error (Custom msg) p))
 
 let string_source t = match follow t with
 	| TInst(c,tl) -> PMap.foldi (fun s _ acc -> s :: acc) (TClass.get_all_fields c tl) []
@@ -71,6 +78,8 @@ let compl_msg s = "... " ^ s
 let unify_error_msg ctx err = match err with
 	| Cannot_unify (t1,t2) ->
 		s_type ctx t1 ^ " should be " ^ s_type ctx t2
+	| Cannot_unify_implementation (t_impl, t_parent) ->
+		s_type ctx t_impl ^ " should be " ^ s_type ctx t_parent
 	| Invalid_field_type s ->
 		"Invalid type for field " ^ s ^ " :"
 	| Has_no_field (t,n) ->
@@ -94,17 +103,15 @@ let unify_error_msg ctx err = match err with
 			"Field " ^ f ^ " is " ^ s_kind a ^ " but should be " ^ s_kind b)
 	| Invalid_visibility n ->
 		"The field " ^ n ^ " is not public"
-	| Not_matching_optional n ->
-		"Optional attribute of parameter " ^ n ^ " differs"
-	| Cant_force_optional ->
-		"Optional parameters can't be forced"
+	| Not_matching_optional (o1, o2, n) ->
+		"Optional attribute of argument " ^ n ^ " differs"
 	| Invariant_parameter _ ->
 		"Type parameters are invariant"
 	| Constraint_failure name ->
 		"Constraint check failure for " ^ name
 	| Missing_overload (cf, t) ->
 		cf.cf_name ^ " has no overload for " ^ s_type ctx t
-	| FinalInvariance ->
+	| FinalInvariance (is_final, is_final2) ->
 		"Cannot unify final and non-final fields"
 	| Invalid_function_argument(i,_) ->
 		Printf.sprintf "Cannot unify argument %i" i
@@ -114,6 +121,10 @@ let unify_error_msg ctx err = match err with
 		msg
 
 module BetterErrors = struct
+	type access_kind_info = {
+		mutable is_optional : bool;
+		mutable is_final : bool;
+	}
 	type access_kind =
 		| Field of string
 		| FunctionArgument of int * int
@@ -128,6 +139,8 @@ module BetterErrors = struct
 		mutable acc_messages : unify_error list;
 		mutable acc_extra : unify_error list;
 		mutable acc_next : access option;
+		acc_expected_info : access_kind_info;
+		acc_actual_info : access_kind_info;
 	}
 
 	let s_access_kind = function
@@ -138,6 +151,10 @@ module BetterErrors = struct
 		| Root -> "Root"
 
 	let get_access_chain ctx l =
+		let make_acc_info () = {
+			is_optional = false;
+			is_final = false;
+		} in
 		let make_acc kind actual expected = {
 			acc_kind = kind;
 			acc_expected = expected;
@@ -145,6 +162,8 @@ module BetterErrors = struct
 			acc_messages = [];
 			acc_extra = [];
 			acc_next = None;
+			acc_expected_info = make_acc_info ();
+			acc_actual_info = make_acc_info ();
 		} in
 		let root_acc = make_acc Root t_dynamic t_dynamic in
 		let current_acc = ref root_acc in
@@ -160,12 +179,20 @@ module BetterErrors = struct
 			current_acc := acc;
 		in
 		List.iter (fun err -> match err with
-			| Cannot_unify(t1,t2) ->
+			| Cannot_unify(t1,t2) | Cannot_unify_implementation(t2,t1) ->
 				!current_acc.acc_actual <- t1;
 				!current_acc.acc_expected <- t2;
 				add_message err
+			| Not_matching_optional (o1, o2, fname) ->
+				!current_acc.acc_actual_info.is_optional <- o1;
+				!current_acc.acc_expected_info.is_optional <- o2;
+				add_message err
 			| Invalid_field_type s ->
 				add_access (Field s);
+			| FinalInvariance (is_final, is_final2) ->
+				!current_acc.acc_actual_info.is_final <- is_final;
+				!current_acc.acc_expected_info.is_final <- is_final2;
+				add_message err
 			| Invalid_function_argument(i,l) ->
 				add_access (FunctionArgument(i,l));
 			| Invalid_return_type ->
@@ -193,7 +220,11 @@ module BetterErrors = struct
 		| TType (t,tl) ->
 			s_type_path t.t_path ^ s_type_params ctx tl
 		| TAbstract (a,tl) ->
-			s_type_path a.a_path ^ s_type_params ctx tl
+			(* show next scope of type parameter instead of Null<...> *)
+			if a.a_path = ([],"Null") then
+				s_type_path a.a_path ^ s_type_params_expanded ctx tl
+			else
+				s_type_path a.a_path ^ s_type_params ctx tl
 		| TFun ([],_) ->
 			"() -> ..."
 		| TFun (l,t) ->
@@ -228,6 +259,10 @@ module BetterErrors = struct
 		| [] -> ""
 		| l -> "<" ^ String.concat ", " (List.map (fun _ -> "...") l) ^ ">"
 
+	and s_type_params_expanded ctx = function
+		| [] -> ""
+		| l -> "<" ^ String.concat ", " (List.map (s_type ctx) l) ^ ">"
+
 	let better_error_message l =
 		let ctx = print_context() in
 		let rec loop acc l = match l with
@@ -260,12 +295,22 @@ module BetterErrors = struct
 						| [] ->
 							()
 					end;
-					s_type ctx access.acc_actual,s_type ctx access.acc_expected
+					let s_type_with_info t info =
+						let prefix = if (info.is_optional) then "?" else "" in
+						(* remove Null<...> if optional *)
+						let t = if info.is_optional then follow_without_type t else t in
+						prefix ^ s_type ctx t
+					in
+					s_type_with_info access.acc_actual access.acc_actual_info,
+					s_type_with_info access.acc_expected access.acc_expected_info
 			in
 			begin match access.acc_kind with
 			| Field s ->
 				let s1,s2 = loop() in
-				Printf.sprintf "{ %s: %s }" s s1,Printf.sprintf "{ %s: %s }" s s2
+				let final_prefix1 = if access.acc_actual_info.is_final then "final " else "" in
+				let final_prefix2 = if access.acc_expected_info.is_final then "final " else "" in
+				Printf.sprintf "{ %s%s: %s }" final_prefix1 s s1,
+				Printf.sprintf "{ %s%s: %s }" final_prefix2 s s2
 			| FunctionArgument(i,l) ->
 				let s1,s2 = loop() in
 				let sl1 = fill s1 i [] 1 l in
@@ -320,10 +365,10 @@ and s_call_error = function
 
 (* Global error helpers *)
 let raise_error err = raise (Error err)
-let raise_error_msg ?(depth = 0) msg p = raise_error (make_error ~depth msg p)
-let raise_msg ?(depth = 0) msg p = raise_error_msg ~depth (Custom msg) p
+let raise_error_msg msg p = raise_error (make_error msg p)
+let raise_msg msg p = raise_error_msg (Custom msg) p
 
-let raise_typing_error ?(depth = 0) msg p = raise_msg ~depth msg p
+let raise_typing_error msg p = raise_msg msg p
 let raise_typing_error_ext err = raise_error err
 
 let raise_std_not_found () =

@@ -48,6 +48,15 @@ class TestJs {
 		for (v in a) { }
 	}
 
+	@:js('var _gv = TestJs.getIterator();while(_gv.hasNext()) {var v = _gv.next();TestJs.use(v);TestJs.use(v);}')
+	@:analyzer(no_local_dce)
+	static function testIteratorLoopVarNotRenamed() {
+		for (v in getIterator()) {
+			use(v);
+			use(v);
+		}
+	}
+
 	@:js('var a = 1;var v2 = a;if(a + v2 > 0) {TestJs.use(a);}')
 	@:analyzer(no_const_propagation)
 	@:analyzer(no_copy_propagation)
@@ -527,6 +536,9 @@ class TestJs {
 	static function getImpureArray() { return [0, 1]; }
 
 	@:pure(false)
+	static function getIterator():Iterator<Int> { return null; }
+
+	@:pure(false)
 	static function call(d1:Dynamic, d2:Dynamic) { return d1; }
 	@:pure(false)
 	static public function use<T>(t:T) { return t; }
@@ -539,13 +551,13 @@ class TestJs {
 	#if js_enums_as_arrays
 	@:js('
 		var _g = Type.typeof("");
-		var v = _g[1] == 6 && _g[2] == String;
+		var v = _g[1] == 7 && _g[2] == String;
 		TestJs.use(v);
 	')
 	#else
 	@:js('
 		var _g = Type.typeof("");
-		var v = _g._hx_index == 6 && _g.c == String;
+		var v = _g._hx_index == 7 && _g.c == String;
 		TestJs.use(v);
 	')
 	#end

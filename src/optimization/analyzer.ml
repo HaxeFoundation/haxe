@@ -429,8 +429,12 @@ module ConstPropagationImpl = struct
 			| TLocal v ->
 				if (follow v.v_type) == t_dynamic || has_var_flag v VCaptured then
 					Bottom
-				else
-					get_cell ctx v.v_id
+				else begin match get_cell ctx v.v_id with
+					| Null _ when not (is_nullable v.v_type) ->
+						Bottom
+					| ct ->
+						ct
+				end
 			| TBinop(OpAssign,_,e2) ->
 				eval bb e2
 			| TBinop(op,e1,e2) ->
@@ -439,7 +443,7 @@ module ConstPropagationImpl = struct
 				let e1 = wrap cl1 in
 				let e2 = wrap cl2 in
 				let e = {e with eexpr = TBinop(op,e1,e2)} in
-				let e' = optimize_binop e op e1 e2 in
+				let e' = optimize_binop actx.com e op e1 e2 in
 				if e != e' then
 					eval bb e'
 				else
@@ -627,6 +631,7 @@ module CopyPropagationImpl = struct
 							| [bb'] when in_scope bb bb' -> ()
 							| _ -> leave()
 						end;
+						maybe_inherit_var_name v' v;
 						commit bb {e with eexpr = TLocal v'}
 					| This t ->
 						if not (type_change_ok actx.com t v.v_type) then leave();
@@ -1122,7 +1127,7 @@ module Run = struct
 			in
 			begin try
 				let e = run_on_expr actx e in
-				let e = reduce_control_flow com.platform e in
+				let e = reduce_control_flow com e in
 				maybe_debug();
 				cf.cf_expr <- Some e;
 			with
@@ -1184,13 +1189,13 @@ module Run = struct
 		| TTypeDecl _ -> ()
 		| TAbstractDecl _ -> ()
 
-	let run_on_types scom pool types =
+	let run_on_types scom pool all_types new_types =
 		let config = get_base_config scom in
 		with_timer scom.timer_ctx config.detail_times None ["other"] (fun () ->
 			if config.optimize && config.purity_inference then
-				with_timer scom.timer_ctx config.detail_times None ["optimize";"purity-inference"] (fun () -> Purity.infer types);
+				with_timer scom.timer_ctx config.detail_times None ["optimize";"purity-inference"] (fun () -> Purity.infer all_types);
 			let exc_out = Atomic.make None in
-			Parallel.ParallelArray.iter pool (run_on_type scom exc_out pool config) types;
+			Parallel.ParallelArray.iter pool (run_on_type scom exc_out pool config) new_types;
 			check_exc_out exc_out
 		)
 end

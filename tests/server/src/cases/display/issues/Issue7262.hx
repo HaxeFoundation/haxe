@@ -9,12 +9,11 @@ class Issue7262 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Completion, {
+		var result = runHaxeJson([], DisplayMethods.Completion, {
 			file: file,
 			offset: offset(1),
 			wasAutoTriggered: true
 		});
-		var result = parseCompletion().result;
 		Assert.equals("TAnonymous", result.mode.args.expectedTypeFollowed.args.params[0].kind);
 	}
 }

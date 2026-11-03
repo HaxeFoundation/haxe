@@ -1,0 +1,3 @@
+user-defined-meta-fail.hxml
+-D message.reporting=pretty
+

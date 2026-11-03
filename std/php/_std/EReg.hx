@@ -109,6 +109,11 @@ import php.*;
 		};
 	}
 
+	public function matchedNum():Int {
+		if(matches == null) return 0;
+		return Global.count(matches);
+	}
+
 	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
 		var subject = len < 0 ? s : s.substr(0, pos + len);
 		var p = Global.preg_match(reUnicode, subject, matches, Const.PREG_OFFSET_CAPTURE, pos);

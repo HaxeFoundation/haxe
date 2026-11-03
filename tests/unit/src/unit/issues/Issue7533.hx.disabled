@@ -1,0 +1,18 @@
+// this test is disabled because it does not work with the current PHP implementation of unsigned right shift
+package unit.issues;
+
+#if php
+import php.*;
+#end
+
+class Issue7533 extends unit.Test {
+	#if php
+	function test() {
+		var signBit = Const.PHP_INT_SIZE * 8 - 1; //31 or 63
+
+		var bint:Int = 1 << signBit;
+
+		eq( 1 << (signBit - 2), bint >>> 2 );
+	}
+	#end
+}

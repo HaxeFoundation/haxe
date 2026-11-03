@@ -14,7 +14,6 @@ import runci.Config.*;
 using StringTools;
 
 class Flash {
-	static final miscFlashDir = getMiscSubDir('flash');
 	static var playerLocation:String;
 
 	static final DEFAULT_APACHE_MIRROR = "https://downloads.apache.org/";
@@ -32,7 +31,7 @@ class Flash {
 		final apacheMirror = getPreferredApacheMirror();
 		final archiveExtension = if (systemName == "Windows") "zip" else "tar.gz";
 		final archiveName = 'apache-flex-sdk-${version}-bin.$archiveExtension';
-		runNetworkCommand("wget", ["-nv", '${apacheMirror}/flex/${version}/binaries/$archiveName', "-O", getDownloadPath() + '/$archiveName']);
+		runNetworkCommand("curl", ["-sS", '${apacheMirror}/flex/${version}/binaries/$archiveName', "-o", getDownloadPath() + '/$archiveName']);
 
 		if (systemName == "Windows") {
 			runCommand("7z", ["x", getDownloadPath() + '/$archiveName', "-o" + sdkPath, "-y"]);
@@ -68,10 +67,10 @@ class Flash {
 			infoMsg('playerglobal.swc found at $playerGlobalSwcPath');
 		} else {
 			final flashVersion = getLatestFPVersion();
-			runNetworkCommand("wget", [
-				"-nv",
+			runNetworkCommand("curl", [
+				"-sS",
 				'https://fpdownload.macromedia.com/get/flashplayer/updaters/${flashVersion[0]}/playerglobal${flashVersion[0]}_${flashVersion[1]}.swc',
-				"-O",
+				"-o",
 				playerGlobalSwcPath
 			]);
 		}
@@ -89,10 +88,10 @@ class Flash {
 	}
 
 	static function downloadPlayer(version:Int, fileName:String, outputPath:String) {
-		runNetworkCommand("wget", [
-			"-nv",
+		runNetworkCommand("curl", [
+			"-sS",
 			'https://fpdownload.macromedia.com/pub/flashplayer/updaters/$version/$fileName',
-			"-O",
+			"-o",
 			'$outputPath/$fileName'
 		]);
 	}
@@ -252,10 +251,8 @@ class Flash {
 			runFlash("bin/unit.swf");
 		}
 
-		Display.maybeRunDisplayTests(Flash);
-
-		changeDirectory(miscFlashDir);
-		runCommand("haxe", ["run.hxml"]);
+		changeDirectory(getMiscSubDir(""));
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "flash"]);
 	}
 
 }

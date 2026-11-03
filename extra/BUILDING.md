@@ -14,7 +14,7 @@ Alternatively, source .zip archives or tarballs can be obtained from the [GitHub
 
 The Haxe compiler is written in OCaml, so you have to set up an OCaml development environment. In addition, we make use of a number of OCaml libraries. We recommend using OPAM, which is an OCaml package manager that can also manage OCaml installations.
 
-The Haxe compiler requires OCaml version 4.02 or higher. Since some of the OCaml libraries Haxe depends on were uploaded in the OPAM 2 format, you should use OPAM 2.x instead of OPAM 1.x.
+The Haxe compiler requires OCaml version 5.0 or higher (for multicore/domainslib support). You should use OPAM 2.x.
 
 To install OPAM on Unix (e.g. Mac, Linux) systems, follow the [instruction given by OPAM](https://opam.ocaml.org/doc/Install.html). On Windows, we recommend using the [Cygwin/MinGW-based OPAM environment provided by fdopen](https://fdopen.github.io/opam-repository-mingw/installation/), choose the 64-bit versions of everything, also make sure to [use the OPAM 2 version](https://github.com/fdopen/opam-repository-mingw/issues/48).
 
@@ -36,7 +36,8 @@ You need to install some native libraries as well as some OCaml libraries.
 To install the native libraries, use the appropriate system package manager.
 
  * Mac OS X
-    * Use [Homebrew](https://brew.sh/), `brew install zlib pcre2 mbedtls`.
+    * Use [Homebrew](https://brew.sh/), `brew install zlib pcre2 mbedtls@3`.
+    * Note: mbedTLS 4.x is not yet supported; use the 3.x branch.
  * Debian / Ubuntu
     * `sudo apt install libpcre2-dev zlib1g-dev libmbedtls-dev`.
  * Windows (Cygwin)

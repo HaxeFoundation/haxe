@@ -67,7 +67,7 @@ class Copy {
 	function copyValue<T, O:{}
 		& T>(v:T):T {
 		return switch (Type.typeof(v)) {
-			case TNull, TInt, TFloat, TBool, TClass(String | Date):
+			case TNull, TInt, TFloat, TBool, TClass(String | Date), TInt64:
 				v;
 			case TClass(c):
 				var v:O = cast v;

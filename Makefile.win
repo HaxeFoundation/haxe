@@ -42,7 +42,7 @@ ifdef FILTER
 CC_CMD=($(COMPILER) $(ALL_CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
 endif
 
-PACKAGE_FILES=$(HAXE_OUTPUT) $(HAXELIB_OUTPUT) std \
+PACKAGE_FILES=$(HAXE_OUTPUT) $(HAXELIB_OUTPUT) std LICENSE \
 	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep zlib1.dll | sed -e 's/^\s*//')" \
 	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libpcre2-8-0.dll | sed -e 's/^\s*//')" \
 	"$$(cygcheck $(CURDIR)/$(HAXE_OUTPUT) | grep libmbedcrypto.dll | sed -e 's/^\s*//')" \
@@ -66,7 +66,7 @@ package_win:
 	# Using poor man's cp (zip then unzip), because cp in cygwin is quite broken
 	mkdir -p $(PACKAGE_FILE_NAME)
 	7z a -y -tzip -mx0 temp.zip $(PACKAGE_FILES) > log.txt || type log.txt
-	cd extra && 7z a -y -tzip -mx0 ../temp.zip LICENSE.txt CONTRIB.txt CHANGES.txt > log.txt || type log.txt
+	cd extra && 7z a -y -tzip -mx0 ../temp.zip CONTRIB.txt CHANGES.txt > log.txt || type log.txt
 	7z x -y temp.zip -o$(PACKAGE_FILE_NAME) > log.txt || type log.txt
 	rm temp.zip
 	# archive

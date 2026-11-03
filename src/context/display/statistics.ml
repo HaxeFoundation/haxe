@@ -1,7 +1,6 @@
 open Globals
 open Type
 open Common
-open Typecore
 open DisplayTypes
 
 type relation =
@@ -25,7 +24,7 @@ let collect_statistics com pos_filters with_expressions =
 			try
 				Hashtbl.find paths path
 			with Not_found ->
-				let unique = com.file_keys#get path in
+				let unique = com.part_scope.file_keys#get path in
 				Hashtbl.add paths path unique;
 				unique
 		)
@@ -360,4 +359,37 @@ module Printer = struct
 			]) :: acc
 		) files [] in
 		string_of_json (JArray ja)
+
+	let json_of_statistics (kinds,relations) =
+		let files = Hashtbl.create 0 in
+		Hashtbl.iter (fun p rl ->
+			let file = Path.get_real_path p.pfile in
+			try
+				Hashtbl.replace files file ((p,rl) :: Hashtbl.find files file)
+			with Not_found ->
+				Hashtbl.add files file [p,rl]
+		) relations;
+		let ja = Hashtbl.fold (fun file relations acc ->
+			let l = List.map (fun (p,rl) ->
+				let h = Hashtbl.create 0 in
+				List.iter (fun (r,p) ->
+					let s = relation_to_string r in
+					let jo = JObject [
+						"range",Genjson.generate_pos_as_range p;
+						"file",JString (Path.get_real_path p.pfile);
+					] in
+					try Hashtbl.replace h s (jo :: Hashtbl.find h s)
+					with Not_found -> Hashtbl.add h s [jo]
+				) rl;
+				let l = Hashtbl.fold (fun s js acc -> (s,JArray js) :: acc) h [] in
+				let l = ("range",Genjson.generate_pos_as_range p) :: l in
+				let l = try ("kind",JString (symbol_to_string (Hashtbl.find kinds p))) :: l with Not_found -> l in
+				JObject l
+			) relations in
+			(JObject [
+				"file",JString file;
+				"statistics",JArray l
+			]) :: acc
+		) files [] in
+		JArray ja
 end

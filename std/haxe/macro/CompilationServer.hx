@@ -42,6 +42,15 @@ enum abstract ModuleCheckPolicy(Int) {
 	var CheckFileContentModification = 2;
 }
 
+typedef CompilationStats = {
+	var filesParsed:Int;
+	var modulesTyped:Int;
+	var modulesRestoredFromHxb:Int;
+	var classesBuilt:Int;
+	var methodsTyped:Int;
+	var macrosCalled:Int;
+}
+
 /**
 	This class provides some methods which can be invoked from command line using
 	`--macro server.field(args)`.
@@ -85,6 +94,18 @@ class CompilationServer {
 	**/
 	static public function invalidateFiles(filePaths:Array<String>) {
 		@:privateAccess Compiler.load("server_invalidate_files", 1)(filePaths);
+	}
+
+	/**
+		Get current compilation server stats counters.
+
+		Can be called at different compilation stages, or even in the middle of
+		a macro execution.
+
+		Counters are reset at the beginning of each request.
+	**/
+	static public function getStats():CompilationStats {
+		return @:privateAccess Compiler.load("server_stats", 0)();
 	}
 	#end
 }

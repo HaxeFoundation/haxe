@@ -54,21 +54,7 @@ import js.Syntax;
 
 	@:pure
 	public static function parseInt(x:String):Null<Int> {
-		#if (js_es >= 5)
 		final v = js.Lib.parseInt(x);
-		#else
-		// before ES5, octal was supported in some implementations, so we need to explicitly use base 10 or 16
-		if (x == null)
-			return null;
-		var v:Float = Math.NaN;
-		for (i => c in StringTools.keyValueIterator(x)) {
-			if ((c <= 8 || c >= 14) && !(c == ' '.code || c == '-'.code || c == '+'.code)) {
-				final nc = js.Syntax.code("{0}[{1}]", x, i + 1);
-				v = js.Lib.parseInt(x, c == '0'.code && (nc == "x" || nc == "X") ? 16 : 10);
-				break;
-			}
-		}
-		#end
 		if (Math.isNaN(v))
 			return null;
 		return cast v;
@@ -101,22 +87,5 @@ import js.Syntax;
 		__feature__("Bool.*", js.Syntax.code('var Bool = Boolean'));
 		__feature__("Class.*", js.Syntax.code('var Class = { };'));
 		__feature__("Enum.*", js.Syntax.code('var Enum = { };'));
-		#if (js_es < 5)
-		__feature__("Array.map", if (Array.prototype.map == null) Array.prototype.map = function(f) {
-			var a = [];
-			for (i in 0...__this__.length)
-				a[i] = f(__this__[i]);
-			return a;
-		});
-		__feature__("Array.filter", if (Array.prototype.filter == null) Array.prototype.filter = function(f) {
-			var a = [];
-			for (i in 0...__this__.length) {
-				var e = __this__[i];
-				if (f(e))
-					a.push(e);
-			}
-			return a;
-		});
-		#end
 	}
 }

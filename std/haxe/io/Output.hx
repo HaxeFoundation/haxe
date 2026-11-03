@@ -22,13 +22,15 @@
 
 package haxe.io;
 
+import haxe.Int32;
+
 /**
 	An Output is an abstract write. A specific output implementation will only
 	have to override the `writeByte` and maybe the `write`, `flush` and `close`
 	methods. See `File.write` and `String.write` for two ways of creating an
 	Output.
 **/
-class Output {
+abstract class Output {
 	/**
 		Endianness (word byte order) used when writing numbers.
 
@@ -222,7 +224,7 @@ class Output {
 
 		Endianness is specified by the `bigEndian` property.
 	**/
-	public function writeInt32(x:Int) {
+	public function writeInt32(x:Int32) {
 		if (bigEndian) {
 			writeByte(x >>> 24);
 			writeByte((x >> 16) & 0xFF);

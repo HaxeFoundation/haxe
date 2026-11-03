@@ -3,6 +3,12 @@
 # - install Neko
 # - checkout haxe git
 # - run from command "powershell -noexit -ExecutionPolicy Bypass -File .\WinSetup.ps1"
+#
+# Troubleshooting :
+# - make error #127 :
+#	  - cause : you have a local cygwin instance that takes precedence over the opam one.
+#     - solution : adjust your environment variables so opam takes precedence
+#
 
 function Cmd-Path($file) {
 	try { Split-Path -Parent (Get-Command "$file.exe" -ErrorAction Stop).Source } catch { "" }

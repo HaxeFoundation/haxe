@@ -63,7 +63,7 @@ let type_function ctx (args : function_arguments) ret e do_display p =
 	end else begin
 		let is_display_debug = Meta.has (Meta.Custom ":debug.display") ctx.f.curfield.cf_meta in
 		if is_display_debug then print_endline ("before processing:\n" ^ (Expr.dump_with_pos e));
-		let e = if ctx.com.parser_state.had_parser_resume then e else Display.preprocess_expr ctx.com e in
+		let e = if ctx.com.part_scope.parser_state.had_parser_resume then e else Display.preprocess_expr ctx.com e in
 		if is_display_debug then print_endline ("after processing:\n" ^ (Expr.dump_with_pos e));
 		type_expr ctx e NoValue
 	end in
@@ -210,12 +210,12 @@ let add_constructor ctx_c c force_constructor p =
 					let's optimize a bit the output by not always copying the default value
 					into the inherited constructor when it's not necessary for the platform
 				*)
-				let null () = Some (Texpr.Builder.make_null v.v_type v.v_pos) in
+				let null v = Some (Texpr.Builder.make_null v.v_type v.v_pos) in
 				match ctx.com.platform, def with
-				| _, Some _ when not ctx.com.config.pf_static -> v, null()
-				| Flash, Some ({eexpr = TConst (TString _)}) when not (has_class_flag csup CExtern) -> v, null()
+				| _, Some _ when not ctx.com.config.pf_static -> v, null v
+				| Flash, Some ({eexpr = TConst (TString _)}) when not (has_class_flag csup CExtern) -> v, null v
 				| Cpp, Some ({eexpr = TConst (TString _)}) -> v, def
-				| Cpp, Some _ -> { v with v_type = ctx.t.tnull v.v_type }, null()
+				| Cpp, Some _ -> let v = { v with v_type = ctx.t.tnull v.v_type } in v, null v
 				| _ -> v, def
 			in
 			let args = (match cfsup.cf_expr with
@@ -233,7 +233,9 @@ let add_constructor ctx_c c force_constructor p =
 							in
 							map_arg (alloc_var (VUser TVOArgument) n (if o then ctx.t.tnull t else t) p,def) (* TODO: var pos *)
 						) args
-					| _ -> die "" __LOC__
+					| t ->
+						display_error ctx_c.com (Printf.sprintf "Unexpected constructor type: %s" (s_type_kind t)) cfsup.cf_name_pos;
+						[]
 			) in
 			let p = c.cl_pos in
 			let vars = List.map (fun (v,def) -> alloc_var (VUser TVOArgument) v.v_name (apply_params csup.cl_params cparams v.v_type) v.v_pos, def) args in
