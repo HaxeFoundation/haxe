@@ -751,22 +751,7 @@ let handle_assign_op ctx api e1 e2 with_type p =
 			let eget = api.type_rhs eread e2 in
 			let eget = api.to_texpr vr eget (fun e -> e) in
 			unify ctx eget.etype r_get p;
-			let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_write_access ctx a tl ekey eget p in
-			let et = type_module_type ctx (TClassDecl c) p in
-			let e = match cf_set.cf_expr,cf_get.cf_expr with
-				(* | None,None ->
-					let ea = mk (TArray(ebase,ekey)) r_get p in
-					mk (TBinop(OpAssignOp op,ea,type_expr ctx e2 (WithType.with_type r_get))) r_set p *)
-				| Some _,Some _ ->
-					let ef_set = mk (TField(et,(FStatic(c,cf_set)))) tf_set p in
-					let el = [make_call ctx ef_set [ebase;ekey;eget] r_set p] in
-					begin match el with
-						| [e] -> e
-						| el -> mk (TBlock el) r_set p
-					end
-				| _ ->
-					raise_typing_error "Invalid array access getter/setter combination" p
-			in
+			let e = mk_array_set_call ctx (AbstractCast.find_array_write_access ctx a tl ekey eget p) c ebase p in
 			save();
 			api.generate vr eread e
 		| AKResolve(sea,name) ->
