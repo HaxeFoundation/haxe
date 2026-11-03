@@ -151,7 +151,7 @@ class TestReflect extends Test {
 	public function testTypeEq()
 	{
 		eq(cast Array, Type.resolveClass("Array"));
-		eq(cast Array, Type.getClass([]));
+		eq(cast Array, Type.getClass(([] : Array<Int>)));
 		eq(cast Array, Type.getClass([1]));
 	}
 

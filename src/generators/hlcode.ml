@@ -220,7 +220,7 @@ type fundecl = {
 	regs : ttype array;
 	code : opcode array;
 	debug : (int * int * Globals.pos) array;
-	assigns : (string index * int) array;
+	assigns : (string index * int * int) array;
 	need_opt : bool;
 }
 
@@ -335,91 +335,28 @@ let is_dynamic t =
 	| HDyn | HFun _ | HObj _ | HArray _ | HVirtual _ | HDynObj | HNull _ | HEnum _ -> true
 	| _ -> false
 
-let tsame t1 t2 =
-	let rec tsame seen t1 t2 =
-		if t1 == t2 then true else
-		match t1, t2 with
-		| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 (tsame seen) args1 args2 && tsame seen ret2 ret1
-		| HMethod (args1,ret1), HMethod (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 (tsame seen) args1 args2 && tsame seen ret2 ret1
-		| HObj p1, HObj p2 -> p1 == p2
-		| HEnum e1, HEnum e2 -> e1 == e2
-		| HStruct p1, HStruct p2 -> p1 == p2
-		| HAbstract (_,a1), HAbstract (_,a2) -> a1 == a2
-		| HVirtual v1, HVirtual v2 ->
-			if v1 == v2 then true else
-			if List.exists (fun (a,b) -> a == v1 && b == v2) seen then true else
-			if Array.length v1.vfields <> Array.length v2.vfields then false else
-			let seen = (v1,v2) :: seen in
-			let rec loop i =
-				if i = Array.length v1.vfields then true else
-				let _, i1, t1 = v1.vfields.(i) in
-				let _, i2, t2 = v2.vfields.(i) in
-				if i1 = i2 && tsame seen t1 t2 then loop (i + 1) else false
-			in
-			loop 0
-		| HNull t1, HNull t2 -> tsame seen t1 t2
-		| HRef t1, HRef t2 -> tsame seen t1 t2
-		| _ -> false
-	in
-	tsame [] t1 t2
-
-let ttype_compare t1 t2 =
-	let seen1 = ref [] and seen2 = ref [] and depth = ref 0 in
-	let level seen v =
-		let rec loop = function
-			| [] -> None
-			| (v',d) :: l -> if v' == v then Some d else loop l
-		in
-		loop !seen
-	in
-	let rec cmp t1 t2 =
-		if t1 == t2 then 0 else
-		match t1, t2 with
-		| HVirtual v1, HVirtual v2 ->
-			(match level seen1 v1, level seen2 v2 with
-			| Some d1, Some d2 -> compare d1 d2
-			| Some _, None -> -1
-			| None, Some _ -> 1
-			| None, None ->
-				let d = !depth in
-				seen1 := (v1,d) :: !seen1;
-				seen2 := (v2,d) :: !seen2;
-				incr depth;
-				cmp_vfields v1.vfields v2.vfields)
-		| HFun (args1,ret1), HFun (args2,ret2)
-		| HMethod (args1,ret1), HMethod (args2,ret2) ->
-			let c = cmp_list args1 args2 in
-			if c <> 0 then c else cmp ret1 ret2
-		| (HArray a, HArray b) | (HRef a, HRef b) | (HNull a, HNull b) | (HPacked a, HPacked b) -> cmp a b
-		| _ -> compare t1 t2
-	and cmp_list l1 l2 = match l1, l2 with
-		| [], [] -> 0
-		| [], _ -> -1
-		| _, [] -> 1
-		| x :: l1, y :: l2 -> let c = cmp x y in if c <> 0 then c else cmp_list l1 l2
-	and cmp_vfields a b =
-		let c = compare (Array.length a) (Array.length b) in
-		if c <> 0 then c else
+let rec tsame t1 t2 =
+	if t1 == t2 then true else
+	match t1, t2 with
+	| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
+	| HMethod (args1,ret1), HMethod (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
+	| HObj p1, HObj p2 -> p1 == p2
+	| HEnum e1, HEnum e2 -> e1 == e2
+	| HStruct p1, HStruct p2 -> p1 == p2
+	| HAbstract (_,a1), HAbstract (_,a2) -> a1 == a2
+	| HVirtual v1, HVirtual v2 ->
+		if v1 == v2 then true else
+		if Array.length v1.vfields <> Array.length v2.vfields then false else
 		let rec loop i =
-			if i = Array.length a then 0 else
-			let (n1,i1,t1) = a.(i) and (n2,i2,t2) = b.(i) in
-			let c = compare (n1 : string) n2 in if c <> 0 then c else
-			let c = compare (i1 : int) i2 in if c <> 0 then c else
-			let c = cmp t1 t2 in if c <> 0 then c else
-			loop (i + 1)
+			if i = Array.length v1.vfields then true else
+			let _, i1, t1 = v1.vfields.(i) in
+			let _, i2, t2 = v2.vfields.(i) in
+			if i1 = i2 && tsame t1 t2 then loop (i + 1) else false
 		in
 		loop 0
-	in
-	cmp t1 t2
-
-let rec ttype_list_compare l1 l2 = match l1, l2 with
-	| [], [] -> 0
-	| [], _ -> -1
-	| _, [] -> 1
-	| t1 :: l1, t2 :: l2 -> let c = ttype_compare t1 t2 in if c <> 0 then c else ttype_list_compare l1 l2
-
-let ttype_pair_compare (a1,b1) (a2,b2) =
-	let c = ttype_compare a1 a2 in if c <> 0 then c else ttype_compare b1 b2
+	| HNull t1, HNull t2 -> tsame t1 t2
+	| HRef t1, HRef t2 -> tsame t1 t2
+	| _ -> false
 
 let compatible_element_types t1 t2 =
 	if t1 == t2 then
@@ -511,7 +448,7 @@ let resolve_field p fid =
 	loop [] p
 
 let gather_types (code:code) =
-	let types = ref (PMap.create ttype_compare) in
+	let types = ref PMap.empty in
 	let arr = DynArray.create() in
 	let rec get_type t =
 		(match t with

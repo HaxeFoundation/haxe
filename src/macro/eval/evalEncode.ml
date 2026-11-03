@@ -256,45 +256,48 @@ let encode_string_map convert m =
 	PMap.iter (fun key value -> RuntimeStringHashtbl.add h (create_ascii key) (convert value)) m;
 	encode_string_map_direct h
 
-let fake_proto path =
-	let proto = {
-		ppath = path;
-		pfields = [||];
-		pnames = IntMap.empty;
-		pinstance_names = IntMap.empty;
-		pinstance_fields = [||];
-		pparent = None;
-		pkind = PInstance;
-		pvalue = vnull;
-	} in
-	proto.pvalue <- vprototype proto;
-	proto
+let fake_proto cache path =
+	try Hashtbl.find cache path
+	with Not_found ->
+		let proto = {
+			ppath = path;
+			pfields = [||];
+			pnames = IntMap.empty;
+			pinstance_names = IntMap.empty;
+			pinstance_fields = [||];
+			pparent = None;
+			pkind = PInstance;
+			pvalue = vnull;
+		} in
+		proto.pvalue <- vprototype proto;
+		Hashtbl.replace cache path proto;
+		proto
 
 let encode_unsafe o =
 	vinstance {
 		ifields = [||];
-		iproto = fake_proto key_haxe_macro_Unsafe;
+		iproto = fake_proto (get_ctx()).fake_proto_cache key_haxe_macro_Unsafe;
 		ikind = IRef (Obj.repr o);
 	}
 
 let encode_pos p =
 	vinstance {
 		ifields = [||];
-		iproto = fake_proto key_haxe_macro_Position;
+		iproto = fake_proto (get_ctx()).fake_proto_cache key_haxe_macro_Position;
 		ikind = IPos p;
 	}
 
 let encode_lazytype t f =
 	vinstance {
 		ifields = [||];
-		iproto = fake_proto key_haxe_macro_LazyType;
+		iproto = fake_proto (get_ctx()).fake_proto_cache key_haxe_macro_LazyType;
 		ikind = ILazyType(t,f);
 	}
 
 let encode_tdecl t =
 	vinstance {
 		ifields = [||];
-		iproto = fake_proto key_haxe_macro_TypeDecl;
+		iproto = fake_proto (get_ctx()).fake_proto_cache key_haxe_macro_TypeDecl;
 		ikind = ITypeDecl t;
 	}
 

@@ -339,7 +339,7 @@ let close_file ctx =
 	let content = (match defines with [] -> out | l -> String.concat "\n" l ^ "\n\n" ^ out) in
 	let str = if ctx.curfile = "hlc.json" then content else bom ^ content in
 	ctx.defines <- [];
-	ctx.defined_types <- PMap.create ttype_compare;
+	ctx.defined_types <- PMap.empty;
 	Hashtbl.clear ctx.hdefines;
 	Hashtbl.clear ctx.defined_funs;
 	Buffer.reset ctx.out;
@@ -382,7 +382,7 @@ let create_file_context dir file =
 		defines = [];
 		hdefines = Hashtbl.create 0;
 		defined_funs = Hashtbl.create 0;
-		defined_types = PMap.create ttype_compare;
+		defined_types = PMap.empty;
 		fun_index = 0;
 		file_prefix = (short_digest file) ^ "_";
 	} in
@@ -1024,9 +1024,9 @@ let generate_function gctx ctx f =
 		| OGetUI8 (r,b,idx) ->
 			sexpr "%s = *(unsigned char*)(%s + %s)" (reg r) (reg b) (reg idx)
 		| OGetUI16 (r,b,idx) ->
-			sexpr "%s = *(unsigned short*)(%s + %s)" (reg r) (reg b) (reg idx)
+			sexpr "{ unsigned short _v; memcpy(&_v, %s + %s, sizeof(_v)); %s = _v; }" (reg b) (reg idx) (reg r)
 		| OGetMem (r,b,idx) ->
-			sexpr "%s = *(%s*)(%s + %s)" (reg r) (ctype (rtype r)) (reg b) (reg idx)
+			sexpr "memcpy(&%s, %s + %s, sizeof(%s))" (reg r) (reg b) (reg idx) (reg r)
 		| OGetArray (r, arr, idx) ->
 			(match rtype arr with
 			| HAbstract _ ->
@@ -1040,9 +1040,9 @@ let generate_function gctx ctx f =
 		| OSetUI8 (b,idx,r) ->
 			sexpr "*(unsigned char*)(%s + %s) = (unsigned char)%s" (reg b) (reg idx) (reg r)
 		| OSetUI16 (b,idx,r) ->
-			sexpr "*(unsigned short*)(%s + %s) = (unsigned short)%s" (reg b) (reg idx) (reg r)
+			sexpr "{ unsigned short _v = (unsigned short)%s; memcpy(%s + %s, &_v, sizeof(_v)); }" (reg r) (reg b) (reg idx)
 		| OSetMem (b,idx,r) ->
-			sexpr "*(%s*)(%s + %s) = %s" (ctype (rtype r)) (reg b) (reg idx) (reg r)
+			sexpr "memcpy(%s + %s, &%s, sizeof(%s))" (reg b) (reg idx) (reg r) (reg r)
 		| OSetArray (arr,idx,v) ->
 			(match rtype arr with
 			| HAbstract _ ->
@@ -1173,7 +1173,7 @@ let native_name str =
 	if str.[0] = '?' then String.sub str 1 (String.length str - 1) else str
 
 let make_types_idents htypes =
-	let types_descs = ref (PMap.create (fun a b -> ttype_compare (HVirtual a) (HVirtual b))) in
+	let types_descs = ref PMap.empty in
 	let rec make_desc t =
 		match t with
 		| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray _ | HType | HRef _ | HDynObj | HNull _ | HGUID ->
@@ -1395,7 +1395,7 @@ let make_modules ctx all_types =
 		in
 		m.m_functions <- get_deps [] m.m_functions
 	) !all_modules;
-	let contexts = ref (PMap.create ttype_compare) in
+	let contexts = ref PMap.empty in
 	Array.iter (fun f ->
 		if f.fe_module = None && ExtString.String.starts_with f.fe_name "fun$" then f.fe_name <- "wrap" ^ type_name ctx (match f.fe_decl with None -> Globals.die "" __LOC__ | Some f -> f.ftype);
 		(* assign context to function module *)
@@ -1511,7 +1511,7 @@ let write_c com file (code:code) gnames num_domains =
 		htypes = types_ids;
 		gnames = gnames;
 		bytes_names = bnames;
-		type_module = PMap.create ttype_compare;
+		type_module = PMap.empty;
 		gcon = com;
 	} in
 	let modules = make_modules gctx all_types in

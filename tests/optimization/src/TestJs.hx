@@ -48,6 +48,15 @@ class TestJs {
 		for (v in a) { }
 	}
 
+	@:js('var _gv = TestJs.getIterator();while(_gv.hasNext()) {var v = _gv.next();TestJs.use(v);TestJs.use(v);}')
+	@:analyzer(no_local_dce)
+	static function testIteratorLoopVarNotRenamed() {
+		for (v in getIterator()) {
+			use(v);
+			use(v);
+		}
+	}
+
 	@:js('var a = 1;var v2 = a;if(a + v2 > 0) {TestJs.use(a);}')
 	@:analyzer(no_const_propagation)
 	@:analyzer(no_copy_propagation)
@@ -525,6 +534,9 @@ class TestJs {
 
 	@:pure(false)
 	static function getImpureArray() { return [0, 1]; }
+
+	@:pure(false)
+	static function getIterator():Iterator<Int> { return null; }
 
 	@:pure(false)
 	static function call(d1:Dynamic, d2:Dynamic) { return d1; }

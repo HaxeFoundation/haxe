@@ -253,14 +253,7 @@ class Bytes {
 		if (Ascii.isEncoded(s)) {
 			return s.asCharView().asBytesView().toBytes();
 		} else {
-			final count = Utf8.getByteCount(s);
-			final bytes = Bytes.alloc(Int64.toInt(count));
-
-			if (Utf8.encode(s, bytes.asView()) != count) {
-				throw new haxe.Exception('Failed to encode string to UTF8');
-			} else {
-				return bytes;
-			}
+			return Bytes.ofData(Utf8.encode(s));
 		}
 	}
 

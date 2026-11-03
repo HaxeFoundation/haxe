@@ -35,9 +35,6 @@ let json_of_times root =
 
 let supports_resolve = ref false
 
-let create_json_context  may_resolve =
-	Genjson.create_context (if may_resolve && !supports_resolve then GMMinimum else GMFull)
-
 let send_string io j =
 	CompilerIo.write_result io j
 
@@ -229,7 +226,7 @@ let handler =
 			let i = hctx.jsonrpc#get_int_param "index" in
 			begin try
 				let item = (!DisplayException.last_completion_result).(i) in
-				let ctx = Genjson.create_context GMFull in
+				let ctx = Genjson.create_full_config () in
 				Result (jobject ["item",CompletionItem.to_json ctx None item])
 			with Invalid_argument _ ->
 				Error (jstring (Printf.sprintf "Invalid index: %i" i))
@@ -470,7 +467,7 @@ let handler =
 						end;
 						let infos = t_infos mt in
 						if snd infos.mt_path = typeName then begin
-							let ctx = Genjson.create_context GMMinimum in
+							let ctx = Genjson.create_full_config () in
 							Result (Genjson.generate_module_type ctx mt)
 						end else
 							loop mtl
@@ -571,7 +568,7 @@ let handler =
 		);
 		"typer/compiledTypes", (fun hctx ->
 			defer AfterFilters (fun () ->
-				let ctx = create_context GMFull in
+				let ctx = create_full_config () in
 				let l = List.map (generate_module_type ctx) hctx.com.types in
 				Result (jarray l)
 			)

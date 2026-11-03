@@ -59,7 +59,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 	Timer.time com.timer_ctx ["parsing"] (parse_file_from_lexbuf com file p) lexbuf
 
 let parse_file_from_string com file p string =
-	parse_file_from_lexbuf com file p (Sedlexing.Utf8.from_string string)
+	parse_file_from_lexbuf com file p (Lexer.lexbuf_from_utf8_string string)
 
 let parse_file com rfile p =
 	let file_key = com.part_scope.file_keys#get rfile.ClassPaths.file in
@@ -82,7 +82,8 @@ let parse_file com rfile p =
 		| FFile ->
 			let file = rfile.file in
 			let ch = try open_in_bin file with _ -> raise_typing_error ("Could not open " ^ file) p in
-			Std.finally (fun() -> close_in ch) (parse_file_from_lexbuf com file p) (Sedlexing.Utf8.from_channel ch)
+			let s = Std.finally (fun() -> close_in ch) (fun ch -> really_input_string ch (in_channel_length ch)) ch in
+			parse_file_from_string com file p s
 
 let parse_hook = ref parse_file
 

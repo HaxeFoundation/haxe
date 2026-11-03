@@ -88,6 +88,7 @@ type macro_result =
 
 type typer_pass_tasks = {
 	mutable tasks : (unit -> unit) list;
+	mutable tasks_late : (unit -> unit) list;
 }
 
 type function_mode =
@@ -513,7 +514,7 @@ let delay g (p : typer_pass) f =
 let delay_late g (p : typer_pass) f =
 	let p = Obj.magic p in
 	let tasks = g.delayed.(p) in
-	tasks.tasks <- tasks.tasks @ [f];
+	tasks.tasks_late <- f :: tasks.tasks_late;
 	if p < g.delayed_min_index then
 		g.delayed_min_index <- p
 
@@ -529,16 +530,24 @@ let rec flush_pass g (p : typer_pass) where =
 			()
 		else begin
 			let tasks = g.delayed.(i) in
-			match tasks.tasks with
+			begin match tasks.tasks with
 			| f :: l ->
 				tasks.tasks <- l;
 				f();
 				flush_pass g p where
 			| [] ->
-				(* Done with this pass (for now), update min index to next one *)
-				let i = i + 1 in
-				g.delayed_min_index <- i;
-				loop i
+				begin match tasks.tasks_late with
+				| _ :: _ ->
+					tasks.tasks <- List.rev tasks.tasks_late;
+					tasks.tasks_late <- [];
+					flush_pass g p where
+				| [] ->
+					(* Done with this pass (for now), update min index to next one *)
+					let i = i + 1 in
+					g.delayed_min_index <- i;
+					loop i
+				end
+			end
 		end
 	in
 	loop g.delayed_min_index

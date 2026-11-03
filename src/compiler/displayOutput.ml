@@ -42,14 +42,17 @@ let handle_syntax_completion com kind subj =
 	| _ ->
 		let l = List.map make_ci_keyword l in
 		let rh = com.Common.request_scope.result_handler in
-		let ctx = Genjson.create_context GMFull in
+		let ctx = Genjson.create_full_config () in
 		CompilerOutput.send_result_raise rh (fields_to_json ctx l kind subj)
 
 let handle_display_exception_json com dex rh =
 	match dex with
 	| DisplayHover _ | DisplayFields _ ->
 		DisplayPosition.display_position#reset;
-		let ctx = DisplayJson.create_json_context (match dex with DisplayFields _ -> true | _ -> false) in
+		let ctx = match dex with
+			| DisplayFields _ when !DisplayJson.supports_resolve -> Genjson.create_minimal_config ()
+			| _ -> Genjson.create_full_config ()
+		in
 		CompilerOutput.send_result_raise rh (DisplayException.to_json ctx dex)
 
 let handle_display_exception com dex =
@@ -73,7 +76,7 @@ let handle_type_path_exception com p c is_import pos =
 	| None ->
 		()
 	| Some fields ->
-		let ctx = DisplayJson.create_json_context false in
+		let ctx = Genjson.create_full_config () in
 		let path = match List.rev p with
 			| name :: pack -> List.rev pack,name
 			| [] -> [],""
