@@ -151,7 +151,7 @@ class Hl {
 
 		final extraArgsList = [
 			for (analyzerArgs in [[], ["--undefine", "analyzer-optimize"]])
-				for (versionArgs in [["-D", "hl-ver=1.16.0"], ["-D", "hl-ver=2.0.0"]])
+				for (versionArgs in [["-D", "hl-ver=1.16.0"], ["-D", "hl-ver=1.16.0", "-D", "hl_legacy32"], ["-D", "hl-ver=2.0.0"]])
 					analyzerArgs.concat(versionArgs)
 		];
 		for (extraArgs in extraArgsList) {
