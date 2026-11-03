@@ -26,7 +26,7 @@ Path-scoped instructions with more detail live in `.github/instructions/`. Read 
 
 ### Setting Up a Fresh Container
 On Ubuntu 24.04 (e.g. a cloud agent container), run `extra/agent-setup.sh` from the repository root before anything else. It installs the system packages, puts a prebuilt OCaml 5 toolchain with all opam dependencies in `/opt/opam` (building it from source only if no prebuilt one matches), adds the opam environment to `~/.bashrc`, and runs `make haxe`. Don't set up OCaml or opam by hand.
-- If `ocamlfind` or `dune` aren't found in a new shell, run `export OPAMROOT=/opt/opam; eval "$(opam env --switch=5.3.0)"`
+- If `ocamlfind` or `dune` aren't found in a new shell, run `export OPAMROOT=/opt/opam; eval "$(opam env)"`
 - Pass `--no-build` to only set up the toolchain
 - Building haxelib additionally needs the git submodules (`git submodule update --init --recursive`) before `make haxelib`
 

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Sets up an OCaml toolchain for building the Haxe compiler on Ubuntu, then builds it.
-# Used by CI (linux-build in .github/workflows/main.yml), by coding agents in fresh
-# containers (Claude Code, Copilot, ...), and by anyone on Ubuntu 22.04 or newer.
+# Meant for coding agents in fresh containers (Claude Code, Copilot, ...), but works for
+# anyone on Ubuntu 22.04 or newer.
 #
 # Building OCaml 5 and the opam dependencies from source takes 5-20 minutes, so the
-# script first tries to download a prebuilt opam root. CI's linux-build job builds that
-# root on Ubuntu 22.04 when none matches the current key, and publishes it from pushes
-# to `development` as an asset of the `opam-root` prerelease.
+# script first tries to download the opam root that CI's linux-build job builds on
+# Ubuntu 22.04 and publishes from pushes to `development`, as an asset of the
+# `opam-root` prerelease. It only builds from source if no published archive matches.
 #
 # Usage: extra/agent-setup.sh [options]
 #   --from-source  never download the prebuilt opam root
@@ -23,10 +23,12 @@
 
 set -euo pipefail
 
+# Keep in sync with OCAML_VERSION in .github/workflows/main.yml.
 OCAML_VERSION=5.3.0
-# The OS the prebuilt archive is built on. It also works on newer Ubuntu releases.
+# The OS the prebuilt archive is built on (linux-build's runner). It also works on newer
+# Ubuntu releases.
 BUILD_OS=ubuntu-22.04
-# Bump to force a rebuild, e.g. to pick up newer versions of the dependencies.
+# Bump to publish a fresh archive, e.g. to pick up newer versions of the dependencies.
 REVISION=1
 DEFAULT_OPAMROOT=/opt/opam
 RELEASE_URL=${OPAM_ROOT_RELEASE_URL:-https://github.com/HaxeFoundation/haxe/releases/download/opam-root}
@@ -77,8 +79,8 @@ install_system_packages() {
 }
 
 opam_root_ready() {
-	[ -x "$OPAMROOT/$OCAML_VERSION/bin/ocamlfind" ] && [ -x "$OPAMROOT/$OCAML_VERSION/bin/dune" ] &&
-		"$OPAMROOT/$OCAML_VERSION/bin/ocamlopt" -version >/dev/null 2>&1
+	[ -f "$OPAMROOT/config" ] && opam exec -- ocamlfind ocamlopt -version >/dev/null 2>&1 &&
+		opam exec -- dune --version >/dev/null 2>&1
 }
 
 download_prebuilt() {
@@ -106,19 +108,18 @@ download_prebuilt() {
 	fi
 }
 
+# Same steps as linux-build in .github/workflows/main.yml.
 build_from_source() {
 	log "building OCaml $OCAML_VERSION and the dependencies from source (this takes a while)"
 	$SUDO mkdir -p "$OPAMROOT"
 	if [ -n "$SUDO" ]; then $SUDO chown "$(id -u):$(id -g)" "$OPAMROOT"; fi
-	# Containers usually can't run opam's bubblewrap sandbox.
+	# Reuse an existing opam root (e.g. a half-finished earlier run) instead of wiping it.
 	if [ ! -f "$OPAMROOT/config" ]; then
-		opam init --bare --no-setup --disable-sandboxing
+		# Containers usually can't run opam's bubblewrap sandbox.
+		opam init -c "$OCAML_VERSION" --no-setup --disable-sandboxing
 	fi
-	if ! opam switch list --short | grep -qx "$OCAML_VERSION"; then
-		opam switch create "$OCAML_VERSION" "ocaml-base-compiler.$OCAML_VERSION"
-	fi
-	opam pin add haxe "$REPO_ROOT" --no-action --switch "$OCAML_VERSION"
-	opam install haxe --deps-only --assume-depexts --switch "$OCAML_VERSION"
+	opam pin add haxe "$REPO_ROOT" --no-action
+	opam install haxe --deps-only --assume-depexts
 	opam clean --all-switches --download-cache --logs --repo-cache
 }
 
@@ -126,7 +127,7 @@ write_profile() {
 	local marker="# haxe agent-setup"
 	local block="$marker
 export OPAMROOT=$OPAMROOT OPAMROOTISOK=1
-eval \"\$(opam env --switch=$OCAML_VERSION --set-switch 2>/dev/null)\""
+eval \"\$(opam env 2>/dev/null)\""
 	for f in "$HOME/.bashrc" "$HOME/.profile"; do
 		if ! grep -qF "$marker" "$f" 2>/dev/null; then
 			printf '\n%s\n' "$block" >> "$f"
@@ -141,8 +142,8 @@ if opam_root_ready; then
 elif [ "$FROM_SOURCE" = 1 ] || ! download_prebuilt; then
 	build_from_source
 fi
-eval "$(opam env --switch="$OCAML_VERSION" --set-switch)"
-log "$(ocamlfind ocamlopt -version 2>/dev/null | sed 's/^/OCaml /'), dune $(dune --version)"
+eval "$(opam env)"
+log "OCaml $(ocamlfind ocamlopt -version), dune $(dune --version)"
 
 if [ "$PROFILE" = 1 ]; then write_profile; fi
 
