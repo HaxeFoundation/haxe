@@ -1071,8 +1071,9 @@ let common_type ctx e1 e2 for_eq p =
 		let ti2 = get_inner_type t2 in
 		if for_eq then HNull (common_type_number ti1 ti2) else common_type_number ti1 ti2
 	| (GInt | GFloat), (GInt | GFloat), _, _ -> common_type_number t1 t2
-	| _, (GInt | GFloat), HDyn, _ -> HF64
-	| (GInt | GFloat), _, _, HDyn -> HF64
+	(* for equality compare dynamically, otherwise null would be unboxed to 0 *)
+	| _, (GInt | GFloat), HDyn, _ -> if for_eq then HDyn else HF64
+	| (GInt | GFloat), _, _, HDyn -> if for_eq then HDyn else HF64
 	| _, _, HDyn, _ -> HDyn
 	| _, _, _, HDyn -> HDyn
 	| _ when for_eq && safe_cast t1 t2 -> t2
