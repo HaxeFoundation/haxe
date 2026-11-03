@@ -31,6 +31,8 @@ import js.html.Response;
 
 	Documentation [WebAssembly](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
+@:deprecated("Use js.web.wasm.WebAssembly from the js-std externs (js-core-api, js-window-api...)")
+@:haxe.warning("-WDeprecated")
 @:native("WebAssembly")
 extern class WebAssembly {
 	/**
@@ -74,6 +76,7 @@ extern class WebAssembly {
 	@:pure static function validate(bufferSource:BufferSource):Bool;
 }
 
+@:deprecated("Use js.web.wasm.WebAssemblyInstantiatedSource from the js-std externs (js-core-api, js-window-api...)")
 typedef WebAssemblyInstantiatedSource = {
 	final module:Module;
 	final instance:Instance;

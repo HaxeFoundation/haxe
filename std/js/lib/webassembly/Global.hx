@@ -29,6 +29,8 @@ package js.lib.webassembly;
 
 	Documentation [Global](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Global) by [Mozilla Contributors](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly$history), licensed under [CC-BY-SA 2.5](https://creativecommons.org/licenses/by-sa/2.5/).
 **/
+@:deprecated("Use js.web.wasm.Global from the js-std externs (js-core-api, js-window-api...)")
+@:haxe.warning("-WDeprecated")
 @:native("WebAssembly.Global")
 extern class Global {
 	/**
@@ -45,6 +47,7 @@ extern class Global {
 	@:pure function valueOf():Any;
 }
 
+@:deprecated("Use js.web.wasm.GlobalDescriptor from the js-std externs (js-core-api, js-window-api...)")
 typedef GlobalDescriptor = {
 	var value:ValueType;
 
@@ -54,6 +57,7 @@ typedef GlobalDescriptor = {
 	var ?mutable:Bool;
 }
 
+@:deprecated("Use js.web.wasm.ValueType from the js-std externs (js-core-api, js-window-api...)")
 enum abstract ValueType(String) {
 	var I32 = "i32";
 	var I64 = "i64";
