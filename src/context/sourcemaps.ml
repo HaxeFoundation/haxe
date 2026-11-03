@@ -36,7 +36,7 @@ let to_vlq number =
 class sourcemap_writer (generated_file:string) =
 	object (self)
 		(** Output buffer for generated sourcemap *)
-		val buffer = Rbuffer.create 1024
+		val buffer = Buffer.create 1024
 		(** Source Haxe files referenced by this sourcemap *)
 		val files = DynArray.create()
 		(** Positions of source Haxe files in `files` list *)
@@ -64,7 +64,7 @@ class sourcemap_writer (generated_file:string) =
 		let src_file = self#get_file_index pos
 		and src_line, src_col = match (Lexer.find_pos pos) with (line, col) -> (line - 1, col) in
 		if print_comma then
-			Rbuffer.add_char buffer ','
+			Buffer.add_char buffer ','
 		else
 			print_comma <- true;
 		(*
@@ -99,7 +99,7 @@ class sourcemap_writer (generated_file:string) =
 				else
 					current_out_col <- current_out_col + length
 			else begin
-				Rbuffer.add_char buffer ';';
+				Buffer.add_char buffer ';';
 				handle_next_new_line next_index
 			end
 		in
@@ -133,7 +133,7 @@ class sourcemap_writer (generated_file:string) =
 		end;
 		output_string channel "\"names\":[],\n";
 		output_string channel "\"mappings\":\"";
-		Rbuffer.output_buffer channel buffer;
+		Buffer.output_buffer channel buffer;
 		output_string channel "\"\n";
 		output_string channel "}";
 		close_out channel
@@ -159,7 +159,7 @@ class sourcemap_writer (generated_file:string) =
 			let continuation_bit = base in
 			let digit = vlq land mask in
 			let next = vlq asr shift in
-			Rbuffer.add_char buffer (encode_digit (if next > 0 then digit lor continuation_bit else digit));
+			Buffer.add_char buffer (encode_digit (if next > 0 then digit lor continuation_bit else digit));
 			if next > 0 then loop next else ()
 		in
 		loop (to_vlq number)

@@ -601,6 +601,8 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 
 	private inline function set_low(x)
 		return this.low = x;
+
+	static var IMPL = ___Int64;
 }
 
 private typedef __Int64 = ___Int64;

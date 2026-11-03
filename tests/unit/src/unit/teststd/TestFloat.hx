@@ -12,48 +12,48 @@ class TestFloat extends unit.Test {
 		f(fl >= nan);
 		f(fl <= nan);
 		f(fl == nan);
-		t(fl != nan == true);
+		t(fl != nan);
 
 		f(nan > nan);
 		f(nan < nan);
 		f(nan >= nan);
 		f(nan <= nan);
 		f(nan == nan);
-		t(nan != nan == true);
+		t(nan != nan);
 
 		f(pinf > nan);
 		f(pinf < nan);
 		f(pinf >= nan);
 		f(pinf <= nan);
 		f(pinf == nan);
-		t(pinf != nan == true);
+		t(pinf != nan);
 
 		f(ninf > nan);
 		f(ninf < nan);
 		f(ninf >= nan);
 		f(ninf <= nan);
 		f(ninf == nan);
-		t(ninf != nan == true);
+		t(ninf != nan);
 
 		f(nan > fl);
 		f(nan < fl);
 		f(nan >= fl);
 		f(nan <= fl);
 		f(nan == fl);
-		t(nan != fl == true);
+		t(nan != fl);
 
 		f(nan > pinf);
 		f(nan < pinf);
 		f(nan >= pinf);
 		f(nan <= pinf);
 		f(nan == pinf);
-		t(nan != pinf == true);
+		t(nan != pinf);
 
 		f(nan > ninf);
 		f(nan < ninf);
 		f(nan >= ninf);
 		f(nan <= ninf);
 		f(nan == ninf);
-		t(nan != ninf == true);
+		t(nan != ninf);
 	}
 }

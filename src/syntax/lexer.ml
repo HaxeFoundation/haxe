@@ -661,12 +661,12 @@ let rec not_xml ctx depth in_open =
 	| _ ->
 		die "" __LOC__
 
-let rec token ctx lexbuf =
+let make_token ctx =
 	let mk = mk ctx in
-	let token = token ctx in
 	let newline = newline ctx in
 	let mk_tok = mk_tok ctx in
 	let mk_keyword = mk_keyword ctx in
+	let rec token lexbuf =
 	match%sedlex lexbuf with
 	| eof -> mk lexbuf Eof
 	| Plus (Chars " \t") -> token lexbuf
@@ -683,7 +683,7 @@ let rec token ctx lexbuf =
 	| integer, '.', Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
 	| '.', Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
 	| integer, ('e'|'E'), Opt ('+'|'-'), Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
-	| integer, '.', Star digit, ('e'|'E'), Opt ('+'|'-'), Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
+	| integer, '.', Star integer_digits, ('e'|'E'), Opt ('+'|'-'), Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
 	| integer, "..." ->
 		let s = lexeme lexbuf in
 		mk lexbuf (IntInterval (String.sub s 0 (String.length s - 3)))
@@ -833,6 +833,10 @@ let rec token ctx lexbuf =
 	| ident -> mk_ident ctx lexbuf
 	| idtype -> mk lexbuf (Const (Ident (lexeme lexbuf)))
 	| _ -> invalid_char ctx lexbuf
+	in
+	token
+
+let token ctx lexbuf = make_token ctx lexbuf
 
 let rec sharp_token ctx lexbuf =
 	match%sedlex lexbuf with

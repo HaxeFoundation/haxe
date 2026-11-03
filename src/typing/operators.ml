@@ -339,6 +339,15 @@ let make_binop ctx op e1 e2 is_assign_op p =
 		with Error { err_message = Unify _ } ->
 			e1,AbstractCast.cast_or_unify ctx e1.etype e2 p
 		in
+		let is_enum_constructor_without_args e = match (Texpr.skip e).eexpr with
+			| TField(_, FEnum(_, ef)) ->
+				begin match follow ef.ef_type with
+					| TFun _ -> false
+					| _ -> true
+				end
+			| _ ->
+				false
+		in
 		begin match e1.eexpr, e2.eexpr with
 		| TConst TNull , _ | _ , TConst TNull -> ()
 		| _ ->
@@ -346,7 +355,7 @@ let make_binop ctx op e1 e2 is_assign_op p =
 			| TFun _ , _ | _, TFun _ when not ctx.com.config.pf_supports_function_equality ->
 				warning ctx WClosureCompare "Comparison of function values is unspecified on this target, use Reflect.compareMethods instead" p
 			| TEnum(en,_), _ | _, TEnum(en,_) ->
-				if not (Meta.has Meta.FlatEnum en.e_meta) then
+				if not (Meta.has Meta.FlatEnum en.e_meta) && not (is_enum_constructor_without_args e1 || is_enum_constructor_without_args e2) then
 					warning ctx WUnsafeEnumEquality "Equality operations on this enum might lead to unexpected results because some constructors have arguments" p
 			| _ ->
 				()
@@ -414,7 +423,7 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 	let map = apply_params a.a_params tl in
 	let make op_cf cf e1 e2 tret needs_assign swapped =
 		if cf.cf_expr = None && not (has_class_field_flag cf CfExtern) then begin
-			if not (Meta.has Meta.NoExpr cf.cf_meta) then Common.display_error ctx.com "Recursive operator method" p;
+			if not (has_class_field_flag cf CfNoExpr) then Common.display_error ctx.com "Recursive operator method" p;
 			if not (Meta.has Meta.CoreType a.a_meta) then begin
 				(* for non core-types we require that the return type is compatible to the native result type *)
 				let result = make_binop ctx op {e1 with etype = Abstract.follow_with_abstracts e1.etype} {e1 with etype = Abstract.follow_with_abstracts e2.etype} is_assign_op p in
@@ -742,22 +751,7 @@ let handle_assign_op ctx api e1 e2 with_type p =
 			let eget = api.type_rhs eread e2 in
 			let eget = api.to_texpr vr eget (fun e -> e) in
 			unify ctx eget.etype r_get p;
-			let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_write_access ctx a tl ekey eget p in
-			let et = type_module_type ctx (TClassDecl c) p in
-			let e = match cf_set.cf_expr,cf_get.cf_expr with
-				(* | None,None ->
-					let ea = mk (TArray(ebase,ekey)) r_get p in
-					mk (TBinop(OpAssignOp op,ea,type_expr ctx e2 (WithType.with_type r_get))) r_set p *)
-				| Some _,Some _ ->
-					let ef_set = mk (TField(et,(FStatic(c,cf_set)))) tf_set p in
-					let el = [make_call ctx ef_set [ebase;ekey;eget] r_set p] in
-					begin match el with
-						| [e] -> e
-						| el -> mk (TBlock el) r_set p
-					end
-				| _ ->
-					raise_typing_error "Invalid array access getter/setter combination" p
-			in
+			let e = mk_array_set_call ctx (AbstractCast.find_array_write_access ctx a tl ekey eget p) c ebase p in
 			save();
 			api.generate vr eread e
 		| AKResolve(sea,name) ->

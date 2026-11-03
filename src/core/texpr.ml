@@ -522,6 +522,9 @@ module Builder = struct
 	let make_local v p =
 		mk (TLocal v) v.v_type p
 
+	let make_array_access arr iexpr pt p =
+		mk (TArray (arr,iexpr)) pt p
+
 	let make_const_texpr basic ct p = match ct with
 		| TString s -> mk (TConst (TString s)) basic.tstring p
 		| TInt i -> mk (TConst (TInt i)) basic.tint p
@@ -639,7 +642,7 @@ let is_constant_value basic e =
 	try (ignore (type_constant_value basic e); true) with Error {err_message = Custom _} -> false
 
 let for_remap basic v etype e1 e2 p =
-	let v' = alloc_var v.v_kind v.v_name etype e1.epos in
+	let v' = alloc_var VGenerated (gen_local_prefix ^ v.v_name) etype e1.epos in
 	let ev' = mk (TLocal v') etype e1.epos in
 	let t1 = (Abstract.follow_with_abstracts etype) in
 	let ehasnext = mk (TField(ev',try quick_field t1 "hasNext" with Not_found -> raise_typing_error (s_type (print_context()) t1 ^ " has no field hasNext()") p)) (tfun [] basic.tbool) e1.epos in

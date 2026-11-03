@@ -572,7 +572,13 @@ let remap_fun ctx f dump get_str old_code =
 			try Hashtbl.find ctx.r_blocks_pos p with Not_found -> resolve_block (p - 1)
 		in
 
-		let new_assigns = List.fold_left (fun acc (i,p) ->
+		let writes_reg p reg =
+			let found = ref false in
+			opcode_fx (fun r read -> if r = reg && not read then found := true) (Array.unsafe_get old_code p);
+			!found
+		in
+
+		let new_assigns = List.fold_left (fun acc (i,p,scope_end) ->
 			let gmap = Hashtbl.create 0 in
 			(*
 				For a given assign at position p, that's been optimized out,
@@ -580,12 +586,12 @@ let remap_fun ctx f dump get_str old_code =
 				is, and remap the variable name to it
 			*)
 			let rec loop p =
-				if p < 0 || (match op p with ONop _ -> false | _ -> true) then [(i,p)] else
+				if p < 0 || (match op p with ONop _ -> false | _ -> true) then [(i,p,scope_end)] else
 				let reg, last_w = try Hashtbl.find ctx.r_reg_moved p with Not_found -> (-1,-1) in
 				if reg < 0 then [] (* ? *) else
-				if reg < nargs then [(i,-reg-2)] else
+				if reg < nargs then [(i,-reg-2,-1)] else
 				let b = resolve_block p in
-				if last_w >= b.bstart && last_w < b.bend && last_w < p then loop last_w else
+				if last_w >= b.bstart && last_w < b.bend && last_w < p && writes_reg last_w reg then loop last_w else
 				let wp = try PMap.find reg b.bwrite with Not_found -> -1 in
 				let rec gather b =
 					if Hashtbl.mem gmap b.bstart then [] else begin
@@ -611,16 +617,20 @@ let remap_fun ctx f dump get_str old_code =
 					let rec find_w p =
 						if p < b.bstart then
 							gather b
+						else if writes_reg p reg then
+							loop p
 						else
-							let found = ref false in
-							opcode_fx (fun r read -> if r = reg && not read then found := true) (Array.unsafe_get old_code p);
-							if !found then loop p else find_w (p - 1)
+							find_w (p - 1)
 					in
 					find_w (p - 1)
 			in
 			loop p @ acc
 		) [] (Array.to_list !assigns) in
-		let new_assigns = List.sort (fun (_,p1) (_,p2) -> p1 - p2) (List.rev new_assigns) in
+		let new_assigns = List.sort (fun (_,p1,_) (_,p2,_) -> p1 - p2) (List.rev new_assigns) in
+		let seen = Hashtbl.create 0 in
+		let new_assigns = List.filter (fun a ->
+			if Hashtbl.mem seen a then false else begin Hashtbl.add seen a (); true end
+		) new_assigns in
 		assigns := Array.of_list new_assigns;
 	end;
 
@@ -628,8 +638,8 @@ let remap_fun ctx f dump get_str old_code =
 	if dump then begin
 		let old_assigns = Hashtbl.create 0 in
 		let new_assigns = Hashtbl.create 0 in
-		Array.iter (fun (var,pos) -> if pos >= 0 then Hashtbl.replace old_assigns pos var) f.assigns;
-		Array.iter (fun (var,pos) ->
+		Array.iter (fun (var,pos,_) -> if pos >= 0 then Hashtbl.replace old_assigns pos var) f.assigns;
+		Array.iter (fun (var,pos,_) ->
 			if pos >= 0 then begin
 				let f = try Hashtbl.find new_assigns pos with Not_found -> let v = ref [] in Hashtbl.add new_assigns pos v; v in
 				f := var :: !f;
@@ -665,8 +675,8 @@ let remap_fun ctx f dump get_str old_code =
 		write (Printf.sprintf "%s@%d" (fundecl_name f) f.findex);
 		let rec loop_arg = function
 			| [] -> []
-			| (_,p) :: _ when p >= 0 -> []
-			| (str,p) :: l -> (get_str str ^ ":" ^ string_of_int p) :: loop_arg l
+			| (_,p,_) :: _ when p >= 0 -> []
+			| (str,p,_) :: l -> (get_str str ^ ":" ^ string_of_int p) :: loop_arg l
 		in
 		write (Printf.sprintf "ARGS = %s\n" (String.concat ", " (loop_arg (Array.to_list f.assigns))));
 		if reg_remap then begin
@@ -730,7 +740,12 @@ let remap_fun ctx f dump get_str old_code =
 		) !jumps;
 
 		let assigns = !assigns in
-		Array.iteri (fun idx (i,p) -> if p >= 0 then Array.unsafe_set assigns idx (i, Array.unsafe_get new_pos p)) assigns;
+		let remap_scope_end p =
+			if p < 0 then -1 else if p >= Array.length new_pos then Array.length out_code else Array.unsafe_get new_pos p
+		in
+		Array.iteri (fun idx (i,p,scope_end) ->
+			if p >= 0 then Array.unsafe_set assigns idx (i, Array.unsafe_get new_pos p, remap_scope_end scope_end)
+		) assigns;
 
 		code := out_code;
 		debug := new_debug;
@@ -752,6 +767,48 @@ let _optimize (f:fundecl) =
 	let set_op index op = f.code.(index) <- op in
 	let nop_count = ref 0 in
 	let set_nop index r = f.code.(index) <- (ONop r); incr nop_count in
+
+	(* an allocating opcode never returns null and ONull is always null *)
+	let fold_null_checks() =
+		let len = Array.length f.code in
+		let is_target = Array.make (len + 1) false in
+		let mark i d = let t = i + 1 + d in if t >= 0 && t <= len then is_target.(t) <- true in
+		Array.iteri (fun i op ->
+			match control op with
+			| CJAlways d | CJCond d | CTry d -> mark i d
+			| CSwitch pl -> Array.iter (mark i) pl
+			| _ -> ()
+		) f.code;
+		let rec def_of r i =
+			(* nearest write to r, only following straight line code and movs *)
+			let rec loop i =
+				if i < 0 || is_target.(i + 1) then None else
+				let op = f.code.(i) in
+				let writes = ref false in
+				opcode_fx (fun r2 read -> if not read && r2 = r then writes := true) op;
+				if !writes then (match op with OMov (_,s) -> def_of s i | _ -> Some op)
+				else match control op with
+					| CNo -> loop (i - 1)
+					| _ -> None
+			in
+			loop (i - 1)
+		in
+		Array.iteri (fun i op ->
+			match op with
+			| OJNotNull (r,d) | OJNull (r,d) ->
+				(match (match def_of r i with
+					| Some (ONew _ | OStaticClosure _ | OInstanceClosure _) -> Some false
+					| Some (ONull _) -> Some true
+					| _ -> None) with
+				| None -> ()
+				| Some is_null ->
+					let taken = (match op with OJNull _ -> is_null | _ -> not is_null) in
+					if taken then f.code.(i) <- OJAlways d else set_nop i "nullcheck"
+				)
+			| _ -> ()
+		) f.code
+	in
+	fold_null_checks();
 
 	let blocks_pos, root = code_graph f in
 
@@ -1013,13 +1070,16 @@ let _optimize (f:fundecl) =
 
 	(* nop *)
 
-	for i=0 to Array.length f.code - 1 do
+	for i = Array.length f.code - 1 downto 0 do
 		(match op i with
-		| OMov (d,r) when not (is_live d (i + 1)) ->
+		| OMov (d,r) when not (is_live d (i + 1)) || read_counts.(d) = 0 ->
 			let n = read_counts.(r) - 1 in
 			read_counts.(r) <- n;
 			write_counts.(d) <- write_counts.(d) - 1;
 			add_reg_moved i d r;
+			set_nop i "unused"
+		| ONull d when not (is_live d (i + 1)) || read_counts.(d) = 0 ->
+			write_counts.(d) <- write_counts.(d) - 1;
 			set_nop i "unused"
 		| OJAlways d when d >= 0 ->
 			let rec loop k =

@@ -91,8 +91,9 @@ let removed_directory com tabs dir =
 let reusing com tabs m =
 	if config.print_reusing then print_endline (Printf.sprintf "%s%sreusing %s" (sign_string com) tabs (s_type_path m.m_path))
 
+(* [reason] is only formatted when the message is printed: the string holds the whole dependency chain *)
 let skipping_dep com tabs (mpath,reason) =
-	if config.print_skipping_dep then print_endline (Printf.sprintf "%sskipping %s (%s)" (sign_string com) (s_type_path mpath) reason)
+	if config.print_skipping_dep then print_endline (Printf.sprintf "%sskipping %s (%s)" (sign_string com) (s_type_path mpath) (reason ()))
 
 let unchanged_content com tabs file =
 	if config.print_unchanged_content then print_endline (Printf.sprintf "%s%s changed time not but content, reusing" (sign_string com) file)

@@ -1568,7 +1568,7 @@ let rec gen_cpp_ast_expression_tree ctx class_name func_name function_args funct
       captured |> out;
 
     Printf.sprintf
-      "%s HX_LOCAL_RUN( %s )"
+      "%s HX_LOCAL_RUN( %s ) override "
       (tcpp_to_string closure.close_type)
       (cpp_callable_args closure.close_args "__o_") |> output_i;
 
