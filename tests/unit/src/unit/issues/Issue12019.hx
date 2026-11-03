@@ -45,4 +45,9 @@ class Issue12019 extends unit.Test {
 		eq("Concatenated: EMPTY", "Concatenated: " + a);
 		eq("Concatenated: EMPTY", "Concatenated: " + b);
 	}
+
+	function testStdString() {
+		eq("EMPTY", Std.string(a));
+		eq("EMPTY", Std.string(b));
+	}
 }
