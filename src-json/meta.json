@@ -30,7 +30,8 @@
 	{
 		"name": "Analyzer",
 		"metadata": ":analyzer",
-		"doc": "Used to configure the static analyzer."
+		"doc": "Used to configure the static analyzer.",
+		"links": ["https://haxe.org/manual/cr-static-analyzer.html"]
 	},
 	{
 		"name": "Annotation",
@@ -111,6 +112,12 @@
 		"targets": ["TAbstract"]
 	},
 	{
+		"name": "CallSuper",
+		"metadata": ":callSuper",
+		"doc": "Requires the overriding method to call super.",
+		"targets": ["TClassField"]
+	},
+	{
 		"name": "Commutative",
 		"metadata": ":commutative",
 		"doc": "Declares an abstract operator as commutative.",
@@ -132,7 +139,7 @@
 	{
 		"name": "CoreApi",
 		"metadata": ":coreApi",
-		"doc": "Identifies this class as a core API class (forces API check).",
+		"doc": "Identifies this class as a core API class. Accepts optional `check = On | Off | Implied` configuration.",
 		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"]
 	},
 	{
@@ -141,6 +148,18 @@
 		"doc": "Identifies an abstract as core type so that it requires no implementation.",
 		"targets": ["TAbstract"],
 		"links": ["https://haxe.org/manual/types-abstract-core-type.html"]
+	},
+	{
+		"name": "Coroutine",
+		"metadata": ":coroutine",
+		"doc": "Transform function into a coroutine",
+		"targets": ["TClassField"]
+	},
+	{
+		"name": "CoroutineScope",
+		"metadata": ":coroutine.scope",
+		"doc": "Marks a type as a coroutine scope, disallowing its usage in other scopes. Use @:coroutine.scope(restrictedSuspension) to allow only coroutines defined on this scope to be called.",
+		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"]
 	},
 	{
 		"name": "CppFileCode",
@@ -164,7 +183,7 @@
 		"name": "Dce",
 		"metadata": ":dce",
 		"doc": "Forces dead code elimination even when `--dce full` is not specified.",
-		"targets": ["TClass", "TEnum"],
+		"targets": ["TClass", "TEnum", "TClassField"],
 		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
@@ -335,6 +354,12 @@
 		"doc": "Specifies that the field of the abstract is a cast operation from the type identified in the function.",
 		"targets": ["TAbstractField"],
 		"links": ["https://haxe.org/manual/types-abstract-implicit-casts.html"]
+	},
+	{
+		"name": "FromNull",
+		"metadata": ":fromNull",
+		"doc": "Allows implicit use of `null` as underlying value; static targets will convert it to the default value. For abstracts over basic types only.",
+		"targets": ["TAbstract"]
 	},
 	{
 		"name": "FunctionalInterface",
@@ -544,6 +569,13 @@
 		"links": ["https://haxe.org/manual/target-javascript-require.html"]
 	},
 	{
+		"name": "JsImport",
+		"metadata": ":js.import",
+		"doc": "Generate ES module import statement for given extern. Produces import lines at the top of the generated JS output.",
+		"platforms": ["js"],
+		"targets": ["TClass"]
+	},
+	{
 		"name": "LuaRequire",
 		"metadata": ":luaRequire",
 		"doc": "Generate Lua module require expression for given extern.",
@@ -601,11 +633,6 @@
 		"metadata": ":meta",
 		"doc": "Internally used to mark a class field as being the metadata field.",
 		"internal": true
-	},
-	{
-		"name": "Macro",
-		"metadata": ":macro",
-		"doc": "(deprecated)"
 	},
 	{
 		"name": "MergeBlock",
@@ -686,12 +713,6 @@
 		"name": "NoDoc",
 		"metadata": ":noDoc",
 		"doc": "Prevents a type or field from being included in documentation generation."
-	},
-	{
-		"name": "NoExpr",
-		"metadata": ":noExpr",
-		"doc": "Internally used to mark abstract fields which have no expression by design.",
-		"internal": true
 	},
 	{
 		"name": "NoImportGlobal",
@@ -1006,6 +1027,33 @@
 		"targets": ["TClass"]
 	},
 	{
+		"name": "NativeArrayAccess",
+		"metadata": ":nativeArrayAccess",
+		"doc": "When used on an extern class which implements haxe.ArrayAccess native array access syntax will be generated",
+		"platforms": ["cpp"]
+	},
+	{
+		"name": "CppValueType",
+		"metadata": ":cpp.ValueType",
+		"doc": "Indicates that the externed type should be treated as a value type",
+		"platforms": ["cpp"],
+		"targets": [ "TClass", "TAbstract" ]
+	},
+	{
+		"name": "CppPointerType",
+		"metadata": ":cpp.PointerType",
+		"doc": "Indicates that the externed type should be treated as a pointer",
+		"platforms": ["cpp"],
+		"targets": [ "TClass" ]
+	},
+	{
+		"name": "CppManagedType",
+		"metadata": ":cpp.ManagedType",
+		"doc": "Indicates that the externed type is a sub class of ::hx::Object",
+		"platforms": ["cpp"],
+		"targets": ["TClass"]
+	},
+	{
 		"name": "StructInit",
 		"metadata": ":structInit",
 		"doc": "Allows one to initialize the class with a structure that matches constructor parameters.",
@@ -1084,7 +1132,7 @@
 		"name": "Using",
 		"metadata": ":using",
 		"doc": "Automatically uses the argument types as static extensions for the annotated type.",
-		"targets": ["TClass", "TEnum", "TAbstract"],
+		"targets": ["TClass", "TEnum", "TTypedef", "TAbstract"],
 		"links": ["https://haxe.org/manual/lf-static-extension-metadata.html"]
 	},
 	{
@@ -1126,9 +1174,9 @@
 		"internal": true
 	},
 	{
-		"name": "NativeArrayAccess",
-		"metadata": ":nativeArrayAccess",
-		"doc": "When used on an extern class which implements haxe.ArrayAccess native array access syntax will be generated",
-		"platforms": ["cpp"]
+		"name": "ExceptionTypeCheck",
+		"metadata": ":exceptionTypeCheck",
+		"doc": "Internally used for transformed exception type check wrt to `catch`.",
+		"internal": true
 	}
 ]

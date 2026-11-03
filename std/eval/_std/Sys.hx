@@ -31,7 +31,7 @@ class Sys {
 
 	extern static public function args():Array<String>;
 
-	extern static public function getEnv(s:String):String;
+	extern static public function getEnv(s:String):Null<String>;
 
 	extern static public function putEnv(s:String, v:Null<String>):Void;
 
@@ -74,6 +74,8 @@ class Sys {
 	extern static public function exit(code:Int):Void;
 
 	extern static public function time():Float;
+
+	extern static function timestamp_ms():haxe.Int64;
 
 	extern static public function cpuTime():Float;
 

@@ -1,0 +1,6 @@
+[ERROR] Main5.hx:2: characters 8-15
+
+ 2 |  var a:default;
+   |        ^^^^^^^
+   | Invalid type : default
+

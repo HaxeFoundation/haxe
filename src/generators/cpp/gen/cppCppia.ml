@@ -7,37 +7,56 @@ open CppAst
 open CppAstTools
 open CppContext
 
-let cpp_type_of = CppRetyper.cpp_type_of
+type script_type =
+  | ScriptBool
+  | ScriptInt
+  | ScriptFloat
+  | ScriptString
+  | ScriptObject
+  | ScriptVoid
 
-let script_type t optional = if optional then begin
-  match type_string t with
-  | "::String" -> "String"
-  | _ -> "Object"
-  end else match type_string t with
-  | "bool" -> "Int"
-  | "int" | "::cpp::Int32" -> "Int"
-  | "Float" -> "Float"
-  | "::String" -> "String"
-  | "Null" -> "Void"
-  | "Void" -> "Void"
-  | "float" | "::cpp::Float32" | "::cpp::Float64" -> "Float"
-  | "::cpp::Int64" | "::cpp::UInt64" -> "Object"
-  | _ -> "Object"
+let cpp_type_of basic = CppRetyper.cpp_type_of basic CppRetyper.with_reference_value_type
 
-let script_signature t optional = match script_type t optional with
-  | "Bool" -> "b"
-  | "Int" -> "i"
-  | "Float" -> "f"
-  | "String" -> "s"
-  | "Void" -> "v"
-  | "void" -> "v"
-  | _ -> "o"
+let to_script_type tcpp =
+  match tcpp with
+  | TCppScalar "bool" -> ScriptBool
+  | TCppScalar "int"
+  | TCppScalar "::cpp::Int32" -> ScriptInt
+  | TCppScalar "float"
+  | TCppScalar "double"
+  | TCppScalar "Float"
+  | TCppScalar "::cpp::Float32"
+  | TCppScalar "::cpp::Float64" -> ScriptFloat
+  | TCppString -> ScriptString
+  | TCppVoid -> ScriptVoid
+  | _ -> ScriptObject
 
-let script_size_type t optional = match script_type t optional with
-  | "Object" -> "void *"
-  | "Int" -> "int"
-  | "Bool" -> "bool"
-  | x -> x
+let to_script_type_signature script_type =
+  match script_type with
+  | ScriptBool -> "b"
+  | ScriptInt -> "i"
+  | ScriptFloat -> "f"
+  | ScriptString -> "s"
+  | ScriptVoid -> "v"
+  | ScriptObject -> "o"
+
+let to_script_type_string script_type =
+  match script_type with
+  | ScriptBool
+  | ScriptInt -> "Int"
+  | ScriptFloat -> "Float"
+  | ScriptString -> "String"
+  | ScriptVoid -> "Void"
+  | ScriptObject -> "Object"
+
+let to_script_type_size script_type =
+  match script_type with
+  | ScriptBool
+  | ScriptInt -> "int"
+  | ScriptObject -> "void*"
+  | ScriptFloat -> "Float"
+  | ScriptString -> "String"
+  | v -> to_script_type_string v
 
 let rec script_type_string haxe_type =
   match haxe_type with
@@ -77,7 +96,7 @@ let rec script_type_string haxe_type =
 
 let rec script_cpptype_string cppType =
   match cppType with
-  | TCppDynamic | TCppUnchanged | TCppWrapped _ | TCppObject -> "Dynamic"
+  | TCppDynamic | TCppUnchanged | TCppObject | TCppMarshalManagedType _ | TCppCallable _ -> "Dynamic"
   | TCppObjectPtr -> ".*.hx.Object*"
   | TCppReference t -> ".ref." ^ script_cpptype_string t
   | TCppStruct t -> ".struct." ^ script_cpptype_string t
@@ -87,7 +106,7 @@ let rec script_cpptype_string cppType =
   | TCppRest _ -> "vaarg_list"
   | TCppVarArg -> "vararg"
   | TCppAutoCast -> ".cpp.AutoCast"
-  | TCppVariant -> ".cpp.Variant"
+  | TCppVariant _ -> ".cpp.Variant"
   | TCppEnum enum -> join_class_path enum.e_path "."
   | TCppScalar scalar -> scalar
   | TCppString -> "String"
@@ -96,6 +115,12 @@ let rec script_cpptype_string cppType =
       "cpp.Pointer." ^ script_cpptype_string valueType
   | TCppRawPointer (_, valueType) ->
       "cpp.RawPointer." ^ script_cpptype_string valueType
+  | TCppMarshalNativeType (ValueClass (cls, _), _) ->
+    "cpp.MarshalValueClass." ^ (join_class_path cls.cl_path ".")
+  | TCppMarshalNativeType (ValueEnum abs, _) ->
+    "cpp.MarshalValueEnum." ^ join_class_path abs.a_path "."
+  | TCppMarshalNativeType (Pointer (cls, _), _) ->
+    "cpp.MarshalPointer." ^ join_class_path cls.cl_path "."
   | TCppFunction _ -> "cpp.Function"
   | TCppObjCBlock _ -> "cpp.ObjCBlock"
   | TCppDynamicArray -> "Array.Any"
@@ -503,9 +528,10 @@ and is_dynamic_in_cppia ctx expr =
   | TCast (_, None) -> true
   | _ -> is_dynamic_in_cpp ctx expr
 
-class script_writer ctx filename asciiOut =
+class script_writer ctx filename asciiOut basic =
   object (this)
     val debug = asciiOut
+    val basic = basic
 
     val doComment =
       asciiOut && Gctx.defined ctx.ctx_common Define.AnnotateSource
@@ -581,7 +607,7 @@ class script_writer ctx filename asciiOut =
 
     method typeText typeT =
       let tname =
-        if cppiaAst then script_cpptype_string (cpp_type_of typeT)
+        if cppiaAst then script_cpptype_string (cpp_type_of basic typeT)
         else script_type_string typeT
       in
       string_of_int (this#typeId tname) ^ " "
@@ -592,7 +618,7 @@ class script_writer ctx filename asciiOut =
     method writeType typeT = this#write (this#typeText typeT)
 
     method toCppType etype =
-      string_of_int (this#typeId (script_cpptype_string (cpp_type_of etype)))
+      string_of_int (this#typeId (script_cpptype_string (cpp_type_of basic etype)))
       ^ " "
 
     method boolText value = if value then "1" else "0"
@@ -730,9 +756,9 @@ class script_writer ctx filename asciiOut =
         match fieldExpression with
         | Some ({ eexpr = TFunction function_def } as e) ->
             if cppiaAst then (
-              let args = List.map fst function_def.tf_args in
+              let args = List.map this#retype_default_arg function_def.tf_args in
               let cppExpr =
-                CppRetyper.expression ctx TCppVoid args function_def.tf_type
+                CppRetyper.expression ctx TCppVoid args (cpp_type_of basic function_def.tf_type)
                   function_def.tf_expr false
               in
               this#begin_expr;
@@ -742,7 +768,7 @@ class script_writer ctx filename asciiOut =
                 ^ this#typeText function_def.tf_type
                 ^ string_of_int (List.length args)
                 ^ "\n");
-              let close = this#gen_func_args function_def.tf_args in
+              let close = this#gen_func_args args in
               this#gen_expression_tree cppExpr;
               this#end_expr;
               close ())
@@ -764,9 +790,9 @@ class script_writer ctx filename asciiOut =
       match varExpr with
       | Some expression ->
           if cppiaAst then
-            let varType = cpp_type_of expression.etype in
+            let varType = cpp_type_of basic expression.etype in
             let cppExpr =
-              CppRetyper.expression ctx varType [] t_dynamic expression false
+              CppRetyper.expression ctx varType [] TCppDynamic expression false
             in
             this#gen_expression_tree cppExpr
           else this#gen_expression expression
@@ -786,7 +812,7 @@ class script_writer ctx filename asciiOut =
     method wpos p =
       if debug then
         this#write
-          (this#fileText p.pfile ^ "\t"
+          (this#fileText (Path.get_full_path p.pfile) ^ "\t"
           ^ string_of_int (Lexer.get_error_line p)
           ^ indent)
 
@@ -858,16 +884,26 @@ class script_writer ctx filename asciiOut =
            this#writeOpLine op);
         this#gen_expression expr)
 
+    method private retype_default_arg (v, e) =
+      let v =
+        match e with
+        | Some { eexpr = TConst _ } | None -> v
+        | Some _ when is_cpp_scalar (cpp_type_of basic v.v_type) ->
+            { v with v_type = basic.tnull v.v_type }
+        | Some _ -> v
+      in
+      (CppRetyper.retype_tvar basic v, e)
+
     method gen_func_args args =
       let gen_inits = ref [] in
       List.iter
         (fun (arg, init) ->
           this#write (indent ^ indent_str);
-          this#writeVar arg;
+          this#writeVar arg.tcppv_var;
           match init with
           | Some { eexpr = TConst TNull } -> this#write "0\n"
-          | Some const ->
-              let argType = cpp_type_of const.etype in
+          | Some ({ eexpr = TConst _ } as const) ->
+              let argType = cpp_type_of basic const.etype in
               if is_cpp_scalar argType || argType == TCppString then (
                 this#write "1 ";
                 this#gen_expression_only const;
@@ -875,14 +911,18 @@ class script_writer ctx filename asciiOut =
               else (
                 gen_inits := (arg, const) :: !gen_inits;
                 this#write "0\n")
+          | Some init ->
+              gen_inits := (arg, init) :: !gen_inits;
+              this#write "0\n"
           | _ -> this#write "0\n")
         args;
 
-      if List.length !gen_inits == 0 then fun () -> ()
+      let gen_inits = List.rev !gen_inits in
+      if List.length gen_inits == 0 then fun () -> ()
       else (
         this#begin_expr;
-        this#writePos (snd (List.hd !gen_inits));
-        this#writeList (this#op IaBlock) (List.length !gen_inits + 1);
+        this#writePos (snd (List.hd gen_inits));
+        this#writeList (this#op IaBlock) (List.length gen_inits + 1);
         List.iter
           (fun (arg, const) ->
             let start_expr () =
@@ -893,8 +933,8 @@ class script_writer ctx filename asciiOut =
               this#begin_expr;
               this#writePos const;
               this#write
-                (this#op IaVar ^ string_of_int arg.v_id
-               ^ this#commentOf arg.v_name);
+                (this#op IaVar ^ string_of_int arg.tcppv_var.v_id
+               ^ this#commentOf arg.tcppv_var.v_name);
               this#end_expr
             in
 
@@ -910,7 +950,7 @@ class script_writer ctx filename asciiOut =
             this#gen_expression const;
             this#end_expr;
             this#begin_expr)
-          !gen_inits;
+          gen_inits;
         fun () -> this#end_expr)
 
     method gen_expression expr =
@@ -929,7 +969,7 @@ class script_writer ctx filename asciiOut =
             ^ this#typeText function_def.tf_type
             ^ string_of_int (List.length function_def.tf_args)
             ^ "\n");
-          let close = this#gen_func_args function_def.tf_args in
+          let close = this#gen_func_args (List.map this#retype_default_arg function_def.tf_args) in
           let pop = this#pushReturn function_def.tf_type in
           this#gen_expression function_def.tf_expr;
           pop ();
@@ -1313,19 +1353,18 @@ class script_writer ctx filename asciiOut =
               this#writeList (this#op IaBlock) (List.length exprs);
               List.iter gen_expression exprs
           | CppVarDecl (var, init) -> (
-              let name = CppGen.cpp_var_name_of var in
               this#write
                 (this#op IaTVars ^ string_of_int 1
-                ^ this#commentOf (name ^ ":" ^ script_type_string var.v_type)
+                ^ this#commentOf (var.tcppv_name ^ ":" ^ script_type_string var.tcppv_var.v_type)
                 ^ "\n");
               this#write ("\t\t" ^ indent);
               match init with
               | None ->
                   this#writeOp IaVarDecl;
-                  this#writeVar var
+                  this#writeVar var.tcppv_var
               | Some init ->
                   this#writeOp IaVarDeclI;
-                  this#writeVar var;
+                  this#writeVar var.tcppv_var;
                   this#write (" " ^ this#astType init.cpptype);
                   this#write "\n";
                   gen_expression init)
@@ -1384,7 +1423,7 @@ class script_writer ctx filename asciiOut =
                   this#write
                     (this#op IaCallThis ^ this#astType inst ^ " "
                    ^ this#stringText name ^ argN ^ this#commentOf name ^ "\n")
-              | FuncInstance (expr, _, field) | FuncInterface (expr, _, field)
+              | FuncInstance (expr, _, field, _) | FuncInterface (expr, _, field)
                 ->
                   this#write
                     (this#op IaCallMember ^ this#astType expr.cpptype ^ " "
@@ -1393,7 +1432,7 @@ class script_writer ctx filename asciiOut =
                     ^ this#commentOf field.cf_name
                     ^ "\n");
                   gen_expression expr
-              | FuncStatic (class_def, _, field) ->
+              | FuncStatic (class_def, _, field, _) ->
                   this#write
                     (this#op IaCallStatic ^ this#cppInstText class_def ^ " "
                     ^ this#stringText field.cf_name
@@ -1473,7 +1512,7 @@ class script_writer ctx filename asciiOut =
                         ^ "." ^ name)
                     ^ "\n");
                   gen_expression expr
-              | FuncInstance (expr, _, field) | FuncInterface (expr, _, field)
+              | FuncInstance (expr, _, field, _) | FuncInterface (expr, _, field)
                 ->
                   this#write
                     (this#op IaFName ^ this#astType expr.cpptype ^ " "
@@ -1483,7 +1522,7 @@ class script_writer ctx filename asciiOut =
                         ^ "." ^ field.cf_name)
                     ^ "\n");
                   gen_expression expr
-              | FuncStatic (class_def, _, field) ->
+              | FuncStatic (class_def, _, field, _) ->
                   this#write
                     (this#op IaFStatic ^ this#cppInstText class_def ^ " "
                     ^ this#stringText field.cf_name
@@ -1559,7 +1598,7 @@ class script_writer ctx filename asciiOut =
                 ^ this#typeTextString "Dynamic"
                 ^ string_of_int index ^ "\n");
               gen_expression obj
-          | CppClosure closure ->
+          | CppCallable closure ->
               this#write
                 (this#op IaFun
                 ^ this#astType closure.close_type
@@ -1606,9 +1645,9 @@ class script_writer ctx filename asciiOut =
               this#writeList (this#op IaTry) (List.length catches);
               gen_expression block;
               List.iter
-                (fun (tvar, catch_expr) ->
+                (fun (var, catch_expr) ->
                   this#write ("\t\t\t" ^ indent);
-                  this#writeVar tvar;
+                  this#writeVar var.tcppv_var;
                   this#write "\n";
                   gen_expression catch_expr)
                 catches
@@ -1715,8 +1754,8 @@ class script_writer ctx filename asciiOut =
         match loc with
         | VarClosure var | VarLocal var ->
             this#write
-              (this#op IaVar ^ string_of_int var.v_id
-             ^ this#commentOf var.v_name)
+              (this#op IaVar ^ string_of_int var.tcppv_var.v_id
+             ^ this#commentOf var.tcppv_var.v_name)
         | VarStatic (class_def, _, field) ->
             this#write
               (this#op IaFStatic ^ this#cppInstText class_def ^ " "
@@ -1789,6 +1828,14 @@ let generate_script_class common_ctx script class_def =
        + match TClass.get_cl_init class_def with Some _ -> 1 | _ -> 0)
     ^ "\n");
 
+  (* Methods without an expression (i.e. abstract ones) still need a real function, because hxcpp
+     reads every class method as a ScriptCallable and the JIT accesses it as one *)
+  let method_expression field =
+    match field.cf_expr with
+    | None when not (has_class_flag class_def CInterface) ->
+        Some (mk (TFunction (CppRetyper.abstract_tfunc common_ctx.Gctx.basic field)) field.cf_type field.cf_pos)
+    | e -> e
+  in
   let generate_field isStatic field =
     match (field.cf_kind, follow field.cf_type) with
     | Var { v_read = AccInline; v_write = AccNever }, _ ->
@@ -1799,7 +1846,7 @@ let generate_script_class common_ctx script class_def =
           | AccNormal | AccCtor -> IaAccessNormal
           | AccNo -> IaAccessNot
           | AccNever -> IaAccessNot
-          | AccCall ->
+          | AccCall | AccPrivateCall ->
               if
                 Meta.has Meta.NativeProperty class_def.cl_meta
                 || Meta.has Meta.NativeProperty field.cf_meta
@@ -1815,7 +1862,7 @@ let generate_script_class common_ctx script class_def =
     | Method MethDynamic, TFun (args, ret) ->
         script#func isStatic true field.cf_name ret args
           (has_class_flag class_def CInterface)
-          field.cf_expr field.cf_pos
+          (method_expression field) field.cf_pos
     | Method _, TFun (args, ret) when field.cf_name = "new" ->
         script#func true false "new"
           (TInst (class_def, []))
@@ -1823,7 +1870,7 @@ let generate_script_class common_ctx script class_def =
     | Method _, TFun (args, ret) ->
         script#func isStatic false field.cf_name ret args
           (has_class_flag class_def CInterface)
-          field.cf_expr field.cf_pos
+          (method_expression field) field.cf_pos
     | Method _, _ ->
         print_endline
           ("Unknown method type "
@@ -1879,7 +1926,7 @@ let generate_cppia ctx =
   let common_ctx = ctx.ctx_common in
   let debug = ctx.ctx_debug_level in
   Path.mkdir_from_path common_ctx.file;
-  let script = new script_writer ctx common_ctx.file common_ctx.debug in
+  let script = new script_writer ctx common_ctx.file common_ctx.debug common_ctx.basic in
   ignore (script#stringId "");
   ignore (script#typeId "");
 
@@ -1890,7 +1937,7 @@ let generate_cppia ctx =
           () (*if (gen_externs) then gen_extern_class common_ctx class_def;*)
       | TClassDecl class_def ->
           let is_internal = is_internal_class class_def.cl_path in
-          if is_internal || Meta.has Meta.Macro class_def.cl_meta then (
+          if is_internal then (
             if debug >= 4 then
               print_endline
                 (" internal class " ^ join_class_path class_def.cl_path "."))

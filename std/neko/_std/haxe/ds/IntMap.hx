@@ -90,4 +90,8 @@ package haxe.ds;
 	public inline function clear():Void {
 		h = untyped __dollar__hnew(0);
 	}
+	
+	public inline function size():Int {
+		return untyped __dollar__hcount(h);
+	}
 }

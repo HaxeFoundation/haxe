@@ -1,8 +1,11 @@
 package eval.integers;
 
+import haxe.Int32;
+
 /**
 	Signed 64-bit integer type and operations.
 **/
+@:runtimeValue
 @:coreType abstract Int64 {
 	/** The greatest representable Int64 value. */
 	extern static public final MAX:Int64;
@@ -47,6 +50,8 @@ package eval.integers;
 	**/
 	static public function compare(a:Int64, b:Int64):Int;
 
+	static public function make(high:Int32, low:Int32):Int64;
+
 	/**
 		Convert to an integer value.
 		The 64-bit signed integer is taken modulo 2{^32}, i.e. the top 32 bits
@@ -58,6 +63,8 @@ package eval.integers;
 		Convert to an unsigned integer value.
 	**/
 	public function toUInt64():UInt64;
+
+	public function toInt32():Int32;
 
 	/**
 		Convert to `haxe.Int64`.
@@ -72,12 +79,12 @@ package eval.integers;
 	/**
 		Successor.
 	**/
-	public function successor():String;
+	public function successor():Int64;
 
 	/**
 		Predecessor.
 	**/
-	public function predecessor():String;
+	public function predecessor():Int64;
 
 	/**
 		Integer remainder.
@@ -94,7 +101,14 @@ package eval.integers;
 	function logxor(u:Int64):Int64;
 	function shift_left(i:Int):Int64;
 	function shift_right(i:Int):Int64;
+	function shift_right_logical(i:Int):Int64;
 	function lognot():Int64;
+
+	@:op(-A) function neg():Int64;
+	@:op(++A) function preIncr():Int64;
+	@:op(A++) function postIncr():Int64;
+	@:op(--A) function preDecr():Int64;
+	@:op(A--) function postDecr():Int64;
 
 	@:op(A + B) inline function _add(u:Int64):Int64 return this.add(u);
 	@:op(A - B) inline function _sub(u:Int64):Int64 return this.sub(u);
@@ -106,6 +120,7 @@ package eval.integers;
 	@:op(A ^ B) inline function _logxor(u:Int64):Int64 return this.logxor(u);
 	@:op(A << B) inline function _shift_left(i:Int):Int64 return this.shift_left(i);
 	@:op(A >> B) inline function _shift_right(i:Int):Int64 return this.shift_right(i);
+	@:op(A >>> B) inline function _shift_right_logical(i:Int):Int64 return this.shift_right_logical(i);
 	@:op(~A) inline function _lognot():Int64 return this.lognot();
 
 	@:op(A != B) static inline function eq(a:Int64, b:Int64):Bool return compare(a, b) != 0;

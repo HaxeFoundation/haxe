@@ -47,7 +47,7 @@ class Resource {
 
 		If `name` does not match any resource name, `null` is returned.
 	**/
-	public static function getString(name:String):String {
+	public static function getString(name:String):Null<String> {
 		for (x in content)
 			if (x.name == name) {
 				if (x.str != null)
@@ -64,7 +64,7 @@ class Resource {
 
 		If `name` does not match any resource name, `null` is returned.
 	**/
-	public static function getBytes(name:String):haxe.io.Bytes {
+	public static function getBytes(name:String):Null<haxe.io.Bytes> {
 		for (x in content)
 			if (x.name == name) {
 				if (x.str != null)

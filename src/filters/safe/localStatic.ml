@@ -1,0 +1,116 @@
+open Globals
+open Type
+open Error
+
+type lscontext = {
+	scom : SafeCom.t;
+	lut : tclass_field IntHashtbl.t;
+	mutable added_fields : tclass_field list;
+}
+
+let promote_local_static lsctx run v eo =
+	let name = Printf.sprintf "%s_%s" lsctx.scom.curfield.cf_name v.v_name in
+	let c = lsctx.scom.curclass in
+	begin try
+		let cf = PMap.find name c.cl_statics in
+		raise_typing_error_ext (make_error (Custom (Printf.sprintf "The expanded name of this local (%s) conflicts with another static field" name)) ~sub:[
+			make_error (Custom "Conflicting field was found here") cf.cf_name_pos
+		] v.v_pos);
+	with Not_found ->
+		let cf = mk_field name ~static:true v.v_type v.v_pos v.v_pos in
+		cf.cf_meta <- (Meta.NoCompletion,[],Globals.null_pos) :: v.v_meta;
+		add_class_field_flag cf CfNoLookup;
+		begin match eo with
+		| None ->
+			()
+		| Some e ->
+			let no_local_in_static p =
+				raise_typing_error "Accessing local variables in static initialization is not allowed" p
+			in
+			let declared_vars = Hashtbl.create 0 in
+			let declare v = Hashtbl.add declared_vars v.v_id () in
+			let rec loop in_function in_loop e =
+				let loop' = loop in_function in_loop in
+				match e.eexpr with
+				| TLocal v when has_var_flag v VStatic ->
+					run e
+				| TLocal v when not (Hashtbl.mem declared_vars v.v_id) ->
+					no_local_in_static e.epos
+				| TVar(v,eo) ->
+					let eo = Option.map loop' eo in
+					declare v;
+					{e with eexpr = TVar(v,eo)}
+				| TFunction tf ->
+					let args = List.map (fun (v,eo) ->
+						declare v;
+						let eo = Option.map loop' eo in
+						(v,eo)
+					) tf.tf_args in
+					let e1 = loop true in_loop tf.tf_expr in
+					{e with eexpr = TFunction {tf with tf_args = args;tf_expr = e1}}
+				| TTry(e1,catches) ->
+					let e1 = loop' e1 in
+					let catches = List.map (fun (v,e) ->
+						declare v;
+						let e = loop' e in
+						(v,e)
+					) catches in
+					{e with eexpr = TTry(e1,catches)}
+				| TWhile(e1,e2,flag) ->
+					let e1 = loop' e1 in
+					let e2 = loop in_function true e2 in
+					{e with eexpr = TWhile(e1,e2,flag)}
+				| TConst (TThis | TSuper) ->
+					raise_typing_error "Accessing `this` in static initialization is not allowed" e.epos
+				| TReturn _ when not in_function ->
+					raise_typing_error "This kind of control flow in static initialization is not allowed" e.epos
+				| TBreak | TContinue when not in_loop ->
+					raise_typing_error "This kind of control flow in static initialization is not allowed" e.epos
+				| _ ->
+					map_expr loop' e
+			in
+			let e = loop false false e in
+			cf.cf_expr <- Some e
+		end;
+		lsctx.added_fields <- cf :: lsctx.added_fields;
+		(* Add to lookup early so that the duplication check works. *)
+		c.cl_statics <- PMap.add cf.cf_name cf c.cl_statics;
+		IntHashtbl.add lsctx.lut v.v_id cf
+	end
+
+let find_local_static lut v =
+	IntHashtbl.find lut v.v_id
+
+let run scom e =
+	let lsctx = {
+		scom = scom;
+		lut = IntHashtbl.create 0;
+		added_fields = [];
+	} in
+	let c = scom.curclass in
+	let rec run e = match e.eexpr with
+		| TBlock el ->
+			let el = ExtList.List.filter_map (fun e -> match e.eexpr with
+				| TVar(v,eo) when has_var_flag v VStatic ->
+					promote_local_static lsctx run v eo;
+					None
+				| _ ->
+					Some (run e)
+			) el in
+			{ e with eexpr = TBlock el }
+		| TLocal v when has_var_flag v VStatic ->
+			begin try
+				let cf = find_local_static lsctx.lut v in
+				Texpr.Builder.make_static_field c cf e.epos
+			with Not_found ->
+				raise_typing_error (Printf.sprintf "Could not find local static %s (id %i)" v.v_name v.v_id) e.epos
+			end
+		| _ ->
+			Type.map_expr run e
+	in
+	let e = run e in
+	(* Add to ordered list in reverse order *)
+	List.iter (fun cf ->
+		c.cl_ordered_statics <- cf :: c.cl_ordered_statics
+	) lsctx.added_fields;
+	e

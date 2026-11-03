@@ -1,12 +1,12 @@
 package unit.issues;
 
 private enum Kind {
-    KA;
-    KB;
+	KA;
+	KB;
 }
 
 private class Base {
-    public function new() {}
+	public function new() {}
 }
 
 private class A extends Base {}
@@ -19,11 +19,11 @@ private enum abstract K(Int) {
 
 class Issue4940 extends Test {
 	function test() {
-        var kind = KA;
-        var base = switch (kind) {
-            case KA: new A();
-            case KB: new B();
-        }
+		var kind = KA;
+		var base = switch (kind) {
+			case KA: new A();
+			case KB: new B();
+		}
 		unit.HelperMacros.typedAs(new Base(), base);
 	}
 

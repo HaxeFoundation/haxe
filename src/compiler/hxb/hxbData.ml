@@ -63,6 +63,10 @@ type module_cache = {
 	mc_extra : module_def_extra;
 }
 
+type typing_mode =
+	| FullTyping
+	| AllowPartialTyping
+
 let string_of_chunk_kind = function
 	| STR -> "STR"
 	| DOC -> "DOC"

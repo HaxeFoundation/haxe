@@ -27,11 +27,10 @@ class Issue10781 extends DisplayTestCase {
 			offset: offset(1)
 		});
 		runHaxeJson([], ServerMethods.Invalidate, {file: file});
-		runHaxeJson([], DisplayMethods.Hover, {
+		var result = runHaxeJson([], DisplayMethods.Hover, {
 			file: file,
 			offset: offset(1)
 		});
-		var result = parseHover();
 		Assert.same({
 			kind: "TInst",
 			args: {
@@ -43,6 +42,6 @@ class Issue10781 extends DisplayTestCase {
 				},
 				params: []
 			}
-		}, result.result.item.type);
+		}, result.item.type);
 	}
 }

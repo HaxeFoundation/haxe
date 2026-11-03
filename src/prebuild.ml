@@ -105,18 +105,37 @@ let get_field name map fields =
 	| None -> raise (Prebuild_error ("field `" ^ name ^ "` has invalid data"))
 	| Some v -> v
 
+type parsed_define = {
+	d_name : string;
+	d_define : string;
+	d_doc : string;
+	d_params : string list;
+	d_platforms : string list;
+	d_links: string list;
+	d_deprecated : string option;
+	d_deprecated_define : string option;
+	d_default : string option;
+	d_signature_neutral : bool option;
+	d_reserved : bool option;
+}
 let parse_define json =
 	let fields = match json with
 		| JObject fl -> fl
 		| _ -> raise (Prebuild_error "not an object")
 	in
-	(* name *) get_field "name" as_string fields,
-	(* define *) get_field "define" as_string fields,
-	(* doc *) get_field "doc" as_string fields,
-	(* params *) get_optional_field "params" as_params [] fields,
-	(* platforms *) get_optional_field "platforms" as_platforms [] fields,
-	(* links *) get_optional_field "links" as_links [] fields,
-	(* deprecated *) get_optional_field2 "deprecated" as_string fields
+	{
+		d_name = get_field "name" as_string fields;
+		d_define = get_field "define" as_string fields;
+		d_doc = get_field "doc" as_string fields;
+		d_params = get_optional_field "params" as_params [] fields;
+		d_platforms = get_optional_field "platforms" as_platforms [] fields;
+		d_links = get_optional_field "links" as_links [] fields;
+		d_deprecated = get_optional_field2 "deprecated" as_string fields;
+		d_deprecated_define = get_optional_field2 "deprecatedDefine" as_string fields;
+		d_default = get_optional_field2 "default" as_string fields;
+		d_signature_neutral = get_optional_field2 "signatureNeutral" as_bool fields;
+		d_reserved = get_optional_field2 "reserved" as_bool fields;
+	}
 
 let parse_meta json =
 	let fields = match json with
@@ -180,7 +199,7 @@ let gen_params = List.map (function param -> "HasParam \"" ^ param ^ "\"" )
 let gen_links = List.map (function link -> "Link \"" ^ link ^ "\"" )
 
 let gen_define_type defines =
-	String.concat "\n" (List.map (function (name, _, _, _, _, _, _) -> "\t| " ^ name) defines)
+	String.concat "\n" (List.map (function def -> "\t| " ^ def.d_name) defines)
 
 let gen_option f = function
 	| None -> "None"
@@ -188,23 +207,59 @@ let gen_option f = function
 
 let gen_define_info defines =
 	let deprecations = DynArray.create() in
+	let default_values = DynArray.create() in
+	let sig_neutral = DynArray.create() in
 	let define_str = List.map (function
-		(name, define, doc, params, platforms, links, deprecated) ->
-			let platforms_str = gen_platforms platforms in
-			let params_str = gen_params params in
-			let links_str = gen_links links in
-			let define = String.concat "_" (ExtString.String.nsplit define "-") in
-			let deprecated = match deprecated with
+		def ->
+			let platforms_str = gen_platforms def.d_platforms in
+			let params_str = gen_params def.d_params in
+			let links_str = gen_links def.d_links in
+			let convert_define s = String.concat "_" (ExtString.String.nsplit s "-") in
+			let define = convert_define def.d_define in
+			let deprecated = match def.d_deprecated with
+				| None ->
+					begin match def.d_deprecated_define with
+					| None ->
+						()
+					| Some s ->
+						DynArray.add deprecations (Printf.sprintf "\t(%S,InFavorOf(%S));" (convert_define s) define)
+					end;
+					[]
+				| Some x ->
+					let quoted = Printf.sprintf "%S" x in
+					DynArray.add deprecations (Printf.sprintf "\t(%S,DueTo(%S));" define x);
+					[Printf.sprintf "Deprecated(%s)" quoted]
+			in
+			let default = match def.d_default with
 				| None ->
 					[]
 				| Some x ->
 					let quoted = Printf.sprintf "%S" x in
-					DynArray.add deprecations (Printf.sprintf "\t(%S,%S)" define x);
-					[Printf.sprintf "Deprecated(%s)" quoted]
+					DynArray.add default_values (Printf.sprintf "\t(%S,%S)" define x);
+					[Printf.sprintf "DefaultValue(%s)" quoted]
 			in
-			"\t| " ^ name ^ " -> \"" ^ define ^ "\",(" ^ (Printf.sprintf "%S" doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ links_str @ deprecated)) ^ "])"
+			let reserved = match def.d_reserved with
+				| None ->
+					[]
+				| Some b ->
+					[Printf.sprintf "Reserved(%b)" b]
+			in
+			(match def.d_signature_neutral with
+				| Some true ->
+					DynArray.add sig_neutral (Printf.sprintf "| %S" (convert_define define));
+					begin match def.d_deprecated_define with
+					| None -> ()
+					| Some s -> DynArray.add sig_neutral (Printf.sprintf "| %S" (convert_define s))
+					end
+				| _ -> ());
+			"\t| " ^ def.d_name ^ " -> \"" ^ define ^ "\",(" ^ (Printf.sprintf "%S" def.d_doc) ^ ",[" ^ (String.concat "; " (platforms_str @ params_str @ links_str @ deprecated @ default @ reserved )) ^ "])"
 	) defines in
-	String.concat "\n" define_str,String.concat ";\n" (DynArray.to_list deprecations)
+	(
+		String.concat "\n" define_str,
+		String.concat "\n" (DynArray.to_list deprecations),
+		String.concat ";\n" (DynArray.to_list default_values),
+		String.concat " " (DynArray.to_list sig_neutral)
+	)
 
 let gen_meta_type metas =
 	String.concat "\n" (List.map (function
@@ -278,6 +333,13 @@ type define_parameter =
 	| Platforms of platform list
 	| Link of string
 	| Deprecated of string
+	| DefaultValue of string
+	| Reserved of bool
+
+type define_deprecation =
+	| DueTo of string
+	| InFavorOf of string
+
 "
 
 let meta_header = autogen_header ^ "
@@ -338,11 +400,18 @@ match Array.to_list (Sys.argv) with
 		Printf.printf "type strict_defined =\n";
 		Printf.printf "%s" (gen_define_type defines);
 		Printf.printf "\n\t| Last\n\t| Custom of string\n\n";
-		let infos,deprecations = gen_define_info defines in
+		let infos,deprecations,default_values,sig_neutral = gen_define_info defines in
 		Printf.printf "let infos = function\n";
 		Printf.printf "%s" infos;
 		Printf.printf "\n\t| Last -> die \"\" __LOC__\n\t| Custom s -> s,(\"\",[])\n";
+		if sig_neutral = "" then
+			Printf.printf "let is_signature_neutral _ = false\n"
+		else begin
+			Printf.printf "let is_signature_neutral = function\n";
+			Printf.printf "\t%s -> true\n\t| _ -> false\n" sig_neutral;
+		end;
 		Printf.printf "\nlet deprecated_defines = [\n%s\n]\n" deprecations;
+		Printf.printf "\nlet default_values = [\n%s\n]\n" default_values;
 	| [_; "meta"; meta_path]->
 		let metas = parse_file_array meta_path parse_meta in
 		Printf.printf "%s" meta_header;

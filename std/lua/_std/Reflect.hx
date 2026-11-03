@@ -102,6 +102,8 @@ import lua.TableTools;
 			return -1
 		else if (b == null)
 			return 1
+		else if (haxe.Int64.isInt64(a) && haxe.Int64.isInt64(b))
+			return haxe.Int64.compare(cast a, cast b);
 		else
 			return (cast a) > (cast b) ? 1 : -1;
 	}
@@ -147,7 +149,7 @@ import lua.TableTools;
 			- Recreate as dynamic array
 			- Return function called with this array
 		 */
-		return untyped __lua__("function(...)
+		return lua.Syntax.code("function(...)
 			local a = {...}
 			local b = {}
 			local l = 0
@@ -155,7 +157,7 @@ import lua.TableTools;
 				b[k-1] = v
 				l = math.max(k,l)
 			end
-			return f(_hx_tab_array(b, l))
-		end");
+			return {0}(_hx_tab_array(b, l))
+		end", f);
 	}
 }

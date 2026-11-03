@@ -1,0 +1,18 @@
+[ERROR] Main.hx:2: characters 17-28
+
+ 2 | function main() testMacro();
+   |                 ^^^^^^^^^^^
+   | Top level error
+
+    6 |  var p1 = (macro "1st position").pos;
+      |                  ^^^^^^^^^^^^^^
+      | 1st sub error
+
+       7 |  var p2 = (macro "2nd position").pos;
+         |                  ^^^^^^^^^^^^^^
+         | Nested sub error
+
+    7 |  var p2 = (macro "2nd position").pos;
+      |                  ^^^^^^^^^^^^^^
+      | 2nd sub error
+

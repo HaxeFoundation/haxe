@@ -1,0 +1,7 @@
+
+<pkg-info format-version="2" identifier="org.haxe.haxeToolkit.preflight.pkg" version="1.0" install-location="/" auth="root">
+    <payload installKBytes="0" numberOfFiles="1"/>
+    <scripts>
+        <preinstall file="./preflight"/>
+    </scripts>
+</pkg-info>

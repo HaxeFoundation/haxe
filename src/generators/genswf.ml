@@ -614,24 +614,24 @@ let generate swf_header swf_libs flash_version com =
 		{header with h_frame_count = header.h_frame_count + 1},loop tags
 	| _ -> swf in
 	(* write swf/swc *)
-	let t = Timer.timer ["write";"swf"] in
-	let level = (try int_of_string (Gctx.defined_value com Define.SwfCompressLevel) with Not_found -> 9) in
-	SwfParser.init Extc.input_zip (Extc.output_zip ~level);
-	(match swc with
-	| Some cat ->
-		let ch = IO.output_strings() in
-		Swf.write ch swf;
-		let swf = IO.close_out ch in
-		let z = Zip.open_out file in
-		Zip.add_entry (!cat) z "catalog.xml";
-		Zip.add_entry (match swf with [s] -> s | _ -> failwith "SWF too big for SWC") z ~level:0 "library.swf";
-		Zip.close_out z
-	| None ->
-		let ch = IO.output_channel (open_out_bin file) in
-		Swf.write ch swf;
-		IO.close_out ch;
-	);
-	t()
+	Timer.time com.timer_ctx ["write";"swf"] (fun () ->
+		let level = (try int_of_string (Gctx.defined_value com Define.SwfCompressLevel) with Not_found -> 9) in
+		SwfParser.init Extc.input_zip (Extc.output_zip ~level);
+		(match swc with
+		| Some cat ->
+			let ch = IO.output_strings() in
+			Swf.write ch swf;
+			let swf = IO.close_out ch in
+			let z = Zip.open_out file in
+			Zip.add_entry (!cat) z "catalog.xml";
+			Zip.add_entry (match swf with [s] -> s | _ -> failwith "SWF too big for SWC") z ~level:0 "library.swf";
+			Zip.close_out z
+		| None ->
+			let ch = IO.output_channel (open_out_bin file) in
+			Swf.write ch swf;
+			IO.close_out ch;
+		);
+	) ()
 
 ;;
 SwfParser.init Extc.input_zip Extc.output_zip;

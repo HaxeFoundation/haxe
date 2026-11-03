@@ -1,0 +1,2 @@
+compile2.hxml
+-D message.reporting=pretty

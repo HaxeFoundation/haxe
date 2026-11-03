@@ -52,6 +52,33 @@ module Info = struct
 	end
 end
 
+let rec patch_optional basic cf =
+	List.iter (patch_optional basic) cf.cf_overloads;
+	let patch_args args =
+		List.map (fun (n,o,t) ->
+			let o,t = if o && not (is_nullable t) then
+				(o,basic.tnull t)
+			else
+				(o,t)
+			in
+			(n,o,t)
+		) args
+	in
+	match follow cf.cf_type with
+		| TFun(args,ret) ->
+			let args = patch_args args in
+			cf.cf_type <- TFun(args,ret)
+		| TAbstract({a_path = (["haxe";"coro"],"Coroutine")} as a,[t]) ->
+			begin match follow t with
+			| TFun(args,ret) ->
+				let args = patch_args args in
+				cf.cf_type <- TAbstract(a, [TFun(args,ret)])
+			| t ->
+				()
+		end
+		| _ ->
+			()
+
 open Info
 open OverloadResolution
 open Tanon_identification
@@ -170,6 +197,7 @@ object(self)
 		let has_dynamic_instance_method = ref false in
 		let has_field_init = ref false in
 		let field mtype cf =
+			patch_optional basic cf;
 			match mtype with
 			| MConstructor ->
 				()
@@ -199,6 +227,7 @@ object(self)
 				()
 			end;
 		| Some cf ->
+			patch_optional basic cf;
 			let field cf =
 				if !has_dynamic_instance_method then make_haxe cf;
 				begin match cf.cf_expr with
@@ -302,7 +331,7 @@ class ['a] typedef_interfaces (infos : 'a info_context) (anon_identification : '
 			try
 				let path_inner,is_extern = try Hashtbl.find interface_rewrites pfm.pfm_path with Not_found -> path_inner,false in
 				if self#implements_recursively c path_inner then raise (Unify_error [Unify_custom "already implemented"]);
-				anon_identification#unify ~strict:false tc pfm;
+				anon_identification#unify AnonIdMode.default tc pfm;
 				let ci = self#make_interface_class pfm path_inner is_extern in
 				c.cl_implements <- (ci,[]) :: c.cl_implements;
 				(* print_endline (Printf.sprintf "%s IMPLEMENTS %s" (s_type_path c.cl_path) (s_type_path path_inner)); *)

@@ -985,16 +985,68 @@ module Converter = struct
 			in
 			add_meta (Meta.Annotation,args,p)
 		end;
+		let has_fi_annotation = ref false in
 		List.iter (fun attr -> match attr with
 			| AttrVisibleAnnotations ann ->
 				List.iter (function
 					| { ann_type = TObject( (["java";"lang"], "FunctionalInterface"), [] ) } ->
-						add_meta (Meta.FunctionalInterface,[],p);
+						has_fi_annotation := true
 					| _ -> ()
 				) ann
 			| _ ->
 				()
 		) jc.jc_attributes;
+		(* Match javac's SAM rule: an interface is functional if it declares exactly
+		   one abstract instance method (ignoring static/default/private/synthetic
+		   methods, constructors, and Object members re-declared as abstract). The
+		   @FunctionalInterface annotation is advisory in javac — Android SDK
+		   listeners are rarely annotated, so structural detection unlocks lambdas
+		   for them without per-extern opt-in. *)
+		(* JLS §9.8 excludes methods that would be members of Object from the SAM
+		   count. Match by name+arity rather than full descriptor — equals's exact
+		   param encoding can vary across class-file shapes (raw Object, generic
+		   erasure variants), and equals/hashCode/toString have unique arities on
+		   java.lang.Object so name+arity is unambiguous. *)
+		let is_object_redeclaration jf = match jf.jf_name, jf.jf_descriptor with
+			| "equals", TMethod([_],_) -> true
+			| "hashCode", TMethod([],_) -> true
+			| "toString", TMethod([],_) -> true
+			| _ -> false
+		in
+		(* Skip JDK-internal packages: sun.*, com.sun.*, jdk.internal.*. They host
+		   many single-method classes (sun.reflect.ConstructorAccessor,
+		   sun.nio.ch.Interruptible, sun.reflect.generics.tree.TypeTree, ...) that
+		   compile-time externs see but the runtime JDK may not expose — sun.* was
+		   moved to jdk.internal.* in JDK 9+ and is inaccessible to app code.
+		   Auto-tagging them as functional interfaces makes the JFI matcher emit
+		   `implements sun.reflect.ConstructorAccessor` on every matching closure,
+		   which then fails to defineClass at runtime. User code can't target these
+		   anyway, so structural detection must skip them. The @FunctionalInterface
+		   annotation path is still honored (none of the affected JDK-internal
+		   classes carry it, so this is a safe restriction). *)
+		let is_jdk_internal_package pack = match pack with
+			| "sun" :: _ -> true
+			| "com" :: "sun" :: _ -> true
+			| "jdk" :: "internal" :: _ -> true
+			| _ -> false
+		in
+		let is_structural_sam = is_interface
+			&& not (is_jdk_internal_package (fst jc.jc_path))
+			&& (
+				let count = List.fold_left (fun acc jf ->
+					if AccessFlags.has_flag jf.jf_flags MAbstract
+						&& not (AccessFlags.has_flag jf.jf_flags MStatic)
+						&& not (AccessFlags.has_flag jf.jf_flags MPrivate)
+						&& not (AccessFlags.has_flag jf.jf_flags MSynthetic)
+						&& jf.jf_name <> "<init>"
+						&& not (is_object_redeclaration jf)
+					then acc + 1 else acc
+				) 0 jc.jc_methods in
+				count = 1
+			)
+		in
+		if !has_fi_annotation || is_structural_sam then
+			add_meta (Meta.FunctionalInterface,[],p);
 		let d = {
 			d_name = (class_name,p);
 			d_doc = None;
@@ -1018,45 +1070,46 @@ module Converter = struct
 		(pack,types)
 end
 
-class java_library_modern com name file_path = object(self)
+class java_library_modern com  name file_path = object(self)
 	inherit [java_lib_type,unit] native_library name file_path as super
 
 
-	val zip = lazy (Zip.open_in file_path)
+	val zip = AtomicLazy.from_fun (fun () -> Zip.open_in file_path)
 	val mutable cached_files = []
 	val modules = Hashtbl.create 0
 	val mutable loaded = false
 	val mutable closed = false
 
+	method private do_load =
+		List.iter (function
+		| ({ Zip.is_directory = false; Zip.filename = filename } as entry) when String.ends_with filename ".class" ->
+			let pack = String.nsplit filename "/" in
+			begin match List.rev pack with
+				| [] -> ()
+				| name :: pack ->
+					let name = String.sub name 0 (String.length name - 6) in
+					let pack = List.rev pack in
+					let pack,(mname,tname) = PathConverter.jpath_to_hx (pack,name) in
+					let path = PathConverter.jpath_to_path (pack,(mname,tname)) in
+					let mname = match mname with
+						| None ->
+							cached_files <- path :: cached_files;
+							tname
+						| Some mname -> mname
+					in
+					Hashtbl.add modules (pack,mname) (filename,entry);
+				end
+		| _ -> ()
+	) (Zip.entries (AtomicLazy.force zip));
+
 	method load =
 		if not loaded then begin
 			loaded <- true;
-			let close = Timer.timer ["jar";"load"] in
-			List.iter (function
-				| ({ Zip.is_directory = false; Zip.filename = filename } as entry) when String.ends_with filename ".class" ->
-					let pack = String.nsplit filename "/" in
-					begin match List.rev pack with
-						| [] -> ()
-						| name :: pack ->
-							let name = String.sub name 0 (String.length name - 6) in
-							let pack = List.rev pack in
-							let pack,(mname,tname) = PathConverter.jpath_to_hx (pack,name) in
-							let path = PathConverter.jpath_to_path (pack,(mname,tname)) in
-							let mname = match mname with
-								| None ->
-									cached_files <- path :: cached_files;
-									tname
-								| Some mname -> mname
-							in
-							Hashtbl.add modules (pack,mname) (filename,entry);
-						end
-				| _ -> ()
-			) (Zip.entries (Lazy.force zip));
-			close();
+			Timer.time com.Common.timer_ctx ["jar";"load"] (fun () -> self#do_load) ()
 		end
 
 	method private read zip (filename,entry) =
-		Std.finally (Timer.timer ["jar";"read"]) (fun () ->
+		Timer.time com.Common.timer_ctx ["jar";"read"] (fun () ->
 			let data = Zip.read_entry zip entry in
 			let jc = JReaderModern.parse_class (IO.input_string data) in
 			(jc,file_path,file_path ^ "@" ^ filename)
@@ -1068,7 +1121,7 @@ class java_library_modern com name file_path = object(self)
 	method close =
 		if not closed then begin
 			closed <- true;
-			Zip.close_in (Lazy.force zip)
+			Zip.close_in (AtomicLazy.force zip)
 		end
 
 	method list_modules : path list =
@@ -1082,9 +1135,9 @@ class java_library_modern com name file_path = object(self)
 				try
 					let entries = Hashtbl.find_all modules path in
 					if entries = [] then raise Not_found;
-					let zip = Lazy.force zip in
+					let zip = AtomicLazy.force zip in
 					let jcs = List.map (self#read zip) entries in
-					Std.finally (Timer.timer ["jar";"convert"]) (fun () ->
+					Timer.time com.Common.timer_ctx ["jar";"convert"] (fun () ->
 						Some (Converter.convert_module (fst path) jcs)
 					) ();
 				with Not_found ->

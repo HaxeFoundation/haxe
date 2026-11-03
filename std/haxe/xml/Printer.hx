@@ -32,7 +32,7 @@ class Printer {
 
 		Set `pretty` to `true` to prettify the result.
 	**/
-	static public function print(xml:Xml, ?pretty = false) {
+	static public function print(xml:Xml, pretty = false) {
 		var printer = new Printer(pretty);
 		printer.writeNode(xml, "");
 		return printer.output.toString();

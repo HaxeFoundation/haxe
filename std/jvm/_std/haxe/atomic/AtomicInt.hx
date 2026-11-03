@@ -2,7 +2,9 @@ package haxe.atomic;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-abstract AtomicInt(AtomicInteger) {
+private typedef AtomicIntData = AtomicInteger;
+
+abstract AtomicInt(AtomicIntData) {
 	public inline function new(value:Int) {
 		this = new AtomicInteger(value);
 	}

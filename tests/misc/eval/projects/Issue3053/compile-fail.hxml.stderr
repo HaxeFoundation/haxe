@@ -1,0 +1,15 @@
+Main.hx:37: characters 2-54 : notAllowed: (private get, private set) property cannot be public
+Main.hx:47: characters 8-17 : This property cannot be accessed for writing
+Main.hx:50: characters 8-13 : This property cannot be accessed for writing
+Main.hx:55: characters 9-14 : This property cannot be accessed for reading
+Main.hx:59: characters 7-24 : This property cannot be accessed for writing
+Main.hx:64: characters 7-12 : This property cannot be accessed for writing
+Main.hx:65: characters 7-12 : This property cannot be accessed for reading
+Main.hx:67: characters 7-18 : This expression cannot be accessed for writing
+Main.hx:72: characters 7-10 : This property cannot be accessed for writing
+Main.hx:21: characters 3-26 : Main should be FooType
+Main.hx:21: characters 3-26 : ... Inconsistent getter for field foo : private get should be get
+Main.hx:24: characters 3-19 : FooPrivateGetType should be FooType
+Main.hx:24: characters 3-19 : ... Inconsistent getter for field foo : private get should be get
+Main.hx:106: characters 13-18 : Field width has different property access than in Shape: (get,private set) should be (private get,set)
+Main.hx:88: characters 13-18 : Field width has different property access than in PublicShape: (get,private set) should be (get,set)

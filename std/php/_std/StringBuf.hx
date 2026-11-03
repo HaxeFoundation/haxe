@@ -56,6 +56,10 @@ import php.Syntax;
 		b += String.fromCharCode(c);
 	}
 
+	public inline function clear():Void {
+		b = "";
+	}
+
 	public inline function toString():String {
 		return b;
 	}

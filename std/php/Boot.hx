@@ -480,7 +480,7 @@ class Boot {
 			case 'Dynamic':
 				return value != null;
 			case 'Int':
-				return (value.is_int() || (value.is_float() && Syntax.equal(Syntax.int(value), value) && !Global.is_nan(value)))
+				return (value.is_int() || (value.is_float() && Math.isFinite(value) && Syntax.equal(Syntax.int(value), value)))
 					&& Global.abs(value) <= 2147483648;
 			case 'Float':
 				return value.is_float() || value.is_int();

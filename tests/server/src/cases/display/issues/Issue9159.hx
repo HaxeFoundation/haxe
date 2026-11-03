@@ -23,21 +23,19 @@ class Issue9159 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Completion, {
+		var result = runHaxeJson([], DisplayMethods.Completion, {
 			file: file,
 			offset: offset(1),
 			wasAutoTriggered: true
 		});
-		var result = parseCompletion().result;
 		Assert.equals(1, result.items.length);
 		Assert.equals('x', result.items[0].args.field.name);
 
-		runHaxeJson([], DisplayMethods.Completion, {
+		var result = runHaxeJson([], DisplayMethods.Completion, {
 			file: file,
 			offset: offset(2),
 			wasAutoTriggered: true
 		});
-		var result = parseCompletion().result;
 		Assert.equals(1, result.items.length);
 		Assert.equals('y', result.items[0].args.field.name);
 	}

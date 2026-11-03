@@ -1,0 +1,3 @@
+-m Main
+-js out.js
+--no-output

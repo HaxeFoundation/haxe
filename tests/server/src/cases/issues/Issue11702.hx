@@ -22,9 +22,8 @@ class Issue11702 extends TestCase {
 		var foo = new FsPath("Foo.hx");
 		runHaxeJson(args, ServerMethods.Invalidate, {file: foo});
 
-		runHaxeJsonCb(args, DisplayMethods.Hover, {file: foo, offset: transform.offset(1)}, res -> {
-			Assert.equals("Main", res.item.args.path.moduleName);
-		});
+		final res = runHaxeJson(args, DisplayMethods.Hover, {file: foo, offset: transform.offset(1)});
+		Assert.equals("Main", res.item.args.path.moduleName);
 		assertSuccess();
 	}
 }

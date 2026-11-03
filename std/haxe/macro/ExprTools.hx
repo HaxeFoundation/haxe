@@ -161,6 +161,8 @@ class ExprTools {
 						var v2:Var = {name: v.name, type: v.type, expr: opt(v.expr, f)};
 						if (v.isFinal != null)
 							v2.isFinal = v.isFinal;
+						if (v.isStatic != null)
+							v2.isStatic = v.isStatic;
 						ret.push(v2);
 					}
 					EVars(ret);

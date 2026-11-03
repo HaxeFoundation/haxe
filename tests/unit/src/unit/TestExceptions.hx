@@ -251,8 +251,7 @@ class TestExceptions extends Test {
 			var expected = null;
 			var lineShift = 0;
 			for(s in stacks) {
-				// This will avoid errors when compiling hl/c on unix
-				// See https://github.com/HaxeFoundation/haxe/pull/11382 for long term fix
+				// This will avoid hl/c errors on platforms without callstack support
 				#if hlc if (s.length == 0) continue; #end
 
 				if(expected == null) {

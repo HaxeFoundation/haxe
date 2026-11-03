@@ -9,12 +9,11 @@ class Issue7305 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Completion, {
+		var result = runHaxeJson([], DisplayMethods.Completion, {
 			file: file,
 			offset: offset(1),
 			wasAutoTriggered: true
 		});
-		var result = parseCompletion();
 		assertHasCompletion(result, item -> switch (item.kind) {
 			case Type: item.args.path.pack.length == 0 && item.args.path.typeName == "Map";
 			case _: false;

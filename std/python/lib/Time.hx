@@ -30,4 +30,5 @@ extern class Time {
 	static function clock():Float;
 	static function sleep(t:Float):Void;
 	static function mktime(s:StructTime):Float;
+	static function perf_counter_ns():Int;
 }

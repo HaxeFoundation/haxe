@@ -8,16 +8,35 @@ open Typecore
 (* ---------------------------------------------------------------------- *)
 (* FINALIZATION *)
 
-let maybe_load_main tctx = match tctx.com.main.main_class with
+let maybe_load_main tctx = match tctx.com.main.main_path with
 	| Some path ->
 		Some (Typeload.load_module tctx path null_pos)
 	| None ->
 		None
 
+let maybe_add_entrypoint com =
+	begin match com.main.main_expr with
+	| None ->
+		()
+	| Some main ->
+		try
+			let path = (["haxe"],"EntryPoint") in
+			let method_name = "run" in
+			let et = List.find (fun t -> t_path t = path) com.types in
+			let ec = (match et with TClassDecl c -> c | _ -> die "" __LOC__) in
+			let ef = PMap.find method_name ec.cl_statics in
+			let et = Texpr.Builder.make_typeexpr et null_pos in
+			let e = mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type null_pos,[])) com.basic.tvoid null_pos in
+			let e = mk (TBlock [main;e]) com.basic.tvoid main.epos in
+			com.main.main_expr <- Some e
+		with Not_found ->
+			()
+	end
 
 let get_main ctx main_module types =
 	match main_module with
-	| None -> None
+	| None ->
+		None,None
 	| Some main_module ->
 		let p = null_pos in
 		let path = main_module.m_path in
@@ -52,38 +71,7 @@ let get_main ctx main_module types =
 		if not (Meta.has Meta.Keep f.cf_meta) then f.cf_meta <- (Dce.mk_keep_meta f.cf_pos) :: f.cf_meta;
 		let emain = type_module_type ctx (TClassDecl c) null_pos in
 		let main = mk (TCall (mk (TField (emain,fmode)) ft null_pos,[])) r null_pos in
-		let call_static path method_name =
-			let et = List.find (fun t -> t_path t = path) types in
-			let ec = (match et with TClassDecl c -> c | _ -> die "" __LOC__) in
-			let ef = PMap.find method_name ec.cl_statics in
-			let et = Texpr.Builder.make_typeexpr et null_pos in
-			mk (TCall (mk (TField (et,FStatic (ec,ef))) ef.cf_type null_pos,[])) ctx.t.tvoid null_pos
-		in
-		(* add haxe.EntryPoint.run() call *)
-		let add_entry_point_run main =
-			try
-				[main; call_static (["haxe"],"EntryPoint") "run"]
-			with Not_found ->
-				[main]
-		(* add calls for event loop *)
-		and add_event_loop main =
-			(try
-				[main; call_static (["sys";"thread";"_Thread"],"Thread_Impl_") "processEvents"]
-			with Not_found ->
-				[main]
-			)
-		in
-		let main =
-			(* Threaded targets run event loops per thread *)
-			let exprs =
-				if ctx.com.config.pf_supports_threads then add_event_loop main
-				else add_entry_point_run main
-			in
-			match exprs with
-			| [e] -> e
-			| _ -> mk (TBlock exprs) ctx.t.tvoid p
-		in
-		Some main
+		Some main,Some (Path.UniqueKey.lazy_path main_module.m_extra.m_file)
 
 let finalize ctx =
 	flush_pass ctx.g PFinal ("final",[]);
@@ -203,6 +191,6 @@ let sort_types com (modules : module_lut) =
 	List.iter (fun m -> List.iter loop m.m_types) sorted_modules;
 	List.rev !types, sorted_modules
 
-let generate ctx main_class =
+let generate ctx main_path =
 	let types,modules = sort_types ctx.com ctx.com.module_lut in
-	get_main ctx main_class types,types,modules
+	get_main ctx main_path types,types,modules

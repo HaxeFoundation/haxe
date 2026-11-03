@@ -26,6 +26,7 @@ import lua.Table;
 enum ValueType {
 	TNull;
 	TInt;
+	TInt64;
 	TFloat;
 	TBool;
 	TObject;
@@ -43,14 +44,14 @@ enum ValueType {
 			return lua.Boot.getClass(o);
 		}
 
-	public static function getEnum(o:EnumValue):Enum<Dynamic>
+	public static function getEnum(o:EnumValue):Null<Enum<Dynamic>>
 		untyped {
 			if (o == null)
 				return null;
 			return o.__enum__;
 		}
 
-	public static function getSuperClass(c:Class<Dynamic>):Class<Dynamic>
+	public static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>>
 		untyped {
 			return c.__super__;
 		}
@@ -65,7 +66,7 @@ enum ValueType {
 		return untyped e.__ename__;
 	}
 
-	public static function resolveClass(name:String):Class<Dynamic>
+	public static function resolveClass(name:String):Null<Class<Dynamic>>
 		untyped {
 			// TODO: better tmp name for _hxClasses
 			var cl:Class<Dynamic> = _hxClasses[name];
@@ -75,7 +76,7 @@ enum ValueType {
 			return cl;
 		}
 
-	public static function resolveEnum(name:String):Enum<Dynamic>
+	public static function resolveEnum(name:String):Null<Enum<Dynamic>>
 		untyped {
 			// TODO: better tmp name for _hxClasses
 			var e:Dynamic = _hxClasses[name];
@@ -92,9 +93,7 @@ enum ValueType {
 
 	public static function createEmptyInstance<T>(cl:Class<T>):T
 		untyped {
-			var ret = __lua_table__();
-			Lua.setmetatable(ret, untyped {__index: cl.prototype});
-			return ret;
+			return _hx_new(cl.prototype);
 		}
 
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
@@ -169,6 +168,8 @@ enum ValueType {
 				if (e != null)
 					return TEnum(e);
 				var c = lua.Boot.getClass(v);
+				if( c == @:privateAccess haxe.Int64.IMPL )
+					return TInt64;
 				if (c != null)
 					return TClass(c);
 				return TObject;

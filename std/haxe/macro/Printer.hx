@@ -37,8 +37,9 @@ using StringTools;
 class Printer {
 	var tabs:String;
 	var tabString:String;
+	var loop : Int = 0;
 
-	public function new(?tabString = "\t") {
+	public function new(tabString = "\t") {
 		tabs = "";
 		this.tabString = tabString;
 	}
@@ -125,9 +126,10 @@ class Printer {
 			+ (tp.sub != null ? '.${tp.sub}' : "")
 			+ (tp.params == null ? "" : tp.params.length > 0 ? "<" + tp.params.map(printTypeParam).join(", ") + ">" : "");
 
-	// TODO: check if this can cause loops
-	public function printComplexType(ct:ComplexType)
-		return switch (ct) {
+	public function printComplexType(ct:ComplexType) {
+		if( loop > 30 ) return "...";
+		loop++;
+		var str = switch (ct) {
 			case TPath(tp): printTypePath(tp);
 			case TFunction(args, ret):
 				var wrapArgumentsInParentheses = switch args {
@@ -153,6 +155,9 @@ class Printer {
 				'{${types}${fields}}';
 			case TIntersection(tl): tl.map(printComplexType).join(" & ");
 		}
+		loop--;
+		return str;
+	}
 
 	public function printMetadata(meta:MetadataEntry)
 		return '@${meta.name}' + ((meta.params != null && meta.params.length > 0) ? '(${printExprs(meta.params, ", ")})' : "");
@@ -191,12 +196,12 @@ class Printer {
 			+ (field.meta != null && field.meta.length > 0 ? field.meta.map(printMetadata).join('\n$tabs') + '\n$tabs' : "")
 			+ (field.access != null && field.access.length > 0 ? orderAccess(field.access).map(printAccess).join(" ") + " " : "")
 			+ switch (field.kind) {
-				case FVar(t,
-					eo): ((field.access != null && field.access.has(AFinal)) ? '' : 'var ')
-						+ '${field.name}'
-						+ opt(t, printComplexType, " : ")
-						+ opt(eo, printExpr, " = ");
-				case FProp(get, set, t, eo): 'var ${field.name}($get, $set)' + opt(t, printComplexType, " : ") + opt(eo, printExpr, " = ");
+				case FVar(t, eo):
+					final acc = field.access != null && field.access.has(AFinal) ? '' : 'var ';
+					acc + '${field.name}' + opt(t, printComplexType, " : ") + opt(eo, printExpr, " = ");
+				case FProp(get, set, t, eo):
+					final acc = field.access != null && field.access.has(AFinal) ? '' : 'var ';
+					acc + '${field.name}($get, $set)' + opt(t, printComplexType, " : ") + opt(eo, printExpr, " = ");
 				case FFun(func): 'function ${field.name}' + printFunction(func);
 			}}
 
@@ -212,7 +217,7 @@ class Printer {
 
 	public function printFunction(func:Function, ?kind:FunctionKind) {
 		var skipParentheses = switch func.args {
-			case [{type: null}]: kind == FArrow;
+			case [{type: null, value: null}]: kind == FArrow;
 			case _: false;
 		}
 		return (func.params == null ? "" : func.params.length > 0 ? "<" + func.params.map(printTypeParamDecl).join(", ") + ">" : "")
@@ -417,10 +422,13 @@ class Printer {
 				case TDField(kind, access):
 					tabs = old;
 					(access != null && access.length > 0 ? access.map(printAccess).join(" ") + " " : "") + switch (kind) {
-						case FVar(type,
-							eo): ((access != null && access.has(AFinal)) ? '' : 'var ') + '${t.name}' + opt(type, printComplexType, " : ")
-								+ opt(eo, printExpr, " = ") + ";";
-						case FProp(get, set, type, eo): 'var ${t.name}($get, $set)'
+						case FVar(type, eo):
+							final acc = access != null && access.has(AFinal) ? '' : 'var ';
+							acc + '${t.name}' + opt(type, printComplexType, " : ") + opt(eo, printExpr, " = ") + ";";
+						case FProp(get, set, type, eo):
+							final acc = access != null && access.has(AFinal) ? '' : 'var ';
+							acc
+							+ '${t.name}($get, $set)'
 							+ opt(type, printComplexType, " : ")
 							+ opt(eo, printExpr, " = ")
 							+ ";";

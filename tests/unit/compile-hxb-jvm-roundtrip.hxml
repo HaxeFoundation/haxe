@@ -4,4 +4,4 @@ compile-jvm-only.hxml
 --next
 
 compile-jvm-only.hxml
---hxb-lib bin/hxb/unit.java.zip
+--hxb-lib bin/hxb/unit.jvm.zip

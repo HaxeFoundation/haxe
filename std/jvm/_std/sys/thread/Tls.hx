@@ -22,21 +22,21 @@
 
 package sys.thread;
 
-// @:coreApi // causes some overload error...
+@:coreApi
 @:native('haxe.java.vm.Tls') class Tls<T> {
-	var t:java.lang.ThreadLocal<T>;
+	var t:java.lang.ThreadLocal<Null<T>>;
 
-	public var value(get, set):T;
+	public var value(get, set):Null<T>;
 
 	public function new() {
 		this.t = new java.lang.ThreadLocal();
 	}
 
-	inline private function get_value():T {
+	inline private function get_value():Null<T> {
 		return t.get();
 	}
 
-	inline private function set_value(v:T):T {
+	inline private function set_value(v:Null<T>):Null<T> {
 		t.set(v);
 		return v;
 	}

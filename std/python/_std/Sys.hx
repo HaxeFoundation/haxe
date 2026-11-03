@@ -49,7 +49,7 @@ class Sys {
 		return argv.slice(1);
 	}
 
-	public static function getEnv(s:String):String {
+	public static function getEnv(s:String):Null<String> {
 		return Os.environ.get(s, null);
 	}
 
