@@ -71,13 +71,46 @@ Sys.catch_break true;
    Sys.sigpipe may not map to the real signal number, so use 13 directly. *)
 (try Sys.set_signal 13 Sys.Signal_ignore with _ -> ());
 
-DynamicGc.(setup_dynamic_tuning
-  {
-    min_space_overhead = 100;
-    max_space_overhead = 120;
-    heap_start_worrying_mb = 4_096;
-    heap_really_worry_mb = 8_192;
-  });
+(* Dynamic GC tuning: space_overhead interpolates from max (small heap) down to min
+   (large heap) as the major heap grows between the two worry thresholds. This runs
+   before argument parsing, so it is overridden via env vars rather than defines:
+   - HAXE_SPACE_OVERHEAD="N" sets both overhead bounds to N, "MIN:MAX" sets them
+     independently.
+   - HAXE_HEAP_WORRY_MB="N" sets both worry thresholds (in MB) to N, "START:REALLY"
+     sets them independently. *)
+let gc_config =
+	let env name = match (try Some (Sys.getenv name) with Not_found -> None) with
+		| None | Some "" -> None
+		| Some s -> Some s
+	in
+	let parse_pair s = List.map (fun p -> int_of_string (String.trim p)) (String.split_on_char ':' s) in
+	let default = DynamicGc.{
+		min_space_overhead = 80;
+		max_space_overhead = 100;
+		heap_start_worrying_mb = 4_096;
+		heap_really_worry_mb = 8_192;
+	} in
+	let config = match env "HAXE_SPACE_OVERHEAD" with
+		| None -> default
+		| Some s ->
+			(try
+				match parse_pair s with
+				| [v] -> { default with min_space_overhead = v; max_space_overhead = v }
+				| [mn; mx] -> { default with min_space_overhead = mn; max_space_overhead = mx }
+				| _ -> default
+			with _ -> default)
+	in
+	match env "HAXE_HEAP_WORRY_MB" with
+	| None -> config
+	| Some s ->
+		(try
+			match parse_pair s with
+			| [v] -> { config with heap_start_worrying_mb = v; heap_really_worry_mb = v }
+			| [start; really] -> { config with heap_start_worrying_mb = start; heap_really_worry_mb = really }
+			| _ -> config
+		with _ -> config)
+in
+DynamicGc.setup_dynamic_tuning gc_config;
 
 let args = List.tl (Array.to_list Sys.argv) in
 set_binary_mode_out stdout true;
@@ -125,6 +158,22 @@ begin match request_args.server_mode with
 end;
 
 (* We are a normal non-server compilation. *)
+
+(* A command line compilation is short-lived, so trade memory for speed like the
+   server does for its compilation domain (see Server.create): a larger minor heap
+   means fewer stop-the-world minor collections and fewer promotions, a larger
+   space_overhead fewer major collections. *)
+let minor_heap_mb =
+	match (try Some (Sys.getenv "HAXE_MAIN_MINOR_MB") with Not_found -> None) with
+	| None | Some "" -> 8
+	| Some s -> (try int_of_string s with _ -> 8)
+in
+if minor_heap_mb > 0 then
+	Gc.set { (Gc.get ()) with Gc.minor_heap_size = minor_heap_mb * 1024 * 1024 / (Sys.word_size / 8) };
+if (try Sys.getenv "HAXE_SPACE_OVERHEAD" = "" with Not_found -> true) then begin
+	DynamicGc.stop_dynamic_tuning ();
+	DynamicGc.setup_dynamic_tuning DynamicGc.{ gc_config with max_space_overhead = 300 }
+end;
 
 let sctx = Server.setup_server_context false false in
 let io = CompilerIo.create_stdio_io () in

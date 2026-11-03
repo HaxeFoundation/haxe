@@ -7,6 +7,8 @@ applyTo: "tests/**"
 
 ## Test Placement
 - Put successful bug-fix regressions in `tests/unit/src/unit/issues/Issue{NUMBER}.hx`.
+- Never put anything that creates threads or uses `sys.thread` into the unit tests. Such tests go in `tests/threads/src/cases/`, as a `testIssue{NUMBER}_description` method in the matching case class (e.g. `TestThread`, `TestMutex`).
+- Never put anything that spawns processes (`sys.io.Process`, `Sys.command`) into the unit tests. Such tests go in `tests/sys/src/`, as a `testIssue{NUMBER}_description` method in the matching class (e.g. `io/TestProcess.hx`).
 - Put tests that are expected to fail in `tests/misc/` (or a target-specific subdirectory under it).
 - Put tests that interact with the compilation server or are related to completion/display in `tests/server`.
 - Put optimization tests that check generated JS code in `tests/optimization`.

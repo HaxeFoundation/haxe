@@ -30,9 +30,9 @@ class TestReflect extends unit.Test {
 		Reflect.setField(c, "v", "bar");
 		eq(c.v, "bar");
 		//Reflect.setField(c, "v2", "bar2");
-		//c.v2 == "bar";
+		//eq(c.v2, "bar");
 		//Reflect.setField(c, "func2", function() return "x");
-		//Reflect.field(c, "func2")() == "x";
+		//eq(Reflect.field(c, "func2")(), "x");
 
 		// getProperty
 		var c = new C2();

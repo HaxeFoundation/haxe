@@ -50,7 +50,7 @@ class TestUnicode extends unit.Test {
 		#end
 
 		eq("\u00E9\u3042", "éあ");
-		// "\uD83D\uDE02" == "😂" // gives Invalid Unicode char, that's correct
+		// eq("\uD83D\uDE02", "😂"); // gives Invalid Unicode char, that's correct
 		// maybe later we can add support for \U******** for out of BMP escape sequence
 
 		var s = "é" + "あ";
@@ -110,17 +110,17 @@ class TestUnicode extends unit.Test {
 		var rawBytes = haxe.io.Bytes.ofString("éあ😂",RawNative);
 
 		#if (!utf16 || cpp)
-		rawBytes.toHex() == "c3a9e38182f09f9882"; // UTF-8 native
+		eq(rawBytes.toHex(), "c3a9e38182f09f9882"); // UTF-8 native
 		#else
-		rawBytes.toHex() == "e90042303dd802de"; // UTF-16 native
+		eq(rawBytes.toHex(), "e90042303dd802de"); // UTF-16 native
 		#end
 
 		eq(rawBytes.getString(0,rawBytes.length,RawNative), "éあ😂");
 
 		eq(haxe.crypto.Md5.encode("éあ😂"), "d30b209e81e40d03dd474b26b77a8a18");
 		eq(haxe.crypto.Sha1.encode("éあ😂"), "ec79856a75c98572210430aeb7fe6300b6c4e20c");
-		//haxe.crypto.Sha224.encode("éあ😂") == "d7967c5f27bd6868e276647583c55ab09d5f45b40610a3d9c6d91b90";
-		//haxe.crypto.Sha256.encode("éあ😂") == "d0230b8d8ac2d6d0dbcee11ad0e0eaa68a6565347261871dc241571cab591676";
+		//eq(haxe.crypto.Sha224.encode("éあ😂"), "d7967c5f27bd6868e276647583c55ab09d5f45b40610a3d9c6d91b90");
+		//eq(haxe.crypto.Sha256.encode("éあ😂"), "d0230b8d8ac2d6d0dbcee11ad0e0eaa68a6565347261871dc241571cab591676");
 		eq(haxe.crypto.BaseCode.encode("éあ😂","0123456789abcdef"), "c3a9e38182f09f9882");
 
 		var buf = new haxe.io.BytesBuffer();
@@ -305,10 +305,10 @@ class TestUnicode extends unit.Test {
 		#end
 
 		//Border values for surrogate pairs
-		"𐀀".code == 65536; //D800,DC00 - U+10000
-		"𐏿".code == 66559; //D800,DFFF - U+103FF
-		"􏰀".code == 1113088; //DBFF,DC00 - U+10FC00
-		"􏿿".code == 1114111; //DBFF,DFFF - U+10FFFF
+		eq("𐀀".code, 65536); //D800,DC00 - U+10000
+		eq("𐏿".code, 66559); //D800,DFFF - U+103FF
+		eq("􏰀".code, 1113088); //DBFF,DC00 - U+10FC00
+		eq("􏿿".code, 1114111); //DBFF,DFFF - U+10FFFF
 
 	}
 }

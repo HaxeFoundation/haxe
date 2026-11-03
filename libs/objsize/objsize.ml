@@ -9,13 +9,27 @@ type info =
   ; reached : bool
   }
 
-let objsize obj (_exclude:Obj.t list) (_reach:Obj.t list) =
-  (* The exclude and reach parameters are part of the public API but are not
-     used by the OCaml implementation, which uses Obj.reachable_words instead
-     of the original C ml_objsize stub. *)
-  {data = (Obj.reachable_words (Obj.repr obj)); headers = 0; depth = 0; reached = false}
+let reach_set (roots : Obj.t list) =
+  match roots with
+  | [] -> 0
+  | _ ->
+    let n = List.length roots in
+    let a = Array.of_list roots in
+    (Obj.reachable_words (Obj.repr a)) - (n + 1)
+
+let objsize obj (exclude:Obj.t list) (reach:Obj.t list) =
+  let v = Obj.repr obj in
+  let data = (reach_set (v :: exclude)) - (reach_set exclude) in
+  let reached = match reach with
+    | [] -> false
+    | _ ->
+      let only_v = reach_set [v] in
+      let only_reach = reach_set reach in
+      let both = reach_set (v :: reach) in
+      both < only_v + only_reach
+  in
+  { data; headers = 0; depth = 0; reached }
 
 let size_with_headers i = (Sys.word_size/8) * (i.data + i.headers)
 
 let size_without_headers i = (Sys.word_size/8) * i.data
-
