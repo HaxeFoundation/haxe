@@ -26,6 +26,15 @@ private abstract A(Box) {
 	}
 }
 
+@:multiType(T)
+private abstract M<T>(Array<T>) {
+	public function new();
+
+	@:to static inline function toIntArray(t:Array<Int>):Array<Int> {
+		return [1, 2];
+	}
+}
+
 class Issue13096 extends Test {
 	static var calls = 0;
 
@@ -50,5 +59,7 @@ class Issue13096 extends Test {
 		eq("2", Std.string(int64(2)));
 		eq("null", Std.string(int64(null)));
 		eq(new Map<String, Int>().toString(), Std.string(new Map<String, Int>()));
+		// @:multiType abstract without toString
+		eq("[1,2]", Std.string(new M<Int>()));
 	}
 }
