@@ -30,7 +30,7 @@ Path-scoped instructions with more detail live in `.github/instructions/`. Read 
 In a cloud agent container, the environment's setup script usually ran it before the session started, but the container image may come from an older version of the script or from a run with options that skip parts of it. Check what is there before relying on it:
 
 ```bash
-export OPAMROOT=/opt/opam; eval "$(opam env)"   # needed in every new shell unless ~/.bashrc already does it
+export OPAMROOT=/opt/opam; eval "$(opam env)"   # needed in every new shell: agent harnesses often keep their own PATH, so the block in ~/.bashrc does not reach them
 dune --version && ./haxe -version && haxelib path utest
 ```
 
