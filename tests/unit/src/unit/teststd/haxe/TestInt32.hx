@@ -50,14 +50,14 @@ class TestInt32 extends unit.Test {
 		#end
 
 		// - see: https://github.com/HaxeFoundation/haxe/pull/7491
-		-min == min;              // two's complement overflow,
-		-2147483643 == 5 + -min;  // order of ops and negate
-		2147483643 == -(5 + min); // static analyzer issue
+		eq(-min, min);              // two's complement overflow,
+		eq(-2147483643, 5 + -min);  // order of ops and negate
+		eq(2147483643, -(5 + min)); // static analyzer issue
 
 		#if hl
-		0 == min % 0;              // % 0 div by zero exception
+		eq(0, min % 0);              // % 0 div by zero exception
 		eq(0, Std.int(min / 0));
-		0 == min % -1;             // min % -1 integer overflow exception
+		eq(0, min % -1);             // min % -1 integer overflow exception
 		eq(min, Std.int(min / -1));
 		eq(min, min * -1);
 		eq(0, min % 1);

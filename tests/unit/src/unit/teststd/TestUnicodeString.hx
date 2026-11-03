@@ -11,8 +11,8 @@ class TestUnicodeString extends unit.Test {
 		// // toUpperCase, toLowerCase
 		// var turkishLower = "ğüşıiöç";
 		// var turkishUpper = "ĞÜŞIİÖÇ";
-		// turkishUpper == turkishLower.toUpperCase();
-		// turkishLower == turkishUpper.toLowerCase();
+		// eq(turkishUpper, turkishLower.toUpperCase());
+		// eq(turkishLower, turkishUpper.toLowerCase());
 		// charAt
 		eq(s.charAt(0), "𠜎");
 		eq(s.charAt(1), "z");
@@ -122,7 +122,7 @@ class TestUnicodeString extends unit.Test {
 		// @:op(UnicodeString)
 		var s2 = new UnicodeString("𠜎z");
 		t(s != s2);
-		!(s == s2);
+		f(s == s2);
 		t(s > s2);
 		t(s >= s2);
 		t(s2 < s);
@@ -133,7 +133,7 @@ class TestUnicodeString extends unit.Test {
 		// @:op(String)
 		var s2 = "abя";
 		t(s != s2);
-		!(s == s2);
+		f(s == s2);
 		t(s > s2);
 		t(s >= s2);
 		t(s2 < s);
@@ -154,10 +154,10 @@ class TestUnicodeString extends unit.Test {
 		t(UnicodeString.validate(haxe.io.Bytes.ofHex("ee8080"), UTF8));
 		t(UnicodeString.validate(haxe.io.Bytes.ofHex("f48fbfbf"), UTF8));
 		f(UnicodeString.validate(haxe.io.Bytes.ofHex("f0a9b8bde381c3ab61"), UTF8));
-		UnicodeString.validate(haxe.io.Bytes.ofHex("c0af"), UTF8) == false; // overlong sequence
-		UnicodeString.validate(haxe.io.Bytes.ofHex("eda080"), UTF8) == false; // surrogate byte sequence
-		UnicodeString.validate(haxe.io.Bytes.ofHex("edbfbf"), UTF8) == false; // surrogate byte sequence
-		UnicodeString.validate(haxe.io.Bytes.ofHex("f4908080"), UTF8) == false; // U+110000
+		f(UnicodeString.validate(haxe.io.Bytes.ofHex("c0af"), UTF8)); // overlong sequence
+		f(UnicodeString.validate(haxe.io.Bytes.ofHex("eda080"), UTF8)); // surrogate byte sequence
+		f(UnicodeString.validate(haxe.io.Bytes.ofHex("edbfbf"), UTF8)); // surrogate byte sequence
+		f(UnicodeString.validate(haxe.io.Bytes.ofHex("f4908080"), UTF8)); // U+110000
 		#else
 		eq(1, 1);
 		#end

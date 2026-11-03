@@ -22,11 +22,27 @@ Path-scoped instructions with more detail live in `.github/instructions/`. Read 
   - `make haxe` - Build only the compiler; copies the `haxe` executable to the repository root
   - `opam install haxe --deps-only` - Install OCaml dependencies (after pinning the local checkout)
   - `opam exec -- make ADD_REVISION=1 -f Makefile.win -s -j haxe` - Typical Windows compiler build command used in CI/tasks
-  - `dune build` - Build using dune directly
+- `make haxe` runs `dune build --profile release src/haxe.exe` and is incremental: a no-op takes about a second and a full rebuild usually well under a minute. Don't run a plain `dune build`: it uses dune's dev profile with different flags, so it rebuilds everything, and so does the next `make haxe`.
+
+### Setting Up a Fresh Container
+`extra/agent-setup.sh` sets up everything on Ubuntu 22.04 or newer: it installs the system packages, puts a prebuilt OCaml 5 toolchain with all opam dependencies in `/opt/opam` (building it from source only if no prebuilt one matches), adds the opam environment to `~/.bashrc`, runs `make haxe` and `make haxelib`, links both into `/usr/local/bin`, and installs the haxelib libraries the tests need (utest, hxnodejs, hxcoro, hxcpp, hxjava, haxeserver), bootstrapping hxcpp. Don't set up OCaml or opam by hand.
+
+In a cloud agent container, the environment's setup script usually ran it before the session started, but the container image may come from an older version of the script or from a run with options that skip parts of it. Check what is there before relying on it:
+
+```bash
+export OPAMROOT=/opt/opam; eval "$(opam env)"   # needed in every new shell: agent harnesses often keep their own PATH, so the block in ~/.bashrc does not reach them
+dune --version && ./haxe -version && haxelib path utest
+```
+
+If any of these fail, run `extra/agent-setup.sh` from the repository root (`--no-apt` if the system packages are already installed). It is safe to rerun: it keeps an opam root and libraries that are already set up and completes the rest in a few minutes.
+- Pass `--no-build` to only set up the toolchain, or `--no-haxelib` to skip haxelib and its libraries
+- Building haxelib by hand additionally needs the git submodules (`git submodule update --init --recursive`) before `make haxelib`
+- Run `make haxe` again after changing compiler sources
 
 ### Use the Compiler You Just Built
 This repository may be checked out in several git worktrees, and the global PATH can point to a `haxe` binary from a different checkout. A bare `haxe` command may therefore run a different compiler than the one you just built.
 - Call the compiler and haxelib from the repository root by path, e.g. `./haxe` and `./haxelib` (`.\haxe.exe` in PowerShell), or put the repository root first on PATH for the session
+- `-lib` needs `haxelib` on PATH, and haxelib in turn runs `haxe` from PATH; `extra/agent-setup.sh` links both into `/usr/local/bin`, unless an installed haxe or haxelib is already there (it then warns and leaves it alone)
 - When in doubt, check with `haxe -version` or `Get-Command haxe` / `which haxe`
 - The `haxe` commands in this file assume this has been taken care of
 
@@ -60,6 +76,11 @@ See `extra/BUILDING.md` for full instructions.
 - `warning.json` - Warnings
 - Add new defines, metadata and warnings here; the corresponding OCaml code is generated at build time
 
+### Other Directories
+- `libs/` - Bundled OCaml libraries the compiler links against (extc, swflib, ziplib, the mbedtls and neko bindings, ...), built by dune together with `src/`
+- `plugins/` - Compiler plugins (`make plugin PLUGIN=example`)
+- `extra/` - Build, release and setup helpers. `extra/CHANGES.txt` is the changelog the maintainers assemble at release time; don't add entries to it unless asked
+
 ### Standard Library (`std/`)
 - Core types (Array, String, Map, etc.) at root level
 - `haxe/` and `sys/` - Platform-independent standard library packages
@@ -70,15 +91,16 @@ See `extra/BUILDING.md` for full instructions.
 ### Tests (`tests/`)
 - `unit/` - Unit tests written in Haxe
   - `unit/src/unit/issues/` - Regression tests for specific issues (success cases)
+  - `unit/src/unit/hxcpp_issues/` - Regression tests for issues from the hxcpp repository
 - `misc/` - Project-based compiler tests, mainly for checking compiler errors and warnings
-  - `misc/projects/` - Target-independent projects
-  - Platform-specific subdirectories (e.g., `misc/python/`, `misc/hl/`) for target-specific projects
+  - `misc/eval/projects/` - Target-independent projects (run on the eval target)
+  - `misc/{target}/projects/` (e.g., `misc/python/projects/`, `misc/hl/projects/`) for target-specific projects
 - `server/` - Compilation server and display/completion tests
 - `nullsafety/` - Tests related to the null-safety feature
 - `optimization/` - Optimization tests that check concrete code output on JavaScript target
 - `sys/` - Tests specific to the `std/sys` package (sys-targets only: excludes Flash and JavaScript)
 - `threads/` - Thread-related tests, generally for `std/sys/thread` package (threaded targets only)
-- `RunCi.hx` and `runci/` - The script CI uses to run all test suites
+- `RunCi.hx` and `runci/` - The script CI uses to run all test suites; `runci/targets/*.hx` has the exact commands CI runs for each target and suite
 
 ## Testing Guidelines
 
@@ -100,11 +122,15 @@ class Issue12345 extends unit.Test {
 }
 ```
 
-**For expected compiler errors/warnings**, add a project to `tests/misc/projects/Issue{NUMBER}/` (or the platform-specific subdirectory):
+**For expected compiler errors/warnings**, add a project to `tests/misc/eval/projects/Issue{NUMBER}/` (or `tests/misc/{target}/projects/Issue{NUMBER}/` for target-specific ones):
 - `compile.hxml` - must compile successfully (exit code 0)
 - `compile-fail.hxml` together with `compile-fail.hxml.stderr` - the compiler's stderr must match the `.stderr` file exactly
 - Multiple cases per project are possible by numbering: `compile1.hxml`, `compile2-fail.hxml` + `compile2-fail.hxml.stderr`, etc.
 - See `tests/misc/README.md` for details
+
+**For anything involving threads** (creating threads, `sys.thread` primitives, thread-related regressions), never use the unit tests. Add a `testIssue{NUMBER}_description` method to the matching case class in `tests/threads/src/cases/` instead (e.g. `TestThread`, `TestMutex`).
+
+**For anything involving processes** (`sys.io.Process`, `Sys.command`, spawning executables), never use the unit tests either. Add a `testIssue{NUMBER}_description` method to the matching class in `tests/sys/src/` instead (e.g. `io/TestProcess.hx`).
 
 **Note**: Not all tests belong in the unit tests. See the Tests section above for other test directories and their purposes.
 
@@ -112,7 +138,7 @@ The JavaScript tests are good for checking output syntax.
 
 ### Running Tests
 
-Unit tests require the `utest` library (see the Haxelib section).
+Unit tests require the `utest` library (see the Haxelib section). The macro and JavaScript unit suites take under ten seconds each, so run them whole; C++ takes minutes.
 
 ```bash
 # Unit tests: compile for a specific target (output goes to tests/unit/bin/)
@@ -120,17 +146,32 @@ haxe --cwd tests/unit compile-{target}.hxml
 
 # Then run from tests/unit, e.g.:
 cd tests/unit
-node bin/unit.js    # JavaScript
-lua bin/unit.lua    # Lua
+node bin/unit.js       # JavaScript
+lua bin/unit.lua       # Lua
+neko bin/unit.n        # Neko
+python3 bin/unit.py    # Python
+hl bin/unit.hl         # HashLink
 
 # The macro (interpreter) target runs the tests during compilation, no separate run step:
 haxe --cwd tests/unit compile-macro.hxml
+
+# Run only the tests whose class or method name matches a pattern (utest):
+haxe --cwd tests/unit compile-macro.hxml -D UTEST_PATTERN=Issue1234
 
 # Misc tests, optionally filtered to a single project (Issue1234):
 haxe --cwd tests/misc -D MISC_TEST_FILTER=1234 compile.hxml
 # Target-specific misc tests:
 haxe --cwd tests/misc/{target} -D MISC_TEST_FILTER=1234 run.hxml
+
+# Other suites on the interpreter; see tests/runci/targets/*.hx for the other targets
+haxe --cwd tests/nullsafety test.hxml
+haxe --cwd tests/optimization run.hxml
+haxe --cwd tests/threads build.hxml --interp
+cd tests/sys && haxe compile-eval-hxb.hxml && EXISTS=1 haxe --hxb-lib bin/eval/sys.hxb --run Main
+cd tests/server && haxe run.hxml    # about two minutes; needs node, hxnodejs, hxcoro, haxeserver
 ```
+
+`--cwd` does not apply to `--cmd` lines in an hxml, so suites whose hxml also runs the output (like `tests/server/run.hxml`) must be run from their own directory.
 
 To run the full CI test suite for one or more targets, set the `TEST` environment variable (e.g. `TEST=js,macro`) and run `haxe RunCi.hxml` from `tests/`. See `tests/README.md`.
 
@@ -220,6 +261,7 @@ The steps below use the `gh` CLI. The checkout may have many remotes (contributo
    - Avoid `gh run view <run-id> --log-failed` for whole runs: it downloads the logs of all jobs and is very slow
    - Logs end with post-step cleanup output; look at roughly the last 100-200 lines of the failing step rather than the very end
    - Look for keywords like `FAILED`, `error`, `exit code`, `assert`, `exception` to locate the relevant failure
+   - Logs can be too large to read in one go: fetch them with a bounded tail (e.g. `tail_lines` for `get_job_logs`) or save them to a file, then search them instead of reading them in full
 
 5. The job name contains the target and platform, e.g. `linux-test (macro, x86)` means the macro target on Linux x86
 
@@ -227,6 +269,7 @@ The steps below use the `gh` CLI. The checkout may have many remotes (contributo
 - Building instructions: `extra/BUILDING.md`
 - Contributing guidelines: `CONTRIBUTING.md`
 - Test suite overview: `tests/README.md`
+- Debugging intermittent native crashes in CI: `extra/debugging-native-crashes.md`
 - Unit test guidelines: `tests/unit/README.md`
 - Misc test guidelines: `tests/misc/README.md`
 - Main documentation: https://haxe.org/documentation/
@@ -237,7 +280,7 @@ The steps below use the `gh` CLI. The checkout may have many remotes (contributo
 - Run `haxelib setup` to set up the repository path
 - Use `haxelib git utest https://github.com/haxe-utest/utest` for utest
 - A git-cloned library can be set as a development library via `haxelib dev libname path`
-- **hxcpp bootstrapping**: The git version of hxcpp requires bootstrapping before C++ compilation works. Run `cd $(haxelib libpath hxcpp)tools/hxcpp && haxe compile.hxml` after installing. Without this, `haxelib run hxcpp` will prompt for interactive input and hang. (The Copilot setup workflow, `.github/workflows/copilot-setup-steps.yml`, does this automatically.)
+- **hxcpp bootstrapping**: The git version of hxcpp requires bootstrapping before C++ compilation works. Run `cd $(haxelib libpath hxcpp)tools/hxcpp && haxe compile.hxml` after installing. Without this, `haxelib run hxcpp` will prompt for interactive input and hang. (`extra/agent-setup.sh` does this automatically.)
 - C++ compilation is slow (minutes for a full build with all static libraries) but should produce constant output. If it hangs with no output, hxcpp likely needs bootstrapping.
 
 ## Other considerations

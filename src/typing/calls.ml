@@ -316,7 +316,7 @@ let rec build_call_access ctx acc el mode with_type p =
 let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 	acc_get ctx (build_call_access ctx acc el mode with_type p)
 
-let call_to_string ctx ?(resume=false) e =
+let call_to_string ctx ?(resume=false) ?(no_null_check=false) e =
 	if not ctx.allow_transform then
 		{ e with etype = ctx.t.tstring }
 	else
@@ -327,7 +327,7 @@ let call_to_string ctx ?(resume=false) e =
 		ctx.f.meta <- List.tl ctx.f.meta;
 		build_call ctx acc [] (WithType.with_type ctx.t.tstring) e.epos
 	in
-	if ctx.com.config.pf_static && not (is_nullable e.etype) then
+	if no_null_check || (ctx.com.config.pf_static && not (is_nullable e.etype)) then
 		gen_to_string e
 	else
 		Texpr.Builder.make_null_safe_to_string ctx.t gen_to_string e e.epos

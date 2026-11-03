@@ -351,10 +351,9 @@ class hxb_reader_api_server
 			let m,chunks = f_next mc.mc_chunks EOT in
 
 			(* We try to avoid reading expressions as much as possible, so we only do this for
-				 our current display file if we're in display mode. *)
-			(match typing_mode with
-			| FullTyping -> ignore(f_next chunks EOM)
-			| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
+				 our current display file if we're in display mode. Fields are read right away
+				 because nothing flushes a delayed read when we get here from a lazy type. *)
+			ignore(f_next chunks (match typing_mode with FullTyping -> EOM | AllowPartialTyping -> EOF));
 			incr com.request_scope.stats.s_modules_restored;
 			m
 		| BadBinaryModule (mc, reason) ->
@@ -370,10 +369,9 @@ class hxb_reader_api_server
 			m.m_extra.m_cache_state <- MSBad reason;
 
 			(* We try to avoid reading expressions as much as possible, so we only do this for
-				 our current display file if we're in display mode. *)
-			(match typing_mode with
-			| FullTyping -> ignore(f_next chunks EOM)
-			| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
+				 our current display file if we're in display mode. Fields are read right away
+				 because nothing flushes a delayed read when we get here from a lazy type. *)
+			ignore(f_next chunks (match typing_mode with FullTyping -> EOM | AllowPartialTyping -> EOF));
 			incr com.request_scope.stats.s_modules_restored;
 			m
 		| BadModule reason ->
@@ -531,9 +529,7 @@ and type_module sctx com delay mpath p =
 
 					(* We try to avoid reading expressions as much as possible, so we only do this for
 					   our current display file if we're in display mode. *)
-					(match typing_mode with
-					| FullTyping -> ignore(f_next chunks EOM)
-					| AllowPartialTyping -> delay PConnectField (fun () -> ignore(f_next chunks EOF)));
+					ignore(f_next chunks (match typing_mode with FullTyping -> EOM | AllowPartialTyping -> EOF));
 					incr com.request_scope.stats.s_modules_restored;
 					add_modules true m;
 				| Some reason ->

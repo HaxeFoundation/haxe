@@ -1,0 +1,12 @@
+--main Setup
+--interp
+
+--next
+
+--main Main
+--java-lib bin/jars
+--jvm bin/main.jar
+
+--next
+
+--cmd java -jar bin/main.jar

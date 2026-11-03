@@ -291,9 +291,9 @@ let output_inner_vars v env =
 				n, v
 			) fields
 		| VString s ->
-			let _,l = List.fold_left (fun (i,acc) (cr_index,br_offset) ->
-				(i + 1),(Printf.sprintf "index%i" i,vint !cr_index) ::
-				(Printf.sprintf "offset%i" i,vint !br_offset) ::
+			let _,l = List.fold_left (fun (i,acc) (c_index,b_offset) ->
+				(i + 1),(Printf.sprintf "index%i" i,vint c_index) ::
+				(Printf.sprintf "offset%i" i,vint b_offset) ::
 				acc
 			) (0,[]) (List.rev s.soffsets) in
 			("length",vint s.slength) ::

@@ -4220,6 +4220,8 @@ let create_context com =
 		| _ -> die "" __LOC__
 	in
 	let hl_ver = Gctx.defined_value_safe ~default:"" com Define.HlVer in
+	if Gctx.raw_defined com "hl_legacy32" && hl_ver <> "" && compare_version hl_ver "2.0.0" >= 0 then
+		com.warning WGenerator [] "-D hl_legacy32 is for 32-bit compatibility, but 32-bit builds are no longer supported since HashLink 2.0 (hl_ver >= 2.0.0)" (fake_pos "-D hl_legacy32");
 	let ctx = {
 		com = com;
 		hl_ver = hl_ver;
