@@ -25,16 +25,17 @@ Path-scoped instructions with more detail live in `.github/instructions/`. Read 
   - `dune build` - Build using dune directly
 
 ### Setting Up a Fresh Container
-In a cloud agent container, the environment's setup script usually runs `extra/agent-setup.sh` before the session starts. Then the OCaml toolchain is in `/opt/opam` and, unless it was run with `--no-build`, `./haxe` is already built. Check with `opam exec -- dune --version` and only run the script if that fails. Run `make haxe` again after changing compiler sources.
+In a cloud agent container, the environment's setup script usually runs `extra/agent-setup.sh` before the session starts. Then the OCaml toolchain is in `/opt/opam` and, unless it was run with `--no-build`, `./haxe` and `./haxelib` are already built and the haxelib libraries the tests need (utest, hxnodejs, hxcoro, hxcpp, hxjava, haxeserver) are installed. Check with `opam exec -- dune --version` and only run the script if that fails. Run `make haxe` again after changing compiler sources.
 
-Otherwise, on Ubuntu 22.04 or newer, run `extra/agent-setup.sh` from the repository root before anything else. It installs the system packages, puts a prebuilt OCaml 5 toolchain with all opam dependencies in `/opt/opam` (building it from source only if no prebuilt one matches), adds the opam environment to `~/.bashrc`, and runs `make haxe`. Don't set up OCaml or opam by hand.
+Otherwise, on Ubuntu 22.04 or newer, run `extra/agent-setup.sh` from the repository root before anything else. It installs the system packages, puts a prebuilt OCaml 5 toolchain with all opam dependencies in `/opt/opam` (building it from source only if no prebuilt one matches), adds the opam environment to `~/.bashrc`, runs `make haxe` and `make haxelib`, links both into `/usr/local/bin`, and installs the haxelib libraries listed above (bootstrapping hxcpp). Don't set up OCaml or opam by hand.
 - If `ocamlfind` or `dune` aren't found in a new shell, run `export OPAMROOT=/opt/opam; eval "$(opam env)"`
-- Pass `--no-build` to only set up the toolchain
-- Building haxelib additionally needs the git submodules (`git submodule update --init --recursive`) before `make haxelib`
+- Pass `--no-build` to only set up the toolchain, or `--no-haxelib` to skip haxelib and its libraries
+- Building haxelib by hand additionally needs the git submodules (`git submodule update --init --recursive`) before `make haxelib`
 
 ### Use the Compiler You Just Built
 This repository may be checked out in several git worktrees, and the global PATH can point to a `haxe` binary from a different checkout. A bare `haxe` command may therefore run a different compiler than the one you just built.
 - Call the compiler and haxelib from the repository root by path, e.g. `./haxe` and `./haxelib` (`.\haxe.exe` in PowerShell), or put the repository root first on PATH for the session
+- `-lib` needs `haxelib` on PATH, and haxelib in turn runs `haxe` from PATH; `extra/agent-setup.sh` links both into `/usr/local/bin`, unless an installed haxe or haxelib is already there (it then warns and leaves it alone)
 - When in doubt, check with `haxe -version` or `Get-Command haxe` / `which haxe`
 - The `haxe` commands in this file assume this has been taken care of
 
@@ -250,7 +251,7 @@ The steps below use the `gh` CLI. The checkout may have many remotes (contributo
 - Run `haxelib setup` to set up the repository path
 - Use `haxelib git utest https://github.com/haxe-utest/utest` for utest
 - A git-cloned library can be set as a development library via `haxelib dev libname path`
-- **hxcpp bootstrapping**: The git version of hxcpp requires bootstrapping before C++ compilation works. Run `cd $(haxelib libpath hxcpp)tools/hxcpp && haxe compile.hxml` after installing. Without this, `haxelib run hxcpp` will prompt for interactive input and hang. (The Copilot setup workflow, `.github/workflows/copilot-setup-steps.yml`, does this automatically.)
+- **hxcpp bootstrapping**: The git version of hxcpp requires bootstrapping before C++ compilation works. Run `cd $(haxelib libpath hxcpp)tools/hxcpp && haxe compile.hxml` after installing. Without this, `haxelib run hxcpp` will prompt for interactive input and hang. (`extra/agent-setup.sh` does this automatically.)
 - C++ compilation is slow (minutes for a full build with all static libraries) but should produce constant output. If it hangs with no output, hxcpp likely needs bootstrapping.
 
 ## Other considerations

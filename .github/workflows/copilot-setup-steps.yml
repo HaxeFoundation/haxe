@@ -48,13 +48,16 @@ jobs:
           echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/local.conf
           sudo ldconfig
 
-      # Downloads the prebuilt opam root published by CI, or builds it if there is none yet.
-      - name: Set up OCaml
+      # Downloads the prebuilt opam root published by CI (or builds it if there is none yet),
+      # builds haxe and haxelib, and installs the haxelib libraries the tests need.
+      - name: Set up OCaml, Haxe and haxelib
         run: |
           set -ex
-          extra/agent-setup.sh --no-apt --no-build --no-profile
+          extra/agent-setup.sh --no-apt --no-profile
           opam list
           ocamlopt -v
+          haxe -version
+          haxelib list
 
       - name: Persist opam environment for subsequent steps
         run: |
@@ -65,29 +68,5 @@ jobs:
           echo "CAML_LD_LIBRARY_PATH=$CAML_LD_LIBRARY_PATH" >> $GITHUB_ENV
           echo "OCAML_TOPLEVEL_PATH=$OCAML_TOPLEVEL_PATH" >> $GITHUB_ENV
 
-      - name: Build Haxe
-        run: |
-          set -ex
-          eval $(opam env)
-          opam config exec -- make -s -j`nproc` STATICLINK=1 haxe
-          opam config exec -- make -s haxelib
-          make -s package_unix
-          ls -l out
-          ldd -v ./haxe
-          ldd -v ./haxelib
-
       - name: Add workspace to PATH
         run: echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH
-
-      - name: Setup haxelib
-        run: |
-          set -ex
-          mkdir ~/haxelib
-          haxelib setup ~/haxelib
-          haxelib git utest https://github.com/haxe-utest/utest.git
-          haxelib git hxcoro https://github.com/HaxeFoundation/hxcoro.git
-          haxelib git hxcpp https://github.com/HaxeFoundation/hxcpp.git
-          cd ~/haxelib/hxcpp/git/tools/hxcpp && haxe compile.hxml && cd -
-          haxelib git hxjava https://github.com/HaxeFoundation/hxjava.git
-          haxelib git hxnodejs https://github.com/HaxeFoundation/hxnodejs.git
-          haxelib git haxeserver https://github.com/Simn/haxeserver.git

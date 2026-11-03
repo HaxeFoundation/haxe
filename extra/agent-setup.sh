@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Sets up an OCaml toolchain for building the Haxe compiler on Ubuntu, then builds it.
+# Sets up an OCaml toolchain for building the Haxe compiler on Ubuntu, builds it, and
+# sets up haxelib with the libraries the test suites need.
 # Meant for coding agents in fresh containers (Claude Code, Copilot, ...), but works for
 # anyone on Ubuntu 22.04 or newer.
 #
@@ -11,7 +12,8 @@
 # Usage: extra/agent-setup.sh [options]
 #   --from-source  never download the prebuilt opam root
 #   --no-apt       don't install system packages (the caller has done that)
-#   --no-build     only set up the toolchain, don't run `make haxe`
+#   --no-build     only set up the toolchain, don't run `make haxe` (implies --no-haxelib)
+#   --no-haxelib   don't build haxelib or install the haxelib libraries
 #   --no-profile   don't add the opam environment to ~/.bashrc and ~/.profile
 #   --print-asset  print the file name of the matching prebuilt opam root and exit
 #   --print-url    print the download URL of the matching prebuilt opam root and exit
@@ -21,6 +23,11 @@
 #   OPAM_ROOT_ARCH  the architecture to name the archive for (default: uname -m)
 #   OPAMROOT  where the opam root lives (default /opt/opam; the prebuilt archive only
 #             works at that path, because opam roots are not relocatable)
+#   HAXELIB_REPO  the haxelib repository to set up if there is none yet (default ~/haxelib)
+#   HAXELIB_BIN_DIR  where to link the haxe and haxelib executables; both have to be on
+#             PATH, because the compiler runs `haxelib` from PATH for `-lib`, which in turn
+#             runs `haxe` from PATH (default /usr/local/bin). Existing files there are only
+#             replaced if they are links into a Haxe checkout, e.g. made by an earlier run.
 
 set -euo pipefail
 
@@ -38,12 +45,23 @@ REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 export OPAMROOT=${OPAMROOT:-$DEFAULT_OPAMROOT}
 export OPAMYES=1 OPAMROOTISOK=1 OPAMCOLOR=never
 
-FROM_SOURCE=0 APT=1 BUILD=1 PROFILE=1 PRINT=
+# The libraries the test suites use, installed from git like CI does.
+HAXELIB_LIBS=(
+	"utest https://github.com/haxe-utest/utest.git"
+	"hxnodejs https://github.com/HaxeFoundation/hxnodejs.git"
+	"hxcoro https://github.com/HaxeFoundation/hxcoro.git"
+	"hxcpp https://github.com/HaxeFoundation/hxcpp.git"
+	"hxjava https://github.com/HaxeFoundation/hxjava.git"
+	"haxeserver https://github.com/Simn/haxeserver.git"
+)
+
+FROM_SOURCE=0 APT=1 BUILD=1 HAXELIB=1 PROFILE=1 PRINT=
 for arg in "$@"; do
 	case "$arg" in
 		--from-source) FROM_SOURCE=1 ;;
 		--no-apt) APT=0 ;;
-		--no-build) BUILD=0 ;;
+		--no-build) BUILD=0 HAXELIB=0 ;;
+		--no-haxelib) HAXELIB=0 ;;
 		--no-profile) PROFILE=0 ;;
 		--print-asset) PRINT=asset ;;
 		--print-url) PRINT=url ;;
@@ -124,17 +142,80 @@ build_from_source() {
 	opam clean --all-switches --download-cache --logs --repo-cache
 }
 
+# The block goes at the top of the file: Ubuntu's default ~/.bashrc returns early in
+# non-interactive shells, and agents usually run their commands in those.
 write_profile() {
 	local marker="# haxe agent-setup"
 	local block="$marker
 export OPAMROOT=$OPAMROOT OPAMROOTISOK=1
 eval \"\$(opam env 2>/dev/null)\""
+	local f tmp
 	for f in "$HOME/.bashrc" "$HOME/.profile"; do
-		if ! grep -qF "$marker" "$f" 2>/dev/null; then
-			printf '\n%s\n' "$block" >> "$f"
-			log "added the opam environment to $f"
+		if [ "$(head -n 1 "$f" 2>/dev/null)" = "$marker" ]; then continue; fi
+		tmp=$(mktemp)
+		printf '%s\n\n' "$block" > "$tmp"
+		# Drop a block that an earlier version of this script appended at the end.
+		if [ -f "$f" ]; then awk -v m="$marker" '$0 == m { skip = 3 } skip > 0 { skip--; next } { print }' "$f" >> "$tmp"; fi
+		cat "$tmp" > "$f"
+		rm -f "$tmp"
+		log "added the opam environment to the top of $f"
+	done
+}
+
+# Links an executable of this checkout into the bin directory. It never replaces an
+# installed haxe or haxelib there, only links into a Haxe checkout (another worktree, or
+# an earlier run of this script).
+link_into_bin() {
+	local src=$1 dst=$2 old
+	if [ -L "$dst" ]; then
+		old=$(readlink -f "$dst" || true)
+		if [ "$old" = "$(readlink -f "$src")" ]; then return; fi
+		if [ ! -f "$(dirname "$old")/extra/agent-setup.sh" ]; then
+			log "warning: $dst links to $old, not to a Haxe checkout; leaving it alone"
+			return
+		fi
+		log "$dst pointed to $old, now points to $src"
+	elif [ -e "$dst" ]; then
+		log "warning: $dst already exists and is not a link; leaving it alone"
+		return
+	fi
+	$SUDO ln -sfn "$src" "$dst"
+}
+
+setup_haxelib() {
+	log "building haxelib"
+	git -C "$REPO_ROOT" submodule update --init --recursive
+	make -C "$REPO_ROOT" -s haxelib
+	local bin_dir=${HAXELIB_BIN_DIR:-/usr/local/bin}
+	$SUDO mkdir -p "$bin_dir"
+	link_into_bin "$REPO_ROOT/haxe" "$bin_dir/haxe"
+	link_into_bin "$REPO_ROOT/haxelib" "$bin_dir/haxelib"
+	# For this script: hxcpp's bootstrap needs haxe and haxelib.
+	export PATH="$REPO_ROOT:$PATH"
+	if ! haxelib config >/dev/null 2>&1; then
+		local repo=${HAXELIB_REPO:-$HOME/haxelib}
+		mkdir -p "$repo"
+		haxelib setup "$repo" >/dev/null
+	fi
+	log "haxelib repository: $(haxelib config)"
+	local lib name url
+	for lib in "${HAXELIB_LIBS[@]}"; do
+		read -r name url <<< "$lib"
+		if haxelib path "$name" >/dev/null 2>&1; then
+			log "$name is already installed"
+		else
+			log "installing $name"
+			haxelib git "$name" "$url" --quiet --never
 		fi
 	done
+	# The git version of hxcpp has to be bootstrapped, or `haxelib run hxcpp` asks
+	# for input and hangs.
+	local hxcpp_tools
+	hxcpp_tools="$(haxelib libpath hxcpp)tools/hxcpp"
+	if [ ! -f "$hxcpp_tools/../../hxcpp.n" ]; then
+		log "bootstrapping hxcpp"
+		(cd "$hxcpp_tools" && haxe compile.hxml)
+	fi
 }
 
 if [ "$APT" = 1 ]; then install_system_packages; fi
@@ -153,4 +234,6 @@ if [ "$BUILD" = 1 ]; then
 	make -C "$REPO_ROOT" -s -j"$(nproc)" haxe
 	"$REPO_ROOT/haxe" -version
 fi
+
+if [ "$HAXELIB" = 1 ]; then setup_haxelib; fi
 log "done"
