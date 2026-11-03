@@ -11,8 +11,6 @@ class TestDateTools extends unit.Test {
 		var d2 = DateTools.delta(d, diff);
 		eq(d2.toString(), "2012-02-17 01:03:02");
 
-		// neko uses the native strftime, which doesn't support the %- flag everywhere
-		#if !neko
 		eq(DateTools.format(d, "%d"), "17"); // day
 		eq(DateTools.format(d, "%a"), "Fri"); // abbreviated day name
 		eq(DateTools.format(d, "%w"), "5"); // weekday
@@ -20,18 +18,22 @@ class TestDateTools extends unit.Test {
 		eq(DateTools.format(d, "%B"), "February"); // full month name
 		eq(DateTools.format(d, "%y"), "12"); // year without century
 		eq(DateTools.format(d, "%Y"), "2012"); // year
-		eq(DateTools.format(d, "%-j"), "48"); // day of the year (no padding)
+		eq(DateTools.format(d, "%j"), "048"); // day of the year
 		eq(DateTools.format(d2, "%F %T"), "2012-02-17 01:03:02");
 
-		var d = new Date(2004, 4, 3, 21, 50, 39);
-		eq(DateTools.format(d, "%-d"), "3"); // day (no padding)
-		eq(DateTools.format(d, "%A"), "Monday"); // day name
-		eq(DateTools.format(d, "%w"), "1"); // weekday
-		eq(DateTools.format(d, "%m"), "05"); // month
-		eq(DateTools.format(d, "%-m"), "5"); // month (no padding)
-		eq(DateTools.format(d, "%-y"), "4"); // year without century (no padding)
-		eq(DateTools.format(d, "%Y"), "2004"); // year
-		eq(DateTools.format(d, "%j"), "124"); // day of the year
+		var d3 = new Date(2004, 4, 3, 21, 50, 39);
+		eq(DateTools.format(d3, "%A"), "Monday"); // day name
+		eq(DateTools.format(d3, "%w"), "1"); // weekday
+		eq(DateTools.format(d3, "%m"), "05"); // month
+		eq(DateTools.format(d3, "%Y"), "2004"); // year
+		eq(DateTools.format(d3, "%j"), "124"); // day of the year
+
+		// neko and php use the native strftime, which doesn't support the %- flag everywhere
+		#if !(neko || php)
+		eq(DateTools.format(d, "%-j"), "48"); // day of the year (no padding)
+		eq(DateTools.format(d3, "%-d"), "3"); // day (no padding)
+		eq(DateTools.format(d3, "%-m"), "5"); // month (no padding)
+		eq(DateTools.format(d3, "%-y"), "4"); // year without century (no padding)
 		#end
 
 		eq(DateTools.getDayOfYear(new Date(2026, 0, 1, 0, 0, 0)), 1);
