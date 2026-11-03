@@ -35,7 +35,7 @@ Otherwise, on Ubuntu 22.04 or newer, run `extra/agent-setup.sh` from the reposit
 ### Use the Compiler You Just Built
 This repository may be checked out in several git worktrees, and the global PATH can point to a `haxe` binary from a different checkout. A bare `haxe` command may therefore run a different compiler than the one you just built.
 - Call the compiler and haxelib from the repository root by path, e.g. `./haxe` and `./haxelib` (`.\haxe.exe` in PowerShell), or put the repository root first on PATH for the session
-- `-lib` needs `haxelib` on PATH, and haxelib in turn runs `haxe` from PATH; `extra/agent-setup.sh` links both into `/usr/local/bin`
+- `-lib` needs `haxelib` on PATH, and haxelib in turn runs `haxe` from PATH; `extra/agent-setup.sh` links both into `/usr/local/bin`, unless an installed haxe or haxelib is already there (it then warns and leaves it alone)
 - When in doubt, check with `haxe -version` or `Get-Command haxe` / `which haxe`
 - The `haxe` commands in this file assume this has been taken care of
 

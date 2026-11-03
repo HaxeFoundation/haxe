@@ -26,7 +26,8 @@
 #   HAXELIB_REPO  the haxelib repository to set up if there is none yet (default ~/haxelib)
 #   HAXELIB_BIN_DIR  where to link the haxe and haxelib executables; both have to be on
 #             PATH, because the compiler runs `haxelib` from PATH for `-lib`, which in turn
-#             runs `haxe` from PATH (default /usr/local/bin)
+#             runs `haxe` from PATH (default /usr/local/bin). Existing files there are only
+#             replaced if they are links into a Haxe checkout, e.g. made by an earlier run.
 
 set -euo pipefail
 
@@ -161,14 +162,34 @@ eval \"\$(opam env 2>/dev/null)\""
 	done
 }
 
+# Links an executable of this checkout into the bin directory. It never replaces an
+# installed haxe or haxelib there, only links into a Haxe checkout (another worktree, or
+# an earlier run of this script).
+link_into_bin() {
+	local src=$1 dst=$2 old
+	if [ -L "$dst" ]; then
+		old=$(readlink -f "$dst" || true)
+		if [ "$old" = "$(readlink -f "$src")" ]; then return; fi
+		if [ ! -f "$(dirname "$old")/extra/agent-setup.sh" ]; then
+			log "warning: $dst links to $old, not to a Haxe checkout; leaving it alone"
+			return
+		fi
+		log "$dst pointed to $old, now points to $src"
+	elif [ -e "$dst" ]; then
+		log "warning: $dst already exists and is not a link; leaving it alone"
+		return
+	fi
+	$SUDO ln -sfn "$src" "$dst"
+}
+
 setup_haxelib() {
 	log "building haxelib"
 	git -C "$REPO_ROOT" submodule update --init --recursive
 	make -C "$REPO_ROOT" -s haxelib
 	local bin_dir=${HAXELIB_BIN_DIR:-/usr/local/bin}
 	$SUDO mkdir -p "$bin_dir"
-	$SUDO ln -sf "$REPO_ROOT/haxe" "$bin_dir/haxe"
-	$SUDO ln -sf "$REPO_ROOT/haxelib" "$bin_dir/haxelib"
+	link_into_bin "$REPO_ROOT/haxe" "$bin_dir/haxe"
+	link_into_bin "$REPO_ROOT/haxelib" "$bin_dir/haxelib"
 	# For this script: hxcpp's bootstrap needs haxe and haxelib.
 	export PATH="$REPO_ROOT:$PATH"
 	if ! haxelib config >/dev/null 2>&1; then
