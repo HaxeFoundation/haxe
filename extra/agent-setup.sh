@@ -14,6 +14,7 @@
 #   --print-key    print the cache key of the prebuilt opam root and exit
 #
 # Environment:
+#   AGENT_SETUP_RELEASE_URL  where to download the prebuilt opam root from
 #   OPAMROOT  where the opam root lives (default /opt/opam; the prebuilt archive only
 #             works at that path, because opam roots are not relocatable)
 
@@ -21,7 +22,7 @@ set -euo pipefail
 
 OCAML_VERSION=5.3.0
 DEFAULT_OPAMROOT=/opt/opam
-RELEASE_URL=https://github.com/HaxeFoundation/haxe/releases/download/agent-ocaml-deps
+RELEASE_URL=${AGENT_SETUP_RELEASE_URL:-https://github.com/HaxeFoundation/haxe/releases/download/agent-ocaml-deps}
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 export OPAMROOT=${OPAMROOT:-$DEFAULT_OPAMROOT}
