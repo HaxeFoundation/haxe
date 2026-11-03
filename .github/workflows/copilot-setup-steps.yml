@@ -18,6 +18,7 @@ jobs:
       PLATFORM: linux64
       OCAML_VERSION: 5.3.0
       OPAMYES: 1
+      OPAMROOT: /opt/opam
 
     steps:
       - name: Checkout repository
@@ -31,25 +32,16 @@ jobs:
           set -ex
           sudo apt-get update -qqy
           sudo DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Use-Pty=0 install -y \
-            opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build \
+            opam libpcre2-dev zlib1g-dev libzstd-dev libgtk2.0-dev libmbedtls-dev ninja-build \
             cmake gcc-multilib g++-multilib \
             libturbojpeg-dev libvorbis-dev \
             libuv1-dev libreadline-dev
 
-      - name: Cache opam
-        id: cache-opam
-        uses: actions/cache@v4
-        with:
-          path: ~/.opam/
-          key: ${{ runner.os }}-${{ runner.arch }}-5.3.0-${{ hashFiles('./haxe.opam', './libs/') }}-1
-
-      - name: Initialize opam and install OCaml 5.3.0
-        if: steps.cache-opam.outputs.cache-hit != 'true'
+      # Downloads the prebuilt opam root published by CI, or builds it if there is none yet.
+      - name: Set up OCaml
         run: |
           set -ex
-          opam init -c 5.3.0 --no-setup
-          opam pin add haxe . --no-action
-          opam install haxe --deps-only --assume-depexts
+          extra/agent-setup.sh --no-apt --no-build --no-profile
           opam list
           ocamlopt -v
 

@@ -70,17 +70,11 @@ jobs:
     env:
       PLATFORM: linux${{ matrix.arch == 'arm64' && '-arm' || '' }}64
       OPAMYES: 1
+      OPAMROOT: /opt/opam
     steps:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
-
-      - name: Cache opam
-        id: cache-opam
-        uses: actions/cache@v6
-        with:
-          path: ~/.opam/
-          key: ${{ runner.os }}-${{ runner.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
 
       - uses: ./.github/actions/setup-neko
 
@@ -90,15 +84,33 @@ jobs:
           sudo apt-get update -qqy
           sudo apt-get install -qqy opam libpcre2-dev zlib1g-dev libgtk2.0-dev libmbedtls-dev ninja-build
 
-      - name: Install OCaml libraries
-        if: steps.cache-opam.outputs.cache-hit != 'true'
+      # Downloads the prebuilt opam root that agents also use, or builds it if none
+      # matches the current key yet (see extra/agent-setup.sh).
+      - name: Set up OCaml
+        id: opam
         run: |
           set -ex
-          opam init -c ${{ env.OCAML_VERSION }}
-          opam pin add haxe . --no-action
-          opam install haxe --deps-only --assume-depexts
+          asset=$(extra/agent-setup.sh --print-asset)
+          echo "asset=$asset" >> $GITHUB_OUTPUT
+          if ! curl -fsSIL -o /dev/null "$(extra/agent-setup.sh --print-url)"; then
+            echo "built=true" >> $GITHUB_OUTPUT
+          fi
+          extra/agent-setup.sh --no-apt --no-build --no-profile
           opam list
           ocamlopt -v
+
+      - name: Package the opam root
+        if: steps.opam.outputs.built == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/development'
+        run: tar -C /opt --zstd -cf "${{ steps.opam.outputs.asset }}" opam
+
+      - name: Upload the opam root
+        if: steps.opam.outputs.built == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/development'
+        uses: actions/upload-artifact@v7
+        with:
+          name: opam-root-${{ matrix.arch }}
+          path: ${{ steps.opam.outputs.asset }}
+          retention-days: 1
+          compression-level: 0
 
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -145,6 +157,39 @@ jobs:
         with:
           name: xmldoc
           path: extra/doc
+
+  # Publishes the opam roots that linux-build had to build from source, so later CI runs
+  # and agents (extra/agent-setup.sh) can download them instead.
+  publish-opam-root:
+    needs: linux-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: opam-root-*
+          path: assets
+          merge-multiple: true
+
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          shopt -s nullglob
+          files=(assets/*.tar.zst)
+          if [ ${#files[@]} = 0 ]; then
+            echo "Nothing new to publish"
+            exit 0
+          fi
+          if ! gh release view opam-root >/dev/null 2>&1; then
+            gh release create opam-root --prerelease --target "$GITHUB_SHA" \
+              --title "Prebuilt OCaml dependencies" \
+              --notes "Prebuilt opam roots used by CI and extra/agent-setup.sh. Updated automatically by the linux-build job."
+          fi
+          gh release upload opam-root "${files[@]}" --clobber
 
   linux-test:
     needs: linux-build
