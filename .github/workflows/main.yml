@@ -670,6 +670,9 @@ jobs:
 
       - name: Download build artifacts
         uses: actions/download-artifact@v8
+        with:
+          # Only the binaries; this skips e.g. the opam-root-* artifacts of linux-build.
+          pattern: '*Binaries'
 
       - name: Install rclone
         run: |
