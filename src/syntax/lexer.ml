@@ -855,7 +855,7 @@ let rec sharp_token ctx lexbuf =
 
 let lex_xml ctx p lexbuf =
 	let name,pmin = match%sedlex lexbuf with
-	| '/' -> error Unexpected_closing_markup_tag p
+	| '/' -> error ctx Unexpected_closing_markup_tag p
 	| xml_name -> lexeme lexbuf,lexeme_start lexbuf
 	| _ -> invalid_char ctx lexbuf
 	in
