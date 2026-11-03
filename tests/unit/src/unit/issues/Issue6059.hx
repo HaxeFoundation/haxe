@@ -3,9 +3,10 @@ package unit.issues;
 class Issue6059 extends Test {
 	public static inline function foo (name : B, ?id : B, data : Array<String>) : Void { }
 
-	public static function test () : Void {
+	function test () : Void {
 		Issue6059.foo ("", []); // -> stackoverflow
 		Issue6059.foo ("", null, []); // ok
+		utest.Assert.pass();
 	}
 }
 

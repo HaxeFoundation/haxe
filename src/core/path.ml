@@ -44,6 +44,8 @@ let parse_path f =
 		| [x] ->
 			check_invalid_char x;
 			[],x
+		| _ :: ("_std" :: l) ->
+			loop l
 		| x :: l ->
 			check_package_name x;
 			let path,name = loop l in
@@ -317,6 +319,8 @@ let module_name_of_file file =
 	| [] ->
 		Globals.die "" __LOC__
 
+let mkdir_mutex = Mutex.create ()
+
 let rec create_file bin ext acc = function
 	| [] -> Globals.die "" __LOC__
 	| d :: [] ->
@@ -327,7 +331,7 @@ let rec create_file bin ext acc = function
 		ch
 	| d :: l ->
 		let dir = String.concat "/" (List.rev (d :: acc)) in
-		if not (Sys.file_exists (remove_trailing_slash dir)) then Unix.mkdir dir 0o755;
+		Mutex.protect mkdir_mutex (fun () -> if not (Sys.file_exists (remove_trailing_slash dir)) then Unix.mkdir dir 0o755);
 		create_file bin ext (d :: acc) l
 
 let rec mkdir_recursive base dir_list =

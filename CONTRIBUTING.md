@@ -15,6 +15,10 @@ This repository is about the Haxe compiler itself and the Haxe standard library.
 * Something on api.haxe.org: For content this is probably the right repository. If it's about the representation, try <https://github.com/HaxeFoundation/dox/issues> instead.
 * Something else on haxe.org: <https://github.com/HaxeFoundation/haxe.org/issues>
 
+## Adding tests
+
+When fixing a bug, please add a regression test. See [tests/unit/README.md](tests/unit/README.md) for guidelines.
+
 ## Other remarks:
 
 - Sometimes people try to be particularly helpful by not only including broken parts in their code, but also "similar" code which is working. More often than not this is more distracting than helpful. If you want to highlight something like this, consider adding the working code commented out.

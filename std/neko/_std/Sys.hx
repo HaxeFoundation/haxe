@@ -62,7 +62,7 @@ import haxe.SysTools;
 		return r;
 	}
 
-	public static function getEnv( s : String ) : String {
+	public static function getEnv( s : String ) : Null<String> {
 		var v = get_env(untyped s.__s);
 		if( v == null )
 			return null;

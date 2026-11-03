@@ -39,19 +39,19 @@ extern class String {
 		return StringImpl.toLowerCase(this);
 	}
 
-	inline function charAt(index:Int):String {
+	@:runtime inline function charAt(index:Int):String {
 		return StringImpl.charAt(this, index);
 	}
 
-	inline function charCodeAt(index:Int):Null<Int> {
+	@:runtime inline function charCodeAt(index:Int):Null<Int> {
 		return StringImpl.charCodeAt(this, index);
 	}
 
-	inline function indexOf(str:String, ?startIndex:Int):Int {
+	@:runtime inline function indexOf(str:String, ?startIndex:Int):Int {
 		return StringImpl.indexOf(this, str, startIndex);
 	}
 
-	inline function lastIndexOf(str:String, ?startIndex:Int):Int {
+	@:runtime inline function lastIndexOf(str:String, ?startIndex:Int):Int {
 		return StringImpl.lastIndexOf(this, str, startIndex);
 	}
 
@@ -59,15 +59,15 @@ extern class String {
 		return StringImpl.split(this, delimiter);
 	}
 
-	inline function substr(pos:Int, ?len:Int):String {
+	@:runtime inline function substr(pos:Int, ?len:Int):String {
 		return StringImpl.substr(this, pos, len);
 	}
 
-	inline function substring(startIndex:Int, ?endIndex:Int):String {
+	@:runtime inline function substring(startIndex:Int, ?endIndex:Int):String {
 		return StringImpl.substring(this, startIndex, endIndex);
 	}
 
-	inline function toString():String
+	@:runtime inline function toString():String
 		return StringImpl.toString(this);
 
 	static inline function fromCharCode(code:Int):String {

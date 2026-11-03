@@ -59,6 +59,11 @@
 		return {pos: result.index, len: (result[0] : String).length};
 	}
 
+	public function matchedNum():Int {
+		if (result == null) return 0;
+		return result.length;
+	}
+
 	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
 		return if (r.global) {
 			r.lastIndex = pos;

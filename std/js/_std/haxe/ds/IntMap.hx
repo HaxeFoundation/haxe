@@ -82,6 +82,10 @@ package haxe.ds;
 	public inline function clear():Void {
 		m.clear();
 	}
+
+	public inline function size():Int {
+		return m.size;
+	}
 }
 #else
 @:coreApi class IntMap<T> implements haxe.Constraints.IMap<Int, T> {
@@ -158,6 +162,12 @@ package haxe.ds;
 
 	public inline function clear():Void {
 		h = {};
+	}
+
+	public inline function size():Int {
+		var s:Any = 0;
+		js.Syntax.code("for( var key in {0} ) if({0}.hasOwnProperty(key)) {1}++", h, s);
+		return s;
 	}
 }
 #end

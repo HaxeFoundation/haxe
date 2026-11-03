@@ -28,7 +28,7 @@ extern class ConstPointer<T> {
 	// Use value or ref to get dereferenced value
 	var ptr:Star<T>;
 
-	var value(get, never):T;
+	var value(get, never):Reference<T>;
 
 	// Typecast to non-const
 	var raw(get, never):RawPointer<T>;

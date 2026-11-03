@@ -57,6 +57,12 @@
 		return {pos: r.m.index, len: r.m[0].length};
 	}
 
+	public function matchedNum():Int {
+		if (r.m == null)
+			return 0;
+		return r.m.length;
+	}
+
 	public function matchSub(s:String, pos:Int, len:Int = -1):Bool {
 		return if (r.global) {
 			r.lastIndex = pos;
@@ -84,7 +90,7 @@
 	}
 
 	public inline function replace(s:String, by:String):String {
-		return (cast s).replace(r, by);
+		return js.lib.NativeStringTools.replace(s, r, by);
 	}
 
 	public function map(s:String, f:EReg->String):String {
@@ -112,7 +118,7 @@
 	}
 
 	public static inline function escape(s:String):String {
-		return (cast s).replace(escapeRe, "\\$&");
+		return js.lib.NativeStringTools.replace(s, escapeRe, "\\$&");
 	}
 
 	static var escapeRe = new js.lib.RegExp("[.*+?^${}()|[\\]\\\\]", "g");

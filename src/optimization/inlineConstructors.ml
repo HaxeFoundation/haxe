@@ -18,9 +18,8 @@
  *)
 
 open Ast
+open SafeCom
 open Type
-open Common
-open Typecore
 open Error
 open Globals
 
@@ -116,9 +115,18 @@ and inline_expression_handled =
 	| IEHIgnored (* The result of the expression will not be used *)
 	| IEHNotHandled (* Cases that are not handled (usually leads to cancelling inlining *)
 
-let inline_constructors ctx original_e =
+let inline_constructors (scom : SafeCom.t) original_e =
 	let inline_objs = ref IntMap.empty in
 	let vars = ref IntMap.empty in
+	let marked_vars = Hashtbl.create 0 in
+	let is_marked vid = Hashtbl.mem marked_vars (abs vid) in
+	let toggle_mark vid =
+		let key = abs vid in
+		if Hashtbl.mem marked_vars key then
+			Hashtbl.remove marked_vars key
+		else
+			Hashtbl.replace marked_vars key true
+	in
 	let scoped_ivs = ref [] in
 	let get_io (ioid:int) : inline_object = IntMap.find ioid !inline_objs in
 	let get_iv (vid:int) : inline_var = IntMap.find (abs vid) !vars in
@@ -129,10 +137,10 @@ let inline_constructors ctx original_e =
 			PMap.iter (fun _ iv -> cancel_iv iv p) io.io_fields;
 			match io.io_kind with
 			| IOKCtor(ioc) ->
-				List.iter (fun v -> if v.v_id < 0 then cancel_v v p) io.io_dependent_vars;
+				List.iter (fun v -> if is_marked v.v_id then cancel_v v p) io.io_dependent_vars;
 				if ioc.ioc_forced then begin
-					display_error_ext ctx.com (make_error (Custom "Forced inline constructor could not be inlined") ~sub:([
-						(make_error ~depth:1 (Custom (compl_msg "Cancellation happened here")) p)
+					SafeCom.add_error scom (make_error (Custom "Forced inline constructor could not be inlined") ~sub:([
+						(make_error (Custom (compl_msg "Cancellation happened here")) p)
 					]) io.io_pos);
 				end
 			| _ -> ()
@@ -152,7 +160,7 @@ let inline_constructors ctx original_e =
 			if remove then begin
 				let v = iv.iv_var in
 				vars := IntMap.remove (abs v.v_id) !vars;
-				v.v_id <- (abs v.v_id);
+				Hashtbl.remove marked_vars (abs v.v_id);
 			end
 		end
 	and cancel_v (v:tvar) (p:pos) : unit =
@@ -176,14 +184,14 @@ let inline_constructors ctx original_e =
 			iv_kind = kind;
 			iv_closed = false
 		} in
-		v.v_id <- -v.v_id;
+		toggle_mark v.v_id;
 		vars := IntMap.add (abs v.v_id) iv !vars;
 		iv
 	in
 	let get_io_field (io:inline_object) (s:string) : inline_var =
 		PMap.find s io.io_fields
 	in
-	let alloc_io_field_full (io:inline_object) (fname:string) (constexpr_option:texpr option) (t:t) (p:pos) : inline_var =
+	let alloc_io_field_full (io:inline_object) (fname:string) (constexpr_option:texpr option) (t:Type.t) (p:pos) : inline_var =
 		let v = alloc_var VInlined fname t p in
 		let iv = add v (IVKField (io,fname,constexpr_option)) in
 		io.io_fields <- PMap.add fname iv io.io_fields;
@@ -201,7 +209,7 @@ let inline_constructors ctx original_e =
 	in
 	let is_extern_ctor c cf = (has_class_flag c CExtern) || has_class_field_flag cf CfExtern in
 	let make_expr_for_list (el:texpr list) (t:t) (p:pos): texpr = match el with
-		| [] -> mk (TBlock[]) ctx.t.tvoid p
+		| [] -> mk (TBlock[]) scom.basic.tvoid p
 		| [e] -> e
 		| _ -> mk (TBlock (el)) t p
 	in
@@ -222,7 +230,7 @@ let inline_constructors ctx original_e =
 			| TNew _, true ->
 				true, false
 			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_), _ ->
-				needs_inline ctx (Some c) cf, false
+				needs_inline scom (Some c) cf, false
 			| _ -> false, false
 		in
 		is_ctor || Type.check_expr (check_for_ctors ~force_inline:is_meta_inline) e
@@ -233,23 +241,26 @@ let inline_constructors ctx original_e =
 		The id is incremented each time and is used later in the final_map phase to identify the correct inline_object.
 	*)
 	let rec mark_ctors ?(force_inline=false) e : texpr =
-		let is_meta_inline = match e.eexpr with (TMeta((Meta.Inline,_,_),e)) -> true | _ -> false in
-		let e = Type.map_expr (mark_ctors ~force_inline:is_meta_inline) e in
-		let mark() =
-			incr curr_io_id;
-			let id_expr = (EConst(Int (string_of_int !curr_io_id, None)), e.epos) in
-			let meta = (Meta.InlineObject, [id_expr], e.epos) in
-			mk (TMeta(meta, e)) e.etype e.epos
-		in
-		match e.eexpr, force_inline with
-			| TObjectDecl _, _
-			| TArrayDecl _, _
-			| TNew _, true ->
-				mark()
-			| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_), _ ->
-				if needs_inline ctx (Some c) cf then mark()
-				else e
-			| _ -> e
+		match e.eexpr with
+			| TMeta((Meta.InlineConstructorArgument _,_,_),_) -> e
+			| _ ->
+				let is_meta_inline = match e.eexpr with (TMeta((Meta.Inline,_,_),e)) -> true | _ -> false in
+				let e = Type.map_expr (mark_ctors ~force_inline:is_meta_inline) e in
+				let mark() =
+					incr curr_io_id;
+					let id_expr = (EConst(Int (string_of_int !curr_io_id, None)), e.epos) in
+					let meta = (Meta.InlineObject, [id_expr], e.epos) in
+					mk (TMeta(meta, e)) e.etype e.epos
+				in
+				match e.eexpr, force_inline with
+					| TObjectDecl _, _
+					| TArrayDecl _, _
+					| TNew _, true ->
+						mark()
+					| TNew({ cl_constructor = Some ({cf_kind = Method MethInline; cf_expr = Some ({eexpr = TFunction _})} as cf)} as c,_,_), _ ->
+						if needs_inline scom (Some c) cf then mark()
+						else e
+					| _ -> e
 	in
 
 	(*
@@ -295,7 +306,7 @@ let inline_constructors ctx original_e =
 					let f = PMap.find fname ctor.ioc_class.cl_fields in
 					begin match f.cf_params, f.cf_kind, f.cf_expr with
 					| [], Method MethInline, Some({eexpr = TFunction tf}) ->
-						if needs_inline ctx (Some ctor.ioc_class) f then
+						if needs_inline scom (Some ctor.ioc_class) f then
 							Some (ctor.ioc_class, ctor.ioc_tparams, f, tf)
 						else
 							None
@@ -327,7 +338,7 @@ let inline_constructors ctx original_e =
 						if is_lvalue && iv_is_const fiv then raise Not_found;
 						if fiv.iv_closed then raise Not_found;
 						if not is_lvalue && fiv.iv_state == IVSUnassigned then (
-							warning ctx WConstructorInliningCancelled ("Constructor inlining cancelled because of use of uninitialized member field " ^ fname) ethis.epos;
+							SafeCom.add_warning scom WConstructorInliningCancelled ("Constructor inlining cancelled because of use of uninitialized member field " ^ fname) ethis.epos;
 							raise Not_found
 						);
 						if captured == IEHNotHandled then cancel_iv fiv efield.epos;
@@ -365,7 +376,7 @@ let inline_constructors ctx original_e =
 					| TConst _ -> loop (vs, e::es) el
 					| _ ->
 						let v = alloc_var VGenerated "arg" e.etype e.epos in
-						let decle = mk (TVar(v, Some e)) ctx.t.tvoid e.epos in
+						let decle = mk (TVar(v, Some e)) scom.basic.tvoid e.epos in
 						ignore(analyze_aliases IEHIgnored decle);
 						let mde = (Meta.InlineConstructorArgument (v.v_id, 0)), [], e.epos in
 						let e = mk (TMeta(mde, e)) e.etype e.epos in
@@ -383,7 +394,7 @@ let inline_constructors ctx original_e =
 					let argvs, pl = analyze_call_args pl in
 					let _, cname = c.cl_path in
 					let v = alloc_var VGenerated ("inl"^cname) e.etype e.epos in
-					let inlined_expr = Inline.type_inline_ctor ctx c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos in
+					let inlined_expr = Inline.type_inline_ctor (Inline.context_of_scom scom) c cf tf (mk (TLocal v) (TInst (c,tl)) e.epos) pl e.epos in
 					let inlined_expr = mark_ctors inlined_expr in
 					let has_untyped = (Meta.has Meta.HasUntyped cf.cf_meta) in
 					let forced = is_extern_ctor c cf || force_inline in
@@ -417,7 +428,7 @@ let inline_constructors ctx original_e =
 					let e = mk (TBinop(OpAssign,ef,e)) e.etype e.epos in
 					e
 				) fl in
-				let io_expr = make_expr_for_list el ctx.t.tvoid e.epos in
+				let io_expr = make_expr_for_list el scom.basic.tvoid e.epos in
 				let io = mk_io (IOKStructure) io_id io_expr in
 				List.iter (fun ((s,_,_),e) -> ignore(alloc_io_field io s e.etype v.v_pos)) fl;
 				let iv = add v IVKLocal in
@@ -432,9 +443,9 @@ let inline_constructors ctx original_e =
 					let ef = mk (TArray(ev,(mk (TConst(TInt (Int32.of_int i))) e.etype e.epos))) elemtype e.epos in
 					mk (TBinop(OpAssign,ef,e)) elemtype e.epos
 				) el in
-				let io_expr = make_expr_for_list el ctx.t.tvoid e.epos in
+				let io_expr = make_expr_for_list el scom.basic.tvoid e.epos in
 				let io = mk_io (IOKArray(len)) io_id io_expr in
-				ignore(alloc_const_io_field io "length" (mk (TConst(TInt (Int32.of_int len))) ctx.t.tint e.epos));
+				ignore(alloc_const_io_field io "length" (mk (TConst(TInt (Int32.of_int len))) scom.basic.tint e.epos));
 				for i = 0 to len-1 do ignore(alloc_io_field io (int_field_name i) elemtype v.v_pos) done;
 				let iv = add v IVKLocal in
 				set_iv_alias iv io;
@@ -478,7 +489,7 @@ let inline_constructors ctx original_e =
 			let i = Int32.to_int i in
 			let validate_io io = match io.io_kind with IOKArray(l) when i >= 0 && i < l -> true | _ -> false in
 			handle_field_case_no_methods e ethis (int_field_name i) validate_io
-		| TLocal(v) when v.v_id < 0 ->
+		| TLocal(v) when is_marked v.v_id ->
 			let iv = get_iv v.v_id in
 			if iv.iv_closed || captured==IEHNotHandled then cancel_iv iv e.epos;
 			Some iv
@@ -505,7 +516,7 @@ let inline_constructors ctx original_e =
 				let argvs, pl = analyze_call_args call_args in
 				io.io_dependent_vars <- io.io_dependent_vars @ argvs;
 				io.io_has_untyped <- io.io_has_untyped || (Meta.has Meta.HasUntyped cf.cf_meta);
-				let e = Inline.type_inline ctx cf tf (mk (TLocal io_var.iv_var) (TInst (c,tl)) e.epos) pl e.etype None e.epos true in
+				let e = Inline.type_inline (Inline.context_of_scom scom) cf tf (mk (TLocal io_var.iv_var) (TInst (c,tl)) e.epos) pl e.etype None e.epos true in
 				let e = mark_ctors e in
 				io.io_inline_methods <- io.io_inline_methods @ [e];
 				begin match analyze_aliases captured e with
@@ -561,7 +572,7 @@ let inline_constructors ctx original_e =
 		| {iv_kind = IVKField(_,_,Some _)} -> []
 		| {iv_state = IVSCancelled} ->
 			let v = iv.iv_var in
-			[(mk (TVar(v,None)) ctx.t.tvoid v.v_pos)]
+			[(mk (TVar(v,None)) scom.basic.tvoid v.v_pos)]
 		| _ -> []
 	and get_io_var_decls (io:inline_object) : texpr list =
 		if io.io_declared then [] else begin
@@ -624,14 +635,14 @@ let inline_constructors ctx original_e =
 			with Not_found ->
 				default_case e
 			end
-		| TVar(v, None) when v.v_id < 0 ->
+		| TVar(v, None) when is_marked v.v_id ->
 			let iv = get_iv v.v_id in
 			if iv.iv_state = IVSUnassigned then
 				(* If the variable is unassigned, leave the expression unchanged *)
 				([e], None)
 			else
 				(get_iv_var_decls (iv)), None
-		| TVar(v,Some e) when v.v_id < 0 ->
+		| TVar(v,Some e) when is_marked v.v_id ->
 			let el = (get_iv_var_decls (get_iv v.v_id)) in
 			let e,_ = (final_map ~unwrap_block:true e) in (e@el, None)
 		| TBinop(OpAssign, lve, rve) ->
@@ -687,7 +698,7 @@ let inline_constructors ctx original_e =
 				let te = make_expr_for_rev_list tel ethis.etype ethis.epos in
 				[mk (TArray(te, indexexpr)) e.etype e.epos], None
 			end
-		| TLocal v when v.v_id < 0 ->
+		| TLocal v when is_marked v.v_id ->
 			begin match get_iv v.v_id with
 			| {iv_state = IVSAliasing io} ->
 				[], (Some io)
@@ -724,22 +735,22 @@ let inline_constructors ctx original_e =
 	let e = mark_ctors original_e in
 	ignore(analyze_aliases [] IEHNotHandled false e);
 	if IntMap.for_all (fun _ io -> io.io_cancelled) !inline_objs then begin
-		IntMap.iter (fun _ iv -> let v = iv.iv_var in if v.v_id < 0 then v.v_id <- -v.v_id ) !vars;
 		original_e
 	end else begin
 		let el,_ = final_map e in
-		let cf = ctx.f.curfield in
+		let cf = scom.curfield in
 		if !included_untyped && not (Meta.has Meta.HasUntyped cf.cf_meta) then cf.cf_meta <- (Meta.HasUntyped,[],mk_zero_range_pos e.epos) :: cf.cf_meta;
 		let e = make_expr_for_rev_list el e.etype e.epos in
 		let rec get_pretty_name iv : string list = match iv.iv_kind with
 			| IVKField(io,fname,None) ->
-				begin try
-					let is_user_variable iv = match iv.iv_var.v_kind with VUser _ | VInlined -> true | _ -> false in
-					let iv = List.find is_user_variable io.io_aliases in
-					fname :: (get_pretty_name iv);
-				with Not_found ->
-					fname :: (get_pretty_name (List.hd io.io_aliases));
-				end
+				let is_source_variable iv = match iv.iv_var.v_kind with VUser _ -> true | _ -> false in
+				let is_inline_variable iv = match iv.iv_var.v_kind with VInlined -> true | _ -> false in
+				let iv =
+					try List.find is_source_variable io.io_aliases with Not_found ->
+					try List.find is_inline_variable io.io_aliases with Not_found ->
+					List.hd io.io_aliases
+				in
+				fname :: (get_pretty_name iv)
 			| _ -> [iv.iv_var.v_name]
 		in
 		let is_user_kind iv = match iv.iv_var.v_kind with VUser _ -> true | _ -> false in
@@ -755,8 +766,7 @@ let inline_constructors ctx original_e =
 		in
 		IntMap.iter (fun _ iv ->
 			let v = iv.iv_var in
-			if v.v_id < 0 then begin
-				v.v_id <- -v.v_id;
+			if is_marked v.v_id then begin
 				let vnames = List.rev (get_pretty_name iv) in
 				v.v_name <- String.concat "_" vnames;
 				if (was_user iv) then v.v_kind <- VInlinedConstructorVariable vnames;

@@ -1,0 +1,50 @@
+Main2.hx:41: characters 8-16 : This expression cannot be accessed for writing
+Main2.hx:43: characters 8-21 : This property cannot be accessed for writing
+Main2.hx:44: characters 8-21 : This property cannot be accessed for writing
+Main2.hx:45: characters 8-21 : This property cannot be accessed for writing
+Main2.hx:46: characters 8-21 : This property cannot be accessed for reading
+Main2.hx:48: characters 8-21 : This property cannot be accessed for reading
+Main2.hx:49: characters 8-21 : This property cannot be accessed for reading
+Main2.hx:50: characters 8-19 : This property cannot be accessed for reading
+Main2.hx:51: characters 8-19 : This property cannot be accessed for writing
+Main2.hx:52: characters 8-19 : This property cannot be accessed for writing
+Main2.hx:53: characters 8-19 : This property cannot be accessed for writing
+Main2.hx:58: characters 25-36 : This field cannot be accessed because it is not a real variable
+Main2.hx:2: characters 2-48 : Add @:isVar here to enable it
+Main2.hx:59: characters 25-36 : This field cannot be accessed because it is not a real variable
+Main2.hx:2: characters 2-48 : Add @:isVar here to enable it
+Main2.hx:60: characters 25-36 : This field cannot be accessed because it is not a real variable
+Main2.hx:2: characters 2-48 : Add @:isVar here to enable it
+Main2.hx:60: characters 25-36 : This property cannot be accessed for reading
+Main2.hx:61: characters 25-36 : This field cannot be accessed because it is not a real variable
+Main2.hx:2: characters 2-48 : Add @:isVar here to enable it
+Main2.hx:61: characters 25-36 : This property cannot be accessed for reading
+Main2.hx:64: characters 8-25 : This property cannot be accessed for writing
+Main2.hx:65: characters 8-25 : This property cannot be accessed for writing
+Main2.hx:66: characters 8-25 : This property cannot be accessed for writing
+Main2.hx:76: characters 8-21 : This property cannot be accessed for writing
+Main2.hx:77: characters 8-21 : This property cannot be accessed for writing
+Main2.hx:78: characters 8-21 : This property cannot be accessed for writing
+Main2.hx:79: characters 8-21 : This property cannot be accessed for reading
+Main2.hx:81: characters 8-21 : This property cannot be accessed for reading
+Main2.hx:82: characters 8-21 : This property cannot be accessed for reading
+Main2.hx:83: characters 8-19 : This property cannot be accessed for reading
+Main2.hx:84: characters 8-19 : This property cannot be accessed for writing
+Main2.hx:85: characters 8-19 : This property cannot be accessed for writing
+Main2.hx:86: characters 8-19 : This property cannot be accessed for writing
+Main2.hx:92: characters 8-25 : This property cannot be accessed for writing
+Main2.hx:93: characters 8-25 : This property cannot be accessed for writing
+Main2.hx:94: characters 8-25 : This property cannot be accessed for writing
+Main2.hx:103: characters 21-35 : This property cannot be accessed for writing
+Main2.hx:104: characters 21-35 : This property cannot be accessed for writing
+Main2.hx:105: characters 21-35 : This property cannot be accessed for writing
+Main2.hx:106: characters 21-35 : This property cannot be accessed for reading
+Main2.hx:108: characters 21-35 : This property cannot be accessed for reading
+Main2.hx:109: characters 21-35 : This property cannot be accessed for reading
+Main2.hx:110: characters 21-33 : This property cannot be accessed for reading
+Main2.hx:111: characters 21-33 : This property cannot be accessed for writing
+Main2.hx:112: characters 21-33 : This property cannot be accessed for writing
+Main2.hx:113: characters 21-33 : This property cannot be accessed for writing
+Main2.hx:119: characters 21-39 : This property cannot be accessed for writing
+Main2.hx:120: characters 21-39 : This property cannot be accessed for writing
+Main2.hx:121: characters 21-39 : This property cannot be accessed for writing

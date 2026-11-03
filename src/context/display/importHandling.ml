@@ -113,8 +113,9 @@ let init_import ctx path mode p =
 		let check_alias mt name pname =
 			if not (name.[0] >= 'A' && name.[0] <= 'Z') then
 				raise_typing_error "Type aliases must start with an uppercase letter" pname;
-			if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in pname then
-				DisplayEmitter.display_alias ctx name (type_of_module_type mt) pname;
+			(* Imports from import.hx should not match display position from current file *)
+			if ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in pname && (Path.UniqueKey.create pname.pfile) = (Path.UniqueKey.lazy_key ctx.m.curmod.m_extra.m_file) then
+				DisplayEmitter.display_alias ctx name (type_of_module_type mt) pname
 		in
 		let add_static_init t name s =
 			match resolve_typedef t with

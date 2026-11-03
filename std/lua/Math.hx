@@ -64,16 +64,34 @@ extern class Math {
 	**/
 	static function asin(x:Float):Float;
 
+	#if (lua_ver <= 5.2 || luajit)
 	/**
-		Returns the arc tangent of x (in radians).
-	**/
-	static function atan(x:Float):Float;
+		Returns the arc tangent of y/x (in radians), using the signs of both arguments to find the quadrant of the result. It also handles correctly the case of x being zero.
 
+		The default value for x is 1, so that the call math.atan(y) returns the arc tangent of y.
+	**/
+	static function atan(y:Float):Float;
+	#else
+	/**
+		Returns the arc tangent of y/x (in radians), using the signs of both arguments to find the quadrant of the result. It also handles correctly the case of x being zero.
+
+		The default value for x is 1, so that the call math.atan(y) returns the arc tangent of y.
+
+		The x argument is ignored on lua 5.2 or older and luajit, where atan2 is available instead.
+	**/
+	static function atan(y:Float, ?x:Float):Float;
+	#end
+
+	#if !(lua_ver >= 5.5)
 	/**
 		Returns the arc tangent of y/x (in radians), but uses the signs of both parameters to find the quadrant of the result.
 		(It also handles correctly the case of x being zero.)
 	**/
+	#if (lua_ver >= 5.3)
+	@:deprecated("Deprecated in Lua 5.3, removed in Lua 5.5")
+	#end
 	static function atan2(y:Float, x:Float):Float;
+	#end
 
 	/**
 		Returns the cosine of x (assumed to be in radians).
@@ -81,29 +99,40 @@ extern class Math {
 	static function cos(x:Float):Float;
 
 	/**
-		Returns the hyperbolic cosine of x.
-	**/
-	static function cosh(x:Float):Float;
-
-	/**
 		Returns the sine of x (assumed to be in radians).
 	**/
 	static function sin(x:Float):Float;
-
-	/**
-		Returns the hyperbolic sine of x.
-	**/
-	static function sinh(x:Float):Float;
 
 	/**
 		Returns the tangent of x (assumed to be in radians)
 	**/
 	static function tan(x:Float):Float;
 
+	#if !(lua_ver >= 5.5)
+	/**
+		Returns the hyperbolic cosine of x.
+	**/
+	#if (lua_ver >= 5.3)
+	@:deprecated("Deprecated in Lua 5.3, removed in Lua 5.5")
+	#end
+	static function cosh(x:Float):Float;
+
+	/**
+		Returns the hyperbolic sine of x.
+	**/
+	#if (lua_ver >= 5.3)
+	@:deprecated("Deprecated in Lua 5.3, removed in Lua 5.5")
+	#end
+	static function sinh(x:Float):Float;
+
 	/**
 		Returns the hyperbolic tangent of x.
 	**/
+	#if (lua_ver >= 5.3)
+	@:deprecated("Deprecated in Lua 5.3, removed in Lua 5.5")
+	#end
 	static function tanh(x:Float):Float;
+	#end
 
 	/**
 		Returns the angle x (given in degrees) in radians.
@@ -120,10 +149,15 @@ extern class Math {
 	**/
 	static function fmod(x:Float):Float;
 
+	#if !(lua_ver >= 5.5)
 	/**
 		Returns y-th power of x.
 	**/
+	#if (lua_ver >= 5.3)
+	@:deprecated("Deprecated in Lua 5.3, removed in Lua 5.5")
+	#end
 	static function pow(x:Float, y:Float):Float;
+	#end
 
 	/**
 		Returns the square root of x.
@@ -138,11 +172,17 @@ extern class Math {
 	/**
 		Returns m and e such that x = m2^e, e is an integer and the absolute value of m is in the range [0.5, 1) (or zero when x is zero).
 	**/
+	#if (lua_ver >= 5.3)
+	@:deprecated("Deprecated in Lua 5.3")
+	#end
 	static function frexp(x:Float):MathFrexpResult;
 
 	/**
 		Returns m2^e (e should be an integer).
 	**/
+	#if (lua_ver >= 5.3)
+	@:deprecated("Deprecated in Lua 5.3")
+	#end
 	static function ldexp(m:Float, e:Int):Float;
 
 	/**
@@ -150,10 +190,15 @@ extern class Math {
 	**/
 	static function log(x:Float):Float;
 
+	#if !(lua_ver >= 5.5)
 	/**
 		Returns the base-10 logarithm of x.
 	**/
+	#if (lua_ver >= 5.2)
+	@:deprecated("Deprecated in Lua 5.2, removed in Lua 5.5")
+	#end
 	static function log10(x:Float):Float;
+	#end
 
 	/**
 		Returns the maximum value among its arguments.

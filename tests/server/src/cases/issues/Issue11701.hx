@@ -17,7 +17,7 @@ class Issue11701 extends TestCase {
 		assertSuccess();
 
 		runHaxeJson(args, ServerMethods.Invalidate, {file: new FsPath("foo/Foo.hx")});
-		runHaxeJsonCb(args, DisplayMethods.Hover, {file: new FsPath("foo/Foo.hx"), offset: transform.offset(1)}, _ -> {});
+		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("foo/Foo.hx"), offset: transform.offset(1)});
 		assertSuccess();
 	}
 }

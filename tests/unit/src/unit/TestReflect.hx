@@ -1,7 +1,7 @@
 package unit;
 
-import haxe.ds.List;
 import Type;
+import haxe.ds.List;
 
 interface InterfWithProp {
 	public var x(get, set) : Int;
@@ -151,7 +151,7 @@ class TestReflect extends Test {
 	public function testTypeEq()
 	{
 		eq(cast Array, Type.resolveClass("Array"));
-		eq(cast Array, Type.getClass([]));
+		eq(cast Array, Type.getClass(([] : Array<Int>)));
 		eq(cast Array, Type.getClass([1]));
 	}
 
@@ -161,8 +161,10 @@ class TestReflect extends Test {
 		typeof(1,TInt);
 		typeof(-1,TInt);
 		typeof(1.2,TFloat);
+		#if (!php && !python)
 		typeof(1e10,TFloat);
 		typeof(-1e10,TFloat);
+		#end
 		typeof(Math.NaN,TFloat);
 		typeof(Math.POSITIVE_INFINITY,TFloat);
 		typeof(Math.NEGATIVE_INFINITY,TFloat);
@@ -325,4 +327,19 @@ class TestReflect extends Test {
 		eq( Reflect.getProperty(ClassWithProp, "STAT_X"), 16 );
 	}
 
+	function testEnumConstructor() {
+		// Reflect.field
+		var Some:(Dynamic) -> haxe.ds.Option<Dynamic> = Reflect.field(haxe.ds.Option, "Some");
+		utest.Assert.same(Some("Hello"), Some("Hello"));
+		utest.Assert.same(Reflect.callMethod(null, Some, ["Hello"]), Some("Hello"));
+		var None:haxe.ds.Option<Dynamic> = Reflect.field(haxe.ds.Option, "None");
+		utest.Assert.same(None, None);
+
+		// Reflect.getProperty
+		var Some:(Dynamic) -> haxe.ds.Option<Dynamic> = Reflect.getProperty(haxe.ds.Option, "Some");
+		utest.Assert.same(Some("Hello"), Some("Hello"));
+		utest.Assert.same(Reflect.callMethod(null, Some, ["Hello"]), Some("Hello"));
+		var None:haxe.ds.Option<Dynamic> = Reflect.getProperty(haxe.ds.Option, "None");
+		utest.Assert.same(None, None);
+	}
 }

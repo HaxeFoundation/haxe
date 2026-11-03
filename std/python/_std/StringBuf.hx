@@ -20,7 +20,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-import python.lib.io.IOBase.SeekSet;
 import python.lib.io.StringIO;
 
 @:coreApi
@@ -34,11 +33,7 @@ class StringBuf {
 	public var length(get, never):Int;
 
 	function get_length():Int {
-		var pos = b.tell();
-		b.seek(0, SeekEnd);
-		var len = b.tell();
-		b.seek(pos, SeekSet);
-		return len;
+		return b.tell();
 	}
 
 	public inline function add<T>(x:T):Void {
@@ -57,7 +52,13 @@ class StringBuf {
 		add1((len == null ? s.substr(pos) : s.substr(pos, len)));
 	}
 
-	public inline function toString():String {
-		return b.getvalue();
+	public inline function clear():Void {
+		b.seek(0, SeekSet);
+	}
+
+	public function toString():String {
+		final length = this.length;
+		b.seek(0, SeekSet);
+		return b.read(length);
 	}
 }

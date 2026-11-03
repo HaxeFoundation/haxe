@@ -27,6 +27,8 @@ open CppTypeUtils
 open CppAstTools
 open CppSourceWriter
 open CppContext
+open CppMarshalling
+open CppError
 
 let make_base_directory dir =
    Path.mkdir_recursive "" ( ( Str.split_delim (Str.regexp "[\\/]+") dir ) )
@@ -170,10 +172,10 @@ let write_build_options common_ctx filename defines =
    PMap.iter ( fun name value -> match name with
       | "true" | "sys" | "dce" | "cpp" | "debug" -> ()
       | _ ->  write_define name (escape_command value)) defines;
-   let pin,pid = Process_helper.open_process_args_in_pid "haxelib" [|"haxelib"; "path"; "hxcpp"|] in
+   let pin = Unix.open_process_args_in "haxelib" [|"haxelib"; "path"; "hxcpp"|] in
    set_binary_mode_in pin false;
    write_define "hxcpp" (Stdlib.input_line pin);
-   Stdlib.ignore (Process_helper.close_process_in_pid (pin,pid));
+   Stdlib.ignore (Unix.close_process_in pin);
    writer#close
 
 let create_member_types common_ctx =
@@ -280,6 +282,10 @@ let generate_source ctx =
    } in
 
    let folder acc cur =
+      let no_semantics_meta pos =
+         cpp_abort MissingValueSemantics pos
+      in
+
       (if not (Gctx.defined common_ctx Define.Objc) then
          match cur with
          | TClassDecl class_def when Meta.has Meta.Objc class_def.cl_meta ->
@@ -287,7 +293,15 @@ let generate_source ctx =
          | _ -> ());
 
       match cur with
+      | TAbstractDecl abs when is_marshalling_native_enum abs && not (ExtType.has_value_semantics (TAbstract (abs, []))) ->
+         no_semantics_meta abs.a_pos
       | TClassDecl class_def when is_extern_class class_def ->
+         if (is_marshalling_native_value_class class_def || is_marshalling_native_pointer class_def) && not (ExtType.has_value_semantics (TInst (class_def, []))) then
+            no_semantics_meta class_def.cl_pos;
+
+         if is_marshalling_native_pointer class_def && class_def.cl_constructor |> Option.is_some then
+            cpp_abort PointerTypeConstructor class_def.cl_pos;
+
          let acc_build_xml  = acc.build_xml ^ (CppGen.get_class_code class_def Meta.BuildXml) in
          let acc_extern_src =
             match Ast.get_meta_string class_def.cl_meta Meta.SourceFile with
@@ -296,24 +310,26 @@ let generate_source ctx =
 
          { acc with build_xml = acc_build_xml; extern_src = acc_extern_src }
 
-      | TClassDecl class_def when is_internal_class class_def.cl_path || Meta.has Meta.Macro class_def.cl_meta ->
+      | TClassDecl class_def when is_internal_class class_def.cl_path ->
          acc
 
       | TClassDecl class_def ->
          let native_gen       = Meta.has Meta.NativeGen class_def.cl_meta in
-         let decl, slots, ids =
+         let bootable, decl, slots, ids =
             match has_class_flag class_def CInterface with
             | true ->
                let (slots, iface) = CppRetyper.tcpp_interface_from_tclass ctx acc.slots class_def in
-               if native_gen then (NativeInterface iface, slots, acc.ids) else (ManagedInterface iface, acc.slots, acc.ids)
+               let bootable = has_boot_field class_def in
+               if native_gen then (bootable, NativeInterface iface, slots, acc.ids) else (bootable, ManagedInterface iface, slots, acc.ids)
             | false ->
                let (slots, ids, cls) = CppRetyper.tcpp_class_from_tclass ctx acc.ids acc.slots class_def [] in
-               if native_gen then (NativeClass cls, slots, ids) else (ManagedClass cls, slots, ids) in
+               let bootable = has_tcpp_class_flag cls Boot in
+               if native_gen then (bootable, NativeClass cls, slots, ids) else (bootable, ManagedClass cls, slots, ids) in
 
          let acc_decls           = decl :: acc.decls in
          let acc_build_xml       = acc.build_xml ^ (CppGen.get_class_code class_def Meta.BuildXml) in
          let acc_init_classes    = if has_init_field class_def then class_def.cl_path :: acc.init_classes else acc.init_classes in
-         let acc_boot_classes    = if has_boot_field class_def then class_def.cl_path :: acc.boot_classes else acc.boot_classes in
+         let acc_boot_classes    = if bootable then class_def.cl_path :: acc.boot_classes else acc.boot_classes in
          let acc_nonboot_classes = if Meta.has Meta.NativeGen class_def.cl_meta then acc.nonboot_classes else class_def.cl_path :: acc.nonboot_classes in
          let acc_exe_classes     =
             if (has_class_flag class_def CInterface) && (is_native_gen_class class_def) then
@@ -343,7 +359,7 @@ let generate_source ctx =
          let acc_decls        = (Enum enum) :: acc.decls in
          let acc_boot_enums   = enum_def.e_path :: acc.boot_enums in
          let acc_exe_classes  = (enum_def.e_path, deps, cur) :: acc.exe_classes in
-         
+
          { acc with decls = acc_decls; boot_enums = acc_boot_enums; exe_classes = acc_exe_classes; ids = ids }
       | _ ->
          acc
@@ -429,30 +445,30 @@ let generate_source ctx =
      end;
    end;
 
-   let output_name = match  common_ctx.main.main_class with
+   let output_name = match  common_ctx.main.main_path with
    | Some path -> (snd path)
    | _ -> "output" in
 
    write_build_data common_ctx (common_ctx.file ^ "/Build.xml") srcctx.exe_classes !main_deps (srcctx.boot_enums@ srcctx.boot_classes) srcctx.build_xml srcctx.extern_src output_name;
    write_build_options common_ctx (common_ctx.file ^ "/Options.txt") common_ctx.defines.Define.values;
    if ( not (Gctx.defined common_ctx Define.NoCompilation) ) then begin
-      let t = Timer.timer ["generate";"cpp";"native compilation"] in
-      let old_dir = Sys.getcwd() in
-      Sys.chdir common_ctx.file;
-      let cmd = ref ["run"; "hxcpp"; "Build.xml"; "haxe"] in
-	  if (common_ctx.debug) then cmd := !cmd @ ["-Ddebug"];
-      PMap.iter ( fun name value -> match name with
-         | "true" | "sys" | "dce" | "cpp" | "debug" -> ();
-         | _ -> cmd := !cmd @ [Printf.sprintf "-D%s=\"%s\"" name (escape_command value)];
-      ) common_ctx.defines.values;
-      common_ctx.class_paths#iter (fun path ->
-		let path = path#path in
-		cmd := !cmd @ [Printf.sprintf "-I%s" (escape_command path)]
-	  );
-      common_ctx.print ("haxelib " ^ (String.concat " " !cmd) ^ "\n");
-      if common_ctx.run_command_args "haxelib" !cmd <> 0 then failwith "Build failed";
-      Sys.chdir old_dir;
-      t()
+      Timer.time common_ctx.timer_ctx ["generate";"cpp";"native compilation"] (fun () ->
+		let old_dir = Sys.getcwd() in
+		Sys.chdir common_ctx.file;
+		let cmd = ref ["run"; "hxcpp"; "Build.xml"; "haxe"] in
+		if (common_ctx.debug) then cmd := !cmd @ ["-Ddebug"];
+		PMap.iter ( fun name value -> match name with
+			| "true" | "sys" | "dce" | "cpp" | "debug" -> ();
+			| _ -> cmd := !cmd @ [Printf.sprintf "-D%s=\"%s\"" name (escape_command value)];
+		) common_ctx.defines.values;
+		common_ctx.class_paths#iter (fun path ->
+			let path = path#path in
+			cmd := !cmd @ [Printf.sprintf "-I\"%s\"" (escape_command path)]
+		);
+		CompilerIo.write_out common_ctx.io ("haxelib " ^ (String.concat " " !cmd) ^ "\n");
+		if common_ctx.run_command_args "haxelib" !cmd <> 0 then failwith "Build failed";
+		Sys.chdir old_dir;
+	  ) ()
    end
 
 let generate common_ctx =
@@ -462,7 +478,7 @@ let generate common_ctx =
    if (Gctx.defined common_ctx Define.Cppia) then begin
       let ctx = new_context common_ctx debug_level (ref PMap.empty) StringMap.empty super_deps constructor_deps in
       CppCppia.generate_cppia ctx
-   end else begin   
+   end else begin
       let ctx = new_context common_ctx debug_level (ref PMap.empty) (create_member_types common_ctx) super_deps constructor_deps in
       generate_source ctx
    end

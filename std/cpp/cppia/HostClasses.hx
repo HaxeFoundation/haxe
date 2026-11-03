@@ -55,7 +55,6 @@ class HostClasses {
 		"cpp.vm.WeakRef",
 		"cpp.Object",
 		"cpp.Int64",
-		"cpp.Int64Map",
 		"cpp.Finalizable",
 		"Std",
 		"StringBuf",
@@ -135,6 +134,7 @@ class HostClasses {
 		"haxe.ds.WeakMap",
 		"haxe.ds.EnumValueMap",
 		"haxe.ds.IntMap",
+		"haxe.ds.Int64Map",
 		"haxe.ds.StringMap",
 		"haxe.iterators.MapKeyValueIterator",
 		"StdTypes",
@@ -148,7 +148,8 @@ class HostClasses {
 		"List",
 		"Map",
 		"String",
-		"haxe.atomic.AtomicInt"
+		"haxe.atomic.AtomicInt",
+		"haxe.atomic.AtomicObject",
 	];
 
 	static function parseClassInfo(externs:Map<String, Bool>, filename:String) {

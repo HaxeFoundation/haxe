@@ -305,7 +305,13 @@ let make_binop ctx op e1 e2 is_assign_op p =
 		| KFloat, KFloat ->
 			result := tfloat
 		| KNumParam t1, KNumParam t2 when Type.type_iseq t1 t2 ->
-			if op <> OpDiv then result := t1
+			(match op with
+			| OpDiv ->
+				let is_single = (match follow e1.etype with TAbstract({a_path=[],"Single"},_) -> true | _ -> false) in
+				if is_single then result := t1
+			| _ ->
+				result := t1
+			)
 		| KNumParam _, KNumParam _ ->
 			result := tfloat
 		| KNumParam t, KInt | KInt, KNumParam t ->
@@ -333,6 +339,15 @@ let make_binop ctx op e1 e2 is_assign_op p =
 		with Error { err_message = Unify _ } ->
 			e1,AbstractCast.cast_or_unify ctx e1.etype e2 p
 		in
+		let is_enum_constructor_without_args e = match (Texpr.skip e).eexpr with
+			| TField(_, FEnum(_, ef)) ->
+				begin match follow ef.ef_type with
+					| TFun _ -> false
+					| _ -> true
+				end
+			| _ ->
+				false
+		in
 		begin match e1.eexpr, e2.eexpr with
 		| TConst TNull , _ | _ , TConst TNull -> ()
 		| _ ->
@@ -340,7 +355,7 @@ let make_binop ctx op e1 e2 is_assign_op p =
 			| TFun _ , _ | _, TFun _ when not ctx.com.config.pf_supports_function_equality ->
 				warning ctx WClosureCompare "Comparison of function values is unspecified on this target, use Reflect.compareMethods instead" p
 			| TEnum(en,_), _ | _, TEnum(en,_) ->
-				if not (Meta.has Meta.FlatEnum en.e_meta) then
+				if not (Meta.has Meta.FlatEnum en.e_meta) && not (is_enum_constructor_without_args e1 || is_enum_constructor_without_args e2) then
 					warning ctx WUnsafeEnumEquality "Equality operations on this enum might lead to unexpected results because some constructors have arguments" p
 			| _ ->
 				()
@@ -408,20 +423,20 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 	let map = apply_params a.a_params tl in
 	let make op_cf cf e1 e2 tret needs_assign swapped =
 		if cf.cf_expr = None && not (has_class_field_flag cf CfExtern) then begin
-			if not (Meta.has Meta.NoExpr cf.cf_meta) then Common.display_error ctx.com "Recursive operator method" p;
+			if not (has_class_field_flag cf CfNoExpr) then Common.display_error ctx.com "Recursive operator method" p;
 			if not (Meta.has Meta.CoreType a.a_meta) then begin
 				(* for non core-types we require that the return type is compatible to the native result type *)
 				let result = make_binop ctx op {e1 with etype = Abstract.follow_with_abstracts e1.etype} {e1 with etype = Abstract.follow_with_abstracts e2.etype} is_assign_op p in
 				let t_expected = BinopResult.get_type result in
 				begin try
 					unify_raise tret t_expected p
-				with Error { err_message = Unify _; err_depth = depth } ->
+				with Error { err_message = Unify _ } ->
 					match follow tret with
 						| TAbstract(a,tl) when type_iseq (Abstract.get_underlying_type a tl) t_expected ->
 							()
 						| _ ->
 							let st = s_type (print_context()) in
-							raise_typing_error ~depth (Printf.sprintf "The result of this operation (%s) is not compatible with declared return type %s" (st t_expected) (st tret)) p
+							raise_typing_error (Printf.sprintf "The result of this operation (%s) is not compatible with declared return type %s" (st t_expected) (st tret)) p
 				end;
 			end;
 			(*
@@ -445,7 +460,7 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 	let is_eq_op = match op with OpEq | OpNotEq -> true | _ -> false in
 	if is_eq_op then begin match follow e1.etype,follow e2.etype with
 		| TMono _,_ | _,TMono _ ->
-			Type.unify e1.etype e2.etype
+			(try Type.unify e1.etype e2.etype with Unify_error _ -> () (* this will fail later again *));
 		| _ ->
 			()
 	end;
@@ -632,8 +647,19 @@ let type_non_assign_op ctx op e1 e2 is_assign_op abstract_overload_only with_typ
 	in
 	let e1 = type_expr ctx e1 wt in
 	let e1 = match wt with
-		| WithType.WithType(t,_) -> AbstractCast.cast_or_unify ctx t e1 e1.epos
-		| _ -> e1
+		| WithType.WithType(t,_) ->
+			let has_matching_op a =
+				List.exists (fun (o,_) -> o = op) a.a_ops
+			in
+			begin match follow e1.etype with
+				| TAbstract(a,tl) when has_matching_op a ->
+					(* The operator could be ambiguous, let's not cast (issue #12145). *)
+					e1
+				| _ ->
+					AbstractCast.cast_or_unify ctx t e1 e1.epos
+			end
+		| _ ->
+			e1
 	in
 	let result = if abstract_overload_only then begin
 		let e2 = type_binop_rhs ctx op e1 e2 is_assign_op with_type p in
@@ -660,7 +686,8 @@ type 'a assign_op_api = {
 
 let handle_assign_op ctx api e1 e2 with_type p =
 	let field_rhs_by_name name ev with_type =
-		let access_get = type_field_default_cfg ctx ev name p MGet with_type in
+		let field_pos = snd e1 in
+		let access_get = type_field_default_cfg ctx ev name field_pos MGet with_type in
 		let e_get = acc_get ctx access_get in
 		e_get,api.type_rhs e_get e2
 	in
@@ -714,7 +741,7 @@ let handle_assign_op ctx api e1 e2 with_type p =
 			(* bind complex keys to a variable so they do not make it into the output twice *)
 			let save = save_locals ctx in
 			let vr = new value_reference ctx in
-			let maybe_bind_to_temp name e = match Optimizer.make_constant_expression ctx e with
+			let maybe_bind_to_temp name e = match Optimizer.make_constant_expression (SafeCom.of_typer ctx) e with
 				| Some e -> e
 				| None -> vr#as_var name e
 			in
@@ -724,22 +751,7 @@ let handle_assign_op ctx api e1 e2 with_type p =
 			let eget = api.type_rhs eread e2 in
 			let eget = api.to_texpr vr eget (fun e -> e) in
 			unify ctx eget.etype r_get p;
-			let cf_set,tf_set,r_set,ekey,eget = AbstractCast.find_array_write_access ctx a tl ekey eget p in
-			let et = type_module_type ctx (TClassDecl c) p in
-			let e = match cf_set.cf_expr,cf_get.cf_expr with
-				(* | None,None ->
-					let ea = mk (TArray(ebase,ekey)) r_get p in
-					mk (TBinop(OpAssignOp op,ea,type_expr ctx e2 (WithType.with_type r_get))) r_set p *)
-				| Some _,Some _ ->
-					let ef_set = mk (TField(et,(FStatic(c,cf_set)))) tf_set p in
-					let el = [make_call ctx ef_set [ebase;ekey;eget] r_set p] in
-					begin match el with
-						| [e] -> e
-						| el -> mk (TBlock el) r_set p
-					end
-				| _ ->
-					raise_typing_error "Invalid array access getter/setter combination" p
-			in
+			let e = mk_array_set_call ctx (AbstractCast.find_array_write_access ctx a tl ekey eget p) c ebase p in
 			save();
 			api.generate vr eread e
 		| AKResolve(sea,name) ->
@@ -793,8 +805,8 @@ let type_op_null_coal_assign ctx e1 e2 with_type p =
 				e1,None,ctx.t.tvoid
 			| _ ->
 				let e1 = vr#as_var "tmp" e1 in
-				(* The t2 is here so that `anything ??= 2` doesn't become Null<T> *)
-				e1,Some e1,t2
+				let t = if is_nullable t2 then e1.etype else follow_without_type e1.etype in
+				e1,Some e1,t
 		in
 		let e_null = Texpr.Builder.make_null e1.etype e1.epos in
 		let e_null = Texpr.Builder.binop OpEq e1 e_null ctx.t.tbool e1.epos in
@@ -817,6 +829,7 @@ let type_op_null_coal_assign ctx e1 e2 with_type p =
 		);
 		assign = (fun vr e_lhs e_rhs ->
 			let assign e_rhs =
+				check_assign ctx e_lhs;
 				let e_rhs = AbstractCast.cast_or_unify ctx e_lhs.etype e_rhs p in
 				mk (TBinop(OpAssign,e_lhs,e_rhs)) e_lhs.etype p
 			in
@@ -927,7 +940,8 @@ let type_unop ctx op flag e with_type p =
 				e_lhs,None
 		in
 		let read_on vr ef fa =
-			let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name p MGet WithType.value in
+			let field_pos = snd e in
+			let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name field_pos MGet WithType.value in
 			let e_lhs = acc_get ctx access_get in
 			let e_lhs,e_out = maybe_tempvar_postfix vr e_lhs in
 			e_lhs,e_out
@@ -952,7 +966,8 @@ let type_unop ctx op flag e with_type p =
 			| AKField fa ->
 				let vr = new value_reference ctx in
 				let ef = vr#get_expr_part "fh" fa.fa_on in
-				let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name p MGet WithType.value in
+				let field_pos = snd e in
+				let access_get = type_field_default_cfg ctx ef fa.fa_field.cf_name field_pos MGet WithType.value in
 				let e,e_out = match access_get with
 				| AKField _ ->
 					let e = FieldAccess.get_field_expr {fa with fa_on = ef} FGet in
@@ -984,6 +999,9 @@ let type_unop ctx op flag e with_type p =
 			| AKAccess(a,tl,c,ebase,ekey) ->
 				begin try
 					(match op with Increment | Decrement -> () | _ -> raise Not_found);
+					let v_base = alloc_var VGenerated "tmp" ebase.etype ebase.epos in
+					let evar_base = mk (TVar(v_base, Some ebase)) ctx.com.basic.tvoid ebase.epos in
+					let ebase = mk (TLocal v_base) ebase.etype ebase.epos in
 					let v_key = alloc_var VGenerated "tmp" ekey.etype ekey.epos in
 					let evar_key = mk (TVar(v_key,Some ekey)) ctx.com.basic.tvoid ekey.epos in
 					let ekey = mk (TLocal v_key) ekey.etype ekey.epos in
@@ -997,7 +1015,7 @@ let type_unop ctx op flag e with_type p =
 					let e_op = mk (TBinop((if op = Increment then OpAdd else OpSub),ev_get,e_one)) ev_get.etype p in
 					(* set *)
 					let e_set = mk_array_set_call ctx (AbstractCast.find_array_write_access_raise ctx a tl ekey e_op p) c ebase p in
-					let el = evar_key :: evar_get :: e_set :: (if flag = Postfix then [ev_get] else []) in
+					let el = evar_base :: evar_key :: evar_get :: e_set :: (if flag = Postfix then [ev_get] else []) in
 					mk (TBlock el) e_set.etype p
 				with Not_found ->
 					let e = mk_array_get_call ctx (AbstractCast.find_array_read_access ctx a tl ekey p) c ebase p in

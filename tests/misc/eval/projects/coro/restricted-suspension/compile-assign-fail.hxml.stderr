@@ -1,0 +1,4 @@
+RestrictedSuspensionAssign.hx:22: characters 2-32 : Invalid suspension call in restricted suspension scope
+RestrictedSuspensionAssign.hx:26: characters 2-32 : Invalid suspension call in restricted suspension scope
+RestrictedSuspensionAssign.hx:30: characters 2-36 : Invalid suspension call in restricted suspension scope
+RestrictedSuspensionAssign.hx:34: characters 2-22 : Invalid suspension call in restricted suspension scope

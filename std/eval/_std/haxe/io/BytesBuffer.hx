@@ -30,7 +30,7 @@ extern class BytesBuffer {
 	function addByte(byte:Int):Void;
 	function add(src:Bytes):Void;
 	function addString(v:String, ?encoding:Encoding):Void;
-	function addInt32(v:Int):Void;
+	function addInt32(v:haxe.Int32):Void;
 	function addInt64(v:haxe.Int64):Void;
 	function addFloat(v:Float):Void;
 	function addDouble(v:Float):Void;

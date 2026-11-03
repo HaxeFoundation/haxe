@@ -1,3 +1,3 @@
 -m Issue11196
--hl out.hl
+-hl out/main.hl
 -dce no

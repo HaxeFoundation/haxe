@@ -99,4 +99,6 @@ extern class ObjectMap<K:{}, V> implements haxe.Constraints.IMap<K, V> {
 		See `Map.clear`
 	**/
 	function clear():Void;
+	
+	public function size():Int;
 }

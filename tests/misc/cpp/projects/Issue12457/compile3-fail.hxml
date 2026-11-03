@@ -1,0 +1,3 @@
+-m Compile3
+--cpp bin
+--debug

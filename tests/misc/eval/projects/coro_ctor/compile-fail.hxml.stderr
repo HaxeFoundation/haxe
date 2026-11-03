@@ -1,0 +1,2 @@
+Main.hx:2: characters 14-41 : Invalid modifier: @:coroutine on constructor
+Main.hx:8: characters 2-13 : Child does not have a constructor

@@ -2,19 +2,21 @@
 import haxe.macro.Context;
 import haxe.macro.Expr;
 
-typedef SafetyMessage = {msg:String, pos:Position}
-typedef ExpectedMessage = {symbol:String, pos:Position}
+typedef SafetyMessage = {type:String, msg:String, pos:Position}
+typedef ExpectedMessage = {type:String, symbol:String, pos:Position}
 #end
 
 class Validator {
 #if macro
 	static var expectedErrors:Array<ExpectedMessage> = [];
+	static var expectedWarnings:Array<ExpectedMessage> = [];
 
 	static dynamic function onNullSafetyReport(callback:(errors:Array<SafetyMessage>)->Void):Void {
 	}
 
 	static public function register() {
 		expectedErrors = [];
+		expectedWarnings = [];
 		onNullSafetyReport = @:privateAccess Context.load("on_null_safety_report", 1);
 		onNullSafetyReport(validate);
 	}
@@ -25,7 +27,13 @@ class Validator {
 				if(meta.name == ':shouldFail') {
 					var fieldPosInfos = Context.getPosInfos(field.pos);
 					fieldPosInfos.min = Context.getPosInfos(meta.pos).max + 1;
-					expectedErrors.push({symbol: field.name, pos:Context.makePosition(fieldPosInfos)});
+					expectedErrors.push({type: "error", symbol: field.name, pos:Context.makePosition(fieldPosInfos)});
+					break;
+				}
+				if(meta.name == ':shouldWarn') {
+					var fieldPosInfos = Context.getPosInfos(field.pos);
+					fieldPosInfos.min = Context.getPosInfos(meta.pos).max + 1;
+					expectedWarnings.push({type: "warning", symbol: field.name, pos:Context.makePosition(fieldPosInfos)});
 					break;
 				}
 			}
@@ -34,7 +42,7 @@ class Validator {
 	}
 
 	static function validate(errors:Array<SafetyMessage>) {
-		var errors = check(expectedErrors.copy(), errors.copy());
+		var errors = check(expectedErrors.concat(expectedWarnings), errors.copy());
 		if(errors.ok) {
 			Sys.println('${errors.passed} expected errors spotted');
 			Sys.println('Compile-time tests passed.');
@@ -50,6 +58,7 @@ class Validator {
 			var actualEvent = actual[i];
 			var wasExpected = false;
 			for(expectedEvent in expected) {
+				if (expectedEvent.type != actualEvent.type) continue;
 				if(posContains(expectedEvent.pos, actualEvent.pos)) {
 					expected.remove(expectedEvent);
 					wasExpected = true;
@@ -85,7 +94,12 @@ class Validator {
 #end
 
 	macro static public function shouldFail(expr:Expr):Expr {
-		expectedErrors.push({symbol:Context.getLocalMethod(), pos:expr.pos});
+		expectedErrors.push({type: "error", symbol:Context.getLocalMethod(), pos:expr.pos});
+		return expr;
+	}
+
+	macro static public function shouldWarn(expr:Expr):Expr {
+		expectedWarnings.push({type: "warning", symbol:Context.getLocalMethod(), pos:expr.pos});
 		return expr;
 	}
 }

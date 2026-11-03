@@ -1,3 +1,4 @@
+open Globals
 open Type
 open EvalContext
 
@@ -17,7 +18,7 @@ type t = {
 	(* The scope stack. *)
 	mutable scopes : scope list;
 	(* The captured variables declared in this context. Maps variable IDs to capture slots. *)
-	mutable captures : (int,int * bool) Hashtbl.t;
+	mutable captures : (int * bool) IntHashtbl.t;
 	(* The current number of locals. *)
 	mutable num_locals : int;
 	(* The maximum number of locals. *)
@@ -27,7 +28,7 @@ type t = {
 	(* Whether or not this function has a return that's not at the end of control flow. *)
 	mutable has_nonfinal_return : bool;
 	(* The name of capture variables. Maps local slots to variable names. Only filled in debug mode. *)
-	mutable capture_infos : (int,var_info) Hashtbl.t;
+	mutable capture_infos : var_info IntHashtbl.t;
 	(* Variables which are accessed but not declared in this scope. *)
 	mutable captures_outside_scope : tvar list;
 }
@@ -43,25 +44,25 @@ let var_info_of_var var =
 let create ctx = {
 	ctx = ctx;
 	scopes = [];
-	captures = Hashtbl.create 0;
+	captures = IntHashtbl.create 0;
 	num_locals = 0;
 	max_num_locals = 0;
 	num_closures = 0;
 	has_nonfinal_return = false;
-	capture_infos = Hashtbl.create 0;
+	capture_infos = IntHashtbl.create 0;
 	captures_outside_scope = []
 }
 
 (* Returns the number of locals in [scope]. *)
 let num_locals scope =
-	Hashtbl.length scope.locals
+	IntHashtbl.length scope.locals
 
 (* Pushes a new scope onto context [jit]. *)
 let push_scope jit pos =
 	let scope = {
 		local_offset = jit.num_locals;
-		locals = Hashtbl.create 0;
-		local_infos = Hashtbl.create 0;
+		locals = IntHashtbl.create 0;
+		local_infos = IntHashtbl.create 0;
 		local_ids = Hashtbl.create 0;
 		pos = pos;
 	} in
@@ -82,10 +83,10 @@ let increase_num_locals jit =
 
 (* Adds capture variable [var] to context [jit]. *)
 let add_capture jit var declared =
-	let i = Hashtbl.length jit.captures in
-	Hashtbl.add jit.captures var.v_id (i,declared);
+	let i = IntHashtbl.length jit.captures in
+	IntHashtbl.add jit.captures var.v_id (i,declared);
 	if jit.ctx.debug.support_debugger then begin
-		Hashtbl.replace jit.capture_infos i (var_info_of_var var)
+		IntHashtbl.replace jit.capture_infos i (var_info_of_var var)
 	end;
 	i
 
@@ -93,13 +94,13 @@ let add_capture jit var declared =
 let add_local jit var = match jit.scopes with
 	| [] -> Globals.die "" __LOC__
 	| scope :: _ ->
-		let i = Hashtbl.length scope.locals in
-		Hashtbl.add scope.locals var.v_id i;
+		let i = IntHashtbl.length scope.locals in
+		IntHashtbl.add scope.locals var.v_id i;
 		increase_num_locals jit;
 		let slot = scope.local_offset + i in
 		if jit.ctx.debug.support_debugger then begin
 			Hashtbl.replace scope.local_ids var.v_name var.v_id;
-			Hashtbl.replace scope.local_infos i (var_info_of_var var)
+			IntHashtbl.replace scope.local_infos i (var_info_of_var var)
 		end;
 		slot
 
@@ -127,12 +128,12 @@ let declare_arg jit var =
 let declare_local_this jit = match jit.scopes with
 	| [] -> Globals.die "" __LOC__
 	| scope :: _ ->
-		let i = Hashtbl.length scope.locals in
-		Hashtbl.add scope.locals 0 i;
+		let i = IntHashtbl.length scope.locals in
+		IntHashtbl.add scope.locals 0 i;
 		increase_num_locals jit;
 		if jit.ctx.debug.support_debugger then begin
 			Hashtbl.replace scope.local_ids "this" 0;
-			Hashtbl.replace scope.local_infos 0 { vi_name = "this"; vi_pos = Globals.null_pos; vi_generated = false }
+			IntHashtbl.replace scope.local_infos 0 { vi_name = "this"; vi_pos = Globals.null_pos; vi_generated = false }
 		end;
 		Local i
 
@@ -142,7 +143,7 @@ let get_slot_raise jit vid =
 		| [] -> raise Not_found
 		| scope :: scopes ->
 			try
-				scope.local_offset + Hashtbl.find scope.locals vid
+				scope.local_offset + IntHashtbl.find scope.locals vid
 			with Not_found ->
 				loop scopes
 	in
@@ -154,7 +155,7 @@ let get_slot jit vid p =
 
 (* Gets the slot of captured variable id [vid] in context [jit]. *)
 let get_capture_slot jit var =
-	try fst (Hashtbl.find jit.captures var.v_id)
+	try fst (IntHashtbl.find jit.captures var.v_id)
 	with Not_found ->
 		jit.captures_outside_scope <- var :: jit.captures_outside_scope;
 		add_capture jit var false

@@ -23,6 +23,7 @@
 enum ValueType {
 	TNull;
 	TInt;
+	TInt64;
 	TFloat;
 	TBool;
 	TObject;
@@ -43,14 +44,14 @@ enum ValueType {
 		return p.__class__;
 	}
 
-	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
+	public static function getEnum( o : EnumValue ) : Null<Enum<Dynamic>> untyped {
 		if( __dollar__typeof(o) != __dollar__tobject )
 			return null;
 		return o.__enum__;
 	}
 
 
-	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped {
+	public static function getSuperClass( c : Class<Dynamic> ) : Null<Class<Dynamic>> untyped {
 		return c.__super__;
 	}
 
@@ -67,7 +68,7 @@ enum ValueType {
 		return a.join(".");
 	}
 
-	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
+	public static function resolveClass( name : String ) : Null<Class<Dynamic>> untyped {
 		var path = name.split(".");
 		var cl = Reflect.field(untyped neko.Boot.__classes,path[0]);
 		var i = 1;
@@ -82,7 +83,7 @@ enum ValueType {
 	}
 
 
-	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped {
+	public static function resolveEnum( name : String ) : Null<Enum<Dynamic>> untyped {
 		var path = name.split(".");
 		var e = Reflect.field(neko.Boot.__classes,path[0]);
 		var i = 1;
@@ -175,13 +176,13 @@ enum ValueType {
 		return switch( __dollar__typeof(v) ) {
 		case 0: TNull;
 		case 1: TInt;
-		case 2: TFloat;
+		case 2: Std.int(v) == v ? TInt : TFloat;
 		case 3: TBool;
 		case 7: TFunction;
 		case 5:
 			var c = v.__class__;
 			if( c != null )
-				TClass(c);
+				(c == @:privateAccess haxe.Int64.IMPL) ? TInt64 : TClass(c);
 			else {
 				var e = v.__enum__;
 				if( e != null )

@@ -395,7 +395,7 @@ class Boot {
 		}
 	}
 
-	static function getSuperClass(c:Class<Dynamic>):Class<Dynamic> {
+	static function getSuperClass(c:Class<Dynamic>):Null<Class<Dynamic>> {
 		if (c == null)
 			return null;
 

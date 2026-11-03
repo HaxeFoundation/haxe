@@ -180,6 +180,17 @@ class resolution_list (id : string list) = object(self)
 	method get_list =
 		l
 
+	method set_list l' =
+		l <- l';
+		cached_type_imports <- false
+
+	method clone_as (id : string list) =
+		self#resolve_lazies;
+		let rl = new resolution_list id in
+		rl#set_list l;
+		rl#cache_type_imports;
+		rl
+
 	method cache_type_imports =
 		let rec loop = function
 		| [] ->

@@ -1,6 +1,7 @@
 -cp src
 -main Main
--D test=Calls
+-lib hxcoro
+-D test=Coro
 -D analyzer-optimize
 -D analyzer-no-purity-inference
 -D dump=pretty

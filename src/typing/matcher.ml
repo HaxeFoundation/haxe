@@ -26,7 +26,7 @@ module Match = struct
 	open Typecore
 
 	let match_expr ctx e cases def with_type postfix_match p =
-		let match_debug = Meta.has (Meta.Custom ":matchDebug") ctx.f.curfield.cf_meta in
+		let match_debug = Meta.has (Meta.Custom ":debug.match") ctx.f.curfield.cf_meta in
 		let rec loop e = match fst e with
 			| EArrayDecl el when (match el with [(EFor _ | EWhile _),_] -> false | _ -> true) ->
 				let el = List.map (fun e -> type_expr ctx e WithType.value) el in
@@ -51,9 +51,10 @@ module Match = struct
 				| _ -> None,with_type,false)
 			| _ -> None,with_type,false
 		in
+		(* let free_monos = Case.collect_free_monos t in *)
 		let cases = List.map (fun (el,eg,eo,p) ->
 			let p = match eo with Some e when p = null_pos -> pos e | _ -> p in
-			let case,bindings,pat = Case.make ctx t el eg eo with_type postfix_match p in
+			let case,bindings,pat = Case.make ctx t [] el eg eo with_type postfix_match p in
 			case,bindings,[pat]
 		) cases in
 		let infer_switch_type () =

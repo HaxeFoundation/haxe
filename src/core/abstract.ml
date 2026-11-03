@@ -63,8 +63,6 @@ let find_to uctx b ab tl =
 				Some(find_field_to uctx a b ab tl)
 		)
 
-let underlying_type_stack = new_rec_stack()
-
 (**
 	Returns type parameters and the list of types, which should be known at compile time
 	to be able to choose multitype specialization.
@@ -98,14 +96,14 @@ let rec find_multitype_params a pl =
 		tl,!definitive_types
 
 and find_multitype_specialization_type a pl =
-	let uctx = default_unification_context in
+	let uctx = default_unification_context () in
 	let m = mk_mono() in
 	let tl,definitive_types = find_multitype_params a pl in
 	ignore(find_to uctx m a tl);
 	if List.exists (fun t -> has_mono t) definitive_types then raise Not_found;
 	follow m
 
-and get_underlying_type ?(return_first=false) a pl =
+and get_underlying_type' stack ?(return_first=false) a pl =
 	let maybe_recurse t =
 		let rec loop t = match t with
 			| TMono r ->
@@ -119,12 +117,12 @@ and get_underlying_type ?(return_first=false) a pl =
 			| TType (t,tl) ->
 				loop (apply_typedef t tl)
 			| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->
-				if rec_stack_exists (fast_eq t) underlying_type_stack then begin
+				if rec_stack_exists (fast_eq t) stack then begin
 					let pctx = print_context() in
-					let s = String.concat " -> " (List.map (fun t -> s_type pctx t) (List.rev (t :: underlying_type_stack.rec_stack))) in
+					let s = String.concat " -> " (List.map (fun t -> s_type pctx t) (List.rev (t :: stack.rec_stack))) in
 					raise_typing_error ("Abstract chain detected: " ^ s) a.a_pos
 				end;
-				get_underlying_type a tl
+				get_underlying_type' stack a tl
 			| _ ->
 				t
 		in
@@ -132,7 +130,7 @@ and get_underlying_type ?(return_first=false) a pl =
 			Even if only the first underlying type was requested
 			keep traversing to detect mutually recursive abstracts
 		*)
-		let result = rec_stack_loop underlying_type_stack (TAbstract(a,pl)) loop t in
+		let result = rec_stack_loop stack (TAbstract(a,pl)) loop t in
 		if return_first then t
 		else result
 	in
@@ -144,6 +142,9 @@ and get_underlying_type ?(return_first=false) a pl =
 			t_dynamic
 		else
 			maybe_recurse (apply_params a.a_params pl a.a_this)
+
+and get_underlying_type ?(return_first=false) a pl =
+	get_underlying_type' (new_rec_stack()) ~return_first a pl
 
 and follow_with_abstracts t = match follow t with
 	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) ->

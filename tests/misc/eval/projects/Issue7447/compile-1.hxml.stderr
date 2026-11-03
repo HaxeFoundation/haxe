@@ -1,0 +1,1 @@
+Main1.hx:9: characters 15-19 : Warning : (WVarInit) this might be used before assigning a value to it

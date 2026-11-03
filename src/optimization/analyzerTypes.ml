@@ -83,20 +83,14 @@ module BasicBlock = struct
 		ss_exhaustive : bool;
 	}
 
-	and suspend_call = {
-		efun : texpr;      (* coroutine function expression *)
-		args : texpr list; (* call arguments without the continuation *)
-		pos : pos;         (* call position *)
-	}
-
 	and terminator_kind =
-	| TermNone
-	| TermCondBranch of texpr
-	| TermReturn of pos
-	| TermReturnValue of texpr * pos
-	| TermBreak of pos
-	| TermContinue of pos
-	| TermThrow of texpr * pos
+		| TermNone
+		| TermCondBranch of texpr
+		| TermReturn of pos
+		| TermReturnValue of texpr * pos
+		| TermBreak of pos
+		| TermContinue of pos
+		| TermThrow of texpr * pos
 
 	and t = {
 		bb_id : int;                          (* The unique ID of the block *)
@@ -343,10 +337,9 @@ module Graph = struct
 		Hashtbl.add g.g_functions bb.bb_id (bb,t,p,tf)
 
 	let alloc_id =
-		let r = ref 1 in
+		let r = Atomic.make 1 in
 		(fun () ->
-			incr r;
-			!r
+			Atomic.fetch_and_add r 1 + 1
 		)
 
 	let create_node g kind t p =
@@ -598,7 +591,7 @@ module Graph = struct
 end
 
 type analyzer_context = {
-	com : Common.context;
+	com : SafeCom.t;
 	config : AnalyzerConfig.t;
 	graph : Graph.t;
 	temp_var_name : string;

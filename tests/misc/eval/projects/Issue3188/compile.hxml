@@ -1,0 +1,2 @@
+--macro Main.init()
+-D message.reporting=pretty

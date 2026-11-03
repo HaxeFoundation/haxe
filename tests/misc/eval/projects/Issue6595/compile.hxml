@@ -1,0 +1,2 @@
+# main is typed in macro context here, which is where the @:from macro cast failed
+--macro Main.main()

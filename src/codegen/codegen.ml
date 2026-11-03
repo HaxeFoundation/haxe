@@ -28,8 +28,8 @@ open Extlib_leftovers
 let rec has_properties c =
 	List.exists (fun f ->
 		match f.cf_kind with
-		| Var { v_read = AccCall } -> true
-		| Var { v_write = AccCall } -> true
+		| Var { v_read = AccCall | AccPrivateCall } -> true
+		| Var { v_write = AccCall | AccPrivateCall } -> true
 		| _ when Meta.has Meta.Accessor f.cf_meta -> true
 		| _ -> false
 	) c.cl_ordered_fields || (match c.cl_super with Some (c,_) -> has_properties c | _ -> false)
@@ -40,10 +40,10 @@ let get_properties fields =
 			(f.cf_name, f.cf_name) :: acc
 		else
 			let acc = (match f.cf_kind with
-			| Var { v_read = AccCall } -> ("get_" ^ f.cf_name , "get_" ^ f.cf_name) :: acc
+			| Var { v_read = AccCall | AccPrivateCall } -> ("get_" ^ f.cf_name , "get_" ^ f.cf_name) :: acc
 			| _ -> acc) in
 			match f.cf_kind with
-			| Var { v_write = AccCall } -> ("set_" ^ f.cf_name , "set_" ^ f.cf_name) :: acc
+			| Var { v_write = AccCall | AccPrivateCall } -> ("set_" ^ f.cf_name , "set_" ^ f.cf_name) :: acc
 			| _ -> acc
 	) [] fields
 

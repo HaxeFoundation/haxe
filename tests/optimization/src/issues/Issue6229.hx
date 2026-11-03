@@ -18,7 +18,7 @@ class Issue6229 {
 		}
 	}
 
-	@:js('var a = 1 + 1;')
+	@:js('var v_x = 1;var v_y = 1;var a = 2;')
 	@:analyzer(no_local_dce)
     static function test() {
         var v = mkVec(1);

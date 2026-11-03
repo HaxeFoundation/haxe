@@ -137,7 +137,7 @@ class TestLocalDce {
 	')
 	static function testLoopUnroll() {
 		var s = keep(1);
-		for (i in [0, 3, 4]) {
+		inline for (i in [0, 3, 4]) {
 			s += i * 2;
 		}
 		use(s);
@@ -148,7 +148,7 @@ class TestLocalDce {
 		var s = 0.0;
 		inline function foo(r)
 			return 2.0 + r;
-		for ( r in [0.0,1.0] )
+		inline for ( r in [0.0,1.0] )
 			s+=foo(r);
 		use(s);
 	}

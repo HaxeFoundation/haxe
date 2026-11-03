@@ -15,8 +15,8 @@ let make_call ctx e params t ?(force_inline=false) p =
 		| TFun (expected_args,_) ->
 			(match List.rev expected_args with
 			| (_,true,t) :: rest when is_pos_infos t && List.length rest = List.length params ->
-				let infos = mk_infos ctx p [] in
-				params @ [type_expr ctx infos (WithType.with_type t)]
+				let infos = mk_infos_t ctx p [] t in
+				params @ [infos]
 			| _ -> params
 			)
 		| _ -> params
@@ -65,10 +65,10 @@ let make_call ctx e params t ?(force_inline=false) p =
 						raise_typing_error ("Abstract 'this' value can only be modified inside an inline function. '" ^ f.cf_name ^ "' modifies 'this'") p;
 			| _ -> ()
 		);
-		let params = List.map (Optimizer.reduce_expression ctx) params in
+		let params = List.map (Optimizer.reduce_expression (SafeCom.of_typer ctx)) params in
 		let force_inline = is_forced_inline cl f in
 		let inline fd =
-			Inline.type_inline ctx f fd ethis params t config p force_inline
+			Inline.type_inline (Inline.context_of_typer ctx) f fd ethis params t config p force_inline
 		in
 		begin match f.cf_expr_unoptimized with
 		| Some {eexpr = TFunction fd} ->
@@ -93,7 +93,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 
 let mk_array_get_call ctx (cf,tf,r,e1) c ebase p = match cf.cf_expr with
 	| None when not (has_class_field_flag cf CfExtern) ->
-		if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array get method" p;
+		if not (has_class_field_flag cf CfNoExpr) then display_error ctx.com "Recursive array get method" p;
 		mk (TArray(ebase,e1)) r p
 	| _ ->
 		let et = type_module_type ctx (TClassDecl c) p in
@@ -103,7 +103,7 @@ let mk_array_get_call ctx (cf,tf,r,e1) c ebase p = match cf.cf_expr with
 let mk_array_set_call ctx (cf,tf,r,e1,evalue) c ebase p =
 	match cf.cf_expr with
 		| None when not (has_class_field_flag cf CfExtern) ->
-			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array set method" p;
+			if not (has_class_field_flag cf CfNoExpr) then display_error ctx.com "Recursive array set method" p;
 			let ea = mk (TArray(ebase,e1)) r p in
 			mk (TBinop(OpAssign,ea,evalue)) r p
 		| _ ->
@@ -369,8 +369,8 @@ let type_bind ctx (e : texpr) (args,ret) params safe p =
 		| [], [] -> given_args,missing_args,ordered_args
 		| [], _ -> raise_typing_error "Too many callback arguments" p
 		| [n,o,t] , [] when o && is_pos_infos t ->
-			let infos = mk_infos ctx p [] in
-			let ordered_args = ordered_args @ [type_expr ctx infos (WithType.with_argument t n)] in
+			let infos = mk_infos_t ctx p [] t in
+			let ordered_args = ordered_args @ [infos] in
 			given_args,missing_args,ordered_args
 		| (n,o,t) :: _ , (EConst(Ident "_"),p) :: _ when not ctx.com.config.pf_can_skip_non_nullable_argument && o && not (is_nullable t) ->
 			raise_typing_error "Usage of _ is not supported for optional non-nullable arguments" p

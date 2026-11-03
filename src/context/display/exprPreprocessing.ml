@@ -3,7 +3,7 @@ open Ast
 open DisplayTypes.DisplayMode
 open DisplayPosition
 
-let find_before_pos dm e =
+let find_before_pos was_auto_triggered dm e =
 	let display_pos = ref (DisplayPosition.display_position#get) in
 	let was_annotated = ref false in
 	let is_annotated,is_completion = match dm with
@@ -160,7 +160,7 @@ let find_before_pos dm e =
 			raise Exit
 		| EMeta((Meta.Markup,_,_),(EConst(String _),p)) when is_annotated p ->
 			annotate_marked e
-		| EConst (String (_,q)) when ((q <> SSingleQuotes) || !Parser.was_auto_triggered) && is_annotated (pos e) && is_completion ->
+		| EConst (String (_,q)) when ((q <> SSingleQuotes) || was_auto_triggered) && is_annotated (pos e) && is_completion ->
 			(* TODO: check if this makes any sense *)
 			raise Exit
 		| EConst(Regexp _) when is_annotated (pos e) && is_completion ->
@@ -199,13 +199,13 @@ let find_before_pos dm e =
 	in
 	try map e with Exit -> e
 
-let find_display_call e =
+let find_display_call was_auto_triggered e =
 	let found = ref false in
 	let handle_el e el =
 		let call_arg_is_marked () =
 			el = [] || List.exists (fun (e,_) -> match e with EDisplay(_,DKMarked) -> true | _ -> false) el
 		in
-		if not !Parser.was_auto_triggered || call_arg_is_marked () then begin
+		if not was_auto_triggered || call_arg_is_marked () then begin
 		found := true;
 		Parser.mk_display_expr e DKCall
 		end else
