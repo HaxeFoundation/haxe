@@ -750,17 +750,22 @@ module TypeBinding = struct
 						else if is_physical_var_field cf_parent then
 							error_redefinition ()
 						else begin
-							let is_narrowing parent_acc child_acc = match parent_acc, child_acc with
-								| AccCall, (AccPrivateCall | AccNever) -> true
-								| AccPrivateCall, AccNever -> true
-								| _ -> false
+							(* Same rule as for structural unification: where the parent goes through an accessor, the
+							   child has to as well, or access through the two types would end up in different places. *)
+							let uctx = default_unification_context () in
+							let check is_read parent_acc child_acc =
+								if unify_var_access uctx child_acc parent_acc then
+									true
+								else begin
+									display_error ctx.com (Printf.sprintf "Cannot redefine %s access of %s as %s in subclass, superclass uses %s"
+										(if is_read then "read" else "write") cf.cf_name
+										(TPrinting.s_access is_read child_acc) (TPrinting.s_access is_read parent_acc)) cf.cf_name_pos;
+									false
+								end
 							in
 							match cf.cf_kind, cf_parent.cf_kind with
 							| Var child_v, Var parent_v ->
-								if is_narrowing parent_v.v_read child_v.v_read then
-									display_error ctx.com ("Cannot narrow read access of " ^ cf.cf_name ^ " in subclass") cf.cf_name_pos
-								else if is_narrowing parent_v.v_write child_v.v_write then
-									display_error ctx.com ("Cannot narrow write access of " ^ cf.cf_name ^ " in subclass") cf.cf_name_pos
+								ignore (check true parent_v.v_read child_v.v_read && check false parent_v.v_write child_v.v_write)
 							| _ ->
 								error_redefinition ()
 						end

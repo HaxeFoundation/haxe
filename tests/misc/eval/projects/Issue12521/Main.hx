@@ -51,4 +51,12 @@ class PrivateVar extends NonPhysicalParent {
 	var x(get, set):Int;
 }
 
+class ReplaceWithField extends NonPhysicalParent {
+	public var x(default, null):Int;
+}
+
+class ReplaceWriteWithField extends NonPhysicalParent {
+	public var x(get, null):Int;
+}
+
 function main() {}
