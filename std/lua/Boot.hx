@@ -219,7 +219,8 @@ class Boot {
 
 	extern inline static function clampNativeOperator(v:Float):Int {
 		v = prepareForBitwise(v);
-		return lua.Syntax.code("({0} & 0x7FFFFFFF) - ({0} & 0x80000000)", v);
+		// math.abs for luajit, whose native operators work on signed integers (#13023)
+		return lua.Syntax.code("({0} & 0x7FFFFFFF) - _G.math.abs({0} & 0x80000000)", v);
 	}
 
 	extern inline static function clampHxBit(v:Float):Int {
