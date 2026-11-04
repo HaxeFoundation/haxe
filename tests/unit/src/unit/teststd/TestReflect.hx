@@ -95,6 +95,11 @@ class TestReflect extends unit.Test {
 		var a = haxe.Int64.make(0x7FFFFFFF, 0xFFFFFFF8); // 9223372036854775800
 		var b = haxe.Int64.make(0x80000000, 0x00000007); // -9223372036854775801
 		t(Reflect.compare(a, b) > 0);
+		t(Reflect.compare(b, a) < 0);
+		t(Reflect.compare(haxe.Int64.ofInt(10), haxe.Int64.ofInt(9)) > 0);
+		t(Reflect.compare(haxe.Int64.ofInt(-1), haxe.Int64.ofInt(-2)) > 0);
+		t(Reflect.compare(haxe.Int64.make(0, 0xFFFFFFFF), haxe.Int64.make(0, 1)) > 0); // low word is unsigned
+		eq(Reflect.compare(haxe.Int64.make(1, 2), haxe.Int64.make(1, 2)), 0);
 		var a = 2147483640;
 		var b = -2147483641;
 		t(Reflect.compare(a, b) > 0);

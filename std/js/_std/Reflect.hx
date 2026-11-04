@@ -73,6 +73,8 @@
 	}
 
 	public static function compare<T>(a:T, b:T):Int {
+		if (js.Syntax.typeof(a) == "object" && haxe.Int64.isInt64(a) && haxe.Int64.isInt64(b))
+			return haxe.Int64.compare(cast a, cast b);
 		return (a == b) ? 0 : (((cast a) > (cast b)) ? 1 : -1);
 	}
 
