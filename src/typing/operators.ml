@@ -464,7 +464,10 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 		| _ ->
 			()
 	end;
-	let rec loop find_op ol =
+	(* Set by [check] when an operand of type Null<T> was accepted for a parameter of type T
+	   during the lifting pass for == and != (see [find] below). *)
+	let lifted = ref false in
+	let rec loop ~lift e1 e2 find_op ol =
 		match ol with
 		| (op_cf,cf) :: ol when op_cf = find_op ->
 			let is_impl = has_class_field_flag cf CfImpl in
@@ -477,6 +480,7 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 					| _ -> die ~p:cf.cf_pos ("Unexpected arguments list of function " ^ cf.cf_name) __LOC__
 					);
 					let check e1 e2 swapped =
+						lifted := false;
 						let map_arguments () =
 							let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in
 							let map t = map (apply_params cf.cf_params monos t) in
@@ -488,19 +492,36 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 						let monos,t1,t2,tret = map_arguments() in
 						let make e1 e2 = make op_cf cf e1 e2 tret in
 						let t1 = if is_impl then Abstract.follow_with_abstracts t1 else t1 in
+						(* For == and !=, the exact pass requires the operand to be Null<T> exactly when the
+						   parameter is. The lifting pass also accepts Null<T> for T (the call is then guarded
+						   by a null check) and T for Null<T>. *)
 						let check_nullable e t =
-							if is_nullable e.etype <> is_nullable t then raise (Unify_error []);
+							if is_eq_op && is_explicit_null e.etype <> is_explicit_null t then begin
+								if not lift then raise (Unify_error [])
+								else if is_explicit_null e.etype then begin
+									if not (ExtType.is_bool (follow tret)) then raise (Unify_error []);
+									lifted := true
+								end
+							end
+						in
+						let type_eq e t =
+							if is_eq_op && not lift then
+								Type.type_eq_custom {(default_unification_context()) with equality_kind = EqStrict; null_follow_mode = NeverFollow} e.etype t
+							else
+								Type.type_eq EqStrict e.etype t
 						in
 						let e1,e2 = if left || not left && swapped then begin
-							Type.type_eq EqDoNotFollowNull (if is_impl then Abstract.follow_with_abstracts e1.etype else e1.etype) t1;
-							let e2 = AbstractCast.cast_or_unify_raise ctx t2 e2 p in
-							if is_eq_op then check_nullable e2 t2;
-							e1,e2
+							type_eq (if is_impl then {e1 with etype = Abstract.follow_with_abstracts e1.etype} else e1) t1;
+							check_nullable e1 t1;
+							let e2' = AbstractCast.cast_or_unify_raise ctx t2 e2 p in
+							check_nullable e2 t2;
+							e1,e2'
 						end else begin
-							Type.type_eq EqDoNotFollowNull e2.etype t2;
-							let e1 = AbstractCast.cast_or_unify_raise ctx t1 e1 p in
-							if is_eq_op then check_nullable e1 t1;
-							e1,e2
+							type_eq e2 t2;
+							check_nullable e2 t2;
+							let e1' = AbstractCast.cast_or_unify_raise ctx t1 e1 p in
+							check_nullable e1 t1;
+							e1',e2
 						end in
 						let check_null e t = match e.eexpr with
 							| TConst TNull when not (is_explicit_null t) -> raise (Unify_error [])
@@ -521,7 +542,7 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 						if not (Meta.has Meta.Commutative cf.cf_meta) then raise Not_found;
 						check e2 e1 true
 					with Not_found | Error { err_message = Unify _ } | Unify_error _ ->
-						loop find_op ol
+						loop ~lift e1 e2 find_op ol
 					end
 				| _ ->
 					die "" __LOC__
@@ -529,7 +550,7 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 		| [] ->
 			raise Not_found
 		| _ :: ol ->
-			loop find_op ol
+			loop ~lift e1 e2 find_op ol
 	in
 	let find loop =
 		if left then
@@ -540,11 +561,38 @@ let find_abstract_binop_overload ctx op e1 e2 a c tl left is_assign_op p =
 			in
 			loop (List.filter not_impl_or_is_commutative a.a_ops)
 	in
-	if is_assign_op then
-		try find (loop (OpAssignOp op))
-		with Not_found -> find (loop op)
-	else
-		find (loop op)
+	let find_op ~lift e1 e2 =
+		if is_assign_op then
+			try find (loop ~lift e1 e2 (OpAssignOp op))
+			with Not_found -> find (loop ~lift e1 e2 op)
+		else
+			find (loop ~lift e1 e2 op)
+	in
+	try
+		find_op ~lift:false e1 e2
+	with Not_found when is_eq_op ->
+		(* Lifting pass for == and !=: if no overload matches the nullability of the operands exactly,
+		   an operand of type Null<T> may be passed to a parameter of type T. The call is then guarded
+		   like a lifted operator in C#: if any such operand is null, the result is whether both
+		   operands are null, otherwise it's the result of the overload. *)
+		let vr = new value_reference ctx in
+		let e1 = vr#get_expr "lhs" e1 in
+		let e2 = vr#get_expr "rhs" e2 in
+		let br = find_op ~lift:true e1 e2 in
+		let e = BinopResult.to_texpr vr br (fun _ -> die "" __LOC__) in
+		let e = if not !lifted then e else begin
+			let t_bool = ctx.t.tbool in
+			let is_null e = mk (TBinop(OpEq,e,mk (TConst TNull) e.etype p)) t_bool p in
+			let checks = List.map is_null (List.filter (fun e -> is_explicit_null e.etype) [e1;e2]) in
+			let any_null,both_null = match checks with
+				| [c] -> c,mk (TConst (TBool false)) t_bool p
+				| [c1;c2] -> mk (TBinop(OpBoolOr,c1,c2)) t_bool p,mk (TBinop(OpBoolAnd,c1,c2)) t_bool p
+				| _ -> die "" __LOC__
+			in
+			let e_null = if op = OpEq then both_null else mk (TUnop(Not,Prefix,both_null)) t_bool p in
+			mk (TIf(any_null,e_null,Some e)) e.etype p
+		end in
+		BinopResult.create_special (vr#to_texpr e) false
 
 let try_abstract_binop_overloads ctx op e1 e2 is_assign_op p =
 	try
