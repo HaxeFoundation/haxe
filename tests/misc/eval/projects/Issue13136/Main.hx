@@ -1,5 +1,5 @@
 import haxe.Constraints.FlatEnum;
-import haxe.Constraints.ReferenceType;
+import haxe.Constraints.Object;
 
 enum E {
 	A;
@@ -15,7 +15,9 @@ enum abstract EnumAbstractOverString(String) {
 
 class C {}
 
-class R<T:ReferenceType> {
+@:coreType @:semantics(object) abstract CoreObject {}
+
+class R<T:Object> {
 	public function new() {}
 }
 
@@ -23,7 +25,7 @@ class FromEmptyStructure<T:{}> {
 	var r:R<T>;
 }
 
-class FromReferenceType<T:ReferenceType> {
+class FromObject<T:Object> {
 	var r:R<T>;
 }
 
@@ -60,6 +62,8 @@ function main() {
 	new R<Map<String, Int>>();
 	// Dynamic and abstracts over it
 	new R<Any>();
+	// core types with object semantics
+	new R<CoreObject>();
 	// types of types
 	new R<Class<C>>();
 	new R<Enum<E>>();

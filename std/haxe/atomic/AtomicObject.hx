@@ -4,7 +4,7 @@ package haxe.atomic;
 
 import sys.thread.Mutex;
 
-private class AtomicObjectValue<T:haxe.Constraints.ReferenceType> {
+private class AtomicObjectValue<T:haxe.Constraints.Object> {
 	public final mutex:Mutex;
 	public var value:T;
 
@@ -14,12 +14,12 @@ private class AtomicObjectValue<T:haxe.Constraints.ReferenceType> {
 	}
 }
 
-private typedef AtomicObjectData<T:haxe.Constraints.ReferenceType> = AtomicObjectValue<T>;
+private typedef AtomicObjectData<T:haxe.Constraints.Object> = AtomicObjectValue<T>;
 
 /**
 	Atomic object. Use with care, this does not magically make it thread-safe to mutate objects.
 **/
-abstract AtomicObject<T:haxe.Constraints.ReferenceType>(AtomicObjectData<T>) {
+abstract AtomicObject<T:haxe.Constraints.Object>(AtomicObjectData<T>) {
 	public function new(value:T):Void {
 		this = new AtomicObjectData(value);
 	}
@@ -79,7 +79,7 @@ abstract AtomicObject<T:haxe.Constraints.ReferenceType>(AtomicObjectData<T>) {
 
 #else
 
-private class AtomicObjectValue<T:haxe.Constraints.ReferenceType> {
+private class AtomicObjectValue<T:haxe.Constraints.Object> {
 	public var value:T;
 
 	public function new(value:T) {
@@ -87,13 +87,13 @@ private class AtomicObjectValue<T:haxe.Constraints.ReferenceType> {
 	}
 }
 
-private typedef AtomicObjectData<T:haxe.Constraints.ReferenceType> = AtomicObjectValue<T>;
+private typedef AtomicObjectData<T:haxe.Constraints.Object> = AtomicObjectValue<T>;
 
 /**
 	Atomic object. Use with care, this does not magically make it thread-safe to mutate objects.
 	Not supported on JavaScript.
 **/
-abstract AtomicObject<T:haxe.Constraints.ReferenceType>(AtomicObjectData<T>) {
+abstract AtomicObject<T:haxe.Constraints.Object>(AtomicObjectData<T>) {
 	public function new(value:T):Void {
 		this = new AtomicObjectData(value);
 	}

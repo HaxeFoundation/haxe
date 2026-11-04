@@ -26,7 +26,7 @@
 
 	@see https://haxe.org/manual/types-enum-instance.html
 **/
-@:coreType @:referenceType abstract EnumValue {
+@:coreType @:semantics(object) abstract EnumValue {
 	/**
 		Matches enum instance `e` against pattern `pattern`, returning `true` if
 		matching succeeded and `false` otherwise.

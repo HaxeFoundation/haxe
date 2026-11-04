@@ -2,9 +2,9 @@ package haxe.atomic;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-private typedef AtomicObjectData<T:haxe.Constraints.ReferenceType> = AtomicReference<T>;
+private typedef AtomicObjectData<T:haxe.Constraints.Object> = AtomicReference<T>;
 
-abstract AtomicObject<T:haxe.Constraints.ReferenceType>(AtomicObjectData<T>) {
+abstract AtomicObject<T:haxe.Constraints.Object>(AtomicObjectData<T>) {
 	public inline function new(value:T) {
 		this = new AtomicReference(value);
 	}

@@ -368,6 +368,22 @@ let check_global_metadata ctx meta f_add mpath tpath so =
 	) ctx.com.global_metadata;
 	if ctx.m.is_display_file then delay ctx.g PCheckConstraint (fun () -> DisplayEmitter.check_display_metadata ctx meta)
 
+(* A type has at most one @:semantics, with a single known value. *)
+let check_semantics com meta =
+	let names = List.map ExtType.semantics_name ExtType.all_semantics in
+	let found = ref false in
+	List.iter (fun (m,el,p) ->
+		if m = Meta.Semantics then begin
+			if !found then display_error com "Type cannot have more than one @:semantics" p;
+			found := true;
+			match el with
+			| [EConst(Ident s),_] when List.mem s names ->
+				()
+			| _ ->
+				display_error com ("@:semantics expects exactly one of " ^ (String.concat ", " names)) p
+		end
+	) meta
+
 module Inheritance = struct
 	let is_basic_class_path path = match path with
 		| ([],("Array" | "String" | "Date" | "Xml")) -> true

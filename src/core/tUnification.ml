@@ -772,25 +772,24 @@ let field_type_for_unification uctx f =
 	if uctx.opaque_field_params then f.cf_type
 	else field_type f
 
-(* Whether values of type [t] are references, see haxe.Constraints.ReferenceType. Abstracts
-   count by their underlying type, which is what exists at runtime, and core types only if
-   they are marked with @:referenceType. [ttps] guards against cycles between type parameter
-   constraints. *)
-let rec is_reference_type ttps t =
-	match follow t with
+(* Whether values of type [t] are objects, see haxe.Constraints.Object. A type with explicit
+   @:semantics is decided by it. Otherwise, abstracts count by their underlying type, which is
+   what exists at runtime, and other core types are rejected. [ttps] guards against cycles
+   between type parameter constraints. *)
+let rec is_object_type ttps t =
+	if TOther.ExtType.has_object_semantics t then
+		true
+	else if TOther.ExtType.(has_value_semantics t || has_variable_semantics t || has_reference_semantics t) then
+		false
+	else match follow t with
 	| TInst({cl_kind = KTypeParameter ttp},_) ->
-		not (List.memq ttp ttps) && List.exists (is_reference_type (ttp :: ttps)) (get_constraints ttp)
+		not (List.memq ttp ttps) && List.exists (is_object_type (ttp :: ttps)) (get_constraints ttp)
 	| TInst _ | TEnum _ | TAnon _ | TDynamic _ ->
 		true
 	| TAbstract({a_path = [],"Null"},[t]) ->
-		is_reference_type ttps t
+		is_object_type ttps t
 	| TAbstract(a,tl) ->
-		if Meta.has Meta.ReferenceType a.a_meta then
-			true
-		else if Meta.has Meta.CoreType a.a_meta then
-			false
-		else
-			is_reference_type ttps (apply_params a.a_params tl a.a_this)
+		not (Meta.has Meta.CoreType a.a_meta) && is_object_type ttps (apply_params a.a_params tl a.a_this)
 	| _ ->
 		false
 
@@ -808,6 +807,9 @@ let rec unify (uctx : unification_context) a b =
 		(match t.tm_type with
 		| None -> if uctx.equality_kind = EqStricter || not (link uctx t b a) then error [cannot_unify a b]
 		| Some t -> unify uctx a t)
+	| _, TAbstract ({ a_path = ["haxe"],"Object" },[]) ->
+		(* before typedefs are expanded, so that their @:semantics count *)
+		if not (is_object_type [] a) then error [cannot_unify a b]
 	| TType (t,tl) , _ ->
 		rec_stack uctx.unify_stack (a,b)
 			(fun(a2,b2) -> fast_eq_unbound_mono a a2 && fast_eq b b2)
@@ -832,8 +834,6 @@ let rec unify (uctx : unification_context) a b =
 	| _,TAbstract ({a_path=[],"Null"},[t]) ->
 		begin try unify uctx a t
 		with Unify_error l -> error (cannot_unify a b :: l) end
-	| _, TAbstract ({ a_path = ["haxe"],"ReferenceType" },[]) ->
-		if not (is_reference_type [] a) then error [cannot_unify a b]
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) when a1 == a2 ->
 		begin try
 			unify_type_params uctx a b tl1 tl2
