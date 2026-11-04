@@ -20,12 +20,17 @@ type safety_warning = {
 type safety_report = {
 	mutable sr_errors : safety_message list;
 	mutable sr_warnings: safety_warning list;
+	sr_seen_errors : (string * pos * int, unit) Hashtbl.t;
+	sr_seen_warnings : (WarningList.warning * Message.warning_option list list * string * pos * int, unit) Hashtbl.t;
 }
 
 let add_error report m msg pos =
 	let error = { sm_msg = ("Null safety: " ^ msg); sm_pos = pos; sm_module = m; } in
-	if not (List.mem error report.sr_errors) then
+	let key = (error.sm_msg, pos, m.m_id) in
+	if not (Hashtbl.mem report.sr_seen_errors key) then begin
+		Hashtbl.add report.sr_seen_errors key ();
 		report.sr_errors <- error :: report.sr_errors
+	end
 
 let add_warning report m wtype options msg pos =
 	let warning = {
@@ -35,8 +40,11 @@ let add_warning report m wtype options msg pos =
 		sw_pos = pos;
 		sw_module = m;
 	} in
-	if not (List.mem warning report.sr_warnings) then
+	let key = (wtype, options, warning.sw_msg, pos, m.m_id) in
+	if not (Hashtbl.mem report.sr_seen_warnings key) then begin
+		Hashtbl.add report.sr_seen_warnings key ();
 		report.sr_warnings <- warning :: report.sr_warnings
+	end
 
 type scope_type =
 	| STNormal
@@ -1933,6 +1941,8 @@ let run (com:Common.context) (types:module_type list) =
 		let report = {
 			sr_errors = [];
 			sr_warnings = [];
+			sr_seen_errors = Hashtbl.create 0;
+			sr_seen_warnings = Hashtbl.create 0;
 		} in
 		let immediate_execution = new immediate_execution in
 		let traverse module_type =

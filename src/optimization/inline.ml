@@ -583,7 +583,7 @@ object(self)
 					add (mk (TVar (v,eo)) scom.basic.tvoid e.epos);
 				) vl;
 				List.iter (fun (l,e) -> match l.i_default_value with
-					| Some e when l.i_read > 0 -> add (Texpr.set_default scom.basic l.i_subst e e.epos)
+					| Some e when l.i_read > 0 -> add (Texpr.set_default scom.basic l.i_subst (Texpr.duplicate_tvars e_identity e) e.epos)
 					| _ -> ()
 				) _inlined_vars;
 				begin match e.eexpr with

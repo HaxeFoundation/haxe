@@ -30,7 +30,8 @@
 	{
 		"name": "Analyzer",
 		"metadata": ":analyzer",
-		"doc": "Used to configure the static analyzer."
+		"doc": "Used to configure the static analyzer.",
+		"links": ["https://haxe.org/manual/cr-static-analyzer.html"]
 	},
 	{
 		"name": "Annotation",
@@ -182,7 +183,7 @@
 		"name": "Dce",
 		"metadata": ":dce",
 		"doc": "Forces dead code elimination even when `--dce full` is not specified.",
-		"targets": ["TClass", "TEnum"],
+		"targets": ["TClass", "TEnum", "TClassField"],
 		"links": ["https://haxe.org/manual/cr-dce.html"]
 	},
 	{
@@ -712,12 +713,6 @@
 		"name": "NoDoc",
 		"metadata": ":noDoc",
 		"doc": "Prevents a type or field from being included in documentation generation."
-	},
-	{
-		"name": "NoExpr",
-		"metadata": ":noExpr",
-		"doc": "Internally used to mark abstract fields which have no expression by design.",
-		"internal": true
 	},
 	{
 		"name": "NoImportGlobal",

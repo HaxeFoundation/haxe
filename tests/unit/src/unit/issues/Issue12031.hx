@@ -3,7 +3,7 @@ package unit.issues;
 import utest.Assert;
 
 class Issue12031 extends Test {
-	#if hl
+	#if (hl && !hl_legacy32)
 	inline function inlinef(v:hl.I64) {
 		var str = "";
 		str += (v >> 32);

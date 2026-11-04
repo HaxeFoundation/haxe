@@ -151,31 +151,52 @@ let unify_call_args ctx el args r callp ?(call_field_p=callp) inline force_inlin
 				| (s,ul) :: _ -> arg_error ul s true
 			end
 		| e :: el,(name,opt,t) :: args ->
-			let might_skip = List.length el < List.length args in
+			let body_capture = reset_call_arg_body_capture ctx in
+			let restore_monos = if opt then monomorph_transaction ctx else (fun () -> ()) in
+			let committed = ref false in
+			let commit () = if not !committed then begin committed := true; commit_captured_messages ctx.com !body_capture end in
+			let drop () = committed := true in
+			let might_skip = opt && List.length el < List.length args in
+			let opt_followed_by_rest = opt && match args with
+					| [(_,_,t)] -> ExtType.is_rest (follow t)
+					| _ -> false
+			in
+			let maybe_raise_captured_error () =
+				if might_skip || opt_followed_by_rest then
+					match (List.find_opt (fun cm -> Message.cm_severity cm = Message.MessageSeverity.Error) !body_capture) with
+					| Some cm -> raise (WithTypeError (make_error (Custom cm.cm_message) cm.cm_pos))
+					| None -> ()
+			in
 			begin try
-				let e = type_against name t e in
-				e :: loop el args
-			with
-				WithTypeError ul ->
-					if opt && might_skip then begin
+				begin try
+					let e_typed = type_against name t e in
+					maybe_raise_captured_error();
+					commit();
+					e_typed :: loop el args
+				with WithTypeError ul ->
+					if might_skip || opt_followed_by_rest then begin
+						drop();
+						restore_monos();
 						let e_def = skip name ul t in
 						e_def :: loop (e :: el) args
-					end else
+					end else if !body_capture <> [] && (match follow t with TFun _ -> false | _ -> true) then begin
+						commit();
+						restore_monos();
+						let e_def = default_value name t in
+						e_def :: loop el args
+					end else begin
+						commit();
 						match List.rev !skipped with
 						| [] -> arg_error ul name opt
 						| (s,ul) :: _ -> arg_error ul s true
+					end
+				end
+			with exc ->
+				commit ();
+				raise exc
 			end
 	in
-	let restore =
-		let in_call_args = ctx.f.in_call_args in
-		let in_overload_call_args = ctx.f.in_overload_call_args in
-		ctx.f.in_call_args <- true;
-		ctx.f.in_overload_call_args <- in_overload;
-		(fun () ->
-			ctx.f.in_call_args <- in_call_args;
-			ctx.f.in_overload_call_args <- in_overload_call_args;
-		)
-	in
+	let restore = enter_call_args ctx ~in_overload in
 	let el = try loop el args with exc -> restore(); raise exc; in
 	restore();
 	el
@@ -279,7 +300,7 @@ let unify_field_call ctx fa el_typed el p inline =
 		else if fa.fa_field.cf_overloads <> [] then OverloadMeta
 		else OverloadNone
 	in
-	(* Delayed display handling works like this: If ctx.e.in_overload_call_args is set (via attempt_calls calling unify_call_args' below),
+	(* Delayed display handling works like this: If in_overload_call_args is set (via attempt_calls calling unify_call_args' below),
 	   the code which normally raises eager Display exceptions (in typerDisplay.ml handle_display) instead stores them in ctx.g.delayed_display.
 	   The overload handling here extracts them and associates the exception with the field call candidates. Afterwards, normal overload resolution
 	   can take place and only then the display callback is actually committed.
@@ -403,8 +424,9 @@ let unify_field_call ctx fa el_typed el p inline =
 					) known_monos;
 					ctx.e.monomorphs <- current_monos;
 					check_unknown_ident err;
+					let delayed_display = extract_delayed_display() in
 					let candidates,failures = loop candidates in
-					candidates,(cf,err,extract_delayed_display()) :: failures
+					candidates,(cf,err,delayed_display) :: failures
 				end
 		in
 		loop candidates

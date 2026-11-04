@@ -3,14 +3,12 @@ open Globals
 open Type
 open Meta
 
-type generation_mode =
-	| GMFull
-	| GMWithoutDoc
-	| GMMinimum
-
 type context = {
-	generation_mode : generation_mode;
 	generate_abstract_impl : bool;
+	generate_member_bodies : bool;
+	generate_docs : bool;
+	generate_exprs : bool;
+	generate_origins : bool;
 }
 
 let jnull = Json.JNull
@@ -90,9 +88,8 @@ let generate_pos ctx p =
 let generate_expr_pos ctx p =
 	jtodo
 
-let generate_doc ctx d = match ctx.generation_mode with
-	| GMFull -> jopt jstring (gen_doc_text_opt d)
-	| GMWithoutDoc | GMMinimum -> jnull
+let generate_doc ctx d =
+	if ctx.generate_docs then jopt jstring (gen_doc_text_opt d) else jnull
 
 (** return a range JSON structure for given position
     positions are 0-based and the result object looks like this:
@@ -503,8 +500,8 @@ and generate_class_field' ctx cfs cf =
 		in
 		generate_adt ctx None name args
 	in
-	let expr = match ctx.generation_mode with
-		| GMFull | GMWithoutDoc ->
+	let expr =
+		if ctx.generate_exprs then begin
 			let value = match cf.cf_kind with
 				| Method _ -> None
 				| Var _ ->
@@ -525,7 +522,7 @@ and generate_class_field' ctx cfs cf =
 						jnull
 				| Some e -> jobject ["string",jstring (Ast.Printer.s_expr e)]
 			end
-		| GMMinimum ->
+		end else
 			jnull
 	in
 	[
@@ -598,11 +595,11 @@ let generate_class ctx c =
 		"isInterface",jbool (has_class_flag c CInterface);
 		"superClass",jopt generate_class_relation c.cl_super;
 		"interfaces",jlist generate_class_relation c.cl_implements;
-		"fields",jlist (generate_class_field ctx CFSMember) c.cl_ordered_fields;
-		"statics",jlist (generate_class_field ctx CFSStatic) c.cl_ordered_statics;
-		"constructor",jopt (generate_class_field ctx CFSConstructor) c.cl_constructor;
-		"init",jopt (generate_texpr ctx) (TClass.get_cl_init c);
-		"overrides",jlist (classfield_ref ctx) (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields);
+		"fields",if ctx.generate_member_bodies then jlist (generate_class_field ctx CFSMember) c.cl_ordered_fields else jarray [];
+		"statics",if ctx.generate_member_bodies then jlist (generate_class_field ctx CFSStatic) c.cl_ordered_statics else jarray [];
+		"constructor",if ctx.generate_member_bodies then jopt (generate_class_field ctx CFSConstructor) c.cl_constructor else jnull;
+		"init",if ctx.generate_member_bodies then jopt (generate_texpr ctx) (TClass.get_cl_init c) else jnull;
+		"overrides",if ctx.generate_member_bodies then jlist (classfield_ref ctx) (List.filter (fun cf -> has_class_field_flag cf CfOverride) c.cl_ordered_fields) else jarray [];
 		"isExtern",jbool (has_class_flag c CExtern);
 		"isFinal",jbool (has_class_flag c CFinal);
 		"isAbstract",jbool (has_class_flag c CAbstract);
@@ -616,7 +613,7 @@ let generate_enum ctx e =
 		) e.e_names)
 	in
 	[
-		"constructors",generate_enum_constructors ();
+		"constructors",if ctx.generate_member_bodies then generate_enum_constructors () else jarray [];
 		"isExtern",jbool (has_enum_flag e EnExtern)
 	]
 
@@ -707,14 +704,24 @@ let generate_module modules find_module m =
 		) modules []));
 	]
 
-let create_context gm = {
-	generation_mode = gm;
+let create_full_config () = {
 	generate_abstract_impl = false;
+	generate_member_bodies = true;
+	generate_docs = true;
+	generate_exprs = true;
+	generate_origins = true;
+}
+
+let create_minimal_config () = {
+	(create_full_config ()) with
+	generate_docs = false;
+	generate_exprs = false;
+	generate_origins = false;
 }
 
 let generate timer_ctx types file =
 	let json = Timer.time timer_ctx ["generate";"json";"construct"] (fun () ->
-		let ctx = create_context GMFull in
+		let ctx = create_full_config () in
 		jarray (List.map (generate_module_type ctx) types)
 	) () in
 	Timer.time timer_ctx ["generate";"json";"write"] (fun () ->

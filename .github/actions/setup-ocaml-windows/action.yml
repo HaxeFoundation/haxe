@@ -20,7 +20,7 @@ runs:
       opam exec -- tar -C / -xvf libmbedtls.tar.xz
 
   - name: Install OCaml libraries
-    uses: nick-fields/retry@v3
+    uses: nick-fields/retry@v4
     with:
       timeout_minutes: 10
       max_attempts: 10
@@ -33,6 +33,7 @@ runs:
         $ErrorActionPreference = 'Stop'
         # see: https://github.com/aantron/luv/issues/162
         $env:PATH="${env:CYG_ROOT}\bin;${env:CYG_ROOT}\usr\x86_64-w64-mingw32\bin;${env:PATH}"
+        opam pin add haxe . --no-action
         opam install haxe --deps-only
         opam list
     env:

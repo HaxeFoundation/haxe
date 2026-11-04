@@ -254,7 +254,9 @@ type part_scope = {
 	has_next : bool;
 	mutable messages : Message.t list;
 	mutable has_error : bool;
+	mutable running_macros : int;
 	mutable report_mode : report_mode;
+	mutable message_capture : Message.t list ref option;
 	compilation_step : int;
 	pass_debug_messages : string DynArray.t;
 	dump_config : DumpConfig.t;
@@ -338,7 +340,6 @@ and context = {
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
 	module_lut : module_lut;
 	module_nonexistent_lut : (path,bool) lookup;
-	fake_modules : (Path.UniqueKey.t,module_def) Hashtbl.t;
 	(* output *)
 	mutable file : string;
 	mutable features : (string,bool) Hashtbl.t;
@@ -762,7 +763,6 @@ let create sctx request_scope part_scope display_mode =
 		modules = [];
 		module_lut = new module_lut;
 		module_nonexistent_lut = new hashtbl_lookup;
-		fake_modules = Hashtbl.create 0;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
 		native_libs = create_native_libs();
@@ -821,20 +821,41 @@ let is_diagnostics com = match com.part_scope.report_mode with
 
 let is_compilation com = com.display.dms_kind = DMNone && not (is_diagnostics com)
 
-(** Returns true when there is an error that should be reported/acted upon.
-    In compilation mode, any has_error is significant.
-    In display mode, has_error can be set transiently during type resolution
-    without producing actual error messages, so we require messages to exist.
-    Diagnostics-only messages (DKMissingFields, DKUnresolvedIdentifier) are
-    not counted as reportable errors — they are diagnostics data that should
-    not prevent context caching. *)
+(* Whether typing errors (e.g. missing types) may be reported instead of aborting the request:
+   in diagnostics, in display requests without full typing and in the macro context of display requests.
+   While a macro is running (part_scope.running_macros > 0), callers should not recover from an error,
+   e.g. by using Dynamic for a missing type, but let it reach the macro as in a compilation. *)
+let display_recovery_enabled com =
+	is_diagnostics com || (com.display.dms_error_policy = EPIgnore && (not com.display.dms_full_typing || com.is_macro_context))
+
 let has_error_to_report com =
-	let has_reportable_message = List.exists (fun cm ->
-		match cm.cm_diagnostics_kind with
-		| MessageKind.DKMissingFields | MessageKind.DKUnresolvedIdentifier -> false
-		| _ -> true
-	) com.part_scope.messages in
-	com.part_scope.has_error && (is_compilation com || has_reportable_message)
+	com.part_scope.has_error && (is_compilation com || com.part_scope.messages <> [])
+
+let activate_message_capture com buf =
+	let old_capture = com.part_scope.message_capture in
+	let old_hook = !lazy_force_hook in
+	com.part_scope.message_capture <- Some buf;
+	lazy_force_hook := (fun f ->
+		let saved = com.part_scope.message_capture in
+		com.part_scope.message_capture <- None;
+		let r = (try f () with exc -> com.part_scope.message_capture <- saved; raise exc) in
+		com.part_scope.message_capture <- saved;
+		r
+	);
+	(fun () ->
+		com.part_scope.message_capture <- old_capture;
+		lazy_force_hook := old_hook
+	)
+
+let commit_captured_messages com (buf : Message.t list) =
+	List.iter (fun cm ->
+		match com.part_scope.message_capture with
+		| Some parent ->
+			parent := cm :: !parent
+		| None ->
+			if Message.cm_severity cm = MessageSeverity.Error then com.part_scope.has_error <- true;
+			com.part_scope.messages <- cm :: com.part_scope.messages
+	) (List.rev buf)
 
 let disable_report_mode com =
 	let old = com.part_scope.report_mode in
@@ -906,7 +927,6 @@ let clone com is_macro_context =
 		modules = [];
 		module_lut = new module_lut;
 		module_nonexistent_lut = new hashtbl_lookup;
-		fake_modules = Hashtbl.create 0;
 		load_extern_type = []; (* ! *)
 		basic = {
 			tvoid = mk_mono();
@@ -1087,8 +1107,13 @@ let hash f =
 	if Sys.word_size = 64 then Int32.to_int (Int32.shift_right (Int32.shift_left (Int32.of_int !h) 1) 1) else !h
 
 let add_diagnostics_message ?(depth = 0) ?(diagnostics_kind = MessageKind.DKCompilerMessage) com s p message_kind =
-	if message_kind_severity message_kind = MessageSeverity.Error then com.part_scope.has_error <- true;
-	com.part_scope.messages <- (make_diagnostic com.is_macro_context diagnostics_kind (JString s) p depth message_kind) :: com.part_scope.messages
+	let cm = make_diagnostic com.is_macro_context diagnostics_kind (JString s) p depth message_kind in
+	match com.part_scope.message_capture with
+	| Some buf ->
+		buf := cm :: !buf
+	| None ->
+		if message_kind_severity message_kind = MessageSeverity.Error then com.part_scope.has_error <- true;
+		com.part_scope.messages <- cm :: com.part_scope.messages
 
 let display_error_ext com err =
 	if is_diagnostics com then begin

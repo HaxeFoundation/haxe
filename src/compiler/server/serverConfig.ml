@@ -4,7 +4,8 @@ let max_completion_items = ref 0
 
 (* Maximum age in seconds for unused context caches before they are removed.
    10 minutes is long enough to survive bursts of display requests with
-   varying defines, while still cleaning up contexts that are truly abandoned. *)
+   varying defines, while still cleaning up contexts that are truly abandoned.
+   If set to -1, the feature is disabled. *)
 let default_stale_context_max_age = 600
 let stale_context_max_age_seconds = ref default_stale_context_max_age
 

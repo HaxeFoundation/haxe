@@ -210,12 +210,12 @@ let add_constructor ctx_c c force_constructor p =
 					let's optimize a bit the output by not always copying the default value
 					into the inherited constructor when it's not necessary for the platform
 				*)
-				let null () = Some (Texpr.Builder.make_null v.v_type v.v_pos) in
+				let null v = Some (Texpr.Builder.make_null v.v_type v.v_pos) in
 				match ctx.com.platform, def with
-				| _, Some _ when not ctx.com.config.pf_static -> v, null()
-				| Flash, Some ({eexpr = TConst (TString _)}) when not (has_class_flag csup CExtern) -> v, null()
+				| _, Some _ when not ctx.com.config.pf_static -> v, null v
+				| Flash, Some ({eexpr = TConst (TString _)}) when not (has_class_flag csup CExtern) -> v, null v
 				| Cpp, Some ({eexpr = TConst (TString _)}) -> v, def
-				| Cpp, Some _ -> { v with v_type = ctx.t.tnull v.v_type }, null()
+				| Cpp, Some _ -> let v = { v with v_type = ctx.t.tnull v.v_type } in v, null v
 				| _ -> v, def
 			in
 			let args = (match cfsup.cf_expr with

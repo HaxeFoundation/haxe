@@ -26,7 +26,7 @@ open JsSourcemap
 
 type ctx = {
 	com : Gctx.t;
-	buf : Rbuffer.t;
+	buf : Buffer.t;
 	mutable chan : out_channel option;
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap option;
@@ -150,33 +150,33 @@ let flush ctx =
 			ctx.chan <- Some chan;
 			chan
 	in
-	Rbuffer.output_buffer chan ctx.buf;
-	Rbuffer.clear ctx.buf
+	Buffer.output_buffer chan ctx.buf;
+	Buffer.clear ctx.buf
 
 let spr ctx s =
 	ctx.separator <- false;
 	handle_newlines ctx.smap s;
-	Rbuffer.add_string ctx.buf s
+	Buffer.add_string ctx.buf s
 
 let print ctx =
 	ctx.separator <- false;
 	Printf.kprintf (fun s -> begin
 		handle_newlines ctx.smap s;
-		Rbuffer.add_string ctx.buf s
+		Buffer.add_string ctx.buf s
 	end)
 
 let newline ctx =
-	match Rbuffer.nth ctx.buf (Rbuffer.length ctx.buf - 1) with
+	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '}' | '{' | ':' | ';' when not ctx.separator -> print ctx "\n%s" ctx.tabs
 	| _ -> print ctx ";\n%s" ctx.tabs
 
 let newprop ctx =
-	match Rbuffer.nth ctx.buf (Rbuffer.length ctx.buf - 1) with
+	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '{' -> print ctx "\n%s" ctx.tabs
 	| _ -> print ctx "\n%s," ctx.tabs
 
 let semicolon ctx =
-	match Rbuffer.nth ctx.buf (Rbuffer.length ctx.buf - 1) with
+	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '}' when not ctx.separator -> ()
 	| _ -> spr ctx ";"
 
@@ -210,11 +210,11 @@ let declare_rest_args_legacy com offset rest_arg =
 	]
 
 let fun_block ctx f p =
-	let e = List.fold_left (fun e (a,c) ->
+	let e = List.fold_right (fun (a,c) e ->
 		match c with
 		| None | Some {eexpr = TConst TNull} -> e
 		| Some c -> Type.concat (Texpr.set_default ctx.com.basic a c p) e
-	) f.tf_expr f.tf_args in
+	) f.tf_args f.tf_expr in
 	e
 
 let open_block ctx =
@@ -1602,7 +1602,7 @@ let alloc_ctx com es_version =
 				output_current_col = 0;
 				sources = DynArray.create();
 				sources_hash = Hashtbl.create 0;
-				mappings = Rbuffer.create 16;
+				mappings = Buffer.create 16;
 				current_expr = None;
 			}
 		else
@@ -1610,7 +1610,7 @@ let alloc_ctx com es_version =
 	in
 	let ctx = {
 		com = com;
-		buf = Rbuffer.create 16000;
+		buf = Buffer.create 16000;
 		chan = None;
 		packages = Hashtbl.create 0;
 		smap = smap;
@@ -1649,8 +1649,8 @@ let alloc_ctx com es_version =
 
 let gen_single_expr ctx e expr =
 	if expr then gen_expr ctx e else gen_value ctx e;
-	let str = Rbuffer.unsafe_contents ctx.buf in
-	Rbuffer.reset ctx.buf;
+	let str = Buffer.contents ctx.buf in
+	Buffer.reset ctx.buf;
 	ctx.id_counter <- 0;
 	str
 
@@ -1985,6 +1985,10 @@ let generate js_gen com =
 	);
 
 	(match ctx.smap with
+	| Some smap when Gctx.defined_value_safe com Define.SourceMap = "inline" ->
+		(* the map inside the output: no .map file, and none left from an earlier build *)
+		(try Sys.remove (com.file ^ ".map") with _ -> ());
+		print ctx "\n//# sourceMappingURL=%s" (mappings_data_url ctx.com smap "file:///");
 	| Some smap ->
 		write_mappings ctx.com smap "file:///";
 		let basefile = Filename.basename com.file in
