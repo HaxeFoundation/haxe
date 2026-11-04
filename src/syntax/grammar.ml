@@ -517,7 +517,7 @@ and resume ctx owner s =
 		| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Final :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ | Kwd Overload :: _ when owner <> None ->
 			junk_tokens (k - 1);
 			true
-		| BrClose :: _ when owner <> None && owner <> Some FOClass ->
+		| BrClose :: _ when (match owner with Some (FOReifiedClass | FOStructure) -> true | Some FOClass | None -> false) ->
 			junk_tokens (k - 1);
 			false
 		(* type declaration *)
