@@ -956,7 +956,7 @@ and parse_class_field ctx owner s =
 	| [ [%let al = plist parse_cf_rights] ] ->
 		let check_optional opt name =
 			if opt then begin
-				if owner = FOClass then syntax_error ctx (Custom "?var syntax is only allowed in structures") ~pos:(Some (pos name)) s ();
+				if owner <> FOStructure then syntax_error ctx (Custom "?var syntax is only allowed in structures") ~pos:(Some (pos name)) s ();
 				(Meta.Optional,[],null_pos) :: meta
 			end else
 				meta
