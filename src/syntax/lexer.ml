@@ -31,6 +31,7 @@ type error_msg =
 	| Invalid_escape of char * (string option)
 	| Invalid_option
 	| Unterminated_markup
+	| Unexpected_closing_markup_tag
 
 exception Error of error_msg * pos
 
@@ -90,6 +91,7 @@ let error_msg = function
 	| Invalid_escape (c,Some msg) -> Printf.sprintf "Invalid escape sequence \\%s. %s" (Char.escaped c) msg
 	| Invalid_option -> "Invalid regular expression option"
 	| Unterminated_markup -> "Unterminated markup literal"
+	| Unexpected_closing_markup_tag -> "Unexpected closing markup tag"
 
 let make_file file =
 	{
@@ -661,12 +663,12 @@ let rec not_xml ctx depth in_open =
 	| _ ->
 		die "" __LOC__
 
-let rec token ctx lexbuf =
+let make_token ctx =
 	let mk = mk ctx in
-	let token = token ctx in
 	let newline = newline ctx in
 	let mk_tok = mk_tok ctx in
 	let mk_keyword = mk_keyword ctx in
+	let rec token lexbuf =
 	match%sedlex lexbuf with
 	| eof -> mk lexbuf Eof
 	| Plus (Chars " \t") -> token lexbuf
@@ -683,7 +685,7 @@ let rec token ctx lexbuf =
 	| integer, '.', Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
 	| '.', Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
 	| integer, ('e'|'E'), Opt ('+'|'-'), Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
-	| integer, '.', Star digit, ('e'|'E'), Opt ('+'|'-'), Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
+	| integer, '.', Star integer_digits, ('e'|'E'), Opt ('+'|'-'), Plus integer_digits, Opt float_suffix -> mk lexbuf (split_float_suffix (lexeme lexbuf))
 	| integer, "..." ->
 		let s = lexeme lexbuf in
 		mk lexbuf (IntInterval (String.sub s 0 (String.length s - 3)))
@@ -833,6 +835,10 @@ let rec token ctx lexbuf =
 	| ident -> mk_ident ctx lexbuf
 	| idtype -> mk lexbuf (Const (Ident (lexeme lexbuf)))
 	| _ -> invalid_char ctx lexbuf
+	in
+	token
+
+let token ctx lexbuf = make_token ctx lexbuf
 
 let rec sharp_token ctx lexbuf =
 	match%sedlex lexbuf with
@@ -849,6 +855,7 @@ let rec sharp_token ctx lexbuf =
 
 let lex_xml ctx p lexbuf =
 	let name,pmin = match%sedlex lexbuf with
+	| '/' -> error ctx Unexpected_closing_markup_tag p
 	| xml_name -> lexeme lexbuf,lexeme_start lexbuf
 	| _ -> invalid_char ctx lexbuf
 	in

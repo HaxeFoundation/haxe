@@ -71,6 +71,8 @@ module PrototypeBuilder = struct
 		fields : (int * value AtomicLazy.t) DynArray.t;
 		(* The instance fields of the prototype. See above. *)
 		instance_fields : (int * value AtomicLazy.t) DynArray.t;
+		(* Initial values replacing the ones of an inherited instance field, instead of adding a new one. *)
+		instance_field_overrides : (int * value AtomicLazy.t) DynArray.t;
 		(* The metadata expression, if exists. *)
 		meta : texpr option;
 		(* Whether or not the prototype is static. *)
@@ -87,6 +89,7 @@ module PrototypeBuilder = struct
 			kind = kind;
 			fields = DynArray.create ();
 			instance_fields = DynArray.create ();
+			instance_field_overrides = DynArray.create ();
 			meta = meta;
 			is_static = is_static;
 		}
@@ -98,6 +101,10 @@ module PrototypeBuilder = struct
 	(* Adds an instance (non-static) field. *)
 	let add_instance_field pctx name v =
 		DynArray.add pctx.instance_fields (name,v)
+
+	(* Changes the initial value of an inherited instance field, keeping its offset. *)
+	let override_instance_field pctx name v =
+		DynArray.add pctx.instance_field_overrides (name,v)
 
 	(* Forces the lazy field values and assigns them to the prototype. *)
 	let initialize_fields pctx proto =
@@ -138,6 +145,10 @@ module PrototypeBuilder = struct
 			names,a,(fun proto ->
 				Array.iteri (fun i v -> a.(i) <- v) fields;
 				DynArray.iteri (fun i (_,v) -> a.(i + offset) <- AtomicLazy.force v) pctx.instance_fields;
+				DynArray.iter (fun (name,v) -> match IntMap.find_opt name names with
+					| Some i -> a.(i) <- AtomicLazy.force v
+					| None -> ()
+				) pctx.instance_field_overrides;
 				initialize_fields pctx proto;
 			)
 		end else
@@ -273,7 +284,10 @@ let create_instance_prototype ctx c =
 		| Method meth,Some {eexpr = TFunction tf; epos = pos} ->
 			let name = hash cf.cf_name in
 			let v = AtomicLazy.from_fun (fun () -> vfunction (jit_tfunction ctx key name tf false pos)) in
-			if meth = MethDynamic then PrototypeBuilder.add_instance_field pctx name v;
+			(* an overriding dynamic method only changes the initial value of the parent's field *)
+			if meth = MethDynamic then
+				if has_class_field_flag cf CfOverride then PrototypeBuilder.override_instance_field pctx name v
+				else PrototypeBuilder.add_instance_field pctx name v;
 			PrototypeBuilder.add_proto_field pctx name v
 		| Var _,_ when is_physical_field cf ->
 			let name = hash cf.cf_name in

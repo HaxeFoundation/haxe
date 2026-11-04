@@ -248,7 +248,7 @@ let collect ctx e_ast e dk with_type p =
 				(* If there's a @:forward, get the fields of the underlying type and filter them. *)
 				let _,el,_ = Meta.get Meta.Forward a.a_meta in
 				let sl = ExtList.List.filter_map (fun e -> match fst e with
-					| EConst(Ident s) -> Some s
+					| EConst(Ident s | String(s,_)) -> Some s
 					| _ -> None
 				) el in
 				let forwarded_fields = loop PMap.empty (apply_params a.a_params tl a.a_this) in
@@ -256,7 +256,7 @@ let collect ctx e_ast e dk with_type p =
 					PMap.mem field_name c.cl_fields || PMap.mem field_name c.cl_statics
 				in
 				PMap.foldi (fun name item acc ->
-					if (sl = [] || List.mem name sl && is_new_item acc name) && not (abstract_has_own_field name) then
+					if (sl = [] || List.mem name sl) && is_new_item acc name && not (abstract_has_own_field name) then
 						PMap.add name item acc
 					else
 						acc

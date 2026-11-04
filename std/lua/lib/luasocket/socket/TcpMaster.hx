@@ -30,4 +30,5 @@ extern class TcpMaster extends Socket {
 	// transforms master to TcpClient
 	function connect(address:String, port:Int):Void;
 	function bind(address:String, port:Int):Void;
+	function setoption(option:TcpOption, value:Bool):Void;
 }

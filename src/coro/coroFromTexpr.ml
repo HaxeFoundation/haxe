@@ -55,7 +55,7 @@ let check_captures ctx args expr =
 	in
 	browse expr
 
-let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
+let expr_to_coro ctx etmp_result etmp_error etmp_error_unwrapped cb_root scope deferred e =
 
 	(* TODO : Not have this be copy and pasted from capturedVars with slight modifications *)
 	let wrapper = ctx.typer.com.local_wrapper in
@@ -733,7 +733,14 @@ let expr_to_coro ctx etmp_result etmp_error_unwrapped cb_root scope deferred e =
 		let cb_next = AtomicLazy.from_fun (fun () -> make_block None) in
 		let catches = List.map (fun (v,e) ->
 			let cb_catch = block_from_e e in
-			add_expr cb_catch (mk (TVar(v,Some (AtomicLazy.force etmp_error_unwrapped))) ctx.typer.t.tvoid v.v_pos);
+			let e_exc_value = match follow v.v_type with
+				| TInst({ cl_path = path },_) when List.mem path ctx.wildcard_catches ->
+					(* For wildcard catches like haxe.Exception we don't want to unwrap. *)
+					etmp_error
+				| _ ->
+					AtomicLazy.force etmp_error_unwrapped
+			in
+			add_expr cb_catch (mk (TVar(v,Some e_exc_value)) ctx.typer.t.tvoid v.v_pos);
 			let cb_catch_next = loop_block cb_catch ret e in
 			Option.may (fun (cb_catch_next,_) ->
 				fall_through cb_catch_next (AtomicLazy.force cb_next);

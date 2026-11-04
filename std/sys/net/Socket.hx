@@ -86,6 +86,9 @@ extern class Socket {
 
 	/**
 		Bind the socket to the given host/port so it can afterwards listen for connections there.
+
+		On platforms other than Windows, the socket is bound with `SO_REUSEADDR` enabled,
+		so a port can be bound again while connections from a previous socket on it are still timing out.
 	**/
 	function bind(host:Host, port:Int):Void;
 
