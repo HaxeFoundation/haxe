@@ -31,14 +31,28 @@ class Methods {
 	**/
 	static inline var Initialize = new HaxeRequestMethod<InitializeParams, InitializeResult>("initialize");
 
+	/**
+		Reset the compilation server cache, clearing all cached data.
+	**/
 	static inline var ResetCache = new HaxeRequestMethod<ResetCacheParams, ResetCacheResult>("server/resetCache");
+
+	/**
+		Soft-reset the compilation server state without fully clearing the cache.
+	**/
+	static inline var ResetState = new HaxeRequestMethod<ResetStateParams, ResetStateResult>("server/resetState");
 }
 
 typedef ResetCacheParams = {}
 
-typedef ResetCacheResult = {
+typedef ResetCacheResult = Response<{
 	final success:Bool;
-}
+}>;
+
+typedef ResetStateParams = {}
+
+typedef ResetStateResult = Response<{
+	final success:Bool;
+}>
 
 /* Initialize */
 typedef InitializeParams = {
@@ -49,6 +63,9 @@ typedef InitializeParams = {
 
 	/** The maximum number of completion items to return **/
 	final ?maxCompletionItems:Int;
+
+	/** Maximum age in seconds for unused context caches before they are removed **/
+	final ?staleContextMaxAge:Int;
 }
 
 /**
@@ -104,11 +121,11 @@ abstract HaxeNotificationMethod<TParams>(String) to String {
 		this = method;
 }
 
-typedef HaxeResponseErrorData = Array<{
+typedef HaxeResponseErrorData = {
 	var severity:HaxeResponseErrorSeverity;
 	var ?location:Location;
 	var message:String;
-}>;
+};
 
 enum abstract HaxeResponseErrorSeverity(Int) {
 	var Error = 1;

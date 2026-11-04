@@ -40,6 +40,11 @@
 		"doc": "Defined in the core API context."
 	},
 	{
+		"name": "CoroStackTraces",
+		"define": "coro.stack-traces",
+		"doc": "Generate the information required to build coroutine stack traces. Combine with `-debug` to also keep frames of coroutines that end in a tail call."
+	},
+	{
 		"name": "Cppia",
 		"define": "cppia",
 		"doc": "Generate cpp instruction assembly."
@@ -82,10 +87,22 @@
 		"doc": "Disable shortcuts used by hxb cache to speed up display requests."
 	},
 	{
-		"name": "EnableParallelism",
-		"define": "enable-parallelism",
+		"name": "DisableParallelism",
+		"define": "disable-parallelism",
 		"signatureNeutral": true,
-		"doc": "Enable experimental uses of parallelism in the compiler."
+		"doc": "Disable experimental uses of parallelism in the compiler."
+	},
+	{
+		"name": "EnableParallelAbstractCast",
+		"define": "enable-parallel-abstract-cast",
+		"signatureNeutral": true,
+		"doc": "Enable experimental uses of parallelism in the abstract cast filter (can trigger memory leaks)."
+	},
+	{
+		"name": "EnableParallelAnalyzer",
+		"define": "enable-parallel-analyzer",
+		"signatureNeutral": true,
+		"doc": "Enable experimental uses of parallelism in the analyzer (can trigger memory leaks)."
 	},
 	{
 		"name": "DisableUnicodeStrings",
@@ -325,7 +342,7 @@
 	{
 		"name": "HlVer",
 		"define": "hl-ver",
-		"doc": "The HashLink version to target. (default: 1.15.0)",
+		"doc": "The HashLink version to target. (default: 1.16.0)",
 		"platforms": ["hl"],
 		"params": ["version"]
 	},
@@ -528,6 +545,7 @@
 		"name": "SourceMap",
 		"define": "source-map",
 		"doc": "Generate source map for compiled files.",
+		"params": ["mode: inline"],
 		"platforms": ["php", "js"]
 	},
 	{
@@ -539,7 +557,7 @@
 	{
 		"name": "JvmDynamicLevel",
 		"define": "jvm.dynamic-level",
-		"doc": "Controls the amount of dynamic support code being generated. 0 = none, 1 = field read/write optimization (default), 2 = compile-time method closures",
+		"doc": "Controls the amount of dynamic support code being generated. 0 = none, 1 = field read/write optimization (default)",
 		"platforms": ["jvm"]
 	},
 	{
@@ -552,7 +570,7 @@
 	{
 		"name": "LuaJit",
 		"define": "lua-jit",
-		"doc": "Enable the jit compiler for lua (version 5.2 only).",
+		"doc": "Enable LuaJIT-specific code generation optimizations.",
 		"platforms": ["lua"]
 	},
 	{
@@ -565,6 +583,13 @@
 		"name": "LuaVer",
 		"define": "lua-ver",
 		"doc": "The lua version to target.",
+		"platforms": ["lua"],
+		"params": ["version"]
+	},
+	{
+		"name": "LuaWindowsUtf8Io",
+		"define": "lua.windows-utf8-io",
+		"doc": "Set the utf8 locale when running on Windows to fix unicode file operations. Lua runtime must be linked to windows UCRT.",
 		"platforms": ["lua"],
 		"params": ["version"]
 	},
@@ -870,6 +895,13 @@
 		"define": "message.color",
 		"signatureNeutral": true,
 		"doc": "Enable ANSI color codes in message reporting."
+	},
+	{
+		"name": "MessageNoColor",
+		"define": "message.no-color",
+		"signatureNeutral": true,
+		"doc": "Disable ANSI color codes in message reporting.",
+		"deprecated": "Color is now disabled by default; use -D message.color to enable ANSI coloring."
 	},
 	{
 		"name": "MessageAbsolutePositions",

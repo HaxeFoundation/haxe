@@ -48,6 +48,7 @@ let string_of_with_type_source = function
 	| ImplicitReturn ->
 		"ImplicitReturn"
 
+(** Can return empty or invalid identifier name when type source is `StructureField`. *)
 let get_expected_name with_type = match with_type with
 	| Value (Some si) | WithType(_,Some si) ->
 		get_source_info_name si

@@ -96,4 +96,8 @@ Haxe            | Neko  | SWF   | Python | HL   | PHP  | Lua |
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for more. Thank you!
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on filing issues.
+
+For running and writing tests, see [tests/unit/README.md](tests/unit/README.md).
+
+Thank you!

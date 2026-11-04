@@ -18,7 +18,7 @@ class Python {
 				if (commandSucceed(pypy, ["-V"])) {
 					infoMsg('pypy3 has already been installed.');
 				} else {
-					final pypyVersion = "pypy3.8-v7.3.7-" + (switch Linux.arch {
+					final pypyVersion = "pypy3.8-v7.3.7-" + (switch System.arch {
 						case Arm64: "aarch64";
 						case Amd64: "linux64";
 					});
@@ -67,16 +67,14 @@ class Python {
 			runCommand(py, ["bin/unit34.py"]);
 		}
 
-		Display.maybeRunDisplayTests(Python);
-
 		changeDirectory(sysDir);
-		runCommand("haxe", ["compile-python.hxml"].concat(args));
+		runCommand("haxe", args.concat(["compile-python.hxml"]));
 		for (py in pys) {
 			runSysTest(py, ["bin/python/sys.py"]);
 		}
 
-		changeDirectory(getMiscSubDir("python"));
-		runCommand("haxe", ["run.hxml"]);
+		changeDirectory(getMiscSubDir(""));
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "python"]);
 
 		changeDirectory(getMiscSubDir('python', "pythonImport"));
 		runCommand("haxe", ["compile.hxml"]);

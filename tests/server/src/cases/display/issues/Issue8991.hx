@@ -18,9 +18,7 @@ class Issue8991 extends DisplayTestCase {
 
 		runHaxe(["--no-output", "-main", "Main"]);
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("C.hx")});
-		runHaxeJson([], DisplayMethods.Hover, {file: file, offset: mainHx.markers[1]});
-
-		var result = parseHover().result;
+		var result = runHaxeJson([], DisplayMethods.Hover, {file: file, offset: mainHx.markers[1]});
 		Assert.equals(result.item.kind, DisplayItemKind.ClassField);
 	}
 }

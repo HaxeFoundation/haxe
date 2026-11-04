@@ -49,7 +49,7 @@ module ModuleLevel = struct
 			m_path = mpath;
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra (Path.get_full_path file) (Define.get_signature com.defines) (file_time file) (if com.is_macro_context then MMacro else MCode) com.compilation_step (get_policy g mpath);
+			m_extra = module_extra (Path.get_full_path file) (Define.get_signature com.defines) (file_time file) (if com.is_macro_context then MMacro else MCode) com.part_scope.compilation_step (get_policy g mpath);
 		} in
 		m
 
@@ -291,14 +291,15 @@ module ModuleLevel = struct
 				r
 			with Not_found ->
 				if Sys.file_exists path then begin
-					let _,r = match !TypeloadParse.parse_hook com (ClassPaths.create_resolved_file path com.empty_class_path) p with
-						| ParseSuccess(data,_) -> data
+					let (_,r),warnings = match !TypeloadParse.parse_hook com (ClassPaths.create_resolved_file path com.empty_class_path) p with
+						| ParseSuccess(data,pdi) -> data,pdi.pd_warnings
 						| ParseError(_,(msg,p),_) -> Parser.error msg p
 					in
 					List.iter (fun (d,p) -> match d with EImport _ | EUsing _ -> () | _ -> raise_typing_error "Only import and using is allowed in import.hx files" p) r;
 					let m_import = make_import_module path r in
 					add_module com m_import p;
 					add_dependency m m_import MDepFromImport;
+					List.iter (fun (w, p) -> module_warning com m WIfDisplay [] (Warning.warning_obj WIfDisplay).w_doc p) warnings;
 					r
 				end else begin
 					let r = [] in
@@ -665,7 +666,7 @@ module TypeLevel = struct
 	let init_imports_or_using ctx_m (decl,p) =
 		let com = ctx_m.com in
 		let check_path_display path p =
-			if DisplayPosition.display_position#is_in_file (com.file_keys#get p.pfile) then DisplayPath.handle_path_display ctx_m path p
+			if DisplayPosition.display_position#is_in_file (com.part_scope.file_keys#get p.pfile) then DisplayPath.handle_path_display ctx_m path p
 		in
 		match decl with
 		| EImport (path,mode) ->
@@ -718,7 +719,7 @@ let type_module com g mpath file ?(dont_check_path=false) ?(is_extern=false) tde
 	let tdecls = ModuleLevel.handle_import_hx com g m tdecls p in
 	let ctx_m = type_types_into_module com g m tdecls p in
 	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Naming.check_module_path ctx_m.com m.m_path p;
-	incr stats.s_modules_typed;
+	incr com.request_scope.stats.s_modules_typed;
 	m
 
 class hxb_reader_api_typeload
@@ -735,11 +736,11 @@ class hxb_reader_api_typeload
 	method add_module (m : module_def) =
 		com.module_lut#add m.m_path m
 
-	method resolve_type (pack : string list) (mname : string) (tname : string) =
+	method resolve_type (pack : string list) (mname : string) (tname : string) (_:HxbData.typing_mode) =
 		let m = load_module com g (pack,mname) p in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 
-	method resolve_module (path : path) =
+	method resolve_module (path : path) (_:HxbData.typing_mode) =
 		load_module com g path p
 
 	method basic_types =
@@ -748,8 +749,7 @@ class hxb_reader_api_typeload
 	method get_var_id (i : int) =
 		(* The v_id in .hxb has no relation to this context, make a new one. *)
 		let uid = fst alloc_var' in
-		Atomic.incr uid;
-		Atomic.get uid
+		Atomic.fetch_and_add uid 1 + 1
 
 	method read_expression_eagerly (cf : tclass_field) =
 		com.is_macro_context || match cf.cf_kind with
@@ -795,6 +795,7 @@ let rec load_hxb_module com g path p =
 	loop com.hxb_libs
 
 and load_module' com g m p =
+	check_cancellation com;
 	try
 		(* Check current context *)
 		com.module_lut#find m
@@ -805,17 +806,17 @@ and load_module' com g m p =
 			m
 		| BinaryModule _ ->
 			die "" __LOC__ (* The server builds those *)
-		| NoModule | BadModule _ -> try
+		| NoModule | BadModule _ | BadBinaryModule _ -> try
 			load_hxb_module com g m p
 		with Not_found ->
 			let raise_not_found () = raise_error_msg (Module_not_found m) p in
 			if com.module_nonexistent_lut#mem m then raise_not_found();
 			if g.load_only_cached_modules then raise_not_found();
 			let is_extern = ref false in
-			let file, decls = try
+			let file, decls, warnings = try
 				(* Try parsing *)
-				let rfile,decls = TypeloadParse.parse_module com m p in
-				rfile.file,decls
+				let rfile,decls,warnings = TypeloadParse.parse_module com m p in
+				rfile.file,decls,warnings
 			with Not_found ->
 				(* Nothing to parse, try loading extern type *)
 				let rec loop = function
@@ -825,13 +826,15 @@ and load_module' com g m p =
 					| (file,load) :: l ->
 						match load m p with
 						| None -> loop l
-						| Some (_,a) -> file, a
+						| Some (_,a) -> file, a, []
 				in
 				is_extern := true;
 				loop com.load_extern_type
 			in
 			let is_extern = !is_extern in
-			type_module com g m file ~is_extern decls p
+			let m = type_module com g m file ~is_extern decls p in
+			List.iter (fun (w, p) -> module_warning com m WIfDisplay [] (Warning.warning_obj WIfDisplay).w_doc p) warnings;
+			m
 
 let load_module ?(origin:module_dep_origin = MDepFromTyping) ctx m p =
 	let m2 = load_module' ctx.com ctx.g m p in

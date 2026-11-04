@@ -1,0 +1,7 @@
+Main.hx:3: characters 2-28 : Could not force inlining on this loop
+Main.hx:5: characters 2-24 : Could not force inlining on this loop
+Main.hx:7: characters 2-24 : Could not force inlining on this loop
+Main.hx:9: characters 2-24 : Could not force inlining on this loop
+Main.hx:11: characters 2-23 : Could not force inlining on this loop
+Main.hx:13: characters 2-23 : Could not force inlining on this loop
+Main.hx:14: characters 2-29 : Cannot force inlining on key => value loops

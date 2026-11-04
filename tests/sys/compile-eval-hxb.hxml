@@ -1,0 +1,21 @@
+compile-each.hxml
+# --each
+
+Main
+--interp
+--hxb bin/eval/sys.hxb
+
+--next
+TestArguments
+--interp
+--hxb bin/eval/TestArguments.hxb
+
+--next
+ExitCode
+--interp
+--hxb bin/eval/ExitCode.hxb
+
+--next
+UtilityProcess
+--interp
+--hxb bin/eval/UtilityProcess.hxb

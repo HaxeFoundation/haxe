@@ -172,6 +172,31 @@ class Unserializer {
 		return k;
 	}
 
+	function readDigits64() {
+		var k : haxe.Int64 = 0;
+		var s = false;
+		var fpos = pos;
+		while (true) {
+			var c = get(pos);
+			if (StringTools.isEof(c))
+				break;
+			if (c == "-".code) {
+				if (pos != fpos)
+					break;
+				s = true;
+				pos++;
+				continue;
+			}
+			if (c < "0".code || c > "9".code)
+				break;
+			k = k * 10 + (c - "0".code);
+			pos++;
+		}
+		if (s)
+			k *= -1;
+		return k;
+	}
+
 	function readFloat() {
 		var p1 = pos;
 		while (true) {
@@ -246,6 +271,8 @@ class Unserializer {
 				return 0;
 			case "i".code:
 				return readDigits();
+			case "I".code:
+				return readDigits64();
 			case "d".code:
 				return readFloat();
 			case "y".code:

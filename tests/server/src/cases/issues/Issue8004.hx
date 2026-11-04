@@ -1,6 +1,5 @@
 package cases.issues;
 
-import haxe.Json;
 import haxe.display.FsPath;
 import haxe.display.Server;
 
@@ -20,14 +19,13 @@ class Issue8004 extends TestCase {
 		var args = output == null ? ["-main", "Empty", target] : ["-main", "Empty", '-$target', 'bin/$output', "--no-output"];
 
 		runHaxe(args);
-		runHaxeJson(args, ServerMethods.ReadClassPaths, null);
-		runHaxe(args.concat(["--display", "?@0@workspace-symbols@uint"]));
+		runHaxeJson(args, ServerMethods.ReadClassPaths, {wait: true});
+		final result = runHaxeJson(args, DisplayMethods.WorkspaceSymbols, {filter: "uint"});
 
-		var result:Array<SymbolReply> = Json.parse(lastResult.stderr);
 		var found = false;
 		for (module in result) {
 			for (symbol in module.symbols) {
-				if (symbol.name == "UInt" && symbol.kind == Abstract) {
+				if (symbol.name == "UInt32" && symbol.kind == Abstract) {
 					found = true;
 					break;
 				}
@@ -35,50 +33,4 @@ class Issue8004 extends TestCase {
 		}
 		Assert.isTrue(found);
 	}
-}
-
-// From Haxe LSP; should be moved to haxe.display package when workspace symbols
-// are added as Json RPC
-private enum abstract ModuleSymbolKind(Int) {
-	final Class = 1;
-	final Interface;
-	final Enum;
-	final TypeAlias;
-	final Abstract;
-	final Field;
-	final Property;
-	final Method;
-	final Constructor;
-	final Function;
-	final Variable;
-	final Struct;
-	final EnumAbstract;
-	final Operator;
-	final EnumMember;
-	final Constant;
-	final Module;
-}
-
-private typedef ModuleSymbolEntry = {
-	final name:String;
-	final kind:ModuleSymbolKind;
-	final range:Range;
-	final ?containerName:String;
-	final ?isDeprecated:Bool;
-}
-
-private typedef SymbolReply = {
-	final file:FsPath;
-	final symbols:Array<ModuleSymbolEntry>;
-}
-
-// From Haxe server protocol
-private typedef Position = {
-	var line:Int;
-	var character:Int;
-}
-
-private typedef Range = {
-	var start:Position;
-	var end:Position;
 }

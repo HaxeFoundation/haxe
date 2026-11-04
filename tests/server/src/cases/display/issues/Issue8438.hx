@@ -7,13 +7,12 @@ class Issue8438 extends DisplayTestCase {
 	}
 }**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Completion, {
+		var result = runHaxeJson([], DisplayMethods.Completion, {
 			file: file,
 			offset: offset(1),
 			wasAutoTriggered: true
 		});
-		var result = parseCompletion();
-		Assert.equals(6, result.result.replaceRange.start.character);
-		Assert.equals(10, result.result.replaceRange.end.character);
+		Assert.equals(6, result.replaceRange.start.character);
+		Assert.equals(10, result.replaceRange.end.character);
 	}
 }

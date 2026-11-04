@@ -97,7 +97,7 @@ class TestKeyValueIterator extends Test {
 		var s = HelperMacros.typeErrorText(
 			for (key => value in 1) { }
 		);
-		eq("Int has no field keyValueIterator", s);
+		eq("Cannot iterate on Int", s);
 	}
 
 	function testError2() {

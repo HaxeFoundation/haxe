@@ -73,12 +73,12 @@ let has_var_flag v (flag : flag_tvar) =
 let alloc_var' =
 	let uid = Atomic.make 0 in
 	uid,(fun kind n t p ->
-		Atomic.incr uid;
+		let id = Atomic.fetch_and_add uid 1 + 1 in
 		{
 			v_kind = kind;
 			v_name = n;
 			v_type = t;
-			v_id = Atomic.get uid;
+			v_id = id;
 			v_extra = None;
 			v_meta = [];
 			v_pos = p;
@@ -91,8 +91,8 @@ let alloc_var =
 	alloc_var
 
 let alloc_mid =
-	let mid = ref 0 in
-	(fun() -> incr mid; !mid)
+	let mid = Atomic.make 0 in
+	(fun() -> Atomic.fetch_and_add mid 1 + 1)
 
 let mk e t p = { eexpr = e; etype = t; epos = p }
 
@@ -345,10 +345,12 @@ let rec extends c csup =
 let add_descendant c descendant =
 	c.cl_descendants <- descendant :: c.cl_descendants
 
+let lazy_force_hook : ((unit -> t) -> t) ref = ref (fun f -> f())
+
 let lazy_type f =
 	match !f with
 	| LAvailable t | LProcessing t -> t
-	| LWait f -> f()
+	| LWait f -> !lazy_force_hook f
 
 let lazy_available t = LAvailable t
 let lazy_processing t = LProcessing t
@@ -563,19 +565,17 @@ let apply_typedef td tl =
 let monomorphs eparams t =
 	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
 
-let apply_params_stack = ref []
-
-let try_apply_params_rec cparams params t success =
-	let old_stack = !apply_params_stack in
+let try_apply_params_rec stack cparams params t success =
+	let old_stack = !stack in
 	try
-		let result = success (apply_params ~stack:apply_params_stack cparams params t) in
-		apply_params_stack := old_stack;
+		let result = success (apply_params ~stack:stack cparams params t) in
+		stack := old_stack;
 		result
 	with
 		| ApplyParamsRecursion ->
-			apply_params_stack := old_stack;
+			stack := old_stack;
 		| err ->
-			apply_params_stack := old_stack;
+			stack := old_stack;
 			raise err
 
 let rec follow t =
@@ -648,6 +648,21 @@ let rec follow_lazy_and_mono t = match t with
 		follow_lazy_and_mono (lazy_type f)
 	| _ ->
 		t
+
+type maybe_coro =
+	| Coro of tsignature
+	| NotCoro of t
+
+let follow_with_coro t = match follow t with
+	| TAbstract({a_path = (["haxe";"coro"],"Coroutine")},[t]) ->
+		begin match follow t with
+			| TFun(args,ret) ->
+				Coro (args,ret)
+			| t ->
+				NotCoro t
+		end
+	| t ->
+		NotCoro t
 
 let rec ambiguate_funs t =
 	match follow t with
@@ -803,7 +818,7 @@ let get_constraints ttp = match ttp.ttp_constraints with
 	| None ->
 		[]
 	| Some r ->
-		Lazy.force r
+		AtomicLazy.force r
 
 let has_ctor_constraint c = match c.cl_kind with
 	| KTypeParameter ttp ->

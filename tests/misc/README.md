@@ -2,7 +2,7 @@
 
 ## Projects
 
-`tests/misc/projects` contains directories with haxe projects, which are executed on CI one by one separately during the execution of a macro test suite.
+`tests/misc/eval/projects` contains directories with target-independent haxe projects, which are executed on CI one by one separately during the execution of a macro test suite.
 
 Each project should contain `compile.hxml` and/or `compile-fail.hxml`. Test suite will look for those files and supply them to Haxe compiler.
 
@@ -24,7 +24,7 @@ To run tests only for a single project use the following command: `haxe -D MISC_
 
 ### Running target specific projects locally
 
-Tests specific to some targets (python, hl) reside in their own separate folder (respectively `tests/misc/python` and `tests/misc/hl`).
+Tests specific to a target reside in that target's folder (e.g. `tests/misc/python/projects` and `tests/misc/hl/projects`).
 
 Chdir to `tests/misc/{target}` and run `haxe run.hxml` to run these tests.
 

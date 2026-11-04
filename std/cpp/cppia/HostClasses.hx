@@ -55,7 +55,6 @@ class HostClasses {
 		"cpp.vm.WeakRef",
 		"cpp.Object",
 		"cpp.Int64",
-		"cpp.Int64Map",
 		"cpp.Finalizable",
 		"Std",
 		"StringBuf",
@@ -124,6 +123,7 @@ class HostClasses {
 		"haxe.Int64",
 		"haxe.Int32",
 		"haxe.Serializer",
+		"haxe.Timer",
 		"haxe.Unserializer",
 		"haxe.ds.ArraySort",
 		"haxe.ds.GenericStack",
@@ -135,6 +135,7 @@ class HostClasses {
 		"haxe.ds.WeakMap",
 		"haxe.ds.EnumValueMap",
 		"haxe.ds.IntMap",
+		"haxe.ds.Int64Map",
 		"haxe.ds.StringMap",
 		"haxe.iterators.MapKeyValueIterator",
 		"StdTypes",
@@ -148,7 +149,8 @@ class HostClasses {
 		"List",
 		"Map",
 		"String",
-		"haxe.atomic.AtomicInt"
+		"haxe.atomic.AtomicInt",
+		"haxe.atomic.AtomicObject",
 	];
 
 	static function parseClassInfo(externs:Map<String, Bool>, filename:String) {
@@ -182,7 +184,7 @@ class HostClasses {
 		externs.set("sys.net._Socket.SocketOutput", true);
 		externs.set("sys.ssl._Socket.SocketInput", true);
 		externs.set("sys.ssl._Socket.SocketOutput", true);
-		externs.set("sys.thread._Thread.HaxeThread",true);
+		externs.set("sys.thread._Thread.HaxeThread", true);
 		externs.set("haxe.ds.TreeNode", true);
 		externs.set("haxe.xml.XmlParserException", true);
 		for (e in classes)

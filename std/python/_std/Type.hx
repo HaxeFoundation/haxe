@@ -29,6 +29,7 @@ import python.Syntax;
 enum ValueType {
 	TNull;
 	TInt;
+	TInt64;
 	TFloat;
 	TBool;
 	TObject;
@@ -184,7 +185,7 @@ enum ValueType {
 		} else if (UBuiltins.isinstance(v, UBuiltins.int)) {
 			return TInt;
 		} else if (UBuiltins.isinstance(v, UBuiltins.float)) {
-			return TFloat;
+			return Std.int(v) == v ? TInt : TFloat;
 		} else if (UBuiltins.isinstance(v, String)) {
 			return TClass(String);
 		} else if (UBuiltins.isinstance(v, Array)) {
@@ -194,7 +195,8 @@ enum ValueType {
 		} else if (UBuiltins.isinstance(v, Enum)) {
 			return TEnum(Syntax.field(v, "__class__"));
 		} else if (UBuiltins.isinstance(v, UBuiltins.type) || Internal.hasClass(v)) {
-			return TClass(Syntax.field(v, "__class__"));
+			var cl = Syntax.field(v, "__class__");
+			return cl == @:privateAccess haxe.Int64.IMPL ? TInt64 : TClass(cl);
 		} else if (UBuiltins.callable(v)) {
 			return TFunction;
 		} else {

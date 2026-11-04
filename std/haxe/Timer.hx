@@ -23,10 +23,6 @@
 package haxe;
 
 import haxe.Int64;
-#if (target.threaded && !cppia)
-import sys.thread.Thread;
-import sys.thread.EventLoop;
-#end
 
 /**
 	The `Timer` class allows you to create asynchronous timers on platforms that
@@ -50,11 +46,8 @@ import sys.thread.EventLoop;
 class Timer {
 	#if (flash || js)
 	private var id:Null<Int>;
-	#elseif (target.threaded && !cppia)
-	var thread:Thread;
-	var eventHandler:EventHandler;
 	#else
-	private var event:MainLoop.MainEvent;
+	private var event:EventLoop.Event;
 	#end
 
 	/**
@@ -77,16 +70,8 @@ class Timer {
 		#elseif js
 		var me = this;
 		id = untyped setInterval(function() me.run(), time_ms);
-		#elseif (target.threaded && !cppia)
-		thread = Thread.current();
-		eventHandler = thread.events.repeat(() -> this.run(), time_ms);
 		#else
-		var dt = time_ms / 1000;
-		event = MainLoop.add(function() {
-			@:privateAccess event.nextRun += dt;
-			run();
-		});
-		event.delay(dt);
+		event = EventLoop.current.addTimer(() -> this.run(), time_ms/1000.);
 		#end
 	}
 
@@ -108,8 +93,6 @@ class Timer {
 		untyped clearInterval(id);
 		#end
 		id = null;
-		#elseif (target.threaded && !cppia)
-		thread.events.cancel(eventHandler);
 		#else
 		if (event != null) {
 			event.stop();
@@ -190,6 +173,8 @@ class Timer {
 		return untyped __global__.__time_stamp();
 		#elseif python
 		return Sys.cpuTime();
+		#elseif lua
+		return lua.Os.clock();
 		#elseif sys
 		return Sys.time();
 		#else
@@ -202,7 +187,7 @@ class Timer {
 	 *
 	 * The precision and epoch of the timer is platform defined.
 	 */
-	public static inline function milliseconds():Int64 {
+	public static #if !cppia inline #end function milliseconds():Int64 {
 		#if flash
 		return flash.Lib.getTimer();
 		#elseif js
@@ -218,16 +203,16 @@ class Timer {
 		#if (python_version >= 3.7)
 		return python.lib.Time.perf_counter_ns() / 1000000i64;
 		#else
-		return Std.int(stamp() * 1000);
+		return Int64.fromFloat(stamp() * 1000);
 		#end
-		#elseif (hl && hl_ver >= version("1.16.0"))
+		#elseif (hl && hl_ver >= version("1.16.0") && !hl_legacy32)
 		return hl.Api.timestampMs();
 		#elseif jvm
 		return java.lang.System.nanoTime() / 1000000i64;
 		#elseif eval
 		return @:privateAccess Sys.timestamp_ms();
 		#else
-		return Int64.mul(Int64.fromFloat(stamp()), 1000);
+		return Int64.fromFloat(stamp() * 1000);
 		#end
 	}
 }

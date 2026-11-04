@@ -1,4 +1,5 @@
 open Globals
+open Message
 open Type
 open PlatformConfig
 
@@ -42,7 +43,7 @@ let of_com (com : Common.context) = {
 	is_macro_context = com.is_macro_context;
 	foptimize = com.foptimize;
 	doinline = com.doinline;
-	dump_config = com.dump_config;
+	dump_config = com.part_scope.dump_config;
 	exceptions = ref [];
 	exceptions_mutex = Mutex.create ();
 	warnings = ref [];

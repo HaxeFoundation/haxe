@@ -65,6 +65,9 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	@:from public static inline function ofInt(x:Int):Int64
 		return cast x;
 
+	public static inline function fromInt(x:Int):Int64
+		return cast x;
+
 	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
 	inline public static function is(val:Dynamic):Bool
 		return Std.isOfType(val, java.lang.Long.LongClass);
@@ -110,7 +113,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	public static inline function divMod(dividend:Int64, divisor:Int64):{quotient:Int64, modulus:Int64}
 		return {quotient: dividend / divisor, modulus: dividend % divisor};
 
-	private inline function toString():String
+	public inline function toString():String
 		return '$this';
 
 	public static function parseString(sParam:String):Int64 {
@@ -119,8 +122,22 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	}
 
 	public static function fromFloat(f:Float):Int64 {
-		return Int64Helper.fromFloat(f);
+		if (Math.isNaN(f) || !Math.isFinite(f)) {
+			throw "Number is NaN or Infinite";
+		}
+		// Same limits as Int64Helper.fromFloat: beyond 2^53-1, not every integer is representable.
+		if (f >= 9007199254740992.) {
+			throw "Conversion overflow";
+		}
+		if (f <= -9007199254740992.) {
+			throw "Conversion underflow";
+		}
+		// The native conversion truncates toward zero, like Int64Helper.fromFloat.
+		return (f : __Int64);
 	}
+
+	public inline function toFloat():Float
+		return Int64Helper.toFloat(abstract);
 
 	@:op(-A) public static function neg(x:Int64):Int64
 		return -x.val;

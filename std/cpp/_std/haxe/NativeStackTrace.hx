@@ -2,6 +2,8 @@ package haxe;
 
 import haxe.CallStack.StackItem;
 
+private typedef NativeTrace = Array<String>;
+
 /**
 	Do not use manually.
 **/
@@ -13,17 +15,17 @@ class NativeStackTrace {
 	}
 
 	@:noDebug //Do not mess up the exception stack
-	static public function callStack():Array<String> {
+	static public function callStack():NativeTrace {
 		return untyped __global__.__hxcpp_get_call_stack(true);
 	}
 
 	@:noDebug //Do not mess up the exception stack/
-	static public function exceptionStack():Array<String> {
+	static public function exceptionStack():NativeTrace {
 		return untyped __global__.__hxcpp_get_exception_stack();
 	}
 
-	static public function toHaxe(native:Array<String>, skip:Int = 0):Array<StackItem> {
-		var stack:Array<String> = native;
+	static public function toHaxe(nativeStackTrace:NativeTrace, skip:Int = 0):Array<StackItem> {
+		var stack:NativeTrace = nativeStackTrace;
 		var m = new Array<StackItem>();
 		for (i in 0...stack.length) {
 			if(skip > i) {

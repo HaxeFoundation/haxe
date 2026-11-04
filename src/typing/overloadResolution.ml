@@ -1,7 +1,28 @@
 open TType
 open TUnification
 open TFunctions
+open TOther
 open FieldCallCandidate
+
+(* Try the functional-interface conversion path: if [t_param] is a SAM class
+   and [t_arg] is a function type, unify the function against the SAM method's
+   signature (mirroring what AbstractCast does at cast time). Returns true if
+   compatible. Used during overload candidate filtering so SAM-parameter
+   overloads aren't discarded before the cast layer runs — but unlike a blind
+   accept, this still rejects lambdas whose shape doesn't match the SAM. *)
+let try_functional_interface_match t_param t_arg =
+	match follow t_param, follow t_arg with
+	| TInst(c,tl), TFun _ when has_class_flag c CFunctionalInterface ->
+		begin match TClass.get_singular_interface_field c.cl_ordered_fields with
+		| None -> false
+		| Some cf ->
+			let map = apply_params c.cl_params tl in
+			let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
+			let expected = map (apply_params cf.cf_params monos cf.cf_type) in
+			try Type.unify t_arg expected; true
+			with Unify_error _ -> false
+		end
+	| _ -> false
 
 let unify_cf map_type c cf el =
 	let monos = List.map (fun _ -> mk_mono()) cf.cf_params in
@@ -10,7 +31,8 @@ let unify_cf map_type c cf el =
 			let rec loop2 acc el tl = match el,tl with
 				| e :: el,(_,o,t) :: tl ->
 					begin try
-						Type.unify e.etype t;
+						(try Type.unify e.etype t
+						 with Unify_error _ when try_functional_interface_match t e.etype -> ());
 						loop2 (e :: acc) el tl
 					with _ ->
 						if Type.ExtType.is_rest (follow t) then
@@ -97,3 +119,44 @@ let maybe_resolve_instance_overload is_ctor map_type c cf el =
 let maybe_resolve_constructor_overload c tl el =
 	let cf,c,tl = get_constructor_class c tl in
 	maybe_resolve_instance_overload true (apply_params c.cl_params tl) c cf el
+
+(*
+	After inlining or generic substitution, [Type.map_expr_type] has re-resolved
+	TField nodes by name through [quick_field], which collapses an overloaded
+	method to its first declared overload while leaving the field's applied type
+	untouched. This restores the correct overload on such call nodes (other nodes
+	are returned unchanged - hence [maybe_]).
+
+	The matching overload is re-selected structurally from the (already mapped)
+	argument types and just the field reference is restored, which is what code
+	generation relies on. This needs no typer: the arguments are already typed,
+	so resolution only unifies their types against each candidate.
+*)
+let maybe_reapply_overload_call e =
+	match e.eexpr with
+		| TCall({eexpr = TField(e1,fa)} as ef,el) ->
+			let rebuild cf' =
+				let fa = match fa with
+					| FInstance(c,tl,_) -> FInstance(c,tl,cf')
+					| FStatic(c,_) -> FStatic(c,cf')
+					| _ -> fa
+				in
+				{e with eexpr = TCall({ef with eexpr = TField(e1,fa)},el)}
+			in
+			begin match fa with
+			| FStatic(c,cf) when has_class_field_flag cf CfOverload ->
+				begin match filter_overloads (find_overload (fun t -> t) c cf el) with
+				| Some(_,cf',_) -> rebuild cf'
+				| None -> e
+				end
+			| FInstance(c,tl,cf) when has_class_field_flag cf CfOverload ->
+				let map_type = apply_params c.cl_params tl in
+				begin match resolve_instance_overload false map_type c cf.cf_name el with
+				| Some(_,cf',_) -> rebuild cf'
+				| None -> e
+				end
+			| _ ->
+				e
+			end
+		| _ ->
+			e

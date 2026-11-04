@@ -20,7 +20,19 @@ abstract CArray<T>(Abstract<"hl_carray">) {
 		return null;
 	}
 
+	public static function fromBytes<T>( bytes : haxe.io.Bytes ) : CArray<T> {
+		return bytes == null ? null : hl.Api.unsafeCast(@:privateAccess bytes.b);
+	}
+
 	#if (hl_ver >= version("1.16.0"))
+
+	public function toBytes( cl : Class<T>, count : Int ) : haxe.io.Bytes {
+		if( this == null )
+			return null;
+		var size = (cast cl:BaseType).__type__.getDataSize();
+		return @:privateAccess new haxe.io.Bytes(hl.Api.unsafeCast(this),size * count);
+	}
+
 	public inline function blit( cl : Class<T>, pos : Int, src : CArray<T>, srcPos : Int, srcLen : Int ) : Void {
 		carray_blit( cast this, (cast cl:BaseType).__type__, pos, src, srcPos, srcLen );
 	}
