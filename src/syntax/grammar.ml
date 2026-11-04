@@ -168,13 +168,13 @@ and parse_type_decls ctx mode pmax pack acc s =
 		List.rev acc
 	| Error msg ->
 		handle_stream_error ctx msg s;
-		ignore(resume ctx false false s);
+		ignore(resume ctx None s);
 		parse_type_decls ctx mode (last_pos ctx s).pmax pack acc s
 
 and parse_abstract ctx doc meta flags p1 = function%parser
 	| [ [%let name = type_name ctx]; [%let tl = parse_constraint_params ctx]; [%let st = parse_abstract_subtype ctx]; [%let sl = plist (parse_abstract_relations ctx)]; [%s s] ] ->
 		let fl,p2 = match%parser s with
-			| [ (BrOpen,_); [%let fl, p2 = parse_class_fields ctx false p1] ] -> fl,p2
+			| [ (BrOpen,_); [%let fl, p2 = parse_class_fields ctx FOClass p1] ] -> fl,p2
 			| [ ] -> syntax_error ctx (Expected ["{";"to";"from"]) s ([],last_pos ctx s)
 		in
 		let flags = (match st with None -> flags | Some t -> AbOver t :: flags) in
@@ -221,7 +221,7 @@ and parse_class_content ctx doc meta flags n p1 s =
 			end
 	in
 	let hl = loop false (last_pos ctx s) [] in
-	let fl, p2 = parse_class_fields ctx false p1 s in
+	let fl, p2 = parse_class_fields ctx FOClass p1 s in
 	(EClass {
 		d_name = name;
 		d_doc = doc_from_string_opt doc;
@@ -343,16 +343,16 @@ and parse_type_decl ctx mode s =
 				check_type_decl_flag_completion ctx mode c s;
 
 
-and parse_class ctx doc meta cflags need_name s =
-	let opt_name = if need_name then type_name ctx else (fun s -> match popt (type_name ctx) s with None -> "",null_pos | Some n -> n) in
+and parse_macro_class ctx s =
+	let opt_name s = match popt (type_name ctx) s with None -> "",null_pos | Some n -> n in
 	match%parser s with
-	| [ [%let n,p1 = parse_class_flags]; [%let name = opt_name]; [%let tl = parse_constraint_params ctx]; [%let hl = plist (parse_class_herit ctx)]; (BrOpen,_); [%let fl, p2 = parse_class_fields ctx (not need_name) p1] ] ->
+	| [ [%let n,p1 = parse_class_flags]; [%let name = opt_name]; [%let tl = parse_constraint_params ctx]; [%let hl = plist (parse_class_herit ctx)]; (BrOpen,_); [%let fl, p2 = parse_class_fields ctx FOReifiedClass p1] ] ->
 		(EClass {
 			d_name = name;
-			d_doc = doc;
-			d_meta = meta;
+			d_doc = None;
+			d_meta = [];
 			d_params = tl;
-			d_flags = List.map fst cflags @ n @ hl;
+			d_flags = n @ hl;
 			d_data = fl;
 		}, punion p1 p2)
 
@@ -469,7 +469,7 @@ and parse_abstract_subtype ctx = function%parser
 
 and parse_package = psep Dot lower_ident_or_macro
 
-and resume ctx tdecl fdecl s =
+and resume ctx owner s =
 	(* look for next variable/function or next type declaration *)
 	let rec junk k =
 		if k <= 0 then () else begin
@@ -511,13 +511,13 @@ and resume ctx tdecl fdecl s =
 			loop (k + 1)
 		(* field declaration *)
 		| Const _ :: Kwd Function :: _
-		| Kwd New :: Kwd Function :: _ when fdecl ->
+		| Kwd New :: Kwd Function :: _ when owner <> None ->
 			junk_tokens (k - 2);
 			true
-		| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Final :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ | Kwd Overload :: _ when fdecl ->
+		| Kwd Macro :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Final :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ | Kwd Overload :: _ when owner <> None ->
 			junk_tokens (k - 1);
 			true
-		| BrClose :: _ when tdecl ->
+		| BrClose :: _ when (match owner with Some (FOReifiedClass | FOStructure) -> true | Some FOClass | None -> false) ->
 			junk_tokens (k - 1);
 			false
 		(* type declaration *)
@@ -531,10 +531,10 @@ and resume ctx tdecl fdecl s =
 	in
 	loop 1
 
-and parse_class_field_resume ctx acc tdecl s =
+and parse_class_field_resume ctx acc owner s =
 	let result = try
 		begin match%parser s with
-		| [ [%let cff = parse_class_field ctx tdecl] ] -> Success cff
+		| [ [%let cff = parse_class_field ctx owner] ] -> Success cff
 		| [ (BrClose,p) ] -> End p
 		| [ ] -> Error "Parse error."
 		end
@@ -543,26 +543,26 @@ and parse_class_field_resume ctx acc tdecl s =
 	in
 	match result with
 	| Success cff ->
-		parse_class_field_resume ctx (cff :: acc) tdecl s
+		parse_class_field_resume ctx (cff :: acc) owner s
 	| End p ->
 		List.rev acc,p
 	| Error msg ->
 		handle_stream_error ctx msg s;
-		if resume ctx tdecl true s then
-			parse_class_field_resume ctx acc tdecl s
+		if resume ctx (Some owner) s then
+			parse_class_field_resume ctx acc owner s
 		else
 			acc,last_pos ctx s
 
-and parse_class_fields ctx tdecl p1 s =
+and parse_class_fields ctx owner p1 s =
 	if not (ctx.config.in_display_file) then begin
-		let acc = plist (parse_class_field ctx tdecl) s in
+		let acc = plist (parse_class_field ctx owner) s in
 		let p2 = (match%parser s with
 			| [ (BrClose,p2) ] -> p2
 			| [ ] -> error (Expected ["}"]) (next_pos ctx s)
 		) in
 		acc,p2
 	end else
-		parse_class_field_resume ctx [] tdecl s
+		parse_class_field_resume ctx [] owner s
 
 and parse_common_flags = function%parser
 	| [ (Kwd Private,p); parse_common_flags as l ] -> (DPrivate,p) :: l
@@ -703,8 +703,8 @@ and parse_complex_type_inner ctx allow_named s = match%parser s with
 			let tl = t :: plist (parse_structural_extension ctx) s in
 			(match%parser s with
 			| [ [%let l,p2 = parse_type_anonymous ctx] ] -> CTExtend (tl,l),punion p1 p2
-			| [ [%let l,p2 = parse_class_fields ctx true p1] ] -> CTExtend (tl,l),punion p1 p2)
-		| [ [%let l,p2 = parse_class_fields ctx true p1] ] -> CTAnonymous l,punion p1 p2
+			| [ [%let l,p2 = parse_class_fields ctx FOStructure p1] ] -> CTExtend (tl,l),punion p1 p2)
+		| [ [%let l,p2 = parse_class_fields ctx FOStructure p1] ] -> CTAnonymous l,punion p1 p2
 		| [ ] -> serror())
 	| [ (Question,p1); [%let t,p2 = parse_complex_type_inner ctx allow_named] ] ->
 		CTOptional (t,p2),punion p1 p2
@@ -949,14 +949,14 @@ and parse_var_field_assignment ctx = function%parser
 	| [ [%let p2 = semicolon ctx] ] -> None , p2
 	| [ ] -> serror()
 
-and parse_class_field ctx tdecl s =
+and parse_class_field ctx owner s =
 	let doc = get_doc ctx s in
 	let meta = parse_meta ctx s in
 	match%parser s with
 	| [ [%let al = plist parse_cf_rights] ] ->
 		let check_optional opt name =
 			if opt then begin
-				if not tdecl then syntax_error ctx (Custom "?var syntax is only allowed in structures") ~pos:(Some (pos name)) s ();
+				if owner <> FOStructure then syntax_error ctx (Custom "?var syntax is only allowed in structures") ~pos:(Some (pos name)) s ();
 				(Meta.Optional,[],null_pos) :: meta
 			end else
 				meta
@@ -1315,7 +1315,7 @@ and parse_macro_expr ctx p = function%parser
 		| [ ] ->
 			serror()
 		end
-	| [ [%let d = parse_class ctx None [] [] false] ] ->
+	| [ [%let d = parse_macro_class ctx] ] ->
 		let _,_,to_type = reify ctx.in_macro in
 		let ct = make_ptp_ct_null (mk_type_path ~sub:"TypeDefinition" (["haxe";"macro"],"Expr")) in
 		(ECheckType (to_type d,(ct,null_pos)),p)

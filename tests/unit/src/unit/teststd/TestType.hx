@@ -12,7 +12,7 @@ class TestType extends unit.Test {
 		eq(Type.getClass(null), null);
 		eq(Type.getClass(Int), null);
 		eq(Type.getClass(Bool), null);
-		//Type.getClass(haxe.macro.Expr.ExprDef.EBreak) == null;
+		//eq(Type.getClass(haxe.macro.Expr.ExprDef.EBreak), null);
 		eq(Type.getClass( { } ), null);
 
 		// getEnum
@@ -23,40 +23,40 @@ class TestType extends unit.Test {
 		eq(Type.getSuperClass(String), null);
 		eq(Type.getSuperClass(ClassWithToString), null);
 		eq(Type.getSuperClass(ClassWithToStringChild), ClassWithToString);
-		//Type.getSuperClass(null) == null;
+		//eq(Type.getSuperClass(null), null);
 
 		// getClassName
 		eq(Type.getClassName(String), "String");
 		eq(Type.getClassName(C), "unit.teststd.C");
-		//Type.getClassName(null) == null;
+		//eq(Type.getClassName(null), null);
 		eq(Type.getClassName(Type.getClass([])), "Array");
 
 		// getEnumName
-		//Type.getEnumName(null) == null;
+		//eq(Type.getEnumName(null), null);
 		eq(Type.getEnumName(haxe.macro.Expr.ExprDef), "haxe.macro.ExprDef");
 
 		// resolveClass
 		eq(Type.resolveClass("String"), String);
 		eq(Type.resolveClass("unit.teststd.C"), C);
-		//Type.resolveClass("Float") == null;
-		//Type.resolveClass(null) == null;
+		//eq(Type.resolveClass("Float"), null);
+		//eq(Type.resolveClass(null), null);
 		eq(Type.resolveClass("MyNonExistingClass"), null);
 
 		// resolveEnum
-		//Type.resolveEnum(null) == null;
+		//eq(Type.resolveEnum(null), null);
 		eq(Type.resolveEnum("haxe.macro.ExprDef"), haxe.macro.Expr.ExprDef);
 		eq(Type.resolveEnum("String"), null);
 
 		// createInstance
 		eq(Type.createInstance(String, ["foo"]), "foo");
-		//Type.createInstance(null, []) == null;
+		//eq(Type.createInstance(null, []), null);
 		eq(Type.createInstance(C, []).v, "var");
 		//var t = Type.createInstance(ClassWithCtorDefaultValues, []);
-		//t.a == 1;
-		//t.b == "foo";
+		//eq(t.a, 1);
+		//eq(t.b, "foo");
 		//var t = Type.createInstance(ClassWithCtorDefaultValues, [2]);
-		//t.a == 2;
-		//t.b == "foo";
+		//eq(t.a, 2);
+		//eq(t.b, "foo");
 		var c = Type.createInstance(ClassWithCtorDefaultValues, [2, "bar"]);
 		eq(c.a, 2);
 		eq(c.b, "bar");
@@ -64,12 +64,12 @@ class TestType extends unit.Test {
 		eq(c2.a, 2);
 		eq(c2.b, "bar");
 		//var t = Type.createInstance(ClassWithCtorDefaultValuesChild, [2, "bar"]);
-		//t.a == 2;
-		//t.b == "bar";
+		//eq(t.a, 2);
+		//eq(t.b, "bar");
 
 		// createEmptyInstance
-		//Type.createEmptyInstance(String) == "foo";
-		//Type.createEmptyInstance(null, []) == null;
+		//eq(Type.createEmptyInstance(String),"foo");
+		//eq(Type.createEmptyInstance(null, []), null);
 		var c = Type.createEmptyInstance(ClassWithCtorDefaultValues);
 		eq(c.a, null);
 		eq(c.b, null);

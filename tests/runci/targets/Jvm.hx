@@ -66,10 +66,11 @@ class Jvm {
 
 		for (level in 0...2) {
 			final args = args.concat(["-D", "jvm.dynamic-level=" + level]);
-			buildAndRun(["compile-jvm-only.hxml", "--hxb", "bin/hxb/jvm.zip"].concat(args), "bin/unit.jar");
-			buildAndRun(["compile-jvm-only.hxml", "--hxb-lib", "bin/hxb/jvm.zip"].concat(args), "bin/unit.jar");
+			// hxb-config/jvm.json excludes unit.TestMainNow, so the --hxb-lib builds also mix in a module loaded from source (#12102)
+			buildAndRun(["compile-jvm-only.hxml", "--hxb", "hxb-config/jvm.json"].concat(args), "bin/unit.jar");
+			buildAndRun(["compile-jvm-only.hxml", "--hxb-lib", "bin/hxb/unit.jvm.zip"].concat(args), "bin/unit.jar");
 			buildAndRun(["compile-jvm-only.hxml","-dce","no"].concat(args), "bin/unit.jar");
-			buildAndRun(["compile-jvm-only.hxml", "--hxb-lib", "bin/hxb/jvm.zip"].concat(args), "bin/unit.jar");
+			buildAndRun(["compile-jvm-only.hxml", "--hxb-lib", "bin/hxb/unit.jvm.zip"].concat(args), "bin/unit.jar");
 		}
 		// One dex check on the existing unit jar (codegen path is the same
 		// across all build variants — running d8 once gives the regression

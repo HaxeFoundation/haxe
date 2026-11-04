@@ -609,6 +609,14 @@ class Boot {
 	}
 
 	/**
+		Returns the name of the PHP class that implements the static methods of `phpClassName`.
+		They are the same class, except for `String`, whose methods are in `HxString`.
+	**/
+	public static inline function getStaticsClassName(phpClassName:String):String {
+		return phpClassName == 'String' ? Syntax.nativeClassName(HxString) : phpClassName;
+	}
+
+	/**
 		Creates Haxe-compatible closure of a static method.
 	**/
 	public static function getStaticClosure(phpClassName:String, methodName:String) {
@@ -671,7 +679,7 @@ private class HxClass {
 	**/
 	@:phpMagic
 	function __call(method:String, args:NativeArray):Dynamic {
-		var callback = (phpClassName == 'String' ? Syntax.nativeClassName(HxString) : phpClassName) + '::' + method;
+		var callback = Boot.getStaticsClassName(phpClassName) + '::' + method;
 		return Global.call_user_func_array(callback, args);
 	}
 

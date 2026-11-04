@@ -1,5 +1,5 @@
 -p src
--cp ../display/src-shared
+-cp src-shared
 --main Main
 -js test.js
 -lib hxnodejs

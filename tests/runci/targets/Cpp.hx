@@ -6,7 +6,6 @@ import runci.Config.*;
 
 class Cpp {
 	static public var gotCppDependencies = false;
-	static final isLinuxArm64 = systemName == 'Linux' && System.arch == Arm64;
 	static var testCppia = false;
 
 	static public function getCppDependencies() {
@@ -63,11 +62,9 @@ class Cpp {
 			args = [];
 		}
 		run(cmd, args.concat([script]));
-		if (!isLinuxArm64) { // FIXME
-			Sys.putEnv("CPPIA_IS_JIT", "1");
-			run(cmd, args.concat([script, "-jit"]));
-			Sys.putEnv("CPPIA_IS_JIT", null);
-		}
+		Sys.putEnv("CPPIA_IS_JIT", "1");
+		run(cmd, args.concat([script, "-jit"]));
+		Sys.putEnv("CPPIA_IS_JIT", null);
 	}
 
 	static public function run(args:Array<String>, testCompiled:Bool, testCppia:Bool) {
@@ -88,7 +85,7 @@ class Cpp {
 			runCpp("export/cpp/Main");
 
 			changeDirectory(getMiscSubDir("cross", "eventLoop"));
-			runCommand("haxe", ["build-cpp.hxml"]);
+			runCommand("haxe", ["build-cpp.hxml", "--cpp", "cpp"]);
 			// TODO: check output like misc tests do
 			runCpp("cpp/Main");
 
@@ -112,6 +109,15 @@ class Cpp {
 			changeDirectory(sysDir);
 			runCommand("haxe", args.concat(["compile-cppia.hxml"]));
 			runCppia("bin/cppia/Main.cppia", runSysTest);
+
+			changeDirectory(threadsDir);
+			runCommand("haxe", ["build.hxml", "--cppia", "export/cppia/threads.cppia"]);
+			runCppia("export/cppia/threads.cppia");
+
+			changeDirectory(getMiscSubDir("cross", "eventLoop"));
+			runCommand("haxe", ["build-cpp.hxml", "--cppia", "bin/Main.cppia"]);
+			// TODO: check output like misc tests do
+			runCppia("bin/Main.cppia");
 		}
 	}
 }

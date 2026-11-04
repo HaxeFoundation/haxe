@@ -19,13 +19,13 @@ This pattern:
 package unit.issues;
 
 class Issue12345 extends Test {
-    // Use #if for target-specific tests
-    #if lua
-    function test() {
-        // Test that would fail without the fix
-        eq(actualValue, expectedValue);
-    }
-    #end
+	// Use #if for target-specific tests
+	#if lua
+	function test() {
+		// Test that would fail without the fix
+		eq(actualValue, expectedValue);
+	}
+	#end
 }
 ```
 

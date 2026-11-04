@@ -94,6 +94,9 @@ class Socket {
 	}
 
 	public function bind(host:Host, port:Int):Void {
+		// like the other targets, so a port can be bound again while connections on it are in TIME_WAIT
+		if (Sys.systemName() != "Windows")
+			socket_set_option(__s, SOL_SOCKET, SO_REUSEADDR, 1);
 		var r = socket_bind(__s, host.host, port);
 		checkError(r, 0, "Unable to bind socket");
 	}

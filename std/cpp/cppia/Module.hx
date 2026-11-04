@@ -25,8 +25,19 @@ package cpp.cppia;
 @:native("::hx::CppiaLoadedModule")
 @:build(cpp.cppia.HostClasses.include())
 extern class Module {
+	/**
+		Load the CPPIA module encoded in the string `sourceCode`.
+
+		Note: only the ASCII CPPIA format can be represented as a `String`. CPPIA files in
+		the binary format should be loaded as `Bytes` and loaded using `Module.fromData`
+		instead.
+	**/
 	@:native("__scriptable_cppia_from_string")
 	static function fromString(sourceCode:String):Module;
+
+	/**
+		Load the CPPIA module encoded in `data`.
+	**/
 	@:native("__scriptable_cppia_from_data")
 	static function fromData(data:haxe.io.BytesData):Module;
 
