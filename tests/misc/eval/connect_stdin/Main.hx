@@ -192,6 +192,24 @@ class Main {
 			return exitCode == 0;
 		});
 
+		// Test 11: With --prompt (used when double-clicking a .hxml), errors must be
+		// printed before "Press enter to exit...", not buffered until process exit.
+		// stderr is merged into stdout so the output order can be checked.
+		test("prompt shows errors before waiting", () -> {
+			var client = new Process("haxe --prompt -cp . --main PromptError --no-output 2>&1");
+			client.stdin.writeString("\n");
+			client.stdin.close();
+			var stdout = client.stdout.readAll().toString();
+			client.close();
+			var errorPos = stdout.indexOf("PromptError");
+			var promptPos = stdout.indexOf("Press enter to exit");
+			if (errorPos == -1 || promptPos == -1 || errorPos > promptPos) {
+				Sys.println('\n    Expected error before prompt, got: "$stdout"');
+				return false;
+			}
+			return true;
+		});
+
 		// Clean up the server
 		server.kill();
 		server.close();

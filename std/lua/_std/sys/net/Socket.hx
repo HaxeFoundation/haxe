@@ -128,6 +128,9 @@ class Socket {
 
 	public function bind(host:Host, port:Int):Void {
 		final master = getTcpMaster();
+		// like the other targets, so a port can be bound again while connections on it are in TIME_WAIT
+		if (Sys.systemName() != "Windows")
+			master.setoption(ReuseAddress, true);
 		master.bind(host.host, port);
 	}
 

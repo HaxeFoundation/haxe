@@ -12,8 +12,12 @@
 	the POSIX shell convention and the old fork+exec behavior where
 	fork always succeeded). *)
 
+type process_handle =
+	| Pid of int (* Unix.create_process, reaped with waitpid *)
+	| Popen of int * (in_channel * out_channel * in_channel) (* Unix.open_process_full, reaped with close_process_full *)
+
 type process = {
-	pid : int;
+	handle : process_handle;
 	stdin_fd : Unix.file_descr;
 	stdout_fd : Unix.file_descr;
 	stderr_fd : Unix.file_descr;
@@ -36,16 +40,28 @@ let unix_error_msg err fn arg =
 	Printf.sprintf "%s(%s): %s" fn arg (Unix.error_message err)
 
 let run cmd args =
+	match args with
+	| None when Sys.win32 ->
+		(* cmd.exe must get the command line as is, not re-quoted as an argv entry.
+		   The pipes are duplicated so they stay readable after close_process_full. *)
+		let (pout, pin, perr) as popen = Unix.open_process_full cmd (Unix.environment ()) in
+		let dup fd = Unix.dup ~cloexec:true fd in
+		let stdin_fd = dup (Unix.descr_of_out_channel pin) in
+		close_out pin; (* so that close_stdin signals EOF *)
+		{
+			handle = Popen (Unix.process_full_pid popen, popen);
+			stdin_fd;
+			stdout_fd = dup (Unix.descr_of_in_channel pout);
+			stderr_fd = dup (Unix.descr_of_in_channel perr);
+			exit_code = None;
+		}
+	| _ ->
 	let (child_stdin_r, child_stdin_w) = Unix.pipe ~cloexec:true () in
 	let (child_stdout_r, child_stdout_w) = Unix.pipe ~cloexec:true () in
 	let (child_stderr_r, child_stderr_w) = Unix.pipe ~cloexec:true () in
 	let shell, argv = match args with
 		| None ->
-			if Sys.win32 then
-				let comspec = try Sys.getenv "COMSPEC" with Not_found -> "cmd.exe" in
-				comspec, [|comspec; "/C"; cmd|]
-			else
-				"/bin/sh", [|"/bin/sh"; "-c"; cmd|]
+			"/bin/sh", [|"/bin/sh"; "-c"; cmd|]
 		| Some a ->
 			cmd, Array.append [|cmd|] a
 	in
@@ -57,7 +73,7 @@ let run cmd args =
 		Unix.close child_stdin_r;
 		Unix.close child_stdout_w;
 		Unix.close child_stderr_w;
-		{ pid; stdin_fd = child_stdin_w; stdout_fd = child_stdout_r; stderr_fd = child_stderr_r; exit_code = None }
+		{ handle = Pid pid; stdin_fd = child_stdin_w; stdout_fd = child_stdout_r; stderr_fd = child_stderr_r; exit_code = None }
 	| Error err  ->
 		Unix.close child_stdin_r;
 		Unix.close child_stdin_w;
@@ -83,7 +99,7 @@ let run cmd args =
 				Unix.close child_stderr_w;
 				make_eof_fd ()
 		in
-		{ pid = 0; stdin_fd = make_null_fd (); stdout_fd = make_eof_fd (); stderr_fd = stderr_r; exit_code = Some 127 }
+		{ handle = Pid 0; stdin_fd = make_null_fd (); stdout_fd = make_eof_fd (); stderr_fd = stderr_r; exit_code = Some 127 }
 
 let read_stdout p buf pos len =
 	let n = try
@@ -115,7 +131,10 @@ let exit p =
 	match p.exit_code with
 	| Some c -> c
 	| None ->
-		let _, status = Unix.waitpid [] p.pid in
+		let status = match p.handle with
+			| Pid pid -> snd (Unix.waitpid [] pid)
+			| Popen (_, popen) -> Unix.close_process_full popen
+		in
 		let c = match status with
 			| Unix.WEXITED c -> c
 			| Unix.WSIGNALED c -> c
@@ -124,13 +143,22 @@ let exit p =
 		p.exit_code <- Some c;
 		c
 
-let pid p = p.pid
+let pid p = match p.handle with
+	| Pid pid | Popen (pid, _) -> pid
 
 let close p =
 	(try Unix.close p.stdout_fd with Unix.Unix_error _ -> ());
 	(try Unix.close p.stderr_fd with Unix.Unix_error _ -> ());
-	(try Unix.close p.stdin_fd with Unix.Unix_error _ -> ())
+	(try Unix.close p.stdin_fd with Unix.Unix_error _ -> ());
+	match p.handle with
+	| Pid _ -> ()
+	| Popen (_, (pout, _, perr)) ->
+		(* not reaped by exit: release the original pipes too *)
+		if p.exit_code = None then begin
+			close_in_noerr pout;
+			close_in_noerr perr
+		end
 
 let kill p =
-	if p.exit_code = None && p.pid > 0 then
-		(try Unix.kill p.pid Sys.sigkill with Unix.Unix_error _ -> ())
+	if p.exit_code = None && pid p > 0 then
+		(try Unix.kill (pid p) Sys.sigkill with Unix.Unix_error _ -> ())

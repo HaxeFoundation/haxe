@@ -2838,7 +2838,7 @@ let generate com boot_name =
 					else nargs (n - 1) ((mk (TArray (rest, const n)) t_rest_item rest.epos) :: acc)
 				in
 				let rec loop n e_else =
-					let args = (nargs (n - 1) args_rev) in
+					let args = List.rev_append args_rev (nargs (n - 1) []) in
 					let e = mk (TIf (check n, args_to_expr args, Some e_else)) t_result rest.epos in
 					if n = 0 then e
 					else loop (n - 1) e

@@ -90,6 +90,8 @@ extern class String {
 		String relative to position 0 is returned.
 
 		If `str` cannot be found, -1 is returned.
+
+		If `str` is null, the result is unspecified.
 	**/
 	function indexOf(str:String, ?startIndex:Int):Int;
 
@@ -105,6 +107,8 @@ extern class String {
 		If `startIndex` is negative, the result is unspecified.
 
 		If `str` cannot be found, -1 is returned.
+
+		If `str` is null, the result is unspecified.
 	**/
 	function lastIndexOf(str:String, ?startIndex:Int):Int;
 

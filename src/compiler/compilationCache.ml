@@ -35,6 +35,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	val files : (Path.UniqueKey.t,cached_file) Hashtbl.t = Hashtbl.create 0
 	val modules : (path,module_def) Hashtbl.t = Hashtbl.create 0
 	val binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
+	val fake_modules : (Path.UniqueKey.t,module_def) Hashtbl.t = Hashtbl.create 0
 	val tmp_binary_cache : (path,HxbData.module_cache) Hashtbl.t = Hashtbl.create 0
 	val get_hxb_module_mutex = Mutex.create ()
 	val removed_files = Hashtbl.create 0
@@ -109,6 +110,17 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method cache_module_in_memory path m =
 		Hashtbl.replace modules path m
 
+	(* fake modules *)
+
+	method find_fake_module key =
+		Hashtbl.find fake_modules key
+
+	method add_fake_module key m =
+		Hashtbl.replace fake_modules key m
+
+	method remove_fake_module key =
+		Hashtbl.remove fake_modules key
+
 	method clear_temp_cache =
 		Hashtbl.clear tmp_binary_cache
 
@@ -120,6 +132,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method clear_modules =
 		Hashtbl.clear modules;
 		Hashtbl.clear binary_cache;
+		Hashtbl.clear fake_modules;
 		self#clear_temp_cache;
 		Hashtbl.clear removed_files;
 		Hashtbl.filter_map_inplace (fun _ cfile ->
