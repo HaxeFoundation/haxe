@@ -88,12 +88,12 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		try (Hashtbl.find modules path).m_extra
 		with Not_found -> (self#get_hxb_module path).mc_extra
 
-	method add_binary_cache m chunks =
+	method add_binary_cache m chunks cache_state =
 		Hashtbl.replace binary_cache m.m_path {
 			mc_path = m.m_path;
 			mc_id = m.m_id;
 			mc_chunks = chunks;
-			mc_extra = { m.m_extra with m_cache_state = MSGood; m_display_deps = None }
+			mc_extra = { m.m_extra with m_cache_state = cache_state; m_display_deps = None }
 		}
 
 	method cache_hxb_module config warn anon_identification m =

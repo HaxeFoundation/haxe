@@ -334,7 +334,8 @@ and context = {
 	(* typing state *)
 	mutable std : tclass;
 	mutable global_metadata : (string list * metadata_entry * (bool * bool * bool)) list;
-	mutable file_contents : (Path.UniqueKey.t * string option) list;
+	(* Files given with a display request, with their unsaved contents if the request sent any *)
+	mutable file_contents : (Path.UniqueKey.t,string option) Hashtbl.t;
 	parser_cache : (string,(type_def * pos) list) lookup;
 	module_to_file : (path,ClassPaths.resolved_file) lookup;
 	overload_cache : ((path * string),(Type.t * tclass_field) list) lookup;
@@ -403,6 +404,20 @@ let module_warning com m w options msg p =
 		DynArray.add m.m_extra.m_cache_bound_objects (Message cm)
 	end;
 	com.warning w options msg p
+
+(* File contents *)
+
+let set_file_contents com l =
+	let h = Hashtbl.create (List.length l) in
+	List.iter (fun (file_key,contents) -> Hashtbl.replace h file_key contents) l;
+	com.file_contents <- h
+
+(* Returns the contents the current request sent for [file_key], if any. *)
+let find_file_contents com file_key =
+	try Hashtbl.find com.file_contents file_key with Not_found -> None
+
+let has_file_contents com file_key =
+	find_file_contents com file_key <> None
 
 (* Defines *)
 
@@ -803,7 +818,7 @@ let create sctx request_scope part_scope display_mode =
 			}
 		};
 		std = null_class;
-		file_contents = [];
+		file_contents = Hashtbl.create 0;
 		module_to_file = new hashtbl_lookup;
 		memory_marker = memory_marker;
 		parser_cache = new hashtbl_lookup;

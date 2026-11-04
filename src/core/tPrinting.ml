@@ -651,6 +651,7 @@ module Printer = struct
 		| ServerInvalidate -> "server/invalidate"
 		| ServerInvalidateFiles -> "server_invalidate_files"
 		| ServerInvalidateModule -> "server_invalidate_module"
+		| RequestFileContents -> "request_file_contents"
 
 	let s_module_skip_reason reason =
 		(* A dependency chain can be as long as the module graph is deep: a buffer and a set, so

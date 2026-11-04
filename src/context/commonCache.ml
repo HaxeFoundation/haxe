@@ -86,7 +86,19 @@ let rec cache_context cs com =
 	let sign = Define.get_signature com.defines in
 
 	let parallels = DynArray.create () in
+	(* Modules of files whose contents came with the request were typed from unsaved buffers. They are
+	   cached as tainted so that dependencies can still be found, but they are never reused. *)
+	let cache_state m =
+		if Common.has_file_contents com (Path.UniqueKey.lazy_key m.m_extra.m_file) then
+			MSBad (Tainted RequestFileContents)
+		else
+			MSGood
+	in
 	let cache_module m =
+		begin match cache_state m with
+			| MSGood -> ()
+			| state -> m.m_extra.m_cache_state <- state
+		end;
 		if Define.defined com.defines DisableHxbCache then
 			(* If we have a signature mismatch, look-up cache for module. Physical equality check is fine as a heuristic. *)
 			let cc = if m.m_extra.m_sign = sign then cc else cs#get_context m.m_extra.m_sign in
@@ -116,7 +128,7 @@ let rec cache_context cs com =
 		) (DynArray.to_array parallels) (cc,null_module,[])
 	) in
 	Array.iter (fun (cc,m,chunks) ->
-		cc#add_binary_cache m chunks
+		cc#add_binary_cache m chunks (cache_state m)
 	) a;
 	begin match com.get_macros() with
 		| None -> ()

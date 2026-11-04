@@ -79,6 +79,11 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
 		com.part_scope.parser_state.was_auto_triggered <- was_auto_triggered;
 
+		(* Contents equal to the file on disk are no unsaved changes, so the caches can be used. *)
+		let unless_saved file contents = match contents with
+			| Some s when (try Std.input_file ~bin:true file = s with _ -> false) -> None
+			| c -> c
+		in
 		if file <> file_input_marker then begin
 			let file_unique = com.part_scope.file_keys#get file in
 
@@ -88,11 +93,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 				pmax = pos;
 			};
 
-			let contents = match contents with
-				| Some s when (try Std.input_file ~bin:true file = s with _ -> false) -> None
-				| c -> c
-			in
-			com.file_contents <- [file_unique, contents];
+			Common.set_file_contents com [file_unique, unless_saved file contents];
 		end else begin
 			let file_contents = jsonrpc#get_opt_param (fun () ->
 				jsonrpc#get_opt_param (fun () -> jsonrpc#get_array_param "fileContents") []
@@ -107,16 +108,12 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 						let s = jsonrpc#get_string_field "fileContents" "contents" fl in
 						Some s
 					) None in
-					let contents = match contents with
-						| Some s when (try Std.input_file ~bin:true file = s with _ -> false) -> None
-						| c -> c
-					in
-					(file_unique, contents)
+					(file_unique, unless_saved file contents)
 				| _ -> invalid_arg "fileContents"
 			) file_contents in
 
 			let files = (List.map (fun (k, _) -> k) file_contents) in
-			com.file_contents <- file_contents;
+			Common.set_file_contents com file_contents;
 
 			match files with
 			| [] -> DisplayPosition.display_position#set { pfile = file; pmin = pos; pmax = pos; };
@@ -254,7 +251,7 @@ let handler =
 			hctx.display#set_display_file false false;
 			hctx.display#enable_display ~skip_define:true DMNone;
 			hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = true };
-			hctx.com.part_scope.report_mode <- RMDiagnostics (List.map (fun (f,_) -> f) hctx.com.file_contents);
+			hctx.com.part_scope.report_mode <- RMDiagnostics (Hashtbl.fold (fun f _ acc -> f :: acc) hctx.com.file_contents []);
 			NoResponse
 		);
 		"display/statistics", (fun hctx ->

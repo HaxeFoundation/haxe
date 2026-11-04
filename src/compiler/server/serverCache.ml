@@ -14,13 +14,10 @@ let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 	let ffile = Path.get_full_path rfile.file
 	and fkey = com.part_scope.file_keys#get file in
 	let is_display_file = DisplayPosition.display_position#is_in_file (com.part_scope.file_keys#get ffile) in
-	let has_request_contents =
-		com.file_contents <> [] && (try List.assoc fkey com.file_contents <> None with Not_found -> false)
-	in
 	match is_display_file, sctx.ServerCompilationContext.current_stdin with
-	| true, Some stdin when (com.file_contents <> [] || Common.defined com Define.DisplayStdin) ->
+	| true, Some stdin when (Hashtbl.length com.file_contents > 0 || Common.defined com Define.DisplayStdin) ->
 		TypeloadParse.parse_file_from_string com file p stdin
-	| _ when has_request_contents ->
+	| _ when Common.has_file_contents com fkey ->
 		(try
 			cc#find_tmp_parse fkey
 		with Not_found ->
@@ -225,9 +222,7 @@ let check_module sctx com m_path m_extra p =
 		in
 		let check_request_contents () =
 			let file = Path.UniqueKey.lazy_path m_extra.m_file in
-			let fkey = Path.UniqueKey.lazy_key m_extra.m_file in
-			let has_contents = (try List.assoc fkey com.file_contents <> None with Not_found -> false) in
-			if has_contents && content_changed m_path file then begin
+			if Common.has_file_contents com (Path.UniqueKey.lazy_key m_extra.m_file) && content_changed m_path file then begin
 				ServerMessage.not_cached com "" m_path;
 				raise (Dirty (FileChanged file))
 			end
@@ -253,7 +248,7 @@ let check_module sctx com m_path m_extra p =
 			try
 				check_module_path();
 				if not (has_policy NoFileSystemCheck) || Path.file_extension (Path.UniqueKey.lazy_path m_extra.m_file) <> "hx" then check_file();
-				if com.file_contents <> [] then check_request_contents();
+				check_request_contents();
 				if (get_typing_mode com m_extra) = FullTyping then check_dependencies();
 				None
 			with
