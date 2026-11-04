@@ -38,6 +38,7 @@ type module_tainting_reason =
 	| ServerInvalidate
 	| ServerInvalidateFiles
 	| ServerInvalidateModule
+	| RequestFileContents
 
 type module_skip_reason =
 	| DependencyDirty of path * module_skip_reason

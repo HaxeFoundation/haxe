@@ -25,4 +25,29 @@ class UnsavedContentsStale extends TestCase {
 		var t = if (res == null || res.item == null) "<null>" else try res.item.type.args.path.typeName catch (_) "<untyped>";
 		Assert.equals("String", t, "got " + t);
 	}
+
+	static inline var DISK = "class A { static function main() { Sys.println(\"from-disk\"); } }";
+	static inline var BUFFER = "class A { static function main() { Sys.println(\"from-buffer\"); } }";
+
+	// Diagnostics with unsaved contents populates the module cache. A later compilation without
+	// contents must not reuse the modules typed from the buffer.
+	function testDiagnosticsThenCompile(_) {
+		vfs.putContent("A.hx", DISK);
+		var args = ["-main", "A", "--interp"];
+		runHaxe(args);
+		assertHasPrint("from-disk");
+		runHaxeJson(args, DisplayMethods.Diagnostics, {fileContents: [{file: new FsPath("A.hx"), contents: BUFFER}]});
+		runHaxe(args);
+		assertHasPrint("from-disk");
+		Assert.isFalse(hasMessage("Haxe print: from-buffer"), "buffer contents leaked into compilation");
+	}
+
+	function testColdDiagnosticsThenCompile(_) {
+		vfs.putContent("A.hx", DISK);
+		var args = ["-main", "A", "--interp"];
+		runHaxeJson(args, DisplayMethods.Diagnostics, {fileContents: [{file: new FsPath("A.hx"), contents: BUFFER}]});
+		runHaxe(args);
+		assertHasPrint("from-disk");
+		Assert.isFalse(hasMessage("Haxe print: from-buffer"), "buffer contents leaked into compilation");
+	}
 }
