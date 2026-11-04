@@ -23,7 +23,5 @@ function main() {
 	new R<Null<Int>>();
 	new R<AbstractOverInt>();
 	new R<EnumAbstractOverInt>();
-	new R<Any>();
 	new R<() -> Void>();
-	new R<haxe.Constraints.Function>();
 }

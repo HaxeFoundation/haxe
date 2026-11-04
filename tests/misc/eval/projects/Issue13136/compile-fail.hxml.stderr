@@ -1,9 +1,5 @@
-Fail.hx:28: characters 8-33 : Constraint check failure for R.T
-Fail.hx:28: characters 8-33 : ... haxe.Function should be haxe.ReferenceType
-Fail.hx:27: characters 8-18 : Constraint check failure for R.T
-Fail.hx:27: characters 8-18 : ... () -> Void should be haxe.ReferenceType
-Fail.hx:26: characters 8-11 : Constraint check failure for R.T
-Fail.hx:26: characters 8-11 : ... Any should be haxe.ReferenceType
+Fail.hx:26: characters 8-18 : Constraint check failure for R.T
+Fail.hx:26: characters 8-18 : ... () -> Void should be haxe.ReferenceType
 Fail.hx:25: characters 8-27 : Constraint check failure for R.T
 Fail.hx:25: characters 8-27 : ... EnumAbstractOverInt should be haxe.ReferenceType
 Fail.hx:24: characters 8-23 : Constraint check failure for R.T

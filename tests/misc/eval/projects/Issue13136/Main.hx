@@ -58,6 +58,8 @@ function main() {
 	new R<AbstractOverNullClass>();
 	new R<EnumAbstractOverString>();
 	new R<Map<String, Int>>();
+	// Dynamic and abstracts over it
+	new R<Any>();
 	// types of types
 	new R<Class<C>>();
 	new R<Enum<E>>();

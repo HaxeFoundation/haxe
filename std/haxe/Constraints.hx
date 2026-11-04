@@ -57,16 +57,14 @@ abstract NotVoid(Dynamic) { }
 	  * enum values
 	  * anonymous structures
 	  * `Class<T>`, `Enum<T>` and `EnumValue`
-	  * `Dynamic`, for compatibility with the `{}` constraint
+	  * `Dynamic`
 	  * `Null<T>` if `T` unifies with this type
 	  * abstracts whose underlying type unifies with this type
 	  * type parameters that have a constraint which unifies with this type,
 	    which includes `{}`
 
 	Basic types such as `Int`, `Float` and `Bool`, abstracts over them and
-	functions do not unify with it, because comparing them by reference is not
-	meaningful. Neither do abstracts over `Dynamic`, such as `Any`, because they
-	can hold basic types as well.
+	functions do not unify with it.
 
 	It is intended to be used as a type parameter constraint. If used as a real
 	type, the underlying type will be `Dynamic`.

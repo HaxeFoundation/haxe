@@ -905,6 +905,12 @@
 		"internal": true
 	},
 	{
+		"name": "ReferenceType",
+		"metadata": ":referenceType",
+		"doc": "Marks a core type abstract as having reference values, so that it unifies with `haxe.Constraints.ReferenceType`.",
+		"targets": ["TAbstract"]
+	},
+	{
 		"name": "Remove",
 		"metadata": ":remove",
 		"doc": "Causes an interface to be removed from all implementing classes before generation.",

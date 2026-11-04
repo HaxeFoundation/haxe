@@ -27,4 +27,4 @@
 
 	@see https://haxe.org/manual/types-class-instance.html
 **/
-@:coreType @:runtimeValue abstract Class<T> {}
+@:coreType @:runtimeValue @:referenceType abstract Class<T> {}
