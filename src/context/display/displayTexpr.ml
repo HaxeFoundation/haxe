@@ -166,8 +166,13 @@ let check_display_file ctx cs =
 	| Some cc ->
 		begin try
 			let p = DisplayPosition.display_position#get in
-			let cfile = cc#find_file (ctx.com.part_scope.file_keys#get p.pfile) in
+			let fkey = ctx.com.part_scope.file_keys#get p.pfile in
+			let cfile = cc#find_file fkey in
 			let path = (cfile.c_package,get_module_name_of_cfile p.pfile cfile) in
+			if (try List.assoc fkey ctx.com.file_contents <> None with Not_found -> false) then begin
+				let _,_,_,decls,_ = TypeloadParse.parse_module' ctx.com path null_pos in
+				if decls <> cfile.c_decls then raise Not_found
+			end;
 			TypeloadParse.PdiHandler.handle_pdi ctx.com cfile.c_pdi;
 			(* We have to go through type_module_hook because one of the module's dependencies could be
 			   invalid (issue #8991). *)
