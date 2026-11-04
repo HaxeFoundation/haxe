@@ -208,7 +208,7 @@ class Socket extends sys.net.Socket {
 	public override function accept():Socket {
 		var c = sys.net.Socket.socket_accept(__s);
 		if(c == null)
-			throw "Blocking";
+			throw haxe.io.Error.Blocked;
 		var cssl = new Context(conf);
 		cssl.setSocket(c);
 

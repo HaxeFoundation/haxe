@@ -35,9 +35,6 @@ let json_of_times root =
 
 let supports_resolve = ref false
 
-let create_json_context  may_resolve =
-	Genjson.create_context (if may_resolve && !supports_resolve then GMMinimum else GMFull)
-
 let send_string io j =
 	CompilerIo.write_result io j
 
@@ -203,7 +200,8 @@ let handler =
 	let l = [
 		"initialize", (fun hctx ->
 			supports_resolve := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_bool_param "supportsResolve") false;
-			ServerConfig.max_completion_items := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_int_param "maxCompletionItems") 0;
+			hctx.jsonrpc#get_opt_param (fun () -> ServerConfig.max_completion_items := hctx.jsonrpc#get_int_param "maxCompletionItems") ();
+			hctx.jsonrpc#get_opt_param (fun () -> ServerConfig.stale_context_max_age_seconds := hctx.jsonrpc#get_int_param "staleContextMaxAge") ();
 			let exclude = hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_array_param "exclude") [] in
 			DisplayToplevel.exclude := List.map (fun e -> match e with JString s -> s | _ -> die "" __LOC__) exclude;
 			let methods = Hashtbl.fold (fun k _ acc -> (jstring k) :: acc) h [] in
@@ -228,7 +226,7 @@ let handler =
 			let i = hctx.jsonrpc#get_int_param "index" in
 			begin try
 				let item = (!DisplayException.last_completion_result).(i) in
-				let ctx = Genjson.create_context GMFull in
+				let ctx = Genjson.create_full_config () in
 				Result (jobject ["item",CompletionItem.to_json ctx None item])
 			with Invalid_argument _ ->
 				Error (jstring (Printf.sprintf "Invalid index: %i" i))
@@ -469,7 +467,7 @@ let handler =
 						end;
 						let infos = t_infos mt in
 						if snd infos.mt_path = typeName then begin
-							let ctx = Genjson.create_context GMMinimum in
+							let ctx = Genjson.create_full_config () in
 							Result (Genjson.generate_module_type ctx mt)
 						end else
 							loop mtl
@@ -570,7 +568,7 @@ let handler =
 		);
 		"typer/compiledTypes", (fun hctx ->
 			defer AfterFilters (fun () ->
-				let ctx = create_context GMFull in
+				let ctx = create_full_config () in
 				let l = List.map (generate_module_type ctx) hctx.com.types in
 				Result (jarray l)
 			)

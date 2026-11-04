@@ -411,7 +411,15 @@ class typed_function
 			let msig = method_sig jfi.jargs jfi.jret in
 			if not (jc_closure#has_method jfi.jname msig) then begin
 				let jm_invoke_next = spawn_invoke_next jfi.jname msig false in
-				functions#make_forward_method_jsig jc_closure jm_invoke_next meth.name jfi.jargs jfi.jret meth.dargs meth.dret
+				(* Forward to the typed invoke (arg_sigs, ret) rather than the
+				   Object-declassified (meth.dargs, meth.dret). When the FI's
+				   own method is also named "invoke" with an erased Object
+				   return (Function0<T>, Callable<V>, …), forwarding to
+				   meth.dret would emit `invokevirtual invoke()Object` against
+				   this very bridge and self-recurse — the later loop that
+				   would have synthesized the Object→typed bridge is then
+				   short-circuited by has_method. *)
+				functions#make_forward_method_jsig jc_closure jm_invoke_next meth.name jfi.jargs jfi.jret arg_sigs ret
 			end
 		) functional_interfaces;
 		let rec loop meth =

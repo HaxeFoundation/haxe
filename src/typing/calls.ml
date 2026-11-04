@@ -93,7 +93,7 @@ let make_call ctx e params t ?(force_inline=false) p =
 
 let mk_array_get_call ctx (cf,tf,r,e1) c ebase p = match cf.cf_expr with
 	| None when not (has_class_field_flag cf CfExtern) ->
-		if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array get method" p;
+		if not (has_class_field_flag cf CfNoExpr) then display_error ctx.com "Recursive array get method" p;
 		mk (TArray(ebase,e1)) r p
 	| _ ->
 		let et = type_module_type ctx (TClassDecl c) p in
@@ -103,7 +103,7 @@ let mk_array_get_call ctx (cf,tf,r,e1) c ebase p = match cf.cf_expr with
 let mk_array_set_call ctx (cf,tf,r,e1,evalue) c ebase p =
 	match cf.cf_expr with
 		| None when not (has_class_field_flag cf CfExtern) ->
-			if not (Meta.has Meta.NoExpr cf.cf_meta) then display_error ctx.com "Recursive array set method" p;
+			if not (has_class_field_flag cf CfNoExpr) then display_error ctx.com "Recursive array set method" p;
 			let ea = mk (TArray(ebase,e1)) r p in
 			mk (TBinop(OpAssign,ea,evalue)) r p
 		| _ ->
@@ -316,13 +316,7 @@ let rec build_call_access ctx acc el mode with_type p =
 let build_call ?(mode=MGet) ctx acc el (with_type:WithType.t) p =
 	acc_get ctx (build_call_access ctx acc el mode with_type p)
 
-let rec needs_temp_var e =
-	match e.eexpr with
-	| TLocal _ | TTypeExpr _ | TConst _ -> false
-	| TField (e, _) | TParenthesis e -> needs_temp_var e
-	| _ -> true
-
-let call_to_string ctx ?(resume=false) e =
+let call_to_string ctx ?(resume=false) ?(no_null_check=false) e =
 	if not ctx.allow_transform then
 		{ e with etype = ctx.t.tstring }
 	else
@@ -333,27 +327,10 @@ let call_to_string ctx ?(resume=false) e =
 		ctx.f.meta <- List.tl ctx.f.meta;
 		build_call ctx acc [] (WithType.with_type ctx.t.tstring) e.epos
 	in
-	if ctx.com.config.pf_static && not (is_nullable e.etype) then
+	if no_null_check || (ctx.com.config.pf_static && not (is_nullable e.etype)) then
 		gen_to_string e
-	else begin (* generate `if(e == null) 'null' else e.toString()` *)
-		let string_null = mk (TConst (TString "null")) ctx.t.tstring e.epos in
-		if needs_temp_var e then
-			let tmp = alloc_var VGenerated "tmp" e.etype e.epos in
-			let tmp_local = mk (TLocal tmp) tmp.v_type tmp.v_pos in
-			let check_null = mk (TBinop (OpEq, tmp_local, mk (TConst TNull) tmp.v_type tmp.v_pos)) ctx.t.tbool e.epos in
-			{
-				eexpr = TBlock([
-					mk (TVar (tmp, Some e)) tmp.v_type tmp.v_pos;
-					mk (TIf (check_null, string_null, Some (gen_to_string tmp_local))) ctx.t.tstring tmp.v_pos;
-
-				]);
-				etype = ctx.t.tstring;
-				epos = e.epos;
-			}
-		else
-			let check_null = mk (TBinop (OpEq, e, mk (TConst TNull) e.etype e.epos)) ctx.t.tbool e.epos in
-			mk (TIf (check_null, string_null, Some (gen_to_string e))) ctx.t.tstring e.epos
-	end
+	else
+		Texpr.Builder.make_null_safe_to_string ctx.t gen_to_string e e.epos
 
 let type_bind ctx (e : texpr) (args,ret) params safe p =
 	let vexpr v = mk (TLocal v) v.v_type p in

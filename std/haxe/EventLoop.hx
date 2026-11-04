@@ -355,7 +355,7 @@ class EventLoop {
 		lock();
 		if( events == null ) {
 			unlock();
-			return 1e9;
+			return 1e6;
 		}
 		var now = haxe.Timer.stamp();
 		var e = events;

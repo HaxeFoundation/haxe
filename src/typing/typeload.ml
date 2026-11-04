@@ -84,6 +84,11 @@ let find_type_in_module m tname =
 		not infos.mt_private && snd infos.mt_path = tname
 	) m.m_types
 
+let can_recover_from_missing_type ctx err =
+	display_recovery_enabled ctx.com
+	&& ctx.com.part_scope.running_macros = 0
+	&& not (ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in err.err_pos)
+
 (* raises Type_not_found *)
 let find_type_in_module_raise ctx m tname p =
 	try
@@ -637,9 +642,17 @@ and load_complex_type' ctx allow_display mode (t,p) =
 and load_complex_type ctx allow_display mode (t,pn) =
 	try
 		load_complex_type' ctx allow_display mode (t,pn)
-	with Error ({ err_message = Module_not_found(([],name)) } as err) ->
+	with Error ({ err_message = Module_not_found _ | Type_not_found _ } as err) ->
 		if Diagnostics.error_in_diagnostics_run ctx.com err.err_pos then begin
-			delay ctx.g PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name err.err_pos true);
+			begin match err.err_message with
+			| Module_not_found ([],name) ->
+				delay ctx.g PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name err.err_pos true)
+			| _ ->
+				display_error_ext ctx.com err
+			end;
+			t_dynamic
+		end else if can_recover_from_missing_type ctx err then begin
+			display_error_ext ctx.com err;
 			t_dynamic
 		end else
 			raise (Error err)
@@ -814,6 +827,7 @@ let load_core_class ctx c =
 			) ctx.com.class_paths#as_list;
 			if com2.display.dms_check_core_api then com2.display <- {com2.display with dms_check_core_api = false};
 			CommonCache.lock_signature com2 "load_core_class";
+			(CommonCache.get_cache ctx.com)#add_child (CommonCache.get_cache_sign com2);
 			let ctx2 = !create_context_ref com2 ctx.g.macros in
 			ctx.g.core_api <- Some ctx2;
 			ctx2

@@ -311,44 +311,40 @@ class ServerTests extends TestCase {
 		assertReuse("HelloWorld");
 	}
 
-	function testDiagnosticsCacheBoundMissingFields() {
+	function testDiagnosticsMissingFieldsNotCached() {
 		vfs.putContent("MissingFieldsDep.hx", getTemplate("diagnostics/MissingFieldsDep.hx"));
 		vfs.putContent("MissingFieldsMain.hx", getTemplate("diagnostics/MissingFieldsMain.hx"));
 		var args = ["--main", "MissingFieldsMain", "--interp"];
-		// First diagnostics run: types both modules, creates MissingFields on Dep, caches both
 		var res1 = runHaxeJson(args, DisplayMethods.Diagnostics, {
 			fileContents: [{file: new FsPath("MissingFieldsMain.hx")}, {file: new FsPath("MissingFieldsDep.hx")}]
 		});
 		final diags1 = findDiagnosticsFor(res1, "MissingFieldsDep.hx");
 		Assert.notNull(diags1);
 		Assert.notNull(diags1.find(d -> d.kind == MissingFields));
-		// Invalidate Main only, so Dep stays cached
 		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("MissingFieldsMain.hx")});
-		// Second diagnostics run: Main retyped, Dep reused from cache, MissingFields replayed
 		var res2 = runHaxeJson(args, DisplayMethods.Diagnostics, {
 			fileContents: [{file: new FsPath("MissingFieldsMain.hx")}, {file: new FsPath("MissingFieldsDep.hx")}]
 		});
-		assertReuse("MissingFieldsDep");
+		// Dep was not invalidated, but the previous run typed it with downgraded errors
+		Assert.isFalse(hasMessage("reusing MissingFieldsDep"));
 		final diags2 = findDiagnosticsFor(res2, "MissingFieldsDep.hx");
 		Assert.notNull(diags2);
 		Assert.notNull(diags2.find(d -> d.kind == MissingFields));
 	}
 
-	function testDiagnosticsCacheBoundFilterOnReplay() {
+	function testDiagnosticsMissingFieldsInCompilation() {
 		vfs.putContent("MissingFieldsDep.hx", getTemplate("diagnostics/MissingFieldsDep.hx"));
 		vfs.putContent("MissingFieldsMain.hx", getTemplate("diagnostics/MissingFieldsMain.hx"));
 		var args = ["--main", "MissingFieldsMain", "--interp"];
-		// Diagnostics run: types both modules, caches Dep with MissingFields cache-bound object
 		var res = runHaxeJson(args, DisplayMethods.Diagnostics, {
 			fileContents: [{file: new FsPath("MissingFieldsMain.hx")}, {file: new FsPath("MissingFieldsDep.hx")}]
 		});
 		final diags = findDiagnosticsFor(res, "MissingFieldsDep.hx");
 		Assert.notNull(diags);
 		Assert.notNull(diags.find(d -> d.kind == MissingFields));
-		// Normal compilation: Dep reused from cache, MissingFields NOT replayed (filtered by RMDiagnostics)
 		runHaxe(args);
-		// No error messages from filtered diagnostics (only normal "Field needed by" errors)
-		Assert.isFalse(hasErrorMessage("unimplemented"));
+		Assert.isFalse(hasMessage("reusing MissingFieldsDep"));
+		assertErrorMessage("Field doSomething needed by IFoo is missing");
 	}
 
 	function testDiagnosticsMultipleOpenFiles() {
@@ -499,6 +495,37 @@ class ServerTests extends TestCase {
 		var completion = runHaxeJson(args, DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
 		assertHasCompletion(completion, module -> switch (module.kind) {
 			case Type: module.args.path.typeName == "Empty";
+			case _: false;
+		});
+	}
+
+	function testSyntaxCachePlatformSpecificFiles() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		vfs.putContent("EmptyJs.js.hx", "class EmptyJs {}");
+		vfs.putContent("EmptyPy.py.hx", "class EmptyPy {}");
+		var args = ["-cp", ".", "-js", "no.js", "--no-output"];
+		runHaxeJson(args, ServerMethods.ReadClassPaths, {wait: true});
+		var completion = runHaxeJson(args, DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
+		// EmptyJs.js.hx matches the current platform and must show up as module EmptyJs
+		assertHasCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "EmptyJs";
+			case _: false;
+		});
+		// EmptyPy.py.hx belongs to another platform and must not show up
+		assertHasNoCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "EmptyPy";
+			case _: false;
+		});
+	}
+
+	function testSyntaxCacheCustomExtensionFiles() {
+		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
+		vfs.putContent("EmptyCustom.custom.hx", "class EmptyCustom {}");
+		var args = ["-cp", ".", "--custom-extension", "custom", "--interp"];
+		runHaxeJson(args, ServerMethods.ReadClassPaths, {wait: true});
+		var completion = runHaxeJson(args, DisplayMethods.Completion, {file: new FsPath("HelloWorld.hx"), offset: 75, wasAutoTriggered: false});
+		assertHasCompletion(completion, module -> switch (module.kind) {
+			case Type: module.args.path.typeName == "EmptyCustom";
 			case _: false;
 		});
 	}

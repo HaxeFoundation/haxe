@@ -17,5 +17,7 @@ function main() {
 		"test/Listeners$UnaryStringFn.class",
 		"test/Listeners$ArgOnly.class",
 		"test/Listeners$CtorOnly.class",
-		"test/Listeners$CtorSam.class"]);
+		"test/Listeners$CtorSam.class",
+		"test/Listeners$GenericInvoke.class",
+		"test/Listeners$Boxed.class"]);
 }

@@ -119,3 +119,44 @@ let maybe_resolve_instance_overload is_ctor map_type c cf el =
 let maybe_resolve_constructor_overload c tl el =
 	let cf,c,tl = get_constructor_class c tl in
 	maybe_resolve_instance_overload true (apply_params c.cl_params tl) c cf el
+
+(*
+	After inlining or generic substitution, [Type.map_expr_type] has re-resolved
+	TField nodes by name through [quick_field], which collapses an overloaded
+	method to its first declared overload while leaving the field's applied type
+	untouched. This restores the correct overload on such call nodes (other nodes
+	are returned unchanged - hence [maybe_]).
+
+	The matching overload is re-selected structurally from the (already mapped)
+	argument types and just the field reference is restored, which is what code
+	generation relies on. This needs no typer: the arguments are already typed,
+	so resolution only unifies their types against each candidate.
+*)
+let maybe_reapply_overload_call e =
+	match e.eexpr with
+		| TCall({eexpr = TField(e1,fa)} as ef,el) ->
+			let rebuild cf' =
+				let fa = match fa with
+					| FInstance(c,tl,_) -> FInstance(c,tl,cf')
+					| FStatic(c,_) -> FStatic(c,cf')
+					| _ -> fa
+				in
+				{e with eexpr = TCall({ef with eexpr = TField(e1,fa)},el)}
+			in
+			begin match fa with
+			| FStatic(c,cf) when has_class_field_flag cf CfOverload ->
+				begin match filter_overloads (find_overload (fun t -> t) c cf el) with
+				| Some(_,cf',_) -> rebuild cf'
+				| None -> e
+				end
+			| FInstance(c,tl,cf) when has_class_field_flag cf CfOverload ->
+				let map_type = apply_params c.cl_params tl in
+				begin match resolve_instance_overload false map_type c cf.cf_name el with
+				| Some(_,cf',_) -> rebuild cf'
+				| None -> e
+				end
+			| _ ->
+				e
+			end
+		| _ ->
+			e

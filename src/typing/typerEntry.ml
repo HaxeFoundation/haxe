@@ -245,7 +245,7 @@ let create com macros =
 			core_api = None;
 			macros = macros;
 			module_check_policies = [];
-			delayed = Array.init TyperPass.all_typer_passes_length (fun _ -> { tasks = []});
+			delayed = Array.init TyperPass.all_typer_passes_length (fun _ -> { tasks = []; tasks_late = []});
 			delayed_min_index = 0;
 			debug_delayed = [];
 			retain_meta = Common.defined com Define.RetainUntypedMeta;
@@ -265,6 +265,7 @@ let create com macros =
 			do_format_string = format_string;
 			do_load_core_class = Typeload.load_core_class;
 			delayed_display = None;
+			call_arg_context = None;
 			root_typer = ctx;
 		};
 		m = {
@@ -303,4 +304,3 @@ let create com macros =
 
 ;;
 create_context_ref := create;
-Inline.maybe_reapply_overload_call_ref := CallUnification.maybe_reapply_overload_call;

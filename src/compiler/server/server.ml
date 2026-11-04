@@ -284,6 +284,19 @@ module WorkerDomain = struct
 
 	let create sctx rq =
 		let domain = Domain.spawn (fun () ->
+			(* Enlarge the minor heap of the compilation domain only — the domain that runs
+			   typing/macro/hxb, the source of most short-lived allocation that otherwise gets
+			   promoted to the major heap. A per-domain Gc.set does not change the default
+			   inherited by the parallel pool's worker domains, so it costs the minor heap size
+			   in RSS once, not once per domain. Default 32MB; HAXE_MAIN_MINOR_MB overrides
+			   (in MB; 0 disables). *)
+			let mb =
+				match (try Some (Sys.getenv "HAXE_MAIN_MINOR_MB") with Not_found -> None) with
+				| Some s -> (try int_of_string s with _ -> 32)
+				| None -> 32
+			in
+			if mb > 0 then
+				Gc.set { (Gc.get ()) with Gc.minor_heap_size = mb * 1024 * 1024 / (Sys.word_size / 8) };
 			let cs = sctx.cs in
 			let rec loop () =
 				Semaphore.Counting.acquire rq.semaphore;

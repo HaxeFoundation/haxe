@@ -35,6 +35,24 @@ class FileSystem {
 	}
 
 	public static function stat(path:String):FileStat {
+		#if (hl_ver >= version("2.0.0"))
+		var values = sys_stat2(Sys.getPath(makeCompatiblePath(path)));
+		if (values == null)
+			throw new Sys.SysError("Failed to stat " + path);
+		return {
+			gid: values[0].toInt(),
+			uid: values[1].toInt(),
+			atime: @:privateAccess Date.fromI64(values[2]),
+			mtime: @:privateAccess Date.fromI64(values[3]),
+			ctime: @:privateAccess Date.fromI64(values[4]),
+			size: values[5].toInt(),
+			dev: values[6].toInt(),
+			ino: values[7].toInt(),
+			nlink: values[8].toInt(),
+			rdev: values[9].toInt(),
+			mode: values[10].toInt(),
+		};
+		#else
 		var values = sys_stat(Sys.getPath(makeCompatiblePath(path)));
 		if (values == null)
 			throw new Sys.SysError("Failed to stat " + path);
@@ -51,6 +69,7 @@ class FileSystem {
 			rdev: values[9],
 			mode: values[10],
 		};
+		#end
 	}
 
 	public static function fullPath(relPath:String):String {
@@ -77,7 +96,7 @@ class FileSystem {
 		}
 		for (part in parts) {
 			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part))
-				if (!sys_create_dir(Sys.getPath(part), 493))
+				if (!sys_create_dir(Sys.getPath(part), 493) && !exists(part))
 					throw new Sys.SysError("Failed to create directory " + part);
 		}
 	}
@@ -124,6 +143,12 @@ class FileSystem {
 	@:hlNative("std", "sys_stat") static function sys_stat(path:hl.Bytes):hl.NativeArray<Int> {
 		return null;
 	}
+
+	#if (hl_ver >= version("2.0.0"))
+	@:hlNative("std", "sys_stat2") static function sys_stat2(path:hl.Bytes):hl.NativeArray<hl.I64> {
+		return null;
+	}
+	#end
 
 	@:hlNative("std", "sys_rename") static function sys_rename(path:hl.Bytes, to:hl.Bytes):Bool {
 		return true;

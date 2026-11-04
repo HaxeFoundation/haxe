@@ -52,7 +52,7 @@ let create_eval tthread =
 		caught_types = IntHashtbl.create 0;
 		last_return = None;
 		caught_exception = vnull;
-		eval_storage = IntMap.empty;
+		eval_storage = TlsStorage.create 0;
 	} in
 	eval
 
