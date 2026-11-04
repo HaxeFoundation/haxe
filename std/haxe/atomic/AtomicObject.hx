@@ -30,6 +30,11 @@ abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
 
 		Note that comparison is done by reference, and not by value.
 		While this is expected for most objects, this might give unexpected behaviour for strings.
+
+		Enum constructors without arguments compare as the same value on all targets, including
+		values obtained through `Type.createEnum`, `Type.createEnumIndex` and `Type.allEnums`.
+		For constructors with arguments, only the identical instance is guaranteed to match;
+		whether an equal but distinct value matches depends on the target.
 	**/
 	public function compareExchange(expected:T, replacement:T):T {
 		this.mutex.acquire();
@@ -99,6 +104,11 @@ abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
 
 		Note that comparison is done by reference, and not by value.
 		While this is expected for most objects, this might give unexpected behaviour for strings.
+
+		Enum constructors without arguments compare as the same value on all targets, including
+		values obtained through `Type.createEnum`, `Type.createEnumIndex` and `Type.allEnums`.
+		For constructors with arguments, only the identical instance is guaranteed to match;
+		whether an equal but distinct value matches depends on the target.
 	**/
 	public function compareExchange(expected:T, replacement:T):T {
 		final value = this.value;

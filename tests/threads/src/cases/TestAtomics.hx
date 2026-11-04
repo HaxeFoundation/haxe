@@ -9,6 +9,7 @@ import haxe.atomic.AtomicObject;
 private enum Outcome {
 	Succeeded;
 	Failed(error:String);
+	Cancelled;
 }
 
 @:timeout(2000)
@@ -46,6 +47,39 @@ class TestAtomics extends ThreadTestBase {
 				fail('unexpected outcome $other');
 		}
 		async.done();
+	}
+
+	// Enum constructors without arguments must compare as the same value however they were obtained,
+	// including through the reflection API.
+	function testAtomicObjectEnumConstructorsWithoutArguments(async:Async) {
+		final cases:Array<{label:String, canonical:Outcome, other:Outcome, replacement:Outcome}> = [
+			{label: "direct", canonical: Succeeded, other: Succeeded, replacement: Cancelled},
+			{label: "createEnum", canonical: Succeeded, other: Type.createEnum(Outcome, "Succeeded"), replacement: Cancelled},
+			{label: "createEnum []", canonical: Succeeded, other: Type.createEnum(Outcome, "Succeeded", []), replacement: Cancelled},
+			{label: "createEnumIndex", canonical: Cancelled, other: Type.createEnumIndex(Outcome, 2), replacement: Succeeded},
+			{label: "createEnumIndex []", canonical: Cancelled, other: Type.createEnumIndex(Outcome, 2, []), replacement: Succeeded},
+			{label: "allEnums", canonical: Succeeded, other: Type.allEnums(Outcome)[0], replacement: Cancelled},
+			{label: "allEnums 2", canonical: Cancelled, other: Type.allEnums(Outcome)[1], replacement: Succeeded},
+		];
+		for (c in cases) {
+			// Concrete enum type at the call site.
+			final a = new AtomicObject<Outcome>(c.canonical);
+			a.compareExchange(c.other, c.replacement);
+			isTrue(a.load() == c.replacement, 'concrete, stored canonical: ${c.label}');
+			final b = new AtomicObject<Outcome>(c.other);
+			b.compareExchange(c.canonical, c.replacement);
+			isTrue(b.load() == c.replacement, 'concrete, stored other: ${c.label}');
+			// Erased type parameter.
+			isTrue(swapsGeneric(c.canonical, c.other, c.replacement), 'generic, stored canonical: ${c.label}');
+			isTrue(swapsGeneric(c.other, c.canonical, c.replacement), 'generic, stored other: ${c.label}');
+		}
+		async.done();
+	}
+
+	static function swapsGeneric<T:EnumValue>(stored:T, expected:T, replacement:T) {
+		final a = new AtomicObject<T>(stored);
+		a.compareExchange(expected, replacement);
+		return a.load() == replacement;
 	}
 
 	// hl/cpp GC must stop all threads: a non-allocating spin loop would never stop and deadlock it.
