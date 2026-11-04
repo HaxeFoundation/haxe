@@ -124,7 +124,7 @@ import haxe.iterators.StringKeyValueIterator;
 			s = s.substr(-len);
 		else if (digits != null)
 			s = lpad(s, '0', digits);
-		return s.toUpperCase();
+		return s;
 	}
 
 	public static function fastCodeAt(s:String, index:Int):Int {
