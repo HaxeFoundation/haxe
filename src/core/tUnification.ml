@@ -772,6 +772,33 @@ let field_type_for_unification uctx f =
 	if uctx.opaque_field_params then f.cf_type
 	else field_type f
 
+(* Whether values of type [t] are references that keep their identity on every target,
+   see haxe.Constraints.ReferenceType. Abstracts count by their underlying type, which is
+   what exists at runtime. [ttps] guards against cycles between type parameter constraints. *)
+let rec is_reference_type ttps t =
+	match follow t with
+	| TInst({cl_kind = KTypeParameter ttp},_) ->
+		not (List.memq ttp ttps) && List.exists (is_reference_type (ttp :: ttps)) (get_constraints ttp)
+	| TInst _ | TEnum _ | TAnon _ ->
+		true
+	| TDynamic _ ->
+		(* accepted for compatibility with the { } constraint *)
+		true
+	| TAbstract({a_path = [],"Null"},[t]) ->
+		is_reference_type ttps t
+	| TAbstract({a_path = ([],("EnumValue" | "Class" | "Enum")) | (["haxe"],("ReferenceType" | "FlatEnum" | "Constructible"))},_) ->
+		true
+	| TAbstract(a,tl) when not (Meta.has Meta.CoreType a.a_meta) && a.a_path <> (["haxe"],"Function") && a.a_path <> (["haxe"],"NotVoid") ->
+		begin match follow (apply_params a.a_params tl a.a_this) with
+		| TDynamic _ ->
+			(* Any and similar abstracts can hold anything *)
+			false
+		| t ->
+			is_reference_type ttps t
+		end
+	| _ ->
+		false
+
 let rec unify (uctx : unification_context) a b =
 	if a == b then
 		()
@@ -810,6 +837,8 @@ let rec unify (uctx : unification_context) a b =
 	| _,TAbstract ({a_path=[],"Null"},[t]) ->
 		begin try unify uctx a t
 		with Unify_error l -> error (cannot_unify a b :: l) end
+	| _, TAbstract ({ a_path = ["haxe"],"ReferenceType" },[]) ->
+		if not (is_reference_type [] a) then error [cannot_unify a b]
 	| TAbstract (a1,tl1) , TAbstract (a2,tl2) when a1 == a2 ->
 		begin try
 			unify_type_params uctx a b tl1 tl2

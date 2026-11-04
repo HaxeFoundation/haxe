@@ -1,0 +1,22 @@
+Fail.hx:28: characters 8-33 : Constraint check failure for R.T
+Fail.hx:28: characters 8-33 : ... haxe.Function should be haxe.ReferenceType
+Fail.hx:27: characters 8-18 : Constraint check failure for R.T
+Fail.hx:27: characters 8-18 : ... () -> Void should be haxe.ReferenceType
+Fail.hx:26: characters 8-11 : Constraint check failure for R.T
+Fail.hx:26: characters 8-11 : ... Any should be haxe.ReferenceType
+Fail.hx:25: characters 8-27 : Constraint check failure for R.T
+Fail.hx:25: characters 8-27 : ... EnumAbstractOverInt should be haxe.ReferenceType
+Fail.hx:24: characters 8-23 : Constraint check failure for R.T
+Fail.hx:24: characters 8-23 : ... AbstractOverInt should be haxe.ReferenceType
+Fail.hx:23: characters 8-17 : Constraint check failure for R.T
+Fail.hx:23: characters 8-17 : ... Null<Int> should be haxe.ReferenceType
+Fail.hx:22: characters 8-12 : Constraint check failure for R.T
+Fail.hx:22: characters 8-12 : ... Bool should be haxe.ReferenceType
+Fail.hx:21: characters 8-13 : Constraint check failure for R.T
+Fail.hx:21: characters 8-13 : ... Float should be haxe.ReferenceType
+Fail.hx:20: characters 8-11 : Constraint check failure for R.T
+Fail.hx:20: characters 8-11 : ... Int should be haxe.ReferenceType
+Fail.hx:12: characters 10-11 : Constraint check failure for R.T
+Fail.hx:12: characters 10-11 : ... FromUnconstrained.T should be haxe.ReferenceType
+Fail.hx:16: characters 10-11 : Constraint check failure for R.T
+Fail.hx:16: characters 10-11 : ... FromInt.T should be haxe.ReferenceType

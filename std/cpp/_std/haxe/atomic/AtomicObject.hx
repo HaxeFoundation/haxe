@@ -11,12 +11,12 @@ private extern class AtomicObjectImpl {
 	function compareExchange(expected:Dynamic, replacement:Dynamic):Dynamic;
 }
 
-private typedef AtomicObjectData<T:{}> = AtomicObjectImpl;
+private typedef AtomicObjectData<T:haxe.Constraints.ReferenceType> = AtomicObjectImpl;
 
 #if cppia
 extern
 #end
-abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
+abstract AtomicObject<T:haxe.Constraints.ReferenceType>(AtomicObjectData<T>) {
 	#if cppia
 	public function new(value:T):Void;
 
