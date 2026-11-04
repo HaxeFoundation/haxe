@@ -81,7 +81,7 @@ private typedef ERegValue = hl.Abstract<"ereg">;
 				if (regexp_matched_pos(r, i, null) >= 0) num++;
 				i++;
 			}
-		} catch (_:String) {}
+		} catch (_:Dynamic) {}
 		return num;
 		#end
 	}
