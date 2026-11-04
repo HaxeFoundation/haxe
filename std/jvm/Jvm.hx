@@ -372,7 +372,7 @@ class Jvm {
 		if (instanceof(obj, java.lang.Class)) {
 			// Haxe's String statics are implemented in StringExt, not java.lang.String
 			if (obj == String && name == "fromCharCode") {
-				return readStaticField(cast StringExt, name);
+				return StringExt.fromCharCode;
 			}
 			return readStaticField(cast obj, name);
 		}
