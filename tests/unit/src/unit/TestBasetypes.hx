@@ -267,6 +267,46 @@ class TestBasetypes extends Test {
 		f( h.remove(1) );
 	}
 
+	function testInt64Map() {
+		var h = new haxe.ds.Int64Map<Null<Int>>();
+		var small = haxe.Int64.make(3, 5);
+		var big = haxe.Int64.make(-3, -5);
+		h.set(small, -1);
+		h.set(big, 8546);
+		eq(h.get(small), -1);
+		eq(h.get(big), 8546);
+		eq(h.get(456), null);
+
+		var k = Lambda.array(h);
+		k.sort(Reflect.compare);
+		eq(k.join("#"), "-1#8546");
+
+		var k = Lambda.array({iterator: h.keys});
+		// Reflect.compare doesn't order Int64 values where they are objects (e.g. hl_legacy32)
+		k.sort(haxe.Int64.compare);
+		eq(k.join("#"), "-8589934597#12884901893");
+
+		t(h.exists(small));
+		t(h.exists(big));
+		f(h.exists(456));
+		h.remove(big);
+		t(h.exists(small));
+		f(h.exists(big));
+		f(h.exists(456));
+		eq(h.get(big), null);
+
+		h.set(65, null);
+		t(h.exists(65));
+		t(h.remove(65));
+		f(h.remove(65));
+
+		var h = new haxe.ds.Int64Map();
+		h.set(1, ['a', 'b']);
+		t(h.exists(1));
+		t(h.remove(1));
+		f(h.remove(1));
+	}
+
 	function testMap() {
 		var i = new Map();
 		i[1] = 0;
@@ -455,19 +495,13 @@ class TestBasetypes extends Test {
 		var v1:unit.MyAbstract.MyVector = new unit.MyAbstract.MyPoint3(1, 1, 1);
 		var v2:unit.MyAbstract.MyVector = new unit.MyAbstract.MyPoint3(1, 2, 3);
 		eq("(2,3,4)", v1 + v2);
-#if !lua
 		eq("(2,4,6)", v2 * 2.);
-#end
 		var v1Old = v1;
 		v1 *= 2.;
-#if !lua
 		eq("(2,2,2)", v1);
-#end
 		eq(v1Old, v1);
 		var v3 = v1 * 2.;
-#if !lua
 		eq("(4,4,4)", v3);
-#end
 		f(v1 == v3);
 
 		var i:unit.MyAbstract.MyInt = 1;

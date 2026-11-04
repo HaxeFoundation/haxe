@@ -133,7 +133,7 @@ let find_references com with_definition =
 			if c <> 0 then c else compare p1.pmin p2.pmin
 		) usages
 	in
-	DisplayException.raise_positions usages
+	DisplayException.send_positions_raise com usages
 
 let find_implementations com name pos kind =
 	let symbols,relations = Timer.time com.timer_ctx ["display";"implementations";"collect"] (Statistics.collect_statistics com [SFPos pos]) false in
@@ -153,9 +153,9 @@ let find_implementations com name pos kind =
 		) usages
 	) () in
 	Display.ReferencePosition.reset();
-	DisplayException.raise_positions usages
+	DisplayException.send_positions_raise com usages
 
 let find_implementations com =
 	let name,pos,kind = Display.ReferencePosition.get () in
 	if pos <> null_pos then find_implementations com name pos kind
-	else DisplayException.raise_positions []
+	else DisplayException.send_positions_raise com []

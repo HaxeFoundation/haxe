@@ -13,13 +13,12 @@ class Issue7754 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.SignatureHelp, {
+		var result = runHaxeJson([], DisplayMethods.SignatureHelp, {
 			file: file,
 			offset: offset(1),
 			wasAutoTriggered: true
 		});
-		var result = parseSignatureHelp();
-		var sigs = result.result.signatures;
+		var sigs = result.signatures;
 		Assert.equals(2, sigs.length);
 		Assert.equals('Null<String>', strType(sigs[0].args[0].t));
 		Assert.equals('Null<Int>', strType(sigs[1].args[0].t));

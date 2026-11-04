@@ -10,20 +10,20 @@ open FieldAccess
 module TypeFieldConfig = struct
 	type t = {
 		allow_resolve : bool;
+		allow_dynamic : bool;
+		allow_open_mono : bool;
 		do_resume : bool;
 	}
-
-	let allow_resolve cfg = cfg.allow_resolve
-
-	let do_resume cfg = cfg.do_resume
 
 	let default = {
 		allow_resolve = true;
 		do_resume = false;
+		allow_dynamic = true;
+		allow_open_mono = true;
 	}
 
 	let create resume = {
-		allow_resolve = true;
+		default with
 		do_resume = resume;
 	}
 
@@ -110,7 +110,7 @@ let field_access ctx mode f fh e pfield =
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	check_no_closure_meta ctx f fh mode pfield;
 	let bypass_accessor () = if ctx.e.bypass_accessor > 0 then (ctx.e.bypass_accessor <- ctx.e.bypass_accessor - 1; true) else false in
-	let make_access inline = FieldAccess.create e f fh (inline && ctx.allow_inline) pfull in
+	let make_access inline = FieldAccess.create e f fh (inline && ctx.allow_inline) pfull ~field_pos:pfield in
 	match f.cf_kind with
 	| Method m ->
 		let normal () = AKField(make_access false) in
@@ -136,6 +136,12 @@ let field_access ctx mode f fh e pfield =
 			| _ ->
 				normal()
 		in
+		let check_no_expr a =
+			(* TODO: CfNoExpr is also set on all expression-less fields of @:coreType abstracts, which is why we
+			   have to exclude those here. See https://github.com/HaxeFoundation/haxe/pull/13078#discussion_r4409517071 *)
+			if has_class_field_flag f CfNoExpr && not (Meta.has Meta.CoreType a.a_meta) then
+				display_error ctx.com ("Field " ^ f.cf_name ^ " cannot be called directly because it has no expression") pfield
+		in
 		begin match fh with
 		| FHInstance(c,tl) ->
 			if e.eexpr = TConst TSuper then begin match mode with
@@ -153,11 +159,16 @@ let field_access ctx mode f fh e pfield =
 			end;
 			default();
 		| FHStatic c ->
+			begin match c.cl_kind with
+				| KAbstractImpl a -> check_no_expr a
+				| _ -> ()
+			end;
 			maybe_check_visibility c true;
 			default()
 		| FHAnon ->
 			default()
 		| FHAbstract(a,tl,c) ->
+			check_no_expr a;
 			maybe_check_visibility c true;
 			let sea = make_abstract_static_extension_access a tl c f e false pfull in
 			AKUsingField sea
@@ -281,10 +292,12 @@ let field_access ctx mode f fh e pfield =
 let class_field ctx c tl name p =
 	raw_class_field (fun f -> field_type ctx c tl f p) c tl name
 
+open TypeFieldConfig
+
 (* Resolves field [i] on typed expression [e] using the given [mode]. *)
 (* Note: if mode = MCall, with_type (if known) refers to the return type *)
 let type_field cfg ctx e i p mode (with_type : WithType.t) =
-	let pfield = if e.epos = p then p else { p with pmin = p.pmax - (String.length i) } in
+	let pfield = if e.epos = p then p else patch_string_pos p i in
 	let is_set = match mode with MSet _ -> true | _ -> false in
 	let field_access e f fmode = field_access ctx mode f fmode e pfield in
 	let class_field_with_access e c tl =
@@ -401,13 +414,15 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					| Var ({ v_write = AccNo } as acc) when is_open && is_set -> f.cf_kind <- Var { acc with v_write = AccNormal }
 					| _ -> ());
 					field_access f FHAnon
-				with Not_found when is_open ->
+				with Not_found when is_open && cfg.allow_open_mono ->
 					let f = mk_field() in
 					Monomorph.add_down_constraint r (MField f);
 					field_access f FHAnon
 				)
 			| CTypes tl ->
 				type_field_by_list (fun (t,_) -> type_field_by_et type_field_by_type e t) tl
+			| CUnknown when not cfg.allow_open_mono ->
+				raise Not_found
 			| CUnknown ->
 				if not (List.exists (fun (m,_) -> m == r) ctx.e.monomorphs) && not (ctx.f.untyped && ctx.com.platform = Neko) then
 					ctx.e.monomorphs <- (r,p) :: ctx.e.monomorphs;
@@ -462,8 +477,13 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					try
 						let monos = Monomorph.spawn_constrained_monos (fun t -> t) cf.cf_params in
 						let cft = follow (apply_params cf.cf_params monos cf.cf_type) in
-						match cft with
-						| TFun ((_,_,(TType ({ t_path = ["haxe";"macro"],"ExprOf" },[t0]) | t0)) :: _,_) ->
+						match follow_with_coro cft with
+						| NotCoro (TFun(t0 :: _,ret))
+						| Coro (t0 :: _,ret) ->
+							let t0 = match t0 with
+								| (_,_,(TType ({ t_path = ["haxe";"macro"],"ExprOf" },[t0]))) -> t0
+								| (_,_,t0) -> t0
+							in
 							if t == t_dynamic && follow t0 != t then
 								check()
 							else begin
@@ -553,11 +573,11 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 			with Not_found when PMap.mem i c.cl_statics ->
 				raise_typing_error ("Cannot access static field " ^ i ^ " from a class instance") pfield;
 			)
-		| TDynamic t ->
+		| TDynamic t when cfg.allow_dynamic ->
 			AKExpr (mk (TField (e,FDynamic i)) (match t with None -> t_dynamic | Some t -> t) p)
 		| TAbstract (a,tl) ->
 			(try
-				if not (TypeFieldConfig.allow_resolve cfg) then raise Not_found;
+				if not cfg.allow_resolve then raise Not_found;
 				let c = find_some a.a_impl in
 				let f = find_some (if is_set then a.a_write else a.a_read) in
 				let sea = make_abstract_static_extension_access a tl c f e false p in
@@ -599,19 +619,9 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		type_field_by_fallback e t
 	with Not_found -> try
 		type_field_by_module e t
-	with Not_found when not (TypeFieldConfig.do_resume cfg) ->
+	with Not_found when not cfg.do_resume ->
 		if not ctx.f.untyped then begin
-			let has_special_field a =
-				List.exists (fun (_,cf) -> cf.cf_name = i) a.a_ops
-				|| List.exists (fun (_,_,cf) -> cf.cf_name = i) a.a_unops
-				|| List.exists (fun cf -> cf.cf_name = i) a.a_array
-			in
 			match follow t with
-			| TAnon { a_status = { contents = ClassStatics { cl_kind = KAbstractImpl a } } }
-			| TInst ({ cl_kind = KAbstractImpl a },_)
-			| TAbstract (a,_) when has_special_field a ->
-				(* the abstract field is not part of the field list, which is only true when it has no expression (issue #2344) *)
-				display_error ctx.com ("Field " ^ i ^ " cannot be called directly because it has no expression") pfield;
 			| TAnon { a_status = { contents = ClassStatics c } } when PMap.mem i c.cl_fields ->
 				display_error ctx.com ("Static access to instance field " ^ i ^ " is not allowed") pfield;
 			| _ ->
@@ -646,7 +656,7 @@ let get_struct_init_anon_fields c tl =
 			| TFun (args,_) ->
 				Some (match cf.cf_expr with
 					| Some { eexpr = TFunction fn } ->
-						List.map (fun (name,_,t) ->
+						List.map (fun (name,opt,t) ->
 							let t = apply_params c.cl_params tl t in
 							let p = try
 								let v,_ = List.find (fun (v,_) -> v.v_name = name) fn.tf_args in
@@ -654,17 +664,17 @@ let get_struct_init_anon_fields c tl =
 							with Not_found ->
 								cf.cf_name_pos
 							in
-							name,t,p,extract_param_info name
+							name,opt,t,p,extract_param_info name
 						) args
 					| _ ->
 						List.map
-							(fun (name,_,t) ->
+							(fun (name,opt,t) ->
 								let t = apply_params c.cl_params tl t in
 								try
 									let cf = PMap.find name c.cl_fields in
-									name,t,cf.cf_name_pos,gen_doc_text_opt cf.cf_doc
+									name,opt,t,cf.cf_name_pos,gen_doc_text_opt cf.cf_doc
 								with Not_found ->
-									name,t,cf.cf_name_pos,extract_param_info name
+									name,opt,t,cf.cf_name_pos,extract_param_info name
 							) args
 				)
 			| _ -> None
@@ -673,8 +683,9 @@ let get_struct_init_anon_fields c tl =
 	in
 	match args with
 	| Some args ->
-		List.fold_left (fun fields (name,t,p,doc) ->
+		List.fold_left (fun fields (name,opt,t,p,doc) ->
 			let cf = mk_field name t p p in
+			if opt then cf.cf_meta <- [(Meta.Optional,[],null_pos)];
 			cf.cf_doc <- (doc_from_string_opt doc);
 			PMap.add cf.cf_name cf fields
 		) PMap.empty args

@@ -14,10 +14,11 @@ import runci.Config.*;
 using StringTools;
 
 class Flash {
-	static final miscFlashDir = getMiscSubDir('flash');
 	static var playerLocation:String;
 
 	static final DEFAULT_APACHE_MIRROR = "https://downloads.apache.org/";
+	/** Keeps every release, but is slow, so it is only used if the mirrors fail. **/
+	static final APACHE_ARCHIVE = "https://archive.apache.org/dist/";
 
 	static function getPreferredApacheMirror() {
 		return try {
@@ -29,15 +30,38 @@ class Flash {
 	}
 
 	static function downloadAndExtractFlexSdk(version:String, sdkPath:String):Void {
-		final apacheMirror = getPreferredApacheMirror();
 		final archiveExtension = if (systemName == "Windows") "zip" else "tar.gz";
 		final archiveName = 'apache-flex-sdk-${version}-bin.$archiveExtension';
-		runNetworkCommand("wget", ["-nv", '${apacheMirror}/flex/${version}/binaries/$archiveName', "-O", getDownloadPath() + '/$archiveName']);
+		final mirrors = [];
+		for (mirror in [getPreferredApacheMirror(), DEFAULT_APACHE_MIRROR, APACHE_ARCHIVE]) {
+			if (!mirrors.contains(mirror))
+				mirrors.push(mirror);
+		}
+		final archivePath = getDownloadPath() + '/$archiveName';
+		var downloaded = false;
+		for (mirror in mirrors) {
+			// -f makes curl fail on HTTP errors instead of saving the error page as the archive,
+			// and a mirror that sends an error page with a success status fails the archive test
+			try {
+				runNetworkCommand("curl", ["-fsSL", '${mirror}/flex/${version}/binaries/$archiveName', "-o", archivePath]);
+			} catch (e:CommandFailure) {
+				failMsg('Unable to download the Flex SDK from $mirror');
+				continue;
+			}
+			final valid = if (systemName == "Windows") commandSucceed("7z", ["t", "-bso0", "-bsp0", archivePath]) else commandSucceed("gzip", ["-t", archivePath]);
+			if (valid) {
+				downloaded = true;
+				break;
+			}
+			failMsg('The Flex SDK downloaded from $mirror is not a valid archive');
+		}
+		if (!downloaded)
+			throw new CommandFailure();
 
 		if (systemName == "Windows") {
-			runCommand("7z", ["x", getDownloadPath() + '/$archiveName', "-o" + sdkPath, "-y"]);
+			runCommand("7z", ["x", archivePath, "-o" + sdkPath, "-y"]);
 		} else {
-			runCommand("tar", ["-xf", getDownloadPath() + '/$archiveName', "-C", getInstallPath()]);
+			runCommand("tar", ["-xf", archivePath, "-C", getInstallPath()]);
 		}
 	}
 
@@ -68,10 +92,10 @@ class Flash {
 			infoMsg('playerglobal.swc found at $playerGlobalSwcPath');
 		} else {
 			final flashVersion = getLatestFPVersion();
-			runNetworkCommand("wget", [
-				"-nv",
+			runNetworkCommand("curl", [
+				"-sS",
 				'https://fpdownload.macromedia.com/get/flashplayer/updaters/${flashVersion[0]}/playerglobal${flashVersion[0]}_${flashVersion[1]}.swc',
-				"-O",
+				"-o",
 				playerGlobalSwcPath
 			]);
 		}
@@ -89,10 +113,10 @@ class Flash {
 	}
 
 	static function downloadPlayer(version:Int, fileName:String, outputPath:String) {
-		runNetworkCommand("wget", [
-			"-nv",
+		runNetworkCommand("curl", [
+			"-sS",
 			'https://fpdownload.macromedia.com/pub/flashplayer/updaters/$version/$fileName',
-			"-O",
+			"-o",
 			'$outputPath/$fileName'
 		]);
 	}
@@ -252,10 +276,8 @@ class Flash {
 			runFlash("bin/unit.swf");
 		}
 
-		Display.maybeRunDisplayTests(Flash);
-
-		changeDirectory(miscFlashDir);
-		runCommand("haxe", ["run.hxml"]);
+		changeDirectory(getMiscSubDir(""));
+		runCommand("haxe", ["run-base.hxml", "--run", "Main", "flash"]);
 	}
 
 }

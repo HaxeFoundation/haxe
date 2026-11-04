@@ -1,7 +1,7 @@
 package unit.issues;
 
 class Issue9757 extends unit.Test {
-#if sys
+#if (sys || nodejs)
 	static var system:Null<String>;
 
 	static public function __init__() {

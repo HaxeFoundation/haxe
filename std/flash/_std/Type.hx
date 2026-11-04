@@ -22,6 +22,7 @@
 enum ValueType {
 	TNull;
 	TInt;
+	TInt64;
 	TFloat;
 	TBool;
 	TObject;
@@ -255,6 +256,8 @@ enum ValueType {
 							return TObject;
 						if (c.__isenum)
 							return TEnum(c);
+						if( c == @:privateAccess haxe.Int64.IMPL )
+							return TInt64;
 						return TClass(c);
 					} catch (e:Dynamic) {
 						if (cname == "builtin.as$0::MethodClosure" || cname.indexOf("-") != -1)

@@ -19,7 +19,15 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 package cpp.zip;
 
-typedef Flush = haxe.zip.FlushMode;
+@:semantics(value)
+@:include('hx/zip/Zip.hpp')
+@:cpp.ValueType({ namespace : [ 'hx', 'zip' ] })
+extern enum abstract Flush(Int) {
+	var None;
+	var Sync;
+	var Full;
+	var Finish;
+	var Block;
+}

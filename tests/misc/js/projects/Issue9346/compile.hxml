@@ -1,0 +1,4 @@
+--main Main
+--js bin/main.js
+--macro Macro.init()
+--cmd node bin/main.js

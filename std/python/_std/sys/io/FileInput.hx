@@ -25,6 +25,7 @@ package sys.io;
 import haxe.io.Bytes;
 import haxe.io.Encoding;
 import haxe.io.Input;
+import haxe.Int32;
 import python.io.IFileInput;
 
 class FileInput extends Input {
@@ -110,7 +111,7 @@ class FileInput extends Input {
 		return impl.readUInt24();
 	}
 
-	override public function readInt32():Int {
+	override public function readInt32():Int32 {
 		return impl.readInt32();
 	}
 

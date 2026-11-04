@@ -18,9 +18,13 @@ class TestCommandBase extends utest.Test {
 
 		var exitCode =
 			#if (macro || interp)
-				run("haxe", ["compile-each.hxml", "--run", "TestArguments"].concat(args));
+				run("haxe", ["--hxb-lib", bin, "--run", "TestArguments"].concat(args));
 			#elseif cpp
+				#if cppia
+				run("haxelib", ["run", "hxcpp", bin].concat(args).concat(Sys.getEnv("CPPIA_IS_JIT") == null ? [] : ["-jit"]));
+				#else
 				run(bin, args);
+				#end
 			#elseif java
 				run(Path.join([java.lang.System.getProperty("java.home"), "bin", "java"]), ["-jar", bin].concat(args));
 			#elseif python
@@ -108,9 +112,13 @@ class TestCommandBase extends utest.Test {
 			var args = [Std.string(code)];
 			var exitCode =
 				#if (macro || interp)
-					run("haxe", ["compile-each.hxml", "--run", "ExitCode"].concat(args));
+					run("haxe", ["--hxb-lib", bin, "--run", "ExitCode"].concat(args));
 				#elseif cpp
+					#if cppia
+					run("haxelib", ["run", "hxcpp", bin].concat(args).concat(Sys.getEnv("CPPIA_IS_JIT") == null ? [] : ["-jit"]));
+					#else
 					run(bin, args);
+					#end
 				#elseif java
 					run(Path.join([java.lang.System.getProperty("java.home"), "bin", "java"]), ["-jar", bin].concat(args));
 				#elseif python
@@ -145,4 +153,14 @@ class TestCommandBase extends utest.Test {
 		var exitCode = run('$native 1 || $native 0');
 		Assert.equals(0, exitCode);
 	}
+
+	#if !lua
+	// lua's Process/Sys.command fail on Windows
+	function testRawCommandWithQuotes() {
+		// shell quotes in a raw command must be interpreted by the shell: ExitCode must receive 3, not "3"
+		var native = sys.FileSystem.absolutePath(ExitCode.getNative());
+		var exitCode = run('$native "3"');
+		Assert.equals(3, exitCode);
+	}
+	#end
 }

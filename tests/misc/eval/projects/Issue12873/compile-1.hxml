@@ -1,0 +1,3 @@
+--cwd dir2
+-lib lib2
+--main Main

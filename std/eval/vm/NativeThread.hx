@@ -22,6 +22,13 @@
 
 package eval.vm;
 
+@:ifFeature("eval.vm.NativeThread.exit")
+class NativeThreadExit extends haxe.Exception {
+	public function new() {
+		super("NativeThreadExit");
+	}
+}
+
 extern class NativeThread {
 	/**
 		Creates a new thread that executes function `f`.
@@ -37,12 +44,6 @@ extern class NativeThread {
 		indexed by threads.
 	**/
 	function id():Int;
-
-	/**
-		Terminate prematurely the thread whose handle is given. This functionality is
-		available only with bytecode-level threads.
-	**/
-	function kill():Int;
 
 	/**
 		Suspends the execution of the calling thread for `f` seconds. The other program
@@ -77,6 +78,4 @@ extern class NativeThread {
 
 	function sendMessage<T>(msg:T):Void;
 
-	@:allow(sys.thread.Thread)
-	private var events(get,set):Null<sys.thread.EventLoop>;
 }

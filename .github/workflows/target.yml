@@ -12,9 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check branches
+        env:
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          if [ ${{ github.base_ref }} != "development" ]; then
-            echo "Merge requests should target development."
+          if [ "$HEAD_REPO" != "HaxeFoundation/haxe" ] && [ "$BASE_REF" != "development" ]; then
+            echo "Merge requests from forks should target development."
             exit 1
           fi
 

@@ -2,6 +2,8 @@ package haxe;
 
 import haxe.CallStack.StackItem;
 
+private typedef NativeTrace = Array<String>;
+
 /**
 	Do not use manually.
 **/
@@ -12,21 +14,21 @@ class NativeStackTrace {
 	static public inline function saveStack(exception:Any):Void {
 	}
 
-	static public function callStack():Array<String> {
+	static public function callStack():NativeTrace {
 		return switch lua.Debug.traceback() {
 			case null: [];
 			case s: s.split('\n').slice(3);
 		}
 	}
 
-	static public function exceptionStack():Array<String> {
+	static public function exceptionStack():NativeTrace {
 		return []; //Not implemented. Maybe try xpcal instead of pcal in genlua.
 	}
 
-	static public function toHaxe(native:Array<String>, skip:Int = 0):Array<StackItem> {
+	static public function toHaxe(nativeStackTrace:NativeTrace, skip:Int = 0):Array<StackItem> {
 		var stack = [];
 		var cnt = -1;
-		for (item in native) {
+		for (item in nativeStackTrace) {
 			var parts = item.substr(1).split(":"); //`substr` to skip a tab at the beginning of a line
 			var file = parts[0];
 			if(file == '[C]') {

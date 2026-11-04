@@ -26,6 +26,7 @@ import lua.Table;
 enum ValueType {
 	TNull;
 	TInt;
+	TInt64;
 	TFloat;
 	TBool;
 	TObject;
@@ -92,9 +93,7 @@ enum ValueType {
 
 	public static function createEmptyInstance<T>(cl:Class<T>):T
 		untyped {
-			var ret = __lua_table__();
-			Lua.setmetatable(ret, untyped {__index: cl.prototype});
-			return ret;
+			return _hx_new(cl.prototype);
 		}
 
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
@@ -169,6 +168,8 @@ enum ValueType {
 				if (e != null)
 					return TEnum(e);
 				var c = lua.Boot.getClass(v);
+				if( c == @:privateAccess haxe.Int64.IMPL )
+					return TInt64;
 				if (c != null)
 					return TClass(c);
 				return TObject;

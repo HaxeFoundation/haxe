@@ -2,32 +2,9 @@ package haxe.atomic;
 
 import js.lib.Atomics;
 
-#if doc_gen
-@:coreApi
-@:coreType
-abstract AtomicInt {
-	public function new(value:Int):Void;
+private typedef AtomicIntData = js.lib.Int32Array;
 
-	public function add(b:Int):Int;
-
-	public function sub(b:Int):Int;
-
-	public function and(b:Int):Int;
-
-	public function or(b:Int):Int;
-
-	public function xor(b:Int):Int;
-
-	public function compareExchange(expected:Int, replacement:Int):Int;
-
-	public function exchange(value:Int):Int;
-
-	public function load():Int;
-
-	public function store(value:Int):Int;
-}
-#else
-abstract AtomicInt(js.lib.Int32Array) {
+abstract AtomicInt(AtomicIntData) {
 	public inline function new(value:Int) {
 		this = new js.lib.Int32Array(new js.lib.SharedArrayBuffer(js.lib.Int32Array.BYTES_PER_ELEMENT));
 		this[0] = value;
@@ -73,4 +50,3 @@ abstract AtomicInt(js.lib.Int32Array) {
 		return Atomics.store(asArray(), 0, value);
 	}
 }
-#end

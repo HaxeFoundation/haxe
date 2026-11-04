@@ -2,6 +2,8 @@ package unit;
 
 import utest.Assert;
 
+private typedef IdentityOf<T> = T;
+
 private class MyNotString {
 	var s:String;
 
@@ -120,5 +122,30 @@ class TestConstrainedMonomorphs extends Test {
 		eq("hi", Issue6065Extern.f("hi"));
 	}
 	#end
+
+	static function constrainedToSibling<A:B, B>(a:A, b:B):Void {}
+
+	function testUnifyMonoWithItsConstraintTarget() {
+		// unifying A with B replays A's mono-mono constraint onto B itself;
+		// the resulting self-edge sent classify_down_constraints into
+		// unbounded recursion (compiler hang)
+		var x = null;
+		constrainedToSibling(x, x);
+		noAssert();
+	}
+
+	static function constrainedToNullOfSibling<A:Null<B>, B>(a:A, b:B):Void {}
+
+	static function constrainedToTypedefOfSibling<A:IdentityOf<B>, B>(a:A, b:B):Void {}
+
+	function testUnifyMonoWithFollowTransparentConstraintTarget() {
+		// Null<B> and typedefs follow to the bare monomorph, creating the same
+		// mono-mono constraint edge as a direct A:B constraint
+		var x = null;
+		constrainedToNullOfSibling(x, x);
+		var y = null;
+		constrainedToTypedefOfSibling(y, y);
+		noAssert();
+	}
 
 }

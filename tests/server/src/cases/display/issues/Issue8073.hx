@@ -12,18 +12,16 @@ class Issue8073 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Hover, {
+		var result = runHaxeJson([], DisplayMethods.Hover, {
 			file: file,
 			offset: offset(2)
 		});
-		var result = parseHover();
-		Assert.same(range(1, 3), result.result.range);
+		Assert.same(range(1, 3), result.range);
 
-		runHaxeJson([], DisplayMethods.Hover, {
+		var result = runHaxeJson([], DisplayMethods.Hover, {
 			file: file,
 			offset: offset(5)
 		});
-		var result = parseHover();
-		Assert.same(range(4, 6), result.result.range);
+		Assert.same(range(4, 6), result.range);
 	}
 }

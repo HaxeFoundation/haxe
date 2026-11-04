@@ -1,0 +1,10 @@
+Main.hx:59: characters 13-14 : Cannot redefine write access of x as null in subclass, superclass uses set
+Main.hx:55: characters 13-14 : Cannot redefine read access of x as default in subclass, superclass uses get
+Main.hx:51: characters 6-7 : Variable x has less visibility (public/private) than superclass one
+Main.hx:47: characters 13-14 : Cannot redefine write access of x as private set in subclass, superclass uses set
+Main.hx:43: characters 13-14 : Cannot redefine write access of x as never in subclass, superclass uses set
+Main.hx:39: characters 13-14 : Cannot redefine read access of x as never in subclass, superclass uses get
+Main.hx:26: characters 13-14 : Redefinition of variable x in subclass is not allowed. Previously declared at PhysicalParent
+Main.hx:22: characters 13-14 : Redefinition of variable x in subclass is not allowed. Previously declared at PhysicalPropertyParent
+Main.hx:18: characters 21-22 : Redefinition of variable x in subclass is not allowed. Previously declared at PhysicalPropertyParent
+Main.hx:14: characters 13-14 : Redefinition of variable x in subclass is not allowed. Previously declared at PhysicalParent

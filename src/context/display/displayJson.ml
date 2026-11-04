@@ -35,14 +35,27 @@ let json_of_times root =
 
 let supports_resolve = ref false
 
-let create_json_context jsonrpc may_resolve =
-	Genjson.create_context ~jsonrpc:jsonrpc (if may_resolve && !supports_resolve then GMMinimum else GMFull)
+let send_string io j =
+	CompilerIo.write_result io j
 
-let send_string j =
-	raise (Completion j)
+let send_json io json =
+	send_string io (string_of_json json)
 
-let send_json json =
-	send_string (string_of_json json)
+exception JsonCompleted
+
+(* send_string_raise writes the string to io and then raises JsonCompleted.
+   JsonCompleted is a control-flow exception signaling that a JSON-RPC response has been
+   sent and no further output should be produced. It is caught by catch_completion_and_exit
+   which calls finalize and exits cleanly.
+   Raising is necessary for call-sites that send their response from within compilation
+   (display output handlers, deferred callbacks, flush_context), where we need to abort
+   further processing once the response is sent. *)
+let send_string_raise io j =
+	send_string io j;
+	raise JsonCompleted
+
+let send_json_raise io json =
+	send_string_raise io (string_of_json json)
 
 class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) = object(self)
 	val cs = cs;
@@ -64,10 +77,10 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 		) None in
 
 		let pos = if requires_offset then jsonrpc#get_int_param "offset" else (-1) in
-		com.parser_state.was_auto_triggered <- was_auto_triggered;
+		com.part_scope.parser_state.was_auto_triggered <- was_auto_triggered;
 
 		if file <> file_input_marker then begin
-			let file_unique = com.file_keys#get file in
+			let file_unique = com.part_scope.file_keys#get file in
 
 			DisplayPosition.display_position#set {
 				pfile = file;
@@ -85,7 +98,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 				| JObject fl ->
 					let file = jsonrpc#get_string_field "fileContents" "file" fl in
 					let file = Path.get_full_path file in
-					let file_unique = com.file_keys#get file in
+					let file_unique = com.part_scope.file_keys#get file in
 					let contents = jsonrpc#get_opt_param (fun () ->
 						let s = jsonrpc#get_string_field "fileContents" "contents" fl in
 						Some s
@@ -104,7 +117,7 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 end
 
 class hxb_reader_api_com
-	~(full_restore : bool)
+	~(typing_mode : HxbData.typing_mode)
 	(com : Common.context)
 	(cc : CompilationCache.context_cache)
 = object(self)
@@ -123,12 +136,12 @@ class hxb_reader_api_com
 	method add_module (m : module_def) =
 		com.module_lut#add m.m_path m;
 
-	method resolve_type (pack : string list) (mname : string) (tname : string) =
+	method resolve_type (pack : string list) (mname : string) (tname : string) (_:HxbData.typing_mode) =
 		let path = (pack,mname) in
 		let m = self#find_module path in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 
-	method resolve_module (path : path) =
+	method resolve_module (path : path) (_:HxbData.typing_mode) =
 		self#find_module path
 
 	method find_module (m_path : path) =
@@ -139,7 +152,7 @@ class hxb_reader_api_com
 		with Not_found ->
 			let mc = cc#get_hxb_module m_path in
 			let reader = new HxbReader.hxb_reader mc.mc_path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
-			fst (reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks (if full_restore then EOM else MTF) full_restore)
+			fst (reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks (if typing_mode = FullTyping then EOM else MTF) typing_mode)
 
 	method basic_types =
 		com.basic
@@ -154,16 +167,32 @@ class hxb_reader_api_com
 		TLazy (make_unforced_lazy t f "com-api")
 end
 
-let find_module ~(full_restore : bool) com cc path =
-	(new hxb_reader_api_com ~full_restore com cc)#find_module path
+let find_module ~(typing_mode : HxbData.typing_mode) com cc path =
+	(new hxb_reader_api_com ~typing_mode com cc)#find_module path
 
 type handler_context = {
 	com : Common.context;
 	jsonrpc : jsonrpc_handler;
 	display : display_handler;
-	send_result : Json.t -> unit;
-	send_error : 'a . Json.t list -> 'a;
 }
+
+type api_deferrence =
+	| AfterInitMacros
+	| AfterFilters
+
+type api_response =
+	| NoResponse
+	| Result of Json.t
+	| Error of Json.t
+	| Deferred of api_deferrence * (unit -> api_response)
+
+let defer deferrence f =
+	Deferred (deferrence, fun () -> f ())
+
+exception Api_error of Json.t
+
+let api_error j =
+	raise (Api_error j)
 
 let handler =
 	let open CompilationCache in
@@ -171,18 +200,20 @@ let handler =
 	let l = [
 		"initialize", (fun hctx ->
 			supports_resolve := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_bool_param "supportsResolve") false;
-			ServerConfig.max_completion_items := hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_int_param "maxCompletionItems") 0;
+			hctx.jsonrpc#get_opt_param (fun () -> ServerConfig.max_completion_items := hctx.jsonrpc#get_int_param "maxCompletionItems") ();
+			hctx.jsonrpc#get_opt_param (fun () -> ServerConfig.stale_context_max_age_seconds := hctx.jsonrpc#get_int_param "staleContextMaxAge") ();
 			let exclude = hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_array_param "exclude") [] in
 			DisplayToplevel.exclude := List.map (fun e -> match e with JString s -> s | _ -> die "" __LOC__) exclude;
 			let methods = Hashtbl.fold (fun k _ acc -> (jstring k) :: acc) h [] in
-			hctx.send_result (JObject [
+			let version = hctx.com.sctx.version in
+			Result (JObject [
 				"methods",jarray methods;
 				"haxeVersion",jobject [
-					"major",jint hctx.com.version.major;
-					"minor",jint hctx.com.version.minor;
-					"patch",jint hctx.com.version.revision;
-					"pre",(match hctx.com.version.pre with None -> jnull | Some pre -> jstring pre);
-					"build",(match hctx.com.version.extra with None -> jnull | Some(_,build) -> jstring build);
+					"major",jint version.major;
+					"minor",jint version.minor;
+					"patch",jint version.revision;
+					"pre",(match version.pre with None -> jnull | Some pre -> jstring pre);
+					"build",(match version.extra with None -> jnull | Some(_,build) -> jstring build);
 				];
 				"protocolVersion",jobject [
 					"major",jint 0;
@@ -195,61 +226,88 @@ let handler =
 			let i = hctx.jsonrpc#get_int_param "index" in
 			begin try
 				let item = (!DisplayException.last_completion_result).(i) in
-				let ctx = Genjson.create_context GMFull in
-				hctx.send_result (jobject ["item",CompletionItem.to_json ctx None item])
+				let ctx = Genjson.create_full_config () in
+				Result (jobject ["item",CompletionItem.to_json ctx None item])
 			with Invalid_argument _ ->
-				hctx.send_error [jstring (Printf.sprintf "Invalid index: %i" i)]
+				Error (jstring (Printf.sprintf "Invalid index: %i" i))
 			end
 		);
 		"display/completion", (fun hctx ->
 			hctx.display#set_display_file (hctx.jsonrpc#get_bool_param "wasAutoTriggered") true;
 			hctx.display#enable_display DMDefault;
+			NoResponse
 		);
 		"display/definition", (fun hctx ->
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMDefinition;
+			NoResponse
 		);
 		"display/diagnostics", (fun hctx ->
 			hctx.display#set_display_file false false;
 			hctx.display#enable_display ~skip_define:true DMNone;
 			hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = true };
-			hctx.com.report_mode <- RMDiagnostics (List.map (fun (f,_) -> f) hctx.com.file_contents);
+			hctx.com.part_scope.report_mode <- RMDiagnostics (List.map (fun (f,_) -> f) hctx.com.file_contents);
+			NoResponse
+		);
+		"display/statistics", (fun hctx ->
+			hctx.display#set_display_file false false;
+			hctx.display#enable_display ~skip_define:true DMNone;
+			hctx.com.display <- { hctx.com.display with dms_display_file_policy = DFPAlso; dms_per_file = true; dms_populate_cache = true };
+			hctx.com.part_scope.report_mode <- RMStatistics;
+			NoResponse
 		);
 		"display/implementation", (fun hctx ->
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display (DMImplementation);
+			NoResponse
 		);
 		"display/typeDefinition", (fun hctx ->
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMTypeDefinition;
+			NoResponse
 		);
 		"display/references", (fun hctx ->
 			hctx.display#set_display_file false true;
-			match hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_string_param "kind") "normal" with
+			begin match hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_string_param "kind") "normal" with
 			| "withBaseAndDescendants" ->
 				hctx.display#enable_display (DMUsage (false,true,true));
 			| "withDescendants" ->
 				hctx.display#enable_display (DMUsage (false,true,false));
 			| _ ->
 				hctx.display#enable_display (DMUsage (false,false,false));
+			end;
+			NoResponse
 		);
 		"display/hover", (fun hctx ->
 			hctx.display#set_display_file false true;
 			hctx.display#enable_display DMHover;
+			NoResponse
 		);
 		"display/package", (fun hctx ->
 			hctx.display#set_display_file false false;
 			hctx.display#enable_display DMPackage;
+			NoResponse
+		);
+		"display/documentSymbols", (fun hctx ->
+			hctx.display#set_display_file false false;
+			hctx.display#enable_display (DMModuleSymbols None);
+			NoResponse
+		);
+		"display/workspaceSymbols", (fun hctx ->
+			let filter = hctx.jsonrpc#get_string_param "filter" in
+			hctx.display#enable_display (DMModuleSymbols (Some filter));
+			NoResponse
 		);
 		"display/signatureHelp", (fun hctx ->
 			hctx.display#set_display_file (hctx.jsonrpc#get_bool_param "wasAutoTriggered") true;
-			hctx.display#enable_display DMSignature
+			hctx.display#enable_display DMSignature;
+			NoResponse
 		);
 		"display/metadata", (fun hctx ->
 			let include_compiler_meta = hctx.jsonrpc#get_bool_param "compiler" in
 			let include_user_meta = hctx.jsonrpc#get_bool_param "user" in
 
-			hctx.com.callbacks#add_after_init_macros (fun () ->
+			defer AfterInitMacros (fun () ->
 				let all = Meta.get_meta_list hctx.com.user_metas in
 				let all = List.filter (fun (_, (data:Meta.meta_infos)) ->
 					match data.m_origin with
@@ -258,7 +316,7 @@ let handler =
 					| _ -> false
 				) all in
 
-				hctx.send_result (jarray (List.map (fun (t, (data:Meta.meta_infos)) ->
+				Result (jarray (List.map (fun (t, (data:Meta.meta_infos)) ->
 					let fields = [
 						"name", jstring t;
 						"doc", jstring data.m_doc;
@@ -282,7 +340,7 @@ let handler =
 			let include_compiler_defines = hctx.jsonrpc#get_bool_param "compiler" in
 			let include_user_defines = hctx.jsonrpc#get_bool_param "user" in
 
-			hctx.com.callbacks#add_after_init_macros (fun () ->
+			defer AfterInitMacros (fun () ->
 				let all = Define.get_define_list hctx.com.user_defines in
 				let all = List.filter (fun (_, (data:Define.define_infos)) ->
 					match data.d_origin with
@@ -291,7 +349,7 @@ let handler =
 					| _ -> false
 				) all in
 
-				hctx.send_result (jarray (List.map (fun (t, (data:Define.define_infos)) ->
+				Result (jarray (List.map (fun (t, (data:Define.define_infos)) ->
 					let fields = [
 						"name", jstring t;
 						"doc", jstring data.d_doc;
@@ -303,7 +361,8 @@ let handler =
 							| UserDefined (Some o) -> o
 						);
 						"deprecated", jopt jstring data.d_deprecated;
-						"links", jarray (List.map jstring data.d_links)
+						"links", jarray (List.map jstring data.d_links);
+						"reserved", jopt jbool data.d_reserved
 					] in
 
 					(jobject fields)
@@ -315,17 +374,52 @@ let handler =
 			supports_resolve := false;
 			DisplayException.reset();
 			ServerConfig.reset();
-			hctx.send_result (jobject [
+			Result (jobject [
 				"success", jbool true
 			]);
 		);
+		"server/resetState", (fun hctx ->
+			hctx.com.sctx.persistent_cwd <- None;
+			hctx.com.cs#soft_clear;
+			supports_resolve := false;
+			DisplayException.reset();
+			ServerConfig.reset();
+			Result (jobject [
+				"success", jbool true
+			]);
+		);
+		"server/setCwd", (fun hctx ->
+			let dir = hctx.jsonrpc#get_string_param "dir" in
+			let dir = Path.get_full_path dir in
+			if not (Sys.file_exists dir && Sys.is_directory dir) then
+				raise (Api_error (jstring ("Invalid directory: " ^ dir)));
+			hctx.com.sctx.persistent_cwd <- Some dir;
+			Result jnull
+		);
+		"server/gcCompact", (fun hctx ->
+			let t0 = Extc.time() in
+			let stats_before = Gc.stat() in
+			Gc.compact();
+			let stats = Gc.quick_stat() in
+			Result (jobject [
+				"time", jfloat (Extc.time() -. t0);
+				"before", jint (stats_before.Gc.heap_words * Sys.word_size / 8);
+				"after", jint (stats.Gc.heap_words * Sys.word_size / 8);
+			]);
+		);
 		"server/readClassPaths", (fun hctx ->
-			hctx.com.callbacks#add_after_init_macros (fun () ->
+			let wait = hctx.jsonrpc#has_params && hctx.jsonrpc#get_opt_param (fun () -> hctx.jsonrpc#get_bool_param "wait") false in
+			defer AfterInitMacros (fun () ->
 				let cc = hctx.display#get_cs#get_context (Define.get_signature hctx.com.defines) in
 				cc#set_initialized true;
 				DisplayToplevel.read_class_paths hctx.com ["init"];
+				if wait then
+					hctx.display#get_cs#run_tasks true (fun task -> match task#get_id with
+						| "explore" :: _ -> true
+						| _ -> false
+					);
 				let files = hctx.display#get_cs#get_files in
-				hctx.send_result (jobject [
+				Result (jobject [
 					"files", jint (List.length files)
 				]);
 			)
@@ -333,7 +427,7 @@ let handler =
 		"server/contexts", (fun hctx ->
 			let l = List.map (fun cc -> cc#get_json) hctx.display#get_cs#get_contexts in
 			let l = List.filter (fun json -> json <> JNull) l in
-			hctx.send_result (jarray l)
+			Result (jarray l)
 		);
 		"server/modules", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
@@ -342,54 +436,52 @@ let handler =
 			let l = Hashtbl.fold (fun _ m acc ->
 				if m.mc_extra.m_kind <> MFake then jstring (s_type_path m.mc_path) :: acc else acc
 			) cc#get_hxb [] in
-			hctx.send_result (jarray l)
+			Result (jarray l)
 		);
 		"server/module", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
 			let cs = hctx.display#get_cs in
 			let cc = cs#get_context sign in
-			let full_restore = Define.defined hctx.com.defines Define.DisableHxbOptimizations in
-			let m = try
-				find_module ~full_restore hctx.com cc path
+			let typing_mode:HxbData.typing_mode = if Define.defined hctx.com.defines Define.DisableHxbOptimizations then FullTyping else AllowPartialTyping in
+			try
+				let m = find_module ~typing_mode hctx.com cc path in
+				Result (generate_module (cc#get_hxb) (find_module ~typing_mode hctx.com cc) m)
 			with Not_found ->
-				hctx.send_error [jstring "No such module"]
-			in
-			hctx.send_result (generate_module (cc#get_hxb) (find_module ~full_restore hctx.com cc) m)
+				Error (jstring "No such module")
 		);
 		"server/type", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "modulePath") in
 			let typeName = hctx.jsonrpc#get_string_param "typeName" in
 			let cc = hctx.display#get_cs#get_context sign in
-			let m = try
-				find_module ~full_restore:true hctx.com cc path
+			try
+				let m = find_module ~typing_mode:FullTyping hctx.com cc path in
+				let rec loop mtl = match mtl with
+					| [] ->
+						Error (jstring "No such type")
+					| mt :: mtl ->
+						begin match mt with
+						| TClassDecl c -> c.cl_restore()
+						| _ -> ()
+						end;
+						let infos = t_infos mt in
+						if snd infos.mt_path = typeName then begin
+							let ctx = Genjson.create_full_config () in
+							Result (Genjson.generate_module_type ctx mt)
+						end else
+							loop mtl
+				in
+				loop m.m_types
 			with Not_found ->
-				hctx.send_error [jstring "No such module"]
-			in
-			let rec loop mtl = match mtl with
-				| [] ->
-					hctx.send_error [jstring "No such type"]
-				| mt :: mtl ->
-					begin match mt with
-					| TClassDecl c -> c.cl_restore()
-					| _ -> ()
-					end;
-					let infos = t_infos mt in
-					if snd infos.mt_path = typeName then begin
-						let ctx = Genjson.create_context GMMinimum in
-						hctx.send_result (Genjson.generate_module_type ctx mt)
-					end else
-						loop mtl
-			in
-			loop m.m_types
+				Error (jstring "No such module")
 		);
 		"server/typeContexts", (fun hctx ->
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "modulePath") in
 			let typeName = hctx.jsonrpc#get_string_param "typeName" in
 			let contexts = hctx.display#get_cs#get_contexts in
 
-			hctx.send_result (jarray (List.fold_left (fun acc cc ->
+			Result (jarray (List.fold_left (fun acc cc ->
 				match cc#find_module_opt path with
 				| None -> acc
 				| Some(m) ->
@@ -412,12 +504,12 @@ let handler =
 		"server/moduleCreated", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
 			let file = Path.get_full_path file in
-			let key = hctx.com.file_keys#get file in
+			let key = hctx.com.part_scope.file_keys#get file in
 			let cs = hctx.display#get_cs in
 			List.iter (fun cc ->
 				Hashtbl.replace cc#get_removed_files key (ClassPaths.create_resolved_file file hctx.com.empty_class_path)
 			) cs#get_contexts;
-			hctx.send_result (jstring file);
+			Result (jstring file);
 		);
 		"server/files", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
@@ -432,15 +524,15 @@ let handler =
 					"moduleName",jopt jstring cfile.c_module_name;
 				]
 			) files in
-			hctx.send_result (jarray files)
+			Result (jarray files)
 		);
 		"server/invalidate", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
-			let fkey = hctx.com.file_keys#get file in
+			let fkey = hctx.com.part_scope.file_keys#get file in
 			let cs = hctx.display#get_cs in
 			cs#taint_modules fkey ServerInvalidate;
 			cs#remove_files fkey;
-			hctx.send_result jnull
+			Result jnull
 		);
 		"server/configure", (fun hctx ->
 			let l = ref (List.map (fun (name,value) ->
@@ -449,7 +541,7 @@ let handler =
 					ServerMessage.set_by_name name value;
 					jstring (Printf.sprintf "Printing %s %s" name (if value then "enabled" else "disabled"))
 				with Not_found ->
-					hctx.send_error [jstring ("Invalid print parame name: " ^ name)]
+					raise (api_error (jstring ("Invalid print parame name: " ^ name)))
 			) (hctx.jsonrpc#get_opt_param (fun () -> (hctx.jsonrpc#get_object_param "print")) [])) in
 			hctx.jsonrpc#get_opt_param (fun () ->
 				let b = hctx.jsonrpc#get_bool_param "noModuleChecks" in
@@ -457,98 +549,134 @@ let handler =
 				l := jstring ("Module checks " ^ (if b then "disabled" else "enabled")) :: !l;
 				()
 			) ();
-			hctx.jsonrpc#get_opt_param (fun () ->
-				let b = hctx.jsonrpc#get_bool_param "legacyCompletion" in
-				ServerConfig.legacy_completion := b;
-				l := jstring ("Legacy completion " ^ (if b then "enabled" else "disabled")) :: !l;
-				()
-			) ();
-			hctx.send_result (jarray !l)
+			Result (jarray !l)
 		);
 		"server/memory",(fun hctx ->
 			let j = DisplayMemory.get_memory_json hctx.display#get_cs MCache in
-			hctx.send_result j
+			Result j
 		);
 		"server/memory/context",(fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let j = DisplayMemory.get_memory_json hctx.display#get_cs (MContext sign) in
-			hctx.send_result j
+			Result j
 		);
 		"server/memory/module",(fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
 			let j = DisplayMemory.get_memory_json hctx.display#get_cs (MModule(sign,path)) in
-			hctx.send_result j
+			Result j
 		);
-		(* TODO: wait till gama complains about the naming, then change it to something else *)
 		"typer/compiledTypes", (fun hctx ->
-			hctx.com.callbacks#add_after_filters (fun () ->
-				let ctx = create_context GMFull in
+			defer AfterFilters (fun () ->
+				let ctx = create_full_config () in
 				let l = List.map (generate_module_type ctx) hctx.com.types in
-				hctx.send_result (jarray l)
-			);
+				Result (jarray l)
+			)
 		);
 	] in
 	List.iter (fun (s,f) -> Hashtbl.add h s f) l;
 	h
 
-let parse_input com input =
-	let input =
-		JsonRpc.handle_jsonrpc_error (fun () -> JsonRpc.parse_request input) send_json
+let run_on_com jsonrpc f com =
+	let catch_api_error f =
+		try f() with Api_error json -> Error json
 	in
-	let jsonrpc = new jsonrpc_handler input in
+	let result_handler = com.request_scope.result_handler in
+	let display = new display_handler jsonrpc com com.cs in
 
-	let send_result json =
+	let hctx = {
+		com = com;
+		jsonrpc = jsonrpc;
+		display = display;
+	} in
+	let maybe_send_response = function
+		| NoResponse ->
+			NeedsTyping
+		| Result json ->
+			result_handler.send_result json;
+			Completed
+		| Error json ->
+			result_handler.send_error [json];
+			Completed
+		| Deferred(deferrence,f) ->
+			let send_response = function
+				| NoResponse ->
+					()
+				| Result json ->
+					result_handler.send_result_raise json;
+				| Error json ->
+					result_handler.send_error_raise [json];
+				| Deferred _ ->
+					die "" __LOC__
+			in
+			let f () = send_response (catch_api_error f) in
+			begin match deferrence with
+			| AfterInitMacros ->
+				com.callbacks#add_after_init_macros f
+			| AfterFilters ->
+				com.callbacks#add_after_filters f
+			end;
+			NeedsTyping
+	in
+	maybe_send_response (catch_api_error (fun () -> f hctx))
+
+let create_json_result_handler timer_ctx io jsonrpc =
+	let send_result send json =
 		flush stdout;
 		flush stderr;
 		let fl = [
 			"result",json;
 			"timestamp",jfloat (Unix.gettimeofday ());
 		] in
-		let fl = if com.timer_ctx.measure_times = Yes then begin
-			let _,_,root = Timer.build_times_tree com.timer_ctx in
+		let fl = if timer_ctx.measure_times = Yes then begin
+			let _,_,root = Timer.build_times_tree timer_ctx in
 			begin match json_of_times root with
 			| None -> fl
 			| Some jo -> ("timers",jo) :: fl
 			end
 		end else fl in
-		let fl = if DynArray.length com.pass_debug_messages > 0 then
-			("passMessages",jarray (List.map jstring (DynArray.to_list com.pass_debug_messages))) :: fl
-		else
-			fl
-		in
 		let jo = jobject fl in
-		send_json (JsonRpc.result jsonrpc#get_id  jo)
+		send (JsonRpc.result jsonrpc#get_id jo)
 	in
 
-	let send_error jl =
-		send_json (JsonRpc.error jsonrpc#get_id 0 ~data:(Some (JArray jl)) "Compiler error")
+	let send_error send jl =
+		send (JsonRpc.error jsonrpc#get_id 0 ~data:(Some (JArray jl)) "Compiler error")
 	in
 
-	com.json_out <- Some({
-		send_result = send_result;
-		send_error = send_error;
-		jsonrpc = jsonrpc
-	});
+	let send_result_raise = send_result (send_json_raise io) in
+	let send_result_noraise = send_result (send_json io) in
+	let send_error_raise = send_error (send_json_raise io) in
+	let send_error_noraise = send_error (send_json io) in
 
-	let cs = com.cs in
+	let method_name = jsonrpc#get_method_name in
+	let f = try
+		Hashtbl.find handler method_name
+	with Not_found ->
+		raise_method_not_found jsonrpc#get_id method_name
+	in
 
-	let display = new display_handler jsonrpc com cs in
-
-	let hctx = {
-		com = com;
-		jsonrpc = jsonrpc;
-		display = display;
-		send_result = send_result;
-		send_error = send_error;
-	} in
-
-	JsonRpc.handle_jsonrpc_error (fun () ->
-		let method_name = jsonrpc#get_method_name in
-		let f = try
-			Hashtbl.find handler method_name
-		with Not_found ->
-			raise_method_not_found jsonrpc#get_id method_name
-		in
-		f hctx
-	) send_json
+	{
+		send_result = send_result_noraise;
+		send_result_raise = send_result_raise;
+		send_error = send_error_noraise;
+		send_error_raise = send_error_raise;
+		flush_messages = (fun has_error com ->
+			(* flush_messages in the JSON-RPC handler is always an error state:
+			   a successful completion raises JsonCompleted before flush_context is
+			   called, so reaching here means no meaningful result was sent. *)
+			if has_error then begin
+				let errors = List.map (fun cm ->
+					Json.JObject [
+						"severity",Json.JInt (Message.MessageSeverity.to_int (Message.cm_severity cm));
+						"location",Genjson.generate_pos_as_location cm.cm_pos;
+						"message",Json.JString cm.cm_message;
+					]
+				) (List.rev com.part_scope.messages) in
+				send_error_raise errors;
+			end else
+				(* No completion point was found — send an appropriate no-result
+				   response so the client is not left waiting. *)
+				DisplayException.send_no_result_raise com
+		);
+		set_com = run_on_com jsonrpc f;
+	}

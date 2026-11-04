@@ -55,6 +55,11 @@
 		"generic": true
 	},
 	{
+		"name": "WNullSafety",
+		"doc": "Warnings related to null safety",
+		"generic": true
+	},
+	{
 		"name": "WDeprecated",
 		"doc": "This is deprecated and should no longer be used"
 	},
@@ -126,8 +131,24 @@
 		"enabled": false
 	},
 	{
+		"name": "WIfDisplay",
+		"doc": "Using `display` here doesn't work because #if conditions are evaluated at parse time. In macros, use `haxe.macro.Context.defined(\"display\")` instead.",
+		"parent": "WParser"
+	},
+	{
+		"name": "WRedundantNullCheck",
+		"doc": "Value can't be null, so comparison with null is excessive",
+		"parent": "WNullSafety",
+		"enabled": false
+	},
+	{
 		"name": "WHxb",
 		"doc": "Hxb (either --hxb output or haxe compiler cache) related warnings"
+	},
+	{
+		"name": "WIgnoredBadModule",
+		"doc": "An invalidated module has been ignored during a display request",
+		"parent": "WHxb"
 	},
 	{
 		"name": "WUnboundTypeParameter",
@@ -138,5 +159,10 @@
 		"name": "WUnclosedMonomorph",
 		"doc": "Hxb writer failed to close a monomorph (that monomorph should have been closed in the first place)",
 		"parent": "WHxb"
+	},
+	{
+		"name": "WPointlessCode",
+		"doc": "Expression or code block has no effect",
+		"parent": "WTyper"
 	}
 ]

@@ -3,10 +3,14 @@ open Type
 open Globals
 open CppAst
 open CppTypeUtils
+open CppMarshalling
+open CppError
 
 let follow = Abstract.follow_with_abstracts
 
 let string_map_of_list bs = List.fold_left (fun m (k, v) -> StringMap.add k v m) StringMap.empty bs
+
+let int_map_of_list bs = List.fold_left (fun m (k, v) -> IntMap.add k v m) IntMap.empty bs
 
 (*
    A class_path is made from a package (array of strings) and a class name.
@@ -249,6 +253,16 @@ let keyword_remap name =
       "_hx_" ^ name
     | x -> x
 
+let cpp_var_name_of var =
+   match get_meta_string var.v_meta Meta.Native with
+   | Some n -> n
+   | None -> keyword_remap var.v_name
+
+let cpp_var_debug_name_of v =
+   match get_meta_string v.v_meta Meta.RealPath with
+   | Some n -> n
+   | None -> v.v_name
+
 let remap_class_path class_path =
   let path_remap with_keywords name =
     let len = String.length name in
@@ -276,7 +290,7 @@ let rec s_tcpp = function
   | CppThis _ -> "CppThis"
   | CppSuper _ -> "CppSuper"
   | CppCode _ -> "CppCode"
-  | CppClosure _ -> "CppClosure"
+  | CppCallable _ -> "CppCallable"
   | CppVar (VarLocal _) -> "CppVarLocal"
   | CppVar (VarClosure _) -> "CppVarClosure"
   | CppVar (VarThis _) -> "CppVarThis"
@@ -293,14 +307,14 @@ let rec s_tcpp = function
   | CppEnumField _ -> "CppEnumField"
   | CppNullAccess -> "CppNullAccess"
   | CppCall (FuncThis _, _) -> "CppCallThis"
-  | CppCall (FuncInstance (obj, inst, field), _) ->
+  | CppCall (FuncInstance (obj, inst, field, _), _) ->
       (match inst with
       | InstObjC -> "CppCallObjCInstance("
-      | InstPtr -> "CppCallInstance("
+      | InstPtr _ -> "CppCallInstance("
       | _ -> "CppCallStruct(")
       ^ tcpp_to_string obj.cpptype ^ "," ^ field.cf_name ^ ")"
   | CppCall (FuncInterface _, _) -> "CppCallInterface"
-  | CppCall (FuncStatic (_, objC, _), _) ->
+  | CppCall (FuncStatic (_, objC, _, _), _) ->
       if objC then "CppCallStaticObjC" else "CppCallStatic"
   | CppCall (FuncTemplate _, _) -> "CppCallTemplate"
   | CppCall (FuncEnumConstruct _, _) -> "CppCallEnumConstruct"
@@ -357,8 +371,12 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppUnchanged -> " ::Dynamic/*Unchanged*/"
   | TCppObject -> " ::Dynamic"
   | TCppObjectPtr -> " ::hx::Object *"
-  | TCppReference t -> tcpp_to_string t ^ " &"
   | TCppStruct t -> "cpp::Struct< " ^ tcpp_to_string t ^ " >"
+  | TCppReference (TCppMarshalNativeType (value_type, _)) -> Printf.sprintf "%s&" (get_native_marshalled_type value_type)
+  | TCppReference t -> tcpp_to_string t ^ " &"
+  | TCppStar (TCppMarshalNativeType (value_type, _), const) ->
+    let suffix = match value_type with Pointer _ -> "*" | _ -> "" in
+    Printf.sprintf "%s%s*%s" (if const then "const " else "") (get_native_marshalled_type value_type) suffix
   | TCppStar (t, const) ->
       (if const then "const " else "") ^ tcpp_to_string t ^ " *"
   | TCppVoid -> "void"
@@ -366,14 +384,21 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppRest _ -> "vaarg_list"
   | TCppVarArg -> "vararg"
   | TCppAutoCast -> "::cpp::AutoCast"
-  | TCppVariant -> "::cpp::Variant"
+  | TCppVariant None -> "::cpp::Variant"
+  | TCppVariant Some t -> Printf.sprintf "::cpp::Variant( %s )" (tcpp_to_string t)
   | TCppEnum enum -> " ::" ^ join_class_path_remap enum.e_path "::" ^ suffix
   | TCppScalar scalar -> scalar
   | TCppString -> "::String"
   | TCppFastIterator it ->
       "::cpp::FastIterator" ^ suffix ^ "< " ^ tcpp_to_string it ^ " >"
+  | TCppPointer (ptrType, TCppMarshalNativeType (value_type, _)) ->
+    let suffix = match value_type with Pointer _ -> "*" | _ -> "" in
+    Printf.sprintf "::cpp::%s< %s%s >" ptrType (get_native_marshalled_type value_type) suffix
   | TCppPointer (ptrType, valueType) ->
       "::cpp::" ^ ptrType ^ "< " ^ tcpp_to_string valueType ^ " >"
+  | TCppRawPointer (constName, TCppMarshalNativeType (value_type, _)) ->
+    let suffix = match value_type with Pointer _ -> "*" | _ -> "" in
+    Printf.sprintf "%s%s*%s" constName (get_native_marshalled_type value_type) suffix
   | TCppRawPointer (constName, valueType) ->
       constName ^ tcpp_to_string valueType ^ "*"
   | TCppFunction (argTypes, retType, abi) ->
@@ -384,7 +409,6 @@ and tcpp_to_string_suffix suffix tcpp =
       tcpp_objc_block_struct argTypes retType ^ "::t"
   | TCppDynamicArray -> "::cpp::VirtualArray" ^ suffix
   | TCppObjectArray _ -> "::Array" ^ suffix ^ "< ::Dynamic>"
-  | TCppWrapped _ -> " ::Dynamic"
   | TCppScalarArray value ->
       "::Array" ^ suffix ^ "< " ^ tcpp_to_string value ^ " >"
   | TCppObjC klass ->
@@ -411,6 +435,126 @@ and tcpp_to_string_suffix suffix tcpp =
   | TCppNull -> " ::Dynamic"
   | TCppCode _ -> "Code"
 
+  | TCppMarshalManagedType (cls, params) ->
+    let type_str, flags = build_type cls.cl_path cls.cl_pos params cls.cl_meta Meta.CppManagedType tcpp_to_string in
+    let standard_naming = List.exists (fun f -> f = "StandardNaming") flags in
+    let wrapped  =
+      if suffix = "_obj" then
+        if standard_naming then
+          type_str ^ suffix
+        else
+          type_str
+      else
+        if standard_naming then
+          type_str
+        else
+          Printf.sprintf "::hx::ObjectPtr< %s >" type_str
+      in
+    wrapped
+
+  | TCppMarshalNativeType (Pointer _ as value_type, Promoted) ->
+    get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::Boxed< %s* >"
+  | TCppMarshalNativeType (Pointer _ as value_type, Reference) ->
+    get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::PointerReference< %s >"
+  | TCppMarshalNativeType (Pointer _ as value_type, Stack) ->
+    get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::PointerType< %s >"
+
+  | TCppMarshalNativeType ((ValueClass _ | ValueEnum _) as value_type, Promoted) ->
+    get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::Boxed< %s >"
+  | TCppMarshalNativeType ((ValueClass _ | ValueEnum _) as value_type, Reference) ->
+    get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::ValueReference< %s >"
+  | TCppMarshalNativeType ((ValueClass _ | ValueEnum _) as value_type, Stack) ->
+    get_native_marshalled_type value_type |> Printf.sprintf "::cpp::marshal::ValueType< %s >"
+
+  | TCppCallable (arguments, return) ->
+    let return_str    = tcpp_to_string return in
+    let arguments_str = arguments |> List.map tcpp_to_string |> String.concat "," in
+
+    Printf.sprintf "::hx::Callable< %s (%s) >" return_str arguments_str
+
+and build_type path pos params meta target parameter_handler =
+  let get_meta_field field =
+    match Meta.get target meta with
+    | _, [ (EObjectDecl decls, _) ], _ ->  
+      List.find_opt (fun ((n, _, _), _) -> n = field) decls
+    | _ ->
+      None
+  in
+  let typeParams =
+    match params with
+    | [] -> ""
+    | _ -> "< " ^ String.concat "," (List.map parameter_handler params) ^ " >"
+  in
+  let namespace_error pos =
+    cpp_abort InvalidNamespaceField pos
+  in
+  let flag_error pos =
+    cpp_abort InvalidFlagsField pos
+  in
+  let namespace =
+    match get_meta_field "namespace" with
+    | Some (_,( EArrayDecl ([]), _)) -> ""
+    | Some (_,( EArrayDecl (els), _)) ->
+      "::" ^ (els
+      |> List.filter_map (fun (e, pos) -> match e with | EConst (String (s, _)) -> Some s | _ -> namespace_error pos)
+      |> String.concat "::")
+    | Some ((_, pos, _), _) ->
+      namespace_error pos
+    | _ ->
+      ""
+  in
+  let t = match get_meta_field "type" with
+  | Some (_, (EConst (String (s, _)), _) ) ->
+    s ^ typeParams
+  | Some ((_, pos, _), _) ->
+    cpp_abort InvalidTypeField pos
+  | _ ->
+    snd path ^ typeParams
+  in
+  let flags = match get_meta_field "flags" with
+  | Some (_, (EArrayDecl decls, _) ) ->
+    decls |> List.filter_map (fun (e, pos) -> match e with | EConst (Ident c) -> Some c | _ -> flag_error pos)
+  | Some ((_, pos, _), _) ->
+    flag_error pos
+  | _ ->
+    []
+  in
+  
+  Printf.sprintf "%s::%s" namespace t, flags
+
+and get_extern_value_type_boxed value_type =
+  let p = get_native_marshalled_type value_type in
+  let suffix =
+    match value_type with
+    | Pointer _ -> "*"
+    | _ -> ""
+  in
+
+  Printf.sprintf "::cpp::marshal::Boxed< %s%s >" p suffix, Printf.sprintf "::cpp::marshal::Boxed_obj< %s%s >" p suffix
+
+and marshal_type_parameter_to_string pos tcpp =
+  match tcpp with
+  | TCppMarshalNativeType ((Pointer _) as value_type, _) -> get_native_marshalled_type value_type ^ "*"
+  | TCppMarshalNativeType (value_type, _) -> get_native_marshalled_type value_type
+  | TCppScalar _
+  | TCppPointer _
+  | TCppRawPointer _
+  | TCppStar _
+  | TCppVoidStar
+  | TCppStruct _ ->
+    tcpp_to_string_suffix "" tcpp
+  | _ ->
+    cpp_abort InvalidMarshallingTypeParameter pos
+
+and get_native_marshalled_type value_type =
+  match value_type with
+  | ValueClass (cls, params) ->
+    build_type cls.cl_path cls.cl_pos params cls.cl_meta Meta.CppValueType (marshal_type_parameter_to_string cls.cl_pos) |> fst
+  | ValueEnum abs ->
+    build_type abs.a_path abs.a_pos [] abs.a_meta Meta.CppValueType (marshal_type_parameter_to_string abs.a_pos) |> fst
+  | Pointer (cls, params) ->
+    build_type cls.cl_path cls.cl_pos params cls.cl_meta Meta.CppPointerType (marshal_type_parameter_to_string cls.cl_pos) |> fst
+
 and tcpp_objc_block_struct argTypes retType =
   let args = String.concat "," (List.map tcpp_to_string argTypes) in
   let ret = tcpp_to_string retType in
@@ -424,15 +568,18 @@ and tcpp_objc_block_struct argTypes retType =
 and tcpp_to_string tcpp = tcpp_to_string_suffix "" tcpp
 
 and cpp_class_path_of klass params =
-  match get_meta_string klass.cl_meta Meta.Native with
-  | Some s ->
-      let typeParams =
-        match params with
-        | [] -> ""
-        | _ -> "< " ^ String.concat "," (List.map tcpp_to_string params) ^ " >"
-      in
-      " " ^ join_class_path_remap klass.cl_path "::" ^ typeParams
-  | None -> " ::" ^ join_class_path_remap klass.cl_path "::"
+   if is_marshalling_native_value_class klass then
+    get_native_marshalled_type (ValueClass (klass, params))
+   else
+      match get_meta_string klass.cl_meta Meta.Native with
+      | Some s ->
+         let typeParams =
+            match params with
+            | [] -> ""
+            | _ -> "< " ^ String.concat "," (List.map tcpp_to_string params) ^ " >"
+            in
+         " " ^ join_class_path_remap klass.cl_path "::" ^ typeParams
+      | None -> " ::" ^ join_class_path_remap klass.cl_path "::"
 
 (*  Get a string to represent a type.
    The "suffix" will be nothing or "_obj", depending if we want the name of the
@@ -636,24 +783,35 @@ let rec cpp_is_struct_access t =
    | TCppFunction _ -> true
    | TCppStruct _-> false
    | TCppInst (class_def, _) -> Meta.has Meta.StructAccess class_def.cl_meta
+   | TCppReference (TCppMarshalNativeType _) -> true
    | TCppReference (r) -> cpp_is_struct_access r
    | _ -> false
 
 let rec cpp_is_native_array_access t =
    match t with
+   | TCppMarshalNativeType _ -> true
    | TCppStruct s -> cpp_is_native_array_access s
    | TCppReference s -> cpp_is_native_array_access s
    | TCppInst ({ cl_array_access = Some _ } as klass, _) when is_extern_class klass && Meta.has Meta.NativeArrayAccess klass.cl_meta -> true
    | _ -> false
 
-let cpp_is_dynamic_type = function
-   | TCppDynamic | TCppObject | TCppVariant | TCppWrapped _ | TCppGlobal | TCppNull
+let cpp_is_dynamic_type t =
+  match t with
+   | TCppDynamic
+   | TCppObject
+   | TCppVariant _
+   | TCppGlobal
+   | TCppNull
    | TCppInterface _
+   | TCppCallable _
       -> true
    | _ -> false
 
 let is_object_element member_type =
   match member_type with
+   | TCppMarshalManagedType _
+   | TCppMarshalNativeType (_, Promoted) ->
+      true
    | TCppInst (x, _)
    | TCppInterface x
        -> not (is_extern_class x)
@@ -665,9 +823,9 @@ let is_object_element member_type =
    | TCppFunction _
    | TCppDynamicArray
    | TCppObjectArray _
-   | TCppWrapped _
    | TCppScalarArray _
    | TCppClass
+   | TCppCallable _
        -> true
    | _ -> false
 
@@ -678,13 +836,14 @@ let cpp_variant_type_of t = match t with
   | TCppObjectPtr
   | TCppReference _
   | TCppStruct _
+  | TCppMarshalNativeType _
+  | TCppMarshalManagedType _
   | TCppStar _
   | TCppVoid
   | TCppFastIterator _
   | TCppDynamicArray
   | TCppObjectArray _
   | TCppScalarArray _
-  | TCppWrapped _
   | TCppObjC _
   | TCppObjCBlock _
   | TCppRest _
@@ -695,7 +854,8 @@ let cpp_variant_type_of t = match t with
   | TCppClass
   | TCppGlobal
   | TCppNull
-  | TCppEnum _ -> TCppDynamic
+  | TCppEnum _
+  | TCppCallable _ -> TCppDynamic
   | TCppString -> TCppString
   | TCppFunction _
   | TCppNativePointer _
@@ -711,7 +871,7 @@ let cpp_variant_type_of t = match t with
   | TCppScalar "double"
   | TCppScalar "float" -> TCppScalar("Float")
   | TCppScalar _  -> TCppScalar("int")
-  | TCppVariant -> TCppVariant
+  | TCppVariant v -> TCppVariant v
 
 let cpp_cast_variant_type_of t = match t with
   | TCppObjectArray _
@@ -719,7 +879,8 @@ let cpp_cast_variant_type_of t = match t with
   | TCppDynamicArray
   | TCppClass
   | TCppEnum _
-  | TCppInst _ -> t
+  | TCppInst _
+  | TCppMarshalManagedType _ -> t
   | _ -> cpp_variant_type_of t
 
 let enum_getter_type t =
