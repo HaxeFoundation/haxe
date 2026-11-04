@@ -89,7 +89,7 @@ class Hl {
 
 		// Run with MSBuild
 		if (systemName == "Windows") {
-			runCommand("haxelib", ["run", "hashlink", "build", '$dir/$filename.c', "-D", "hlgen.makefile=vs2022"]);
+			runCommand("haxelib", ["run", "hashlink", "build", '$dir/$filename.c', "-D", "hlgen.makefile=vs2026"]);
 			run('$dir${msbuildPlatform == 'x64' ? '/x64' : ''}/Debug/$filename.exe', []);
 		}
 	}
