@@ -127,6 +127,8 @@ using php.Global;
 	public static function compare<T>(a:T, b:T):Int {
 		if (a == b)
 			return 0;
+		if (Global.is_object(a) && haxe.Int64.isInt64(a) && haxe.Int64.isInt64(b))
+			return haxe.Int64.compare(cast a, cast b);
 		if (Global.is_string(a)) {
 			return Global.strcmp(cast a, cast b);
 		} else {
