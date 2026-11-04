@@ -44,7 +44,7 @@ class TestUtf8 extends unit.Test {
 		eq(haxe.Utf8.compare(haxe.Utf8.sub(str, 1, 0), ""), 0);
 
 		// unspecify outside of range Utf8.sub
-		// haxe.Utf8.compare(haxe.Utf8.sub(str, 9, 0), "") == 0;
+		// eq(haxe.Utf8.compare(haxe.Utf8.sub(str, 9, 0), ""), 0);
 
 		// #if (neko || php || cpp || lua || macro)
 		// TODO neko, cpp, macro
@@ -54,10 +54,10 @@ class TestUtf8 extends unit.Test {
 		t(haxe.Utf8.validate(haxe.io.Bytes.ofHex("ee8080").toString()));
 		t(haxe.Utf8.validate(haxe.io.Bytes.ofHex("f48fbfbf").toString()));
 		f(haxe.Utf8.validate(haxe.io.Bytes.ofHex("f0a9b8bde381c3ab61").toString()));
-		haxe.Utf8.validate(haxe.io.Bytes.ofHex("c0af").toString()) == false; // redundant sequence
-		haxe.Utf8.validate(haxe.io.Bytes.ofHex("eda080").toString()) == false; // surrogate byte sequence
-		haxe.Utf8.validate(haxe.io.Bytes.ofHex("edbfbf").toString()) == false; // surrogate byte sequence
-		haxe.Utf8.validate(haxe.io.Bytes.ofHex("f4908080").toString()) == false; // U+110000
+		f(haxe.Utf8.validate(haxe.io.Bytes.ofHex("c0af").toString())); // redundant sequence
+		f(haxe.Utf8.validate(haxe.io.Bytes.ofHex("eda080").toString())); // surrogate byte sequence
+		f(haxe.Utf8.validate(haxe.io.Bytes.ofHex("edbfbf").toString())); // surrogate byte sequence
+		f(haxe.Utf8.validate(haxe.io.Bytes.ofHex("f4908080").toString())); // U+110000
 		#end
 	}
 }

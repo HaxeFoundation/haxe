@@ -18,4 +18,9 @@ function main() {
 	var thick2 = DD(1);
 	if (thick1 == thick2) {}
 	if (thick1 != thick2) {}
+
+	if (thick1 == C) {}
+	if (C == thick1) {}
+	if (thick2 == C) {}
+	if (C == thick2) {}
 }

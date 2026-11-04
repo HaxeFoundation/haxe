@@ -3,5 +3,4 @@ compile-each.hxml
 -hl bin/hlc/main.c
 #-D interp
 -D hl-check
--D hl-ver=1.16.0
 -D UTEST-PRINT-TESTS

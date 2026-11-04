@@ -985,16 +985,68 @@ module Converter = struct
 			in
 			add_meta (Meta.Annotation,args,p)
 		end;
+		let has_fi_annotation = ref false in
 		List.iter (fun attr -> match attr with
 			| AttrVisibleAnnotations ann ->
 				List.iter (function
 					| { ann_type = TObject( (["java";"lang"], "FunctionalInterface"), [] ) } ->
-						add_meta (Meta.FunctionalInterface,[],p);
+						has_fi_annotation := true
 					| _ -> ()
 				) ann
 			| _ ->
 				()
 		) jc.jc_attributes;
+		(* Match javac's SAM rule: an interface is functional if it declares exactly
+		   one abstract instance method (ignoring static/default/private/synthetic
+		   methods, constructors, and Object members re-declared as abstract). The
+		   @FunctionalInterface annotation is advisory in javac — Android SDK
+		   listeners are rarely annotated, so structural detection unlocks lambdas
+		   for them without per-extern opt-in. *)
+		(* JLS §9.8 excludes methods that would be members of Object from the SAM
+		   count. Match by name+arity rather than full descriptor — equals's exact
+		   param encoding can vary across class-file shapes (raw Object, generic
+		   erasure variants), and equals/hashCode/toString have unique arities on
+		   java.lang.Object so name+arity is unambiguous. *)
+		let is_object_redeclaration jf = match jf.jf_name, jf.jf_descriptor with
+			| "equals", TMethod([_],_) -> true
+			| "hashCode", TMethod([],_) -> true
+			| "toString", TMethod([],_) -> true
+			| _ -> false
+		in
+		(* Skip JDK-internal packages: sun.*, com.sun.*, jdk.internal.*. They host
+		   many single-method classes (sun.reflect.ConstructorAccessor,
+		   sun.nio.ch.Interruptible, sun.reflect.generics.tree.TypeTree, ...) that
+		   compile-time externs see but the runtime JDK may not expose — sun.* was
+		   moved to jdk.internal.* in JDK 9+ and is inaccessible to app code.
+		   Auto-tagging them as functional interfaces makes the JFI matcher emit
+		   `implements sun.reflect.ConstructorAccessor` on every matching closure,
+		   which then fails to defineClass at runtime. User code can't target these
+		   anyway, so structural detection must skip them. The @FunctionalInterface
+		   annotation path is still honored (none of the affected JDK-internal
+		   classes carry it, so this is a safe restriction). *)
+		let is_jdk_internal_package pack = match pack with
+			| "sun" :: _ -> true
+			| "com" :: "sun" :: _ -> true
+			| "jdk" :: "internal" :: _ -> true
+			| _ -> false
+		in
+		let is_structural_sam = is_interface
+			&& not (is_jdk_internal_package (fst jc.jc_path))
+			&& (
+				let count = List.fold_left (fun acc jf ->
+					if AccessFlags.has_flag jf.jf_flags MAbstract
+						&& not (AccessFlags.has_flag jf.jf_flags MStatic)
+						&& not (AccessFlags.has_flag jf.jf_flags MPrivate)
+						&& not (AccessFlags.has_flag jf.jf_flags MSynthetic)
+						&& jf.jf_name <> "<init>"
+						&& not (is_object_redeclaration jf)
+					then acc + 1 else acc
+				) 0 jc.jc_methods in
+				count = 1
+			)
+		in
+		if !has_fi_annotation || is_structural_sam then
+			add_meta (Meta.FunctionalInterface,[],p);
 		let d = {
 			d_name = (class_name,p);
 			d_doc = None;

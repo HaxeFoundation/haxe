@@ -448,7 +448,6 @@ let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array
 		"add_final_return",(fun _ -> if scom.platform_config.pf_add_final_return then AddFinalReturn.add_final_return else (fun e -> e));
 		"RenameVars",(match scom.platform with
 			| Eval -> (fun _ e -> e)
-			| Jvm -> (fun _ e -> e)
 			| _ -> (fun scom e -> RenameVars.run scom.curclass.cl_path rename_locals_config e)
 		);
 		"mark_switch_break_loops",SafeFilters.mark_switch_break_loops;

@@ -1571,3 +1571,96 @@ class BinopFlow {
 		shouldFail(dispatcher.scheduler);
 	}
 }
+
+@:build(Validator.checkFields())
+class ConstructorThrowNoElse {
+	final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			throw "no";
+		}
+		s = "foo";
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorReturn {
+	@:shouldFail final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			return;
+		} else {
+			s = "foo";
+		}
+	}
+}
+
+#if todo // https://github.com/HaxeFoundation/haxe/issues/12560
+@:build(Validator.checkFields())
+class ConstructorThrowWithElse {
+	final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			throw "no";
+		} else {
+			s = "foo";
+		}
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorMixedThrowReturn {
+	final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			throw "error";
+		} else {
+			s = "three";
+			return;
+		}
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorEarlyReturnNoElse {
+	@:shouldFail final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			return;
+		}
+		s = "foo";
+	}
+}
+
+// These are currently rejected by the typer's own final field check ("Some final fields are uninitialized")
+@:build(Validator.checkFields())
+class ConstructorThrowBothBranches {
+	final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			throw "no";
+		} else {
+			throw "also no";
+		}
+	}
+}
+
+@:build(Validator.checkFields())
+class ConstructorMixedThrowReturnFail {
+	@:shouldFail final s:String;
+
+	public function new() {
+		if (Math.random() > 0.5) {
+			throw "error";
+		} else {
+			return;
+		}
+	}
+}
+#end

@@ -241,7 +241,7 @@ class Jvm {
 		return n == null ? null : n.doubleValue();
 	}
 
-	static public function toByte(d:Dynamic) {
+	static public function toByte(d:Dynamic):jvm.Int8 {
 		return d == null ? 0 : (d : java.lang.Number).byteValue();
 	}
 
@@ -370,6 +370,10 @@ class Jvm {
 			return (cast obj : jvm.Object)._hx_getField(name);
 		}
 		if (instanceof(obj, java.lang.Class)) {
+			// Haxe's String statics are implemented in StringExt, not java.lang.String
+			if (obj == String && name == "fromCharCode") {
+				return StringExt.fromCharCode;
+			}
 			return readStaticField(cast obj, name);
 		}
 		if (instanceof(obj, java.NativeString)) {

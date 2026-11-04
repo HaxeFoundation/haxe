@@ -13,6 +13,16 @@ class TestSocket extends unit.Test {
 		var port = s.host().port;
 		t(port > 0);
 
+		#if eval
+		// a failed bind throws a catchable exception
+		var taken = new sys.net.Socket();
+		t(try {
+			taken.bind(host, port);
+			false;
+		} catch (e:Dynamic) true);
+		taken.close();
+		#end
+
 		// connect
 		var c = new sys.net.Socket();
 		c.connect(host, port);

@@ -270,6 +270,7 @@ class TestUnicode extends utest.Test {
 			});
 	}
 
+	#if !js // See #10436
 	// Temporary disabled for local run because of https://github.com/HaxeFoundation/haxe/issues/8380
 	#if github
 	function testIPC() {
@@ -303,21 +304,24 @@ class TestUnicode extends utest.Test {
 				// trace
 				assertUEnds(runUtility(["trace", '$i', mode]).stdout, str + endLine);
 				#if !jvm
+#if (hl || cpp || lua) if (Sys.systemName() != "Windows") { #end // HL and C++ temporarily disabled (#8379)
 				// putEnv + getEnv
 				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "getEnv", "HAXE_TEST"]).stdout, str + endLine);
 				// putEnv + environment
 				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "environment", "HAXE_TEST"]).stdout, str + endLine);
+#if (hl || cpp || lua) } #end // HL and C++ temporarily disabled (#8379)
 				#end
 			});
 
 		// args
-		if (#if (jvm || eval || cpp) Sys.systemName() != "Windows" #else true #end) {
+		if (#if (jvm || eval || hl || cpp || lua) Sys.systemName() != "Windows" #else true #end) {
 			// https://stackoverflow.com/questions/7660651/passing-command-line-unicode-argument-to-java-code
 			UnicodeSequences.normalBoth(str -> {
 					assertUEquals(runUtility(["args", str]).stdout, str + endLine);
 				});
 		}
 	}
+	#end
 	#end
 
 	function testIO() {

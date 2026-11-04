@@ -264,8 +264,8 @@ class TestMap extends unit.Test {
 		eq(['' => ''].iterator().next(), '');
 		eq([2 => 3].keys().next(), 2);
 		eq([2 => 3].iterator().next(), 3);
-		//[a => b].keys().next() == a;
-		//[a => b].iterator().next() == b;
+		//eq([a => b].keys().next(), a);
+		//eq([a => b].iterator().next(), b);
 
 		var map:Map<String, Int>;
 		HelperMacros.typedAs((null : Map<String, Int>), map = []);

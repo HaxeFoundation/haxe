@@ -88,20 +88,21 @@ and do_check_cast ctx uctx tleft eright p =
 						loop2 a.a_to
 					end
 				| TInst(c,tl), TFun _ when has_class_flag c CFunctionalInterface ->
-					let cf = try
-						snd (ctx.com.functional_interface_lut#find c.cl_path)
-					with Not_found -> match TClass.get_singular_interface_field c.cl_ordered_fields with
-						| None ->
-							raise Not_found
-						| Some cf ->
-							ctx.com.functional_interface_lut#add c.cl_path (c,cf);
-							cf
+					let cf = match TClass.get_singular_interface_field c.cl_ordered_fields with
+						| None -> raise Not_found
+						| Some cf -> cf
 					in
 					let map = apply_params c.cl_params tl in
 					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
 					unify_raise_custom native_unification_context eright.etype (map (apply_params cf.cf_params monos cf.cf_type)) p;
 					if has_mono tright then raise_typing_error ("Cannot use this function as a functional interface because it has unknown types: " ^ (s_type (print_context()) tright)) p;
-					eright
+					(* Wrap the function expression in a TCast to the SAM type so
+					   the SAM TInst lives in the typed AST. Without this the
+					   genjvm AST scan can't see SAM conversions in argument
+					   position (TNew has no callee subexpression; the
+					   constructor's parameter types are unreachable), and the
+					   emitted closure would not implement the SAM interface. *)
+					mk_cast eright tleft p
 				| _ ->
 					raise Not_found
 			end
@@ -276,21 +277,21 @@ let handle_abstract_casts (scom : SafeCom.t) e =
 				let e = ExceptionFunctions.make_call scom ef ((mk (TConst TNull) (TAbstract(a,pl)) e.epos) :: el) m e.epos in
 				{e with etype = m}
 			end
-		| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))},[e1]) when (match follow e1.etype with TAbstract({a_impl = Some _},_) -> true | _ -> false) ->
+		| TCall({eexpr = TField(_,FStatic({cl_path=[],"Std"},{cf_name = "string"}))} as ef,[e1]) when (match follow e1.etype with TAbstract({a_impl = Some _},_) -> true | _ -> false) ->
 			begin match follow e1.etype with
-				| TAbstract({a_impl = Some c},tl) ->
+				| TAbstract({a_impl = Some c; a_this},tl) ->
+					let e1' = loop e1 in
 					begin try
 						let cf = PMap.find "toString" c.cl_statics in
-						let call() = ExceptionFunctions.make_static_call scom c cf [e1] scom.basic.tstring e.epos in
-						if not (is_nullable e1.etype) then
-							call()
-						else begin
-							let p = e.epos in
-							let chk_null = mk (TBinop (Ast.OpEq, e1, mk (TConst TNull) e1.etype p)) scom.basic.tbool p in
-							mk (TIf (chk_null, mk (TConst (TString "null")) scom.basic.tstring p, Some (call()))) scom.basic.tstring p
-						end
+						(* @:multiType rewrites change the argument to the underlying type; cast back so toString gets the abstract type *)
+						let e1 = if fast_eq e1'.etype e1.etype then e1' else mk_cast e1' e1.etype e1'.epos in
+						let call e1 = ExceptionFunctions.make_static_call scom c cf [e1] scom.basic.tstring e.epos in
+						if is_explicit_null a_this || not (is_nullable e1.etype) then
+							call e1
+						else
+							Texpr.Builder.make_null_safe_to_string scom.basic call e1 e.epos
 					with Not_found ->
-						e
+						{e with eexpr = TCall(ef,[e1'])}
 					end
 				| _ ->
 					die "" __LOC__

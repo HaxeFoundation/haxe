@@ -136,6 +136,12 @@ let field_access ctx mode f fh e pfield =
 			| _ ->
 				normal()
 		in
+		let check_no_expr a =
+			(* TODO: CfNoExpr is also set on all expression-less fields of @:coreType abstracts, which is why we
+			   have to exclude those here. See https://github.com/HaxeFoundation/haxe/pull/13078#discussion_r4409517071 *)
+			if has_class_field_flag f CfNoExpr && not (Meta.has Meta.CoreType a.a_meta) then
+				display_error ctx.com ("Field " ^ f.cf_name ^ " cannot be called directly because it has no expression") pfield
+		in
 		begin match fh with
 		| FHInstance(c,tl) ->
 			if e.eexpr = TConst TSuper then begin match mode with
@@ -153,11 +159,16 @@ let field_access ctx mode f fh e pfield =
 			end;
 			default();
 		| FHStatic c ->
+			begin match c.cl_kind with
+				| KAbstractImpl a -> check_no_expr a
+				| _ -> ()
+			end;
 			maybe_check_visibility c true;
 			default()
 		| FHAnon ->
 			default()
 		| FHAbstract(a,tl,c) ->
+			check_no_expr a;
 			maybe_check_visibility c true;
 			let sea = make_abstract_static_extension_access a tl c f e false pfull in
 			AKUsingField sea
@@ -610,17 +621,7 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 		type_field_by_module e t
 	with Not_found when not cfg.do_resume ->
 		if not ctx.f.untyped then begin
-			let has_special_field a =
-				List.exists (fun (_,cf) -> cf.cf_name = i) a.a_ops
-				|| List.exists (fun (_,_,cf) -> cf.cf_name = i) a.a_unops
-				|| List.exists (fun cf -> cf.cf_name = i) a.a_array
-			in
 			match follow t with
-			| TAnon { a_status = { contents = ClassStatics { cl_kind = KAbstractImpl a } } }
-			| TInst ({ cl_kind = KAbstractImpl a },_)
-			| TAbstract (a,_) when has_special_field a ->
-				(* the abstract field is not part of the field list, which is only true when it has no expression (issue #2344) *)
-				display_error ctx.com ("Field " ^ i ^ " cannot be called directly because it has no expression") pfield;
 			| TAnon { a_status = { contents = ClassStatics c } } when PMap.mem i c.cl_fields ->
 				display_error ctx.com ("Static access to instance field " ^ i ^ " is not allowed") pfield;
 			| _ ->
@@ -655,7 +656,7 @@ let get_struct_init_anon_fields c tl =
 			| TFun (args,_) ->
 				Some (match cf.cf_expr with
 					| Some { eexpr = TFunction fn } ->
-						List.map (fun (name,_,t) ->
+						List.map (fun (name,opt,t) ->
 							let t = apply_params c.cl_params tl t in
 							let p = try
 								let v,_ = List.find (fun (v,_) -> v.v_name = name) fn.tf_args in
@@ -663,17 +664,17 @@ let get_struct_init_anon_fields c tl =
 							with Not_found ->
 								cf.cf_name_pos
 							in
-							name,t,p,extract_param_info name
+							name,opt,t,p,extract_param_info name
 						) args
 					| _ ->
 						List.map
-							(fun (name,_,t) ->
+							(fun (name,opt,t) ->
 								let t = apply_params c.cl_params tl t in
 								try
 									let cf = PMap.find name c.cl_fields in
-									name,t,cf.cf_name_pos,gen_doc_text_opt cf.cf_doc
+									name,opt,t,cf.cf_name_pos,gen_doc_text_opt cf.cf_doc
 								with Not_found ->
-									name,t,cf.cf_name_pos,extract_param_info name
+									name,opt,t,cf.cf_name_pos,extract_param_info name
 							) args
 				)
 			| _ -> None
@@ -682,8 +683,9 @@ let get_struct_init_anon_fields c tl =
 	in
 	match args with
 	| Some args ->
-		List.fold_left (fun fields (name,t,p,doc) ->
+		List.fold_left (fun fields (name,opt,t,p,doc) ->
 			let cf = mk_field name t p p in
+			if opt then cf.cf_meta <- [(Meta.Optional,[],null_pos)];
 			cf.cf_doc <- (doc_from_string_opt doc);
 			PMap.add cf.cf_name cf fields
 		) PMap.empty args

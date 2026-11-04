@@ -121,7 +121,12 @@ class Hl {
 
 		getHlDependencies();
 
-		for (extraArgs in [[], ["--undefine", "analyzer-optimize"]]) {
+		final extraArgsList = [
+			for (analyzerArgs in [[], ["--undefine", "analyzer-optimize"]])
+				for (versionArgs in [["-D", "hl-ver=1.16.0"], ["-D", "hl-ver=1.16.0", "-D", "hl_legacy32"], ["-D", "hl-ver=2.0.0"]])
+					analyzerArgs.concat(versionArgs)
+		];
+		for (extraArgs in extraArgsList) {
 			if (Hl.withJitTests) {
 				runCommand("haxe", ["compile-hl.hxml"].concat(extraArgs).concat(haxeArgs));
 				runCommand(hlBinary, ['bin/unit.hl']);
@@ -137,11 +142,11 @@ class Hl {
 
 		changeDirectory(sysDir);
 		if (Hl.withJitTests) {
-			runCommand("haxe", ["compile-hl.hxml"].concat(haxeArgs));
+			runCommand("haxe", haxeArgs.concat(["compile-hl.hxml"]));
 			runSysTest(hlBinary, ["bin/hl/sys.hl"]);
 		}
 		if (Hl.withHlcTests) {
-			runCommand("haxe", ["compile-hlc.hxml"].concat(haxeArgs));
+			runCommand("haxe", haxeArgs.concat(["compile-hlc.hxml"]));
 			function dontRun(cmd,?args) {}
 			buildAndRunHlc("bin/hlc/testArguments", "TestArguments", dontRun);
 			buildAndRunHlc("bin/hlc/exitCode", "ExitCode", dontRun);

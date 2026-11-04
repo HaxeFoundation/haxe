@@ -135,7 +135,6 @@ module Setup = struct
 			| Jvm ->
 				add_std "jvm";
 				com.package_rules <- PMap.remove "java" com.package_rules;
-				add_std "java";
 				"java"
 			| Python ->
 				add_std "python";
@@ -530,8 +529,10 @@ let create_context (sctx : ServerCompilationContext.t) request_scope runtime_arg
 		warned_positions = Hashtbl.create 0;
 		has_next;
 		has_error = false;
+		running_macros = 0;
 		messages = [];
 		report_mode = RMNone;
+		message_capture = None;
 		compilation_step = sctx.compilation_step;
 		pass_debug_messages = DynArray.create ();
 		dump_config = DumpConfig.create_default ();

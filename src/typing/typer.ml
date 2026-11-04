@@ -113,8 +113,10 @@ let maybe_type_against_enum ctx f with_type iscall p =
 			let e = try
 				f()
 			with
-			| Error { err_message = Unknown_ident n; err_sub = sub } ->
+			| Error ({ err_message = Unknown_ident n; err_sub = sub } as err) ->
 				restore();
+				if ctx.f.in_display && ctx.com.display.dms_kind = DMDefault then
+					raise_error err;
 				raise_or_display_message ctx (StringError.string_error n fields ("Identifier '" ^ n ^ "' is not part of " ^ s_type_path path)) p;
 				AKExpr (mk (TConst TNull) (mk_mono()) p)
 			| exc ->
@@ -399,6 +401,7 @@ and type_ident ctx i p mode with_type =
 					if ctx.f.in_display then begin
 						raise_error_msg err p
 					end;
+					if ctx.f.in_call_args then raise (WithTypeError (make_error err p));
 					if Diagnostics.error_in_diagnostics_run ctx.com p then begin
 						DisplayToplevel.handle_unresolved_identifier ctx i p false;
 						DisplayFields.handle_missing_ident ctx i mode with_type p;
@@ -637,7 +640,13 @@ and type_block ctx el with_type p =
 	let rec loop acc = function
 		| [] -> List.rev acc
 		| e :: l ->
-			let acc = try merge acc (type_expr ctx e (if l = [] then with_type else WithType.no_value)) with Error err -> check_error ctx err; acc in
+			let with_type = if l = [] then with_type else WithType.no_value in
+			let acc =
+				try merge acc (type_expr ctx e with_type)
+				with Error err ->
+					check_error ctx err;
+					(match with_type with | WithType.NoValue -> acc | _ -> mk (TConst TNull) (mk_mono()) (pos e) :: acc)
+			in
 			loop acc l
 	in
 	let l = loop [] el in
@@ -786,6 +795,10 @@ and type_object_decl ctx fl with_type p =
 		let fields = List.fold_left (fun acc ((n,opt,t),parg) ->
 			let f = mk_field n t parg parg in
 			if opt then f.cf_meta <- [(Meta.Optional,[],null_pos)];
+			(try
+				let cf = PMap.find n c.cl_fields in
+				f.cf_doc <- cf.cf_doc
+			with Not_found -> ());
 			PMap.add n f acc
 		) PMap.empty args in
 		let t,fl = type_fields fields in
@@ -1249,7 +1262,22 @@ and type_local_function ctx_from kind f with_type want_coroutine p =
 			if params <> [] then v.v_extra <- Some (var_extra params None);
 			Some v
 	in
-	let e = TypeloadFunction.type_function ctx args rt f.f_expr ctx.f.in_display p in
+	let e =
+		let old_in_call_args = ctx.f.in_call_args in
+		let resets_call_args = old_in_call_args && not (in_overload_call_args ctx) in
+		if resets_call_args then ctx.f.in_call_args <- false;
+		let deactivate_capture = match (if resets_call_args then call_arg_body_capture ctx else None) with
+			| Some buf -> activate_message_capture ctx.com buf
+			| None -> (fun () -> ())
+		in
+		Std.finally (fun () -> deactivate_capture (); ctx.f.in_call_args <- old_in_call_args)
+			(fun () ->
+				try TypeloadFunction.type_function ctx args rt f.f_expr ctx.f.in_display p
+				with Error err when resets_call_args ->
+					check_error ctx err;
+					mk (TBlock []) ctx.t.tvoid p
+			) ()
+	in
 	let tf = {
 		tf_args = args#for_expr ctx;
 		tf_type = rt;
@@ -1515,7 +1543,8 @@ and type_meta ?(mode=MGet) ctx m e1 with_type p =
 		| (Meta.ToString,_,_) ->
 			let e = e() in
 			(match follow e.etype with
-				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics -> call_to_string ctx e
+				| TAbstract({a_impl = Some c; a_this},_) when PMap.mem "toString" c.cl_statics ->
+					call_to_string ~no_null_check:(is_explicit_null a_this) ctx e
 				| _ -> e)
 		| (Meta.Markup,_,_) ->
 			raise_typing_error "Markup literals must be processed by a macro" p
@@ -1654,8 +1683,8 @@ and type_call_builtin ctx e el mode with_type p =
 			if ExtType.is_void (follow e.etype) then raise_typing_error "Cannot use Void as value" e.epos;
 			let infos = type_expr ctx infos WithType.value in
 			let e = match follow e.etype with
-				| TAbstract({a_impl = Some c},_) when PMap.mem "toString" c.cl_statics ->
-					call_to_string ctx e
+				| TAbstract({a_impl = Some c; a_this},_) when PMap.mem "toString" c.cl_statics ->
+					call_to_string ~no_null_check:(is_explicit_null a_this) ctx e
 				| _ ->
 					e
 			in
@@ -1797,12 +1826,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		in
 		let e1_null_t = ctx.t.tnull e1.etype in
 		let var_name = match WithType.get_expected_name with_type with
-			| None
-			(* TODO: why does this happen? *)
-			| Some "" ->
-				"tmp"
-			| Some name ->
-				name
+			| Some name when Lexer.is_valid_identifier name -> name
+			| _ -> "tmp"
 		in
 		let e1 = vr#as_var var_name {e1 with etype = e1_null_t} in
 		let e_null = Builder.make_null e1_null_t e1.epos in

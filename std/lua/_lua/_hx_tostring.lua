@@ -48,7 +48,14 @@ function _hx_tostring(obj, depth)
         elseif obj == _G.math.NEGATIVE_INFINITY then return "-Infinity"
         elseif obj == 0 then return "0"
         elseif obj ~= obj then return "NaN"
-        else return _G.tostring(obj)
+        else
+            -- Lua 5.3+ prints whole floats as "1.0", other targets as "1"
+            -- (no-op on 5.1, 5.2 and LuaJIT)
+            local s = _G.tostring(obj)
+            if _G.string.sub(s, -2) == ".0" then
+                return _G.string.sub(s, 1, -3)
+            end
+            return s
         end
     elseif tstr == "boolean" then return _G.tostring(obj)
     elseif tstr == "userdata" then

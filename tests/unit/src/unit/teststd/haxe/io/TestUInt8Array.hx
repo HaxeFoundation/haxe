@@ -48,7 +48,7 @@ class TestUInt8Array extends unit.Test {
 		try b2[3] = 0xBB catch( e : Dynamic ) {};
 		eq(b[4], 5);
 
-		b.view == b.view; // no alloc
+		eq(b.view, b.view); // no alloc
 
 		eq(b.view.buffer, b2.view.buffer);
 		eq(b.view.byteLength, 5);

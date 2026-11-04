@@ -1,18 +1,16 @@
 compile-each.hxml
+
 --main Main
 -hl bin/hlc/sys/main.c
 
 --next
-compile-each.hxml
 --main TestArguments
 -hl bin/hlc/testArguments/TestArguments.c
 
 --next
-compile-each.hxml
 --main ExitCode
 -hl bin/hlc/exitCode/ExitCode.c
 
 --next
-compile-each.hxml
 --main UtilityProcess
 -hl bin/hlc/utilityProcess/UtilityProcess.c

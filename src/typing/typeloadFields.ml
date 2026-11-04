@@ -153,18 +153,19 @@ let get_struct_init_super_info ctx c p =
 	match c.cl_super with
 		| Some ({ cl_constructor = Some ctor } as csup, cparams) ->
 			let args = (try get_method_args ctor with Not_found -> []) in
-			let tl_rev,el_rev =
-				List.fold_left (fun (args,exprs) (v,value) ->
+			let args_rev,tl_rev,el_rev =
+				List.fold_left (fun (args,tl,exprs) (v,value) ->
 					let opt = match value with
 						| Some _ -> true
 						| None -> Meta.has Meta.Optional v.v_meta
 					in
 					let t = if opt then ctx.t.tnull v.v_type else v.v_type in
-					(v.v_name,opt,t) :: args,(mk (TLocal v) v.v_type p) :: exprs
-				) ([],[]) args
+					let v' = copy_var v in
+					(v',value) :: args,(v.v_name,opt,t) :: tl,(mk (TLocal v') v.v_type p) :: exprs
+				) ([],[],[]) args
 			in
 			let super_expr = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p, List.rev el_rev)) ctx.t.tvoid p in
-			(args,Some super_expr,List.rev tl_rev)
+			(List.rev args_rev,Some super_expr,List.rev tl_rev)
 		| _ ->
 			[],None,[]
 
@@ -407,7 +408,10 @@ let build_module_def ctx mt meta fvars fbuild =
 				let r = try ctx.g.do_macro ctx MBuild cpath meth el p with e -> ctx.c.get_build_infos <- old; raise e in
 				ctx.c.get_build_infos <- old;
 				(match r with
-				| MError | MMacroInMacro -> raise_typing_error (Printf.sprintf "Build failure (%s.%s)" (s_type_path cpath) meth) p
+				| MError | MMacroInMacro ->
+					let msg = Printf.sprintf "Build failure (%s.%s)" (s_type_path cpath) meth in
+					(* if this build was triggered from another macro, raise so that the error reaches that macro *)
+					if display_recovery_enabled ctx.com && ctx.com.part_scope.running_macros = 0 then display_error ctx.com msg p else raise_typing_error msg p
 				| MSuccess e -> fbuild e)
 			) :: f_build
 		| _ ->
@@ -733,7 +737,40 @@ module TypeBinding = struct
 		if not fctx.is_static && not cctx.is_lib then begin match get_declared cf.cf_name c.cl_super with
 				| None -> ()
 				| Some (csup,_) ->
-					display_error ctx.com ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) cf.cf_name_pos
+					let error_redefinition () =
+						display_error ctx.com ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path)) cf.cf_name_pos
+					in
+					(try
+						let cf_parent = PMap.find cf.cf_name csup.cl_fields in
+						if (
+							has_class_field_flag cf_parent CfPublic
+							&& not (has_class_field_flag cf CfPublic)
+						) then
+							display_error ctx.com ("Variable " ^ cf.cf_name ^ " has less visibility (public/private) than superclass one") cf.cf_name_pos
+						else if is_physical_var_field cf_parent then
+							error_redefinition ()
+						else begin
+							(* Same rule as for structural unification: where the parent goes through an accessor, the
+							   child has to as well, or access through the two types would end up in different places. *)
+							let uctx = default_unification_context () in
+							let check is_read parent_acc child_acc =
+								if unify_var_access uctx child_acc parent_acc then
+									true
+								else begin
+									display_error ctx.com (Printf.sprintf "Cannot redefine %s access of %s as %s in subclass, superclass uses %s"
+										(if is_read then "read" else "write") cf.cf_name
+										(TPrinting.s_access is_read child_acc) (TPrinting.s_access is_read parent_acc)) cf.cf_name_pos;
+									false
+								end
+							in
+							match cf.cf_kind, cf_parent.cf_kind with
+							| Var child_v, Var parent_v ->
+								ignore (check true parent_v.v_read child_v.v_read && check false parent_v.v_write child_v.v_write)
+							| _ ->
+								error_redefinition ()
+						end
+					with Not_found ->
+						error_redefinition ())
 		end
 
 	let bind_var_expression ctx_f cctx fctx cf e =
@@ -1105,7 +1142,7 @@ let check_abstract (ctx,cctx,fctx) a c cf fd t ret p =
 		if fctx.is_inline then missing_expression ctx.com fctx "Inline functions must have an expression" cf.cf_pos;
 		if fd.f_type = None then raise_typing_error ("Functions without expressions must have an explicit return type") cf.cf_pos;
 		if !allows_no_expr then begin
-			cf.cf_meta <- (Meta.NoExpr,[],null_pos) :: cf.cf_meta;
+			add_class_field_flag cf CfNoExpr;
 			fctx.do_bind <- false;
 		end
 	end
@@ -1243,7 +1280,7 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 			if fctx.is_inline && (has_class_flag c CInterface) then invalid_modifier ctx.com fctx "inline" "method of interface" p;
 		| false,CfrConstructor ->
 			if fctx.is_static then invalid_modifier ctx.com fctx "static" "constructor" p;
-			if Meta.has Meta.Coroutine f.cff_meta then invalid_modifier ctx.com fctx "@:coroutine" "constructor" p;
+			if Meta.has Meta.Coroutine f.cff_meta then raise_typing_error "Invalid modifier: @:coroutine on constructor" p;
 			begin match fd.f_type with
 				| None -> ()
 				| Some (CTPath ({ path = {tpackage = []; tname = "Void" } as tp}),p) ->
@@ -1579,6 +1616,8 @@ let init_field (ctx,cctx,fctx) f cf =
 	end;
 	let cf =
 		match f.cff_kind with
+		| (FVar _ | FProp _) when fctx.field_kind = CfrConstructor ->
+			raise_typing_error "A constructor must be a function" p
 		| FVar (t,e) ->
 			create_variable (ctx,cctx,fctx) c f cf t e p
 		| FFun fd ->
@@ -1643,14 +1682,6 @@ let finalize_class cctx =
 		| None -> ()
 		| Some r -> delay ctx.g PTypeField (fun() -> ignore(lazy_type r)))
 	) cctx.delayed_expr
-
-let check_functional_interface ctx c =
-	match TClass.get_singular_interface_field c.cl_ordered_fields with
-	| None ->
-		()
-	| Some cf ->
-		add_class_flag c CFunctionalInterface;
-		ctx.com.functional_interface_lut#add c.cl_path (c,cf)
 
 let create_class_field cctx f  =
 	let cf = {(mk_field (fst f.cff_name) ~public:(is_public cctx f.cff_access None) t_dynamic f.cff_pos (pos f.cff_name)) with
@@ -1793,7 +1824,7 @@ let init_class ctx_c cctx c p herits fields =
 			a.a_unops <- List.rev a.a_unops;
 			a.a_array <- List.rev a.a_array;
 		| None ->
-			if (has_class_flag c CFunctionalInterface) && com.platform = Jvm then check_functional_interface ctx_c c;
+			()
 	end;
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;

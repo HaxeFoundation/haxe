@@ -249,6 +249,7 @@ extern class Const {
 	static final SOL_SOCKET:Int;
 	static final SO_RCVTIMEO:Int;
 	static final SO_SNDTIMEO:Int;
+	static final SO_REUSEADDR:Int;
 	static final TCP_NODELAY:Int;
 	static final PHP_BINARY_READ:Int;
 

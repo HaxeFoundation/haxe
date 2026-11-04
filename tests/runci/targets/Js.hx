@@ -137,7 +137,7 @@ class Js {
 
 		changeDirectory(sysDir);
 		installNpmPackages(["deasync"]);
-		runCommand("haxe", ["compile-js.hxml"].concat(args));
+		runCommand("haxe", args.concat(["compile-js.hxml"]));
 		runSysTest("node", ["bin/js/sys.js"]);
 
 		changeDirectory(getMiscSubDir(""));

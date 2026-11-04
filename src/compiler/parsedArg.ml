@@ -11,9 +11,8 @@ type native_lib_arg = {
 	lib_extern : bool;
 }
 
-
 type expanding_arg_function =
-	| AddLibs of string list
+	| AddLibs of (string list (* libs *) * string (* cwd *))
 
 type expanding_arg_state =
 	| NotYetExpanded of expanding_arg_function

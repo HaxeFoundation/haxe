@@ -334,6 +334,8 @@ class Compiler {
 
 		If `pathFilter` is the empty String `""` it matches everything (if
 		`recursive = true`) or only top-level types (if `recursive = false`).
+		`pathFilter` may contain wildcard segments: `*` matches exactly one
+		path segment, while `**` matches any depth.
 
 		This operation has no effect if the type has already been loaded, e.g.
 		through `Context.getType`.

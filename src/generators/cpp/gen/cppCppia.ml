@@ -7,7 +7,7 @@ open CppAst
 open CppAstTools
 open CppContext
 
-type script_type = 
+type script_type =
   | ScriptBool
   | ScriptInt
   | ScriptFloat
@@ -413,7 +413,7 @@ let is_extern_class_instance obj =
 let rec is_dynamic_in_cpp ctx expr =
   let expr_type =
     type_string
-      (match follow expr.etype with TFun (args, ret) -> ret | _ -> expr.etype)
+      (match follow_with_coro expr.etype with Coro (args, ret) | NotCoro TFun (args, ret) -> ret | _ -> expr.etype)
   in
   if expr_type = "Dynamic" || expr_type = "cpp::ArrayBase" then true
   else
@@ -454,8 +454,8 @@ let rec is_dynamic_in_cpp ctx expr =
           in
           if is_IaCall then true
           else
-            match follow func.etype with
-            | TFun (args, ret) -> is_dynamic_in_cpp ctx func
+            match follow_with_coro func.etype with
+            | Coro _ | NotCoro TFun _ -> is_dynamic_in_cpp ctx func
             | _ -> true)
       | TParenthesis expr | TMeta (_, expr) -> is_dynamic_in_cpp ctx expr
       | TCast (e, None) -> type_string expr.etype = "Dynamic"
@@ -756,7 +756,7 @@ class script_writer ctx filename asciiOut basic =
         match fieldExpression with
         | Some ({ eexpr = TFunction function_def } as e) ->
             if cppiaAst then (
-              let args = List.map (fun (v, e) -> (CppRetyper.retype_tvar basic v), e) function_def.tf_args in
+              let args = List.map this#retype_default_arg function_def.tf_args in
               let cppExpr =
                 CppRetyper.expression ctx TCppVoid args (cpp_type_of basic function_def.tf_type)
                   function_def.tf_expr false
@@ -884,6 +884,16 @@ class script_writer ctx filename asciiOut basic =
            this#writeOpLine op);
         this#gen_expression expr)
 
+    method private retype_default_arg (v, e) =
+      let v =
+        match e with
+        | Some { eexpr = TConst _ } | None -> v
+        | Some _ when is_cpp_scalar (cpp_type_of basic v.v_type) ->
+            { v with v_type = basic.tnull v.v_type }
+        | Some _ -> v
+      in
+      (CppRetyper.retype_tvar basic v, e)
+
     method gen_func_args args =
       let gen_inits = ref [] in
       List.iter
@@ -892,7 +902,7 @@ class script_writer ctx filename asciiOut basic =
           this#writeVar arg.tcppv_var;
           match init with
           | Some { eexpr = TConst TNull } -> this#write "0\n"
-          | Some const ->
+          | Some ({ eexpr = TConst _ } as const) ->
               let argType = cpp_type_of basic const.etype in
               if is_cpp_scalar argType || argType == TCppString then (
                 this#write "1 ";
@@ -901,14 +911,18 @@ class script_writer ctx filename asciiOut basic =
               else (
                 gen_inits := (arg, const) :: !gen_inits;
                 this#write "0\n")
+          | Some init ->
+              gen_inits := (arg, init) :: !gen_inits;
+              this#write "0\n"
           | _ -> this#write "0\n")
         args;
 
-      if List.length !gen_inits == 0 then fun () -> ()
+      let gen_inits = List.rev !gen_inits in
+      if List.length gen_inits == 0 then fun () -> ()
       else (
         this#begin_expr;
-        this#writePos (snd (List.hd !gen_inits));
-        this#writeList (this#op IaBlock) (List.length !gen_inits + 1);
+        this#writePos (snd (List.hd gen_inits));
+        this#writeList (this#op IaBlock) (List.length gen_inits + 1);
         List.iter
           (fun (arg, const) ->
             let start_expr () =
@@ -936,7 +950,7 @@ class script_writer ctx filename asciiOut basic =
             this#gen_expression const;
             this#end_expr;
             this#begin_expr)
-          !gen_inits;
+          gen_inits;
         fun () -> this#end_expr)
 
     method gen_expression expr =
@@ -955,7 +969,7 @@ class script_writer ctx filename asciiOut basic =
             ^ this#typeText function_def.tf_type
             ^ string_of_int (List.length function_def.tf_args)
             ^ "\n");
-          let close = this#gen_func_args (List.map (fun (v, e) -> CppRetyper.retype_tvar basic v, e) function_def.tf_args) in
+          let close = this#gen_func_args (List.map this#retype_default_arg function_def.tf_args) in
           let pop = this#pushReturn function_def.tf_type in
           this#gen_expression function_def.tf_expr;
           pop ();
@@ -1088,8 +1102,8 @@ class script_writer ctx filename asciiOut basic =
                 this#write (this#op IaCall ^ argN ^ "\n");
                 this#gen_expression func);
             let matched_args =
-              match func.etype with
-              | TFun (args, _) -> (
+              match follow_with_coro func.etype with
+              | Coro (args, _) | NotCoro TFun (args, _) -> (
                   try
                     List.iter2
                       (fun (_, _, protoT) arg ->
@@ -1814,11 +1828,30 @@ let generate_script_class common_ctx script class_def =
        + match TClass.get_cl_init class_def with Some _ -> 1 | _ -> 0)
     ^ "\n");
 
+  (* Methods without an expression (i.e. abstract ones) still need a real function, because hxcpp
+     reads every class method as a ScriptCallable and the JIT accesses it as one *)
+  let method_expression field =
+    match field.cf_expr with
+    | None when not (has_class_flag class_def CInterface) ->
+        Some (mk (TFunction (CppRetyper.abstract_tfunc common_ctx.Gctx.basic field)) field.cf_type field.cf_pos)
+    | e -> e
+  in
   let generate_field isStatic field =
-    match (field.cf_kind, follow field.cf_type) with
-    | Var { v_read = AccInline; v_write = AccNever }, _ ->
+	let unknown() =
+		print_endline
+		("Unknown method type "
+		^ join_class_path class_def.cl_path "."
+		^ "." ^ field.cf_name)
+  	in
+	let map_args_ret f = match follow_with_coro field.cf_type with
+		| Coro(args,ret) -> f args ret
+		| NotCoro (TFun(args,ret)) -> f args ret
+		| _ -> unknown ()
+	in
+    match field.cf_kind with
+    | Var { v_read = AccInline; v_write = AccNever } ->
         script#writeOpLine IaInline
-    | Var v, _ ->
+    | Var v->
         let mode_code mode =
           match mode with
           | AccNormal | AccCtor -> IaAccessNormal
@@ -1837,23 +1870,24 @@ let generate_script_class common_ctx script class_def =
         let isExtern = not (is_physical_field field) in
         script#var (mode_code v.v_read) (mode_code v.v_write) isExtern isStatic
           field.cf_name field.cf_type field.cf_expr
-    | Method MethDynamic, TFun (args, ret) ->
-        script#func isStatic true field.cf_name ret args
-          (has_class_flag class_def CInterface)
-          field.cf_expr field.cf_pos
-    | Method _, TFun (args, ret) when field.cf_name = "new" ->
-        script#func true false "new"
-          (TInst (class_def, []))
-          args false field.cf_expr field.cf_pos
-    | Method _, TFun (args, ret) ->
-        script#func isStatic false field.cf_name ret args
-          (has_class_flag class_def CInterface)
-          field.cf_expr field.cf_pos
-    | Method _, _ ->
-        print_endline
-          ("Unknown method type "
-          ^ join_class_path class_def.cl_path "."
-          ^ "." ^ field.cf_name)
+    | Method MethDynamic ->
+		map_args_ret (fun args ret ->
+			script#func isStatic true field.cf_name ret args
+			(has_class_flag class_def CInterface)
+			(method_expression field) field.cf_pos
+		)
+    | Method _ when field.cf_name = "new" ->
+		map_args_ret (fun args ret ->
+			script#func true false "new"
+			(TInst (class_def, []))
+			args false field.cf_expr field.cf_pos
+		)
+    | Method _ ->
+		map_args_ret (fun args ret ->
+			script#func isStatic false field.cf_name ret args
+			(has_class_flag class_def CInterface)
+			(method_expression field) field.cf_pos
+		)
   in
   (match class_def.cl_constructor with
   | Some field -> generate_field true field

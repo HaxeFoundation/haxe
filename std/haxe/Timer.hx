@@ -173,6 +173,8 @@ class Timer {
 		return untyped __global__.__time_stamp();
 		#elseif python
 		return Sys.cpuTime();
+		#elseif lua
+		return lua.Os.clock();
 		#elseif sys
 		return Sys.time();
 		#else
@@ -185,7 +187,7 @@ class Timer {
 	 *
 	 * The precision and epoch of the timer is platform defined.
 	 */
-	public static inline function milliseconds():Int64 {
+	public static #if !cppia inline #end function milliseconds():Int64 {
 		#if flash
 		return flash.Lib.getTimer();
 		#elseif js
@@ -201,7 +203,7 @@ class Timer {
 		#if (python_version >= 3.7)
 		return python.lib.Time.perf_counter_ns() / 1000000i64;
 		#else
-		return Std.int(stamp() * 1000);
+		return Int64.fromFloat(stamp() * 1000);
 		#end
 		#elseif (hl && hl_ver >= version("1.16.0") && !hl_legacy32)
 		return hl.Api.timestampMs();
@@ -210,7 +212,7 @@ class Timer {
 		#elseif eval
 		return @:privateAccess Sys.timestamp_ms();
 		#else
-		return Int64.mul(Int64.fromFloat(stamp()), 1000);
+		return Int64.fromFloat(stamp() * 1000);
 		#end
 	}
 }
