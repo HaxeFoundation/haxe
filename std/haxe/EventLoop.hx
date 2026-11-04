@@ -1,6 +1,8 @@
 package haxe;
 
 import haxe.EntryPoint;
+import haxe.atomic.AtomicInt;
+import haxe.ds.IntMap;
 
 class Event {
 
@@ -63,6 +65,13 @@ class Event {
 
 }
 
+private typedef NativeEventLoop = {
+	final allowsReentrancy:Bool;
+	function run():Void;
+	function close():Void;
+	function isAlive():Bool;
+};
+
 
 /**
 	Handles async events for all threads
@@ -81,55 +90,43 @@ class EventLoop {
 	**/
 	public static var current(get,never) : EventLoop;
 
+	#if target.threaded
+	static var eventsTls:sys.thread.Tls<EventLoop>;
+	static var threadsToEventLoops:IntMap<EventLoop>;
+	static var threadsToEventLoopsMutex:sys.thread.Mutex;
+	#end
+
 	var events : Event;
+	var queue : Event;
 	var inLoop : Bool;
 	var hasPendingRemove : Bool;
 	var promiseCount : Int = 0;
 	#if target.threaded
 	var mutex : sys.thread.Mutex;
 	var lockTime : sys.thread.Lock;
+	final numPendingThreadTasks : AtomicInt;
 	/**
 		The reference thread for this loop. If set, the loop can only be run within this thread.
 	**/
 	public var thread : sys.thread.Thread;
 	#end
-	#if hl
-	var uvLoop : hl.uv.Loop;
-	var inUV : Bool;
-	#end
+	var nativeLoop : Null<NativeEventLoop>;
+	var inNative : Bool = false;
 
 	public function new() {
 		#if target.threaded
 		mutex = new sys.thread.Mutex();
 		lockTime = new sys.thread.Lock();
+		numPendingThreadTasks = new AtomicInt(0);
 		#end
 	}
-
-	#if hl
-	function getUVLoop() {
-		if( uvLoop == null ) {
-			if( this == main )
-				uvLoop = @:privateAccess hl.uv.Loop.default_loop();
-			else {
-				#if (hl_ver < version("1.16.0"))
-				throw "Using libUV multithread requires -D hl-ver=1.16.0";
-				#else
-				uvLoop = hl.uv.Loop.create();
-				#end
-			}
-		}
-		return uvLoop;
-	}
-	#end
 
 	/**
 		This should be called after you are finished with a custom event loop.
 		It is already automatically called for threads loops.
 	**/
 	public function dispose() {
-		#if hl
-		if( uvLoop != null && uvLoop.close() != 0 ) Sys.println("Some async handlers have not been closed");
-		#end
+		if( nativeLoop != null ) nativeLoop.close();
 	}
 
 	/**
@@ -138,18 +135,27 @@ class EventLoop {
 	**/
 	public function loop() {
 		checkThread();
-		while( hasEvents(true) || promiseCount > 0 || (this == main && hasRunningThreads()) ) {
-			var time = getNextTick();
-			#if hl
-			// disable wait if we have our uvloop alive
-			if( uvLoop != null && time > 0 && uvLoop.alive() > 0 )
-				time = -1;
-			#end
-			if( time > 0 ) {
-				wait(time);
-				continue;
+		while (true) {
+			if (hasEvents(true)) {
+				var time = getNextTick();
+				// disable wait if we have our native loop alive
+				if( nativeLoop != null && time > 0 && nativeLoop.isAlive() )
+					time = -1;
+				if( time > 0 ) {
+					wait(time);
+					continue;
+				}
+				loopOnce(false);
+			} else if (promiseCount > 0 || hasRunningThreadTasks()) {
+				#if target.threaded
+				// wait till we get notified
+				lockTime.wait();
+				#else
+				// ?
+				#end
+			} else {
+				break;
 			}
-			loopOnce(false);
 		}
 	}
 
@@ -217,9 +223,7 @@ class EventLoop {
 	public function loopOnce( threadCheck = true ) {
 		if( threadCheck )
 			checkThread();
-		#if hl
-		if( inUV ) throw "You cannot callback EventLoop.loop() while in uv event callback";
-		#end
+		if( inNative && !nativeLoop.allowsReentrancy ) throw "You cannot call EventLoop.loop() while in an event callback with a non-reentrant native loop";
 
 		lock();
 		sortEvents();
@@ -227,13 +231,11 @@ class EventLoop {
 		inLoop = true;
 		unlock();
 
-		#if hl
-		if( uvLoop != null ) {
-			inUV = true;
-			uvLoop.run(NoWait);
-			inUV = false;
+		if( nativeLoop != null ) {
+			inNative = true;
+			nativeLoop.run();
+			inNative = false;
 		}
-		#end
 
 		// if inLoop turns false, stop because we had reentrency
 		var time = haxe.Timer.stamp();
@@ -310,10 +312,12 @@ class EventLoop {
 			unlock();
 			return;
 		}
-		if( events != null )
-			events.prev = e;
-		e.next = events;
-		events = e;
+		if( queue != null )
+			queue.next = e;
+		else
+			events = e;
+		e.prev = queue;
+		queue = e;
 		wakeup();
 		unlock();
 	}
@@ -340,6 +344,8 @@ class EventLoop {
 			e.next.prev = e.prev;
 			e.next = null;
 		}
+		if( queue == e )
+			queue = e.prev;
 		e.prev = null;
 		wakeup();
 		unlock();
@@ -349,7 +355,7 @@ class EventLoop {
 		lock();
 		if( events == null ) {
 			unlock();
-			return 1e9;
+			return 1e6;
 		}
 		var now = haxe.Timer.stamp();
 		var e = events;
@@ -380,7 +386,7 @@ class EventLoop {
 		}
 
 		var insize = 1, nmerges, psize = 0, qsize = 0;
-		var p, q, e, tail:Event;
+		var p, q, e, tail:Event = null;
 
 		while (true) {
 			p = list;
@@ -430,6 +436,7 @@ class EventLoop {
 		}
 		list.prev = null; // not cycling
 		events = list;
+		queue = tail;
 		unlock();
 	}
 
@@ -437,10 +444,14 @@ class EventLoop {
 		Tells if we currently have blocking unfinished threads.
 	**/
 	public static function hasRunningThreads() {
+		return main.hasRunningThreadTasks();
+	}
+
+	function hasRunningThreadTasks() {
 		#if !target.threaded
 		return false;
 		#else
-		return @:privateAccess sys.thread.Thread.hasBlocking();
+		return numPendingThreadTasks.load() > 0;
 		#end
 	}
 
@@ -449,10 +460,8 @@ class EventLoop {
 		If blocking is set to true, only check if it has remaining blocking events.
 	**/
 	public function hasEvents( blocking : Bool = true ) {
-		#if hl
-		if( uvLoop != null && uvLoop.alive() > 0 )
+		if( nativeLoop != null && nativeLoop.isAlive() )
 			return true;
-		#end
 		if( !blocking )
 			return events != null;
 		lock();
@@ -469,20 +478,50 @@ class EventLoop {
 	}
 
 	/**
-		Add a task to be run either on another thread or as part of the main event loop if the
-		platform does not support threads.
+		Adds `f` as a thread task on the main thread.
 	**/
 	public static function addTask( f : Void -> Void, blocking = true ) {
+		main.addThreadTask(f, blocking);
+	}
+
+	/**
+		Add a task to be run either on another thread or as part of this event loop if the
+		platform does not support threads.
+	**/
+	public function addThreadTask( f : Void -> Void, blocking = true ) {
 		#if target.threaded
-		sys.thread.Thread.create(f).isBlocking = blocking;
+		if (blocking) {
+			numPendingThreadTasks.add(1);
+			sys.thread.Thread.create(f, { onExit: () -> {
+				numPendingThreadTasks.sub(1);
+				wakeup();
+		 	}});
+		} else {
+			sys.thread.Thread.create(f);
+		}
 		#else
-		main.add(f).isBlocking = blocking;
+		add(f).isBlocking = blocking;
 		#end
 	}
 
+	#if target.threaded
+
+	/**
+		Returns the instance of `EventLoop` associated with `thread`, or `null` if no such
+		instance exists for the given thread.
+	**/
+	static public function getThreadLoop(thread:sys.thread.Thread) {
+		threadsToEventLoopsMutex.acquire();
+		final events = threadsToEventLoops.get(thread.id);
+		threadsToEventLoopsMutex.release();
+		return events;
+	}
+
+	#end
+
 	static function get_current() {
 		#if target.threaded
-		var events = sys.thread.Thread.current().events;
+		var events = eventsTls.value;
 		if( events == null ) throw "The current thread doesn't have an event loop.";
 		return events;
 		#else
@@ -495,5 +534,43 @@ class EventLoop {
 		return main;
 	}
 
+	#if target.threaded
 
+	static function __init__() {
+		eventsTls = new sys.thread.Tls();
+		threadsToEventLoops = new IntMap();
+		threadsToEventLoopsMutex = new sys.thread.Mutex();
+
+		// Set up main EventLoop
+		main.thread = sys.thread.Thread.main();
+		eventsTls.value = main;
+		threadsToEventLoopsMutex.acquire(); // probably not necessary but let's play it safe
+		threadsToEventLoops.set(main.thread.id, main);
+		threadsToEventLoopsMutex.release();
+
+		// Set up addCallbacks for all threads
+		sys.thread.Thread.addCallbacks({
+			onStart: () -> {
+				final thread = sys.thread.Thread.current();
+				final events = new EventLoop();
+				events.thread = thread;
+				eventsTls.value = events;
+				threadsToEventLoopsMutex.acquire();
+				threadsToEventLoops.set(thread.id, events);
+				threadsToEventLoopsMutex.release();
+			},
+			onJobDone: () -> {
+				final events = eventsTls.value;
+				if (events != null) events.loop();
+			},
+			onExit: () -> {
+				final events = eventsTls.value;
+				if (events != null) events.dispose();
+				main.wakeup();
+				eventsTls.value = null;
+			}
+		});
+	}
+
+	#end
 }

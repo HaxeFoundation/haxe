@@ -1,0 +1,8 @@
+--main Main2
+--jvm bin/run2.jar
+
+--next
+
+-cp ../../dex
+--main Check2
+--interp

@@ -17,6 +17,12 @@
 --interp
 
 --next
+--main TestCoroAssert
+-D haxe-next
+--no-output
+-js /dev/null
+
+--next
 -js testopt.js
 --macro Macro.register('Test')
 --macro Macro.register('TestJs')

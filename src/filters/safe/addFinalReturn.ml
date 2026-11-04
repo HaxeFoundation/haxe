@@ -15,7 +15,7 @@ let rec add_final_return e =
 		match e.eexpr with
 		| TBlock el ->
 			(match List.rev el with
-			| [] -> e
+			| [] -> { e with eexpr = TBlock [def_return e.epos] }
 			| elast :: el ->
 				match loop elast t with
 				| { eexpr = TBlock el2 } -> { e with eexpr = TBlock ((List.rev el) @ el2) }

@@ -1,30 +1,33 @@
 package cases;
 
+import utest.Assert;
+import haxe.EventLoop;
+
 @:timeout(2000)
-class TestEvents extends utest.Test {
+class TestEvents extends ThreadTestBase {
 
 	function testIssue10567_runEventsInOrderByTime(async:Async) {
-		var events = Thread.current().events;
+		var events = EventLoop.current;
 		var checks = [];
 		var e3 = null;
 		var e2 = null;
 		var e1 = null;
-		e2 = events.repeat(() -> {
+		e2 = events.addTimer(() -> {
 			checks.push(2);
-			events.cancel(e1);
-			events.cancel(e2);
-			events.cancel(e3);
-		}, 20);
-		e1 = events.repeat(() -> checks.push(1), 10);
-		e3 = events.repeat(() -> checks.push(3), 30);
+			e1.stop();
+			e2.stop();
+			e3.stop();
+		}, 20 / 1000);
+		e1 = events.addTimer(() -> checks.push(1), 10 / 1000);
+		e3 = events.addTimer(() -> checks.push(3), 30 / 1000);
 		Sys.sleep(0.1);
 
 		var checker = null;
-		checker = events.repeat(() -> {
+		checker = events.addTimer(() -> {
 			same([1, 2], checks);
 			async.done();
-			events.cancel(checker);
-		}, 100);
+			checker.stop();
+		}, 100 / 1000);
 	}
 
 	function testRun(async:Async) {
@@ -32,11 +35,11 @@ class TestEvents extends utest.Test {
 		Thread.create(() -> {
 			var childThread = Thread.current();
 			isTrue(mainThread != childThread);
-			mainThread.events.run(() -> {
+			EventLoop.getThreadLoop(mainThread).run(() -> {
 				isTrue(mainThread == Thread.current());
-				childThread.events.run(() -> {
+				EventLoop.getThreadLoop(childThread).run(() -> {
 					isTrue(childThread == Thread.current());
-					mainThread.events.run(() -> {
+					EventLoop.getThreadLoop(mainThread).run(() -> {
 						isTrue(mainThread == Thread.current());
 						async.done();
 					});
@@ -52,14 +55,14 @@ class TestEvents extends utest.Test {
 		function test(thread:Thread, done:()->Void) {
 			var timesExecuted = 0;
 			var eventHandler = null;
-			eventHandler = thread.events.repeat(() -> {
+			eventHandler = EventLoop.getThreadLoop(thread).addTimer(() -> {
 				++timesExecuted;
 				isTrue(thread == Thread.current());
 				if(timesExecuted >= 3) {
-					thread.events.cancel(eventHandler);
+					eventHandler.stop();
 					done();
 				}
-			}, 50);
+			}, 50 / 1000);
 		}
 
 		var mainThread = Thread.current();
@@ -69,9 +72,35 @@ class TestEvents extends utest.Test {
 			Thread.create(() -> {
 				var childThread = Thread.current();
 				isTrue(childThread != mainThread);
-				test(childThread, mainThread.events.run.bind(() -> async.done(),0));
+				test(childThread, EventLoop.getThreadLoop(mainThread).run.bind(() -> async.done(),0));
 			});
 		});
 	}
 
+	function testBlocking() {
+		var threadValue = null;
+		EventLoop.addTask(() -> {
+			Sys.sleep(0.1);
+			threadValue = "ok";
+		});
+
+		while (EventLoop.hasRunningThreads()) {
+			Sys.sleep(0.01);
+		}
+
+		Assert.equals("ok", threadValue);
+	}
+
+	function testBlockingInstance() {
+		var threadValue = null;
+		final loop = new EventLoop();
+		loop.addThreadTask(() -> {
+			Sys.sleep(0.1);
+			threadValue = "ok";
+		});
+
+		loop.loop();
+
+		Assert.equals("ok", threadValue);
+	}
 }

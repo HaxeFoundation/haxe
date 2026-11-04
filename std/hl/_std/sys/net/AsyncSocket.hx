@@ -22,6 +22,7 @@
 
 package sys.net;
 
+@:coreApi(check = Off)
 class AsyncSocket {
 
 	var loop : haxe.EventLoop;
@@ -49,7 +50,7 @@ class AsyncSocket {
 	}
 
 	function init(ssl) {
-		tcp = new hl.uv.Tcp(@:privateAccess loop.getUVLoop());
+		tcp = new hl.uv.Tcp(hl.uv.Loop.getFromEventLoop(loop));
 		stream = tcp;
 		recv = haxe.io.Bytes.alloc(0);
 		@:privateAccess loop.wakeup();

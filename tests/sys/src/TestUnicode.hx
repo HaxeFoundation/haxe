@@ -11,7 +11,9 @@ import UtilityProcess.runUtility;
 class TestUnicode extends utest.Test {
 	static var BIN_SYMLINK =
 #if cpp
-		#if debug
+		#if cppia
+			"bin-cppia";
+		#elseif debug
 			"bin-cpp-debug";
 		#else
 			"bin-cpp";
@@ -201,7 +203,6 @@ class TestUnicode extends utest.Test {
 		assertNormalEither(FileSystem.exists, 'test-res/b', 'expected exists == false');
 
 		// fullPath
-#if !lua // Lua disabled temporarily (#8215)
 		if (Sys.systemName() != "Windows") {
 			// symlinks behave strangely on Windows
 			pathBoth(path -> {
@@ -211,7 +212,6 @@ class TestUnicode extends utest.Test {
 						);
 				}, "test-res");
 		}
-#end
 
 		// isDirectory
 		assertNormalEither(FileSystem.isDirectory, 'test-res/a', 'expected isDirectory == true');
@@ -270,24 +270,25 @@ class TestUnicode extends utest.Test {
 			});
 	}
 
+	#if !js // See #10436
 	// Temporary disabled for local run because of https://github.com/HaxeFoundation/haxe/issues/8380
 	#if github
 	function testIPC() {
 		// stdin.readLine
 		UnicodeSequences.normalBoth(str -> {
-				assertUEquals(runUtility(["stdin.readLine"], {stdin: str + endLine}).stdout, str + endLine);
+				assertUEquals(runUtility(["stdin.readLine"], str + endLine).stdout, str + endLine);
 			});
 
 		// stdin.readString
 		UnicodeSequences.normalBoth(str -> {
 				var byteLength = Bytes.ofString(str).length;
-				assertUEquals(runUtility(["stdin.readString", '${byteLength}'], {stdin: '$str'}).stdout, str + endLine);
+				assertUEquals(runUtility(["stdin.readString", '${byteLength}'], '$str').stdout, str + endLine);
 			});
 
 		// stdin.readUntil
 		UnicodeSequences.normalBoth(str -> {
 				// make sure the 0x70 byte is not part of the test string
-				assertUEquals(runUtility(["stdin.readUntil", "0x70"], {stdin: str + "\x70" + str + "\x70"}).stdout, str + endLine);
+				assertUEquals(runUtility(["stdin.readUntil", "0x70"], str + "\x70" + str + "\x70").stdout, str + endLine);
 			});
 
 		UnicodeSequences.normalBothIndexed((str, i, nfc) -> {
@@ -303,21 +304,24 @@ class TestUnicode extends utest.Test {
 				// trace
 				assertUEnds(runUtility(["trace", '$i', mode]).stdout, str + endLine);
 				#if !jvm
+#if (hl || cpp || lua) if (Sys.systemName() != "Windows") { #end // HL and C++ temporarily disabled (#8379)
 				// putEnv + getEnv
 				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "getEnv", "HAXE_TEST"]).stdout, str + endLine);
 				// putEnv + environment
 				assertUEquals(runUtility(["putEnv", "HAXE_TEST", '$i', mode, "environment", "HAXE_TEST"]).stdout, str + endLine);
+#if (hl || cpp || lua) } #end // HL and C++ temporarily disabled (#8379)
 				#end
 			});
 
 		// args
-		if (#if (jvm || eval || cpp) Sys.systemName() != "Windows" #else true #end) {
+		if (#if (jvm || eval || hl || cpp || lua) Sys.systemName() != "Windows" #else true #end) {
 			// https://stackoverflow.com/questions/7660651/passing-command-line-unicode-argument-to-java-code
 			UnicodeSequences.normalBoth(str -> {
 					assertUEquals(runUtility(["args", str]).stdout, str + endLine);
 				});
 		}
 	}
+	#end
 	#end
 
 	function testIO() {
@@ -361,18 +365,13 @@ class TestUnicode extends utest.Test {
 		assertBytesEqual(File.getBytes("temp-unicode/out.bin"), UnicodeSequences.validBytes);
 
 		// append
-#if js
-		if (Sys.systemName() != "Mac") // File.append() here is broken on mac
-#end
-		{
-			var out = File.append("temp-unicode/out.bin");
-			out.writeString(UnicodeSequences.validString);
-			out.close();
-			var repeated = Bytes.alloc(UnicodeSequences.validBytes.length * 2);
-			repeated.blit(0, UnicodeSequences.validBytes, 0, UnicodeSequences.validBytes.length);
-			repeated.blit(UnicodeSequences.validBytes.length, UnicodeSequences.validBytes, 0, UnicodeSequences.validBytes.length);
-			assertBytesEqual(File.getBytes("temp-unicode/out.bin"), repeated);
-		}
+		var out = File.append("temp-unicode/out.bin");
+		out.writeString(UnicodeSequences.validString);
+		out.close();
+		var repeated = Bytes.alloc(UnicodeSequences.validBytes.length * 2);
+		repeated.blit(0, UnicodeSequences.validBytes, 0, UnicodeSequences.validBytes.length);
+		repeated.blit(UnicodeSequences.validBytes.length, UnicodeSequences.validBytes, 0, UnicodeSequences.validBytes.length);
+		assertBytesEqual(File.getBytes("temp-unicode/out.bin"), repeated);
 
 		// readLine
 		var data = File.read("test-res/data.bin");

@@ -71,6 +71,15 @@ class Lib {
 	}
 
 	/**
+		Returns the module-level varargs (`...`) passed to the Lua chunk.
+		Useful in environments like ComputerCraft where script arguments
+		are only available via module-level varargs, not `_G.arg`.
+	**/
+	public static function getModuleVarargs():Table<Int, String> {
+		return untyped _hx_module_varargs;
+	}
+
+	/**
 		Simple test for the presence of an available shell.
 	**/
 	public static function isShellAvailable():Bool {

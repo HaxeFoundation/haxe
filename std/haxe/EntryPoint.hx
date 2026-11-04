@@ -6,13 +6,14 @@ package haxe;
 **/
 class EntryPoint {
 
-	@:keep public static function run() @:privateAccess {
+	@:ifFeature("haxe.EventLoop.*")
+	public static function run() @:privateAccess {
 		#if js
 			var nextTick = haxe.EventLoop.main.getNextTick();
 			inline function setTimeoutNextTick() {
-				if (nextTick >= 0) {
-					(untyped setTimeout)(run, nextTick * 1000);
-				}
+				var time = nextTick < 0 ? 0 : nextTick * 1000;
+				if( time > 0x7FFFFFFF ) time = 0x7FFFFFFF;
+				(untyped setTimeout)(run, time);
 			}
 			#if nodejs
 			setTimeoutNextTick();

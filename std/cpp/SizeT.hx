@@ -23,5 +23,5 @@
 package cpp;
 
 @:native("size_t")
-@:scalar @:coreType @:notNull @:defaultValue(0)
+@:scalar @:coreType @:notNull
 extern abstract SizeT from(Int) to(Int) {}

@@ -1,0 +1,72 @@
+name: "Copilot Setup Steps"
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      PLATFORM: linux64
+      OCAML_VERSION: 5.3.0
+      OPAMYES: 1
+      OPAMROOT: /opt/opam
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install system dependencies
+        run: |
+          set -ex
+          sudo apt-get update -qqy
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Use-Pty=0 install -y \
+            opam libpcre2-dev zlib1g-dev libzstd-dev libgtk2.0-dev libmbedtls-dev ninja-build \
+            cmake gcc-multilib g++-multilib \
+            libturbojpeg-dev libvorbis-dev \
+            libuv1-dev libreadline-dev
+
+      # Neko has to come first: building the opam dependencies from source needs it (conf-neko).
+      - name: Setup Neko
+        uses: ./.github/actions/setup-neko
+        env:
+          PLATFORM: linux64
+
+      - name: Make Neko shared libraries available to the dynamic linker
+        run: |
+          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/local.conf
+          sudo ldconfig
+
+      # Downloads the prebuilt opam root published by CI (or builds it if there is none yet),
+      # builds haxe and haxelib, and installs the haxelib libraries the tests need.
+      - name: Set up OCaml, Haxe and haxelib
+        run: |
+          set -ex
+          extra/agent-setup.sh --no-apt --no-profile
+          opam list
+          ocamlopt -v
+          haxe -version
+          haxelib list
+
+      - name: Persist opam environment for subsequent steps
+        run: |
+          set -ex
+          eval $(opam env)
+          echo "$OPAM_SWITCH_PREFIX/bin" >> $GITHUB_PATH
+          echo "OPAM_SWITCH_PREFIX=$OPAM_SWITCH_PREFIX" >> $GITHUB_ENV
+          echo "CAML_LD_LIBRARY_PATH=$CAML_LD_LIBRARY_PATH" >> $GITHUB_ENV
+          echo "OCAML_TOPLEVEL_PATH=$OCAML_TOPLEVEL_PATH" >> $GITHUB_ENV
+
+      - name: Add workspace to PATH
+        run: echo "$GITHUB_WORKSPACE" >> $GITHUB_PATH

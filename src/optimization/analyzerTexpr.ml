@@ -150,6 +150,16 @@ let is_unbound_call_that_might_have_side_effects s el = match s,el with
 	| "__js__",[{eexpr = TConst (TString s)}] when Str.string_match r s 0 -> false
 	| _ -> true
 
+let maybe_inherit_var_name v v_alias =
+	if v.v_name <> v_alias.v_name then match v_alias.v_kind,v.v_kind with
+	| VUser _,VUser _ ->
+		()
+	| VUser _,_ ->
+		(* If we go from a user variable to something else, we probably want to inherit the name. *)
+		v.v_name <- v_alias.v_name
+	| _ ->
+		()
+
 let type_change_ok com t1 t2 =
 	if t1 == t2 then
 		true
@@ -818,8 +828,12 @@ module Fusion = struct
 			end;
 			b
 		in
+		let can_fuse_var_init v init e_assign = match init with
+			| None -> true
+			| Some e -> config.local_dce && not (has_var_flag v VCaptured) && not (has_side_effect e) && not (has_var_read (InterferenceReport.from_texpr e_assign) v)
+		in
 		let rec fuse acc el = match el with
-			| ({eexpr = TVar(v1,None)} as e1) :: {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v1 == v2 ->
+			| ({eexpr = TVar(v1,init)} as e1) :: {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v1 == v2 && can_fuse_var_init v1 init e2 ->
 				state#changed;
 				let e1 = {e1 with eexpr = TVar(v1,Some e2)} in
 				state#dec_writes v1;

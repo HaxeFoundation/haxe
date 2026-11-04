@@ -84,6 +84,11 @@ let find_type_in_module m tname =
 		not infos.mt_private && snd infos.mt_path = tname
 	) m.m_types
 
+let can_recover_from_missing_type ctx err =
+	display_recovery_enabled ctx.com
+	&& ctx.com.part_scope.running_macros = 0
+	&& not (ctx.m.is_display_file && DisplayPosition.display_position#enclosed_in err.err_pos)
+
 (* raises Type_not_found *)
 let find_type_in_module_raise ctx m tname p =
 	try
@@ -570,9 +575,15 @@ and load_complex_type' ctx allow_display mode (t,p) =
 					let old = ctx.type_params in
 					ctx.type_params <- !params @ old;
 					let args = List.map (fun ((name,_),o,_,t,e) -> no_expr e; name, o, topt LoadNormal t) fd.f_args in
-					let t = TFun (args,topt LoadReturn fd.f_type), Method (if !dyn then MethDynamic else MethNormal) in
+					let ret = topt LoadReturn fd.f_type in
+					let is_coroutine = Meta.has Meta.Coroutine f.cff_meta in
+					let t = if is_coroutine then
+						(AtomicLazy.force ctx.t.tcoro.tcoro) args ret
+					else
+						TFun (args,ret)
+					in
 					ctx.type_params <- old;
-					t
+					t,Method (if !dyn then MethDynamic else MethNormal)
 				| FProp (i1,i2,t,e) ->
 					no_expr e;
 					let access (m,_) get =
@@ -631,9 +642,17 @@ and load_complex_type' ctx allow_display mode (t,p) =
 and load_complex_type ctx allow_display mode (t,pn) =
 	try
 		load_complex_type' ctx allow_display mode (t,pn)
-	with Error ({ err_message = Module_not_found(([],name)) } as err) ->
+	with Error ({ err_message = Module_not_found _ | Type_not_found _ } as err) ->
 		if Diagnostics.error_in_diagnostics_run ctx.com err.err_pos then begin
-			delay ctx.g PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name err.err_pos true);
+			begin match err.err_message with
+			| Module_not_found ([],name) ->
+				delay ctx.g PForce (fun () -> DisplayToplevel.handle_unresolved_identifier ctx name err.err_pos true)
+			| _ ->
+				display_error_ext ctx.com err
+			end;
+			t_dynamic
+		end else if can_recover_from_missing_type ctx err then begin
+			display_error_ext ctx.com err;
 			t_dynamic
 		end else
 			raise (Error err)
@@ -763,7 +782,7 @@ and type_type_params ctx host path tpl =
 		| None ->
 			()
 		| Some th ->
-			let constraints = lazy (
+			let constraints = AtomicLazy.from_fun (fun () ->
 				let rec loop th = match fst th with
 					| CTIntersection tl -> List.map (load_complex_type ctx true LoadNormal) tl
 					| CTParent ct -> loop ct
@@ -783,7 +802,7 @@ and type_type_params ctx host path tpl =
 				List.iter loop constr;
 				constr
 			) in
-			delay ctx.g PConnectField (fun () -> ignore (Lazy.force constraints));
+			delay ctx.g PConnectField (fun () -> ignore (AtomicLazy.force constraints));
 			ttp.ttp_constraints <- Some constraints;
 	) param_pairs;
 	params
@@ -808,6 +827,7 @@ let load_core_class ctx c =
 			) ctx.com.class_paths#as_list;
 			if com2.display.dms_check_core_api then com2.display <- {com2.display with dms_check_core_api = false};
 			CommonCache.lock_signature com2 "load_core_class";
+			(CommonCache.get_cache ctx.com)#add_child (CommonCache.get_cache_sign com2);
 			let ctx2 = !create_context_ref com2 ctx.g.macros in
 			ctx.g.core_api <- Some ctx2;
 			ctx2
@@ -865,8 +885,13 @@ let init_core_api ctx c =
 			| _ ->
 				raise_typing_error ("Field " ^ f.cf_name ^ " has different property access than core type") p;
 		end;
-		(match follow f.cf_type, follow f2.cf_type with
-		| TFun (pl1,_), TFun (pl2,_) ->
+		(match follow_with_coro f.cf_type, follow_with_coro f2.cf_type with
+		| Coro _,NotCoro _ ->
+			raise_typing_error "Method should be coroutine" p
+		| NotCoro _,Coro _ ->
+			raise_typing_error "Method should not be coroutine" p;
+		| NotCoro (TFun (pl1,_)), NotCoro(TFun (pl2,_))
+		| Coro (pl1,_), Coro(pl2,_) ->
 			if List.length pl1 != List.length pl2 then raise_typing_error "Argument count mismatch" p;
 			List.iter2 (fun (n1,_,_) (n2,_,_) ->
 				if n1 <> n2 then raise_typing_error ("Method parameter name '" ^ n2 ^ "' should be '" ^ n1 ^ "'") p;

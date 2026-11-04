@@ -12,12 +12,11 @@ class Issue9956 extends DisplayTestCase {
 	**/
 	function test(_) {
 		vfs.putContent("Issue9956Types.hx", getTemplate("Issue9956Types.hx"));
-		runHaxeJson([], DisplayMethods.Completion, {
+		var result = runHaxeJson([], DisplayMethods.Completion, {
 			file: file,
 			offset: offset(1),
 			wasAutoTriggered: false
 		});
-		var result = parseCompletion();
 		assertClassField(result, 'x', field -> {
 			Assert.equals('This is x', field.doc);
 		});

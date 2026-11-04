@@ -16,14 +16,13 @@ class Issue10414 extends DisplayTestCase {
 		}
 	**/
 	function test(_) {
-		runHaxeJson([], DisplayMethods.Completion, {
+		final completion = runHaxeJson([], DisplayMethods.Completion, {
 			file: file,
 			offset: offset(1),
 			wasAutoTriggered: true
 		});
-		final completion = parseCompletion();
 		assertHasCompletion(completion, item -> item.args.name == 'a');
-		Assert.equals("", completion.result.filterString);
+		Assert.equals("", completion.filterString);
 	}
 
 	/**
@@ -41,32 +40,29 @@ class Issue10414 extends DisplayTestCase {
 		}
 	**/
 	function test2(_) {
-		runHaxeJson([], DisplayMethods.Completion, {
+		final completion = runHaxeJson([], DisplayMethods.Completion, {
 			file: file,
 			offset: offset(1),
 			wasAutoTriggered: true
 		});
-		final completion = parseCompletion();
 		assertHasCompletion(completion, item -> item.args.name == 'abc');
-		Assert.equals("ab", completion.result.filterString);
+		Assert.equals("ab", completion.filterString);
 
-		runHaxeJson([], DisplayMethods.Completion, {
+		final completion = runHaxeJson([], DisplayMethods.Completion, {
 			file: file,
 			offset: offset(2),
 			wasAutoTriggered: true
 		});
-		final completion = parseCompletion();
 		assertHasCompletion(completion, item -> item.args.name == 'abc');
-		Assert.equals("a", completion.result.filterString);
+		Assert.equals("a", completion.filterString);
 
-		runHaxeJson([], DisplayMethods.Completion, {
+		final completion = runHaxeJson([], DisplayMethods.Completion, {
 			file: file,
 			offset: offset(3),
 			wasAutoTriggered: true
 		});
-		final completion = parseCompletion();
 		assertHasCompletion(completion, item -> item.args.name == 'abc');
-		Assert.equals("ab", completion.result.filterString);
+		Assert.equals("ab", completion.filterString);
 	}
 
 	/**
@@ -89,14 +85,13 @@ class Issue10414 extends DisplayTestCase {
 		}
 	**/
 	function test3(_) {
-		runHaxeJson([], DisplayMethods.Completion, {
+		final completion = runHaxeJson([], DisplayMethods.Completion, {
 			file: file,
 			offset: offset(1),
 			wasAutoTriggered: true
 		});
-		final completion = parseCompletion();
 		assertHasCompletion(completion, item -> item.args.name == 'rockC');
-		Assert.equals("", completion.result.filterString);
+		Assert.equals("", completion.filterString);
 	}
 
 	/**
@@ -119,14 +114,13 @@ class Issue10414 extends DisplayTestCase {
 		}
 	**/
 	function test4(_) {
-		runHaxeJson([], DisplayMethods.Completion, {
+		final completion = runHaxeJson([], DisplayMethods.Completion, {
 			file: file,
 			offset: offset(1),
 			wasAutoTriggered: true
 		});
-		final completion = parseCompletion();
 		assertHasCompletion(completion, item -> item.args.name == 'rockC');
-		Assert.equals("", completion.result.filterString);
+		Assert.equals("", completion.filterString);
 	}
 
 	/**
@@ -150,13 +144,12 @@ class Issue10414 extends DisplayTestCase {
 		}
 	**/
 	function test5(_) {
-		runHaxeJson([], DisplayMethods.Completion, {
+		final completion = runHaxeJson([], DisplayMethods.Completion, {
 			file: file,
 			offset: offset(1),
 			wasAutoTriggered: true
 		});
-		final completion = parseCompletion();
 		assertHasCompletion(completion, item -> item.args.name == 'rockC');
-		Assert.equals("", completion.result.filterString);
+		Assert.equals("", completion.filterString);
 	}
 }

@@ -22,6 +22,7 @@ class Bar {
 	public var val:Int;
 }
 
+#if !hl_legacy32 // native hl.I64 and hl.GUID
 private class Numbers {
 	public var ui8 : hl.UI8;
 	public var ui16 : hl.UI16;
@@ -67,6 +68,7 @@ private typedef NumbersNull = {
 	?ni64 : hl.I64,
 	?nguid : hl.GUID,
 }
+#end
 
 class TestHL extends Test {
 	function testRetTypeTP() {
@@ -110,6 +112,7 @@ class TestHL extends Test {
 		//eq(i, 20);
 	}
 
+	#if !hl_legacy32
 	public function testNumberCompare() {
 		var num = new Numbers(); // prevent @:analyzer(ignore)
 		var v : hl.I64 = haxe.Int64.make(0xF, 1);
@@ -147,6 +150,46 @@ class TestHL extends Test {
 		t(v == num.i32);
 		t(num.ui16 == v);
 		t(v == num.ui16);
+	}
+
+	public function testGuid() {
+		var num = new Numbers(); // prevent @:analyzer(ignore)
+		var v : hl.GUID = haxe.Int64.make(0xF, 1);
+		num.loadInt64(v);
+		t(num.guid == num.i64);
+		t(num.guid == v);
+		t(v == num.guid);
+		t(num.i64 == v);
+		t(v == num.i64);
+		eq("####-#w##-##&", Std.string(v));
+		eq("####-#w##-##&", Std.string(num.guid));
+		hl.Api.registerGUIDName(v, "fooF");
+		eq("fooF", Std.string(v));
+		eq("fooF", Std.string(num.guid));
+		hl.Api.registerGUIDName(v, null);
+		eq("####-#w##-##&", Std.string(v));
+		eq("####-#w##-##&", Std.string(num.guid));
+
+		var v : hl.GUID = haxe.Int64.make(0xF, 1);
+		eq("####-#w##-##&", Std.string(v));
+		hl.Api.registerGUIDName(v, "fooF");
+		eq("fooF", Std.string(v));
+		hl.Api.registerGUIDName(v, null);
+		eq("####-#w##-##&", Std.string(v));
+
+		var v : hl.GUID = 0xF001;
+		eq("####-####-D#&", Std.string(v));
+
+		var v : hl.GUID = -0xF001;
+		eq("zzzz-zzzz-kzz", Std.string(v));
+
+		var v : hl.GUID = 0;
+		num.loadInt64(v);
+		eq("0", Std.string(v));
+		eq("0", Std.string(num.guid));
+
+		var v : hl.GUID = 0;
+		eq("0", Std.string(v));
 	}
 
 	public function testNumbersNull() {
@@ -202,6 +245,18 @@ class TestHL extends Test {
 		t(arr[0] == i64);
 		t(arr[1] == guid);
 		t(arr[2] == 10);
+		eq("####-#2##-##&", Std.string(arr[0]));
+		eq("####-#9zz-zzz", Std.string(arr[1]));
+		eq("####-####-##8", Std.string(arr[2]));
+		eq("[####-#2##-##&,####-#9zz-zzz,####-####-##8]", Std.string(arr));
+		hl.Api.registerGUIDName(guid, "fooF");
+		eq("fooF", Std.string(arr[1]));
+		eq("[####-#2##-##&,fooF,####-####-##8]", Std.string(arr));
+		hl.Api.registerGUIDName(guid, null);
+		eq("####-#9zz-zzz", Std.string(arr[1]));
+		eq("[####-#2##-##&,####-#9zz-zzz,####-####-##8]", Std.string(arr));
+		arr.sort((a, b) -> a > b ? 1 : -1);
+		eq("[####-####-##8,####-#2##-##&,####-#9zz-zzz]", Std.string(arr));
 
 		var arr : Array<hl.I64> = [];
 		var i64 : hl.I64 = haxe.Int64.make(1, 1);
@@ -328,4 +383,5 @@ class TestHL extends Test {
 		v.loadInt(1);
 		numberFunDefault(v);
 	}
+	#end
 }

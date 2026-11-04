@@ -325,9 +325,6 @@ and missing_fields_diagnostics = {
 	mf_cause : missing_field_cause;
 }
 
-and module_diagnostics =
-	| MissingFields of missing_fields_diagnostics
-
 type replaceable_code = {
 	reason : string;
 	replacement : string;
@@ -339,17 +336,9 @@ type diagnostics_context = {
 	mutable replaceable_code : replaceable_code list;
 	mutable import_positions : (pos,bool ref) PMap.t;
 	mutable dead_blocks : (Path.UniqueKey.t,(pos * expr) list) Hashtbl.t;
-	mutable unresolved_identifiers : (string * pos * (string * CompletionItem.t * int) list) list;
-	mutable diagnostics_messages : diagnostic list;
-	mutable missing_fields : (pos,(module_type * (missing_fields_diagnostics list ref))) PMap.t;
+	mutable messages : Message.t list;
 }
 
 type display_exception_kind =
-	| ModuleSymbols of string
-	| Metadata of string
-	| DisplaySignatures of (((tsignature * CompletionItem.CompletionType.ct_function) * documentation) list * int * int * signature_kind)
 	| DisplayHover of hover_result
-	| DisplayPositions of pos list
 	| DisplayFields of fields_result
-	| DisplayPackage of string list
-	| DisplayNoResult

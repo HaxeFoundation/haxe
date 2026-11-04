@@ -24,6 +24,8 @@ package haxe.io;
 
 typedef ArrayBufferViewData = js.lib.ArrayBufferView;
 
+// Can't enable @:coreApi because the underlying type and field kinds differ from the core implementation
+@:coreApi(check = Off)
 abstract ArrayBufferView(ArrayBufferViewData) {
 	public var buffer(get, never):haxe.io.Bytes;
 	public var byteOffset(get, never):Int;
@@ -53,5 +55,13 @@ abstract ArrayBufferView(ArrayBufferViewData) {
 
 	public static inline function fromData(a:ArrayBufferViewData):ArrayBufferView {
 		return cast a;
+	}
+
+	public static function fromBytes(bytes:haxe.io.Bytes, pos = 0, ?length:Int):ArrayBufferView {
+		if (length == null)
+			length = bytes.length - pos;
+		if (pos < 0 || length < 0 || pos + length > bytes.length)
+			throw Error.OutsideBounds;
+		return fromData(new js.lib.Uint8Array(bytes.getData(), pos, length));
 	}
 }

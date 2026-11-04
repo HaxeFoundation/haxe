@@ -37,8 +37,9 @@ let same_overload_args ?(get_vmtype) t1 t2 f1 f2 =
 	in
 	let compare_types () =
 		let t1 = follow (apply_params f1.cf_params (extract_param_types f2.cf_params) t1) in
-		match t1,follow t2 with
-		| TFun(tl1,_),TFun(tl2,_) ->
+		match follow_with_coro t1,follow_with_coro t2 with
+		| NotCoro TFun(tl1,_),NotCoro TFun(tl2,_)
+		| Coro (tl1,_),Coro(tl2,_) ->
 			compare_arguments tl1 tl2
 		| _ ->
 			false
@@ -191,6 +192,17 @@ struct
 				raise Not_found)
 		| TFun _, TFun _ -> (* unify will make sure they are compatible *)
 			cacc,0
+		(* SAM conversion: lambda passed where a functional-interface class is
+		   expected. Rate by how closely the lambda's signature matches the SAM
+		   method's signature so specificity ordering still works between two
+		   SAM-parametered overloads. *)
+		| TInst(cf,tlf), TFun _ when has_class_flag cf CFunctionalInterface ->
+			begin match TOther.TClass.get_singular_interface_field cf.cl_ordered_fields with
+			| None -> raise Not_found
+			| Some sam ->
+				let map = apply_params cf.cl_params tlf in
+				rate_conv (cacc+1) (map sam.cf_type) targ
+			end
 		| tfun,targ ->
 			raise Not_found
 

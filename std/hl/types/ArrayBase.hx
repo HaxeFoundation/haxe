@@ -165,9 +165,15 @@ class ArrayBase extends ArrayAccess {
 		a.size = length;
 		return a;
 	}
+	#end
 
-	public static function allocHGUID(bytes:BytesAccess<I64>, length:Int) @:privateAccess {
-		return allocI64(bytes, length);
+	#if (hl_ver >= version("1.16.0") && !hl_legacy32)
+	public static function allocGUID(bytes:BytesAccess<GUID>, length:Int) @:privateAccess {
+		var a:ArrayBytes.ArrayGUID = untyped $new(ArrayBytes.ArrayGUID);
+		a.length = length;
+		a.bytes = bytes;
+		a.size = length;
+		return a;
 	}
 	#end
 }

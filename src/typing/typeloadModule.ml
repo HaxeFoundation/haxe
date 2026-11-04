@@ -49,7 +49,7 @@ module ModuleLevel = struct
 			m_path = mpath;
 			m_types = [];
 			m_statics = None;
-			m_extra = module_extra (Path.get_full_path file) (Define.get_signature com.defines) (file_time file) (if com.is_macro_context then MMacro else MCode) com.compilation_step (get_policy g mpath);
+			m_extra = module_extra (Path.get_full_path file) (Define.get_signature com.defines) (file_time file) (if com.is_macro_context then MMacro else MCode) com.part_scope.compilation_step (get_policy g mpath);
 		} in
 		m
 
@@ -172,19 +172,6 @@ module ModuleLevel = struct
 					let priv = List.mem AbPrivate d.d_flags in
 					let path = make_path name priv d.d_meta p in
 					let p_enum_meta = Meta.maybe_get_pos Meta.Enum d.d_meta in
-					let a_default = try
-						begin match Meta.get Meta.DefaultValue d.d_meta with
-						| (_,[e],_) ->
-							Some (Lazy.from_fun (fun () ->
-								let ctx = TyperManager.clone_for_expr ctx_m FunStatic FunNotFunction in
-								type_expr ctx e WithType.value
-							))
-						| _ ->
-							raise Not_found
-						end
-					with Not_found ->
-						None
-					in
 					let a = {
 						a_path = path;
 						a_private = priv;
@@ -211,11 +198,7 @@ module ModuleLevel = struct
 						a_constructor = None;
 						a_extern = List.mem AbExtern d.d_flags;
 						a_enum = List.mem AbEnum d.d_flags || p_enum_meta <> None;
-						a_default;
 					} in
-					delay ctx_m.g PBuildModule (fun () ->
-						match a.a_default with | None -> () | Some l -> ignore(Lazy.force l)
-					);
 					begin match p_enum_meta with
 						| None when a.a_enum -> a.a_meta <- (Meta.Enum,[],null_pos) :: a.a_meta; (* HAXE5: remove *)
 						| None -> ()
@@ -683,7 +666,7 @@ module TypeLevel = struct
 	let init_imports_or_using ctx_m (decl,p) =
 		let com = ctx_m.com in
 		let check_path_display path p =
-			if DisplayPosition.display_position#is_in_file (com.file_keys#get p.pfile) then DisplayPath.handle_path_display ctx_m path p
+			if DisplayPosition.display_position#is_in_file (com.part_scope.file_keys#get p.pfile) then DisplayPath.handle_path_display ctx_m path p
 		in
 		match decl with
 		| EImport (path,mode) ->
@@ -736,7 +719,7 @@ let type_module com g mpath file ?(dont_check_path=false) ?(is_extern=false) tde
 	let tdecls = ModuleLevel.handle_import_hx com g m tdecls p in
 	let ctx_m = type_types_into_module com g m tdecls p in
 	if is_extern then m.m_extra.m_kind <- MExtern else if not dont_check_path then Naming.check_module_path ctx_m.com m.m_path p;
-	incr stats.s_modules_typed;
+	incr com.request_scope.stats.s_modules_typed;
 	m
 
 class hxb_reader_api_typeload
@@ -766,8 +749,7 @@ class hxb_reader_api_typeload
 	method get_var_id (i : int) =
 		(* The v_id in .hxb has no relation to this context, make a new one. *)
 		let uid = fst alloc_var' in
-		Atomic.incr uid;
-		Atomic.get uid
+		Atomic.fetch_and_add uid 1 + 1
 
 	method read_expression_eagerly (cf : tclass_field) =
 		com.is_macro_context || match cf.cf_kind with
@@ -813,6 +795,7 @@ let rec load_hxb_module com g path p =
 	loop com.hxb_libs
 
 and load_module' com g m p =
+	check_cancellation com;
 	try
 		(* Check current context *)
 		com.module_lut#find m

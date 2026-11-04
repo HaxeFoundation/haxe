@@ -548,11 +548,6 @@ typedef AbstractType = BaseType & {
 		The method used for resolving unknown field access, if available.
 	**/
 	var resolveWrite:Null<ClassField>;
-
-	/**
-		The expression given as a default value for this abstract, if available.
-	**/
-	var defaultValue:Null<Ref<TypedExpr>>;
 }
 
 /**

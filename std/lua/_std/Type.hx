@@ -93,9 +93,7 @@ enum ValueType {
 
 	public static function createEmptyInstance<T>(cl:Class<T>):T
 		untyped {
-			var ret = __lua_table__();
-			Lua.setmetatable(ret, untyped {__index: cl.prototype});
-			return ret;
+			return _hx_new(cl.prototype);
 		}
 
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {

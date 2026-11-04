@@ -17,6 +17,8 @@ private typedef V8CallSite = {
 	function getColumnNumber():Int;
 }
 
+private typedef NativeTrace = Any;
+
 /**
 	Do not use manually.
 **/
@@ -27,15 +29,15 @@ class NativeStackTrace {
 	static var lastError:Error;
 
 	// support for source-map-support module
-	@:noCompletion
+	@:noCompletion @:hack
 	public static var wrapCallSite:V8CallSite->V8CallSite;
 
 	@:ifFeature('haxe.NativeStackTrace.exceptionStack')
-	static public inline function saveStack(e:Error):Void {
-		lastError = e;
+	static public inline function saveStack(exception:Any):Void {
+		lastError = (exception : Error);
 	}
 
-	static public function callStack():Any {
+	static public function callStack():NativeTrace {
 		var e:Null<Error> = new Error('');
 		var stack = tryHaxeStack(e);
 		//Internet Explorer provides call stack only if error was thrown
@@ -46,16 +48,16 @@ class NativeStackTrace {
 		return normalize(stack, 2);
 	}
 
-	static public function exceptionStack():Any {
+	static public function exceptionStack():NativeTrace {
 		return normalize(tryHaxeStack(lastError));
 	}
 
-	static public function toHaxe(s:Null<Any>, skip:Int = 0):Array<StackItem> {
-		if (s == null) {
+	static public function toHaxe(nativeStackTrace:NativeTrace, skip:Int = 0):Array<StackItem> {
+		if (nativeStackTrace == null) {
 			return [];
-		} else if (Syntax.typeof(s) == "string") {
+		} else if (Syntax.typeof(nativeStackTrace) == "string") {
 			// Return the raw lines in browsers that don't support prepareStackTrace
-			var stack:Array<String> = (s:String).split("\n");
+			var stack:Array<String> = (nativeStackTrace:String).split("\n");
 			if (stack[0] == "Error")
 				stack.shift();
 			var m = [];
@@ -79,14 +81,14 @@ class NativeStackTrace {
 				}
 			}
 			return m;
-		} else if(skip > 0 && Syntax.code('Array.isArray({0})', s)) {
-			return (s:Array<StackItem>).slice(skip);
+		} else if(skip > 0 && Syntax.code('Array.isArray({0})', nativeStackTrace)) {
+			return (nativeStackTrace:Array<StackItem>).slice(skip);
 		} else {
-			return cast s;
+			return cast nativeStackTrace;
 		}
 	}
 
-	static function tryHaxeStack(e:Null<Error>):Any {
+	static function tryHaxeStack(e:Null<Error>):NativeTrace {
 		if (e == null) {
 			return [];
 		}
@@ -98,7 +100,7 @@ class NativeStackTrace {
 		return stack;
 	}
 
-	static function prepareHxStackTrace(e:Error, callsites:Array<V8CallSite>):Any {
+	static function prepareHxStackTrace(e:Error, callsites:Array<V8CallSite>):NativeTrace {
 		var stack = [];
 		for (site in callsites) {
 			if (wrapCallSite != null)
@@ -124,7 +126,7 @@ class NativeStackTrace {
 		return stack;
 	}
 
-	static function normalize(stack:Any, skipItems:Int = 0):Any {
+	static function normalize(stack:NativeTrace, skipItems:Int = 0):NativeTrace {
 		if(Syntax.code('Array.isArray({0})', stack) && skipItems > 0) {
 			return (stack:Array<StackItem>).slice(skipItems);
 		} else if(Syntax.typeof(stack) == "string") {

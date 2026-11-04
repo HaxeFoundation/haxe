@@ -180,8 +180,7 @@ module SimnBuffer = struct
 	}
 
 	let reset sb =
-		sb.buffer <- Bytes.create sb.buffer_size;
-		sb.buffers <- Queue.create ();
+		Queue.clear sb.buffers;
 		sb.offset <- 0
 
 	let promote_buffer sb =
@@ -1016,17 +1015,23 @@ module HxbWriter = struct
 			Chunk.write_u8 writer.chunk 0;
 			Chunk.write_uleb128 writer.chunk index
 		with Not_found ->
-			let pfm = writer.anon_id#identify_anon ~strict:true an in
+			let pfm = writer.anon_id#identify_anon AnonIdMode.strict an in
 			try
 				let index = Pool.get writer.anons pfm.pfm_path in
 				Chunk.write_u8 writer.chunk 0;
 				Chunk.write_uleb128 writer.chunk index
 			with Not_found ->
 				let restore = start_temporary_chunk writer 256 in
+				(* Reset the flag to find out whether this anon (on its own) needs local
+				   context, but remember the outer value: a sibling field may have already
+				   required it, and writing this anon must not discard that. *)
+				let old = writer.needs_local_context in
 				writer.needs_local_context <- false;
 				write_anon writer an;
 				let bytes = restore (fun new_chunk -> Chunk.get_bytes new_chunk) in
-				if writer.needs_local_context then begin
+				let needs_local_context = writer.needs_local_context in
+				writer.needs_local_context <- old || needs_local_context;
+				if needs_local_context then begin
 					let index = Pool.add writer.anons pfm.pfm_path None in
 					ignore(IdentityPool.add writer.identified_anons an index);
 					Chunk.write_u8 writer.chunk 1;
@@ -1953,13 +1958,6 @@ module HxbWriter = struct
 		Chunk.write_option writer.chunk a.a_write (write_field_ref writer c CfrStatic);
 		Chunk.write_option writer.chunk a.a_call (write_field_ref writer c CfrStatic);
 		Chunk.write_option writer.chunk a.a_constructor (write_field_ref writer c CfrStatic);
-		Chunk.write_option writer.chunk a.a_default (fun lazy_texpr ->
-			let texpr = Lazy.force lazy_texpr in
-			let fctx,close = start_texpr writer texpr.epos in
-			catch_unbound_ttp (fun () -> write_texpr writer fctx texpr) "default value" None;
-			let expr_pre_chunk,expr_chunk = close() in
-			Chunk.export_data expr_pre_chunk writer.chunk;
-			Chunk.export_data expr_chunk writer.chunk);
 
 		Chunk.write_list writer.chunk a.a_ops (fun (op, cf) ->
 			Chunk.write_u8 writer.chunk (binop_index op);

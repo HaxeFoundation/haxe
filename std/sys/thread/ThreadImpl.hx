@@ -24,7 +24,7 @@ package sys.thread;
 
 abstract ThreadImpl(Dynamic) {
 
-	public static function create( f : Void -> Void ) : ThreadImpl {
+	public static function create( job : Void -> Void ) : ThreadImpl {
 		throw "Not implemented for this platform";
 	}
 

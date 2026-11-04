@@ -116,10 +116,32 @@ class Validator {
 				mapFile = '$sourceFile.map';
 		}
 
+		var code = sourceFile.getContent();
+		if(target == Js && Context.definedValue('source-map') == 'inline') {
+			// the map is the last line's data: URL, and there's no .map file
+			if(sys.FileSystem.exists(mapFile)) {
+				throw new InvalidTargetException('-D source-map=inline also wrote $mapFile', (macro 0).pos);
+			}
+			return {code: code.split('\n'), map: getInlineSourceMap(sourceFile, code)};
+		}
 		return {
-			code: sourceFile.getContent().split('\n'),
+			code: code.split('\n'),
 			map: getSourceMap(mapFile)
 		}
+	}
+
+	static function getInlineSourceMap(sourceFile:String, code:String):SourceMap {
+		var sourceMap = sourceMapsCache.get(sourceFile);
+		if(sourceMap == null) {
+			var prefix = '//# sourceMappingURL=data:application/json;charset=utf-8;base64,';
+			var line = code.split('\n').pop();
+			if(!line.startsWith(prefix)) {
+				throw new InvalidTargetException('No inline source map at the end of $sourceFile', (macro 0).pos);
+			}
+			sourceMap = new SourceMap(haxe.crypto.Base64.decode(line.substr(prefix.length)).toString());
+			sourceMapsCache.set(sourceFile, sourceMap);
+		}
+		return sourceMap;
 	}
 
 	static function getSourceMap(mapFile:String):SourceMap {

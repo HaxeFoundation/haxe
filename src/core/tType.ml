@@ -60,19 +60,10 @@ type type_param_host =
 	| TPHLocal
 	| TPHUnbound
 
-type warning_mode =
-	| WMEnable
-	| WMDisable
-
-type warning_option = {
-	wo_warning : WarningList.warning;
-	wo_mode : warning_mode;
-}
-
 type cache_bound_object =
 	| Resource of string * string
 	| IncludeFile of string * string
-	| Warning of WarningList.warning * (warning_option list list) * string * pos
+	| Message of Message.t
 
 type t =
 	| TMono of tmono
@@ -130,7 +121,7 @@ and typed_type_param = {
 	ttp_class : tclass;
 	ttp_host : type_param_host;
 	mutable ttp_type : t;
-	mutable ttp_constraints : t list Lazy.t option;
+	mutable ttp_constraints : t list AtomicLazy.t option;
 	mutable ttp_default : t option;
 }
 
@@ -398,7 +389,6 @@ and tabstract = {
 	mutable a_constructor : tclass_field option;
 	mutable a_extern : bool;
 	mutable a_enum : bool;
-	mutable a_default : texpr Lazy.t option;
 }
 
 and module_type =
@@ -483,6 +473,13 @@ and build_state =
 
 exception Type_exception of t
 
+type coro_types = {
+	mutable tcoro : ((string * bool * t) list -> t -> t) AtomicLazy.t;
+	mutable continuation : t AtomicLazy.t;
+	mutable suspension_result_class : tclass AtomicLazy.t;
+	mutable tasync_iterator : (t -> t) AtomicLazy.t;
+}
+
 type basic_types = {
 	mutable tvoid : t;
 	mutable tany : t;
@@ -492,7 +489,10 @@ type basic_types = {
 	mutable tnull : t -> t;
 	mutable tstring : t;
 	mutable tarray : t -> t;
-	mutable titerator : t -> t
+	mutable texception : t;
+	mutable titerator : t -> t;
+	mutable tunit : t;
+	mutable tcoro : coro_types;
 }
 
 type class_field_scope =
@@ -531,10 +531,11 @@ type flag_tclass_field =
 	| CfMaybeUsed (* Marker for DCE *)
 	| CfNoLookup (* Field cannot be accessed by-name. *)
 	| CfAbstractConstructor
+	| CfNoExpr (* Marker for abstract fields which have no expression *)
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [
-	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed";"CfNoLookup";"CfAbstractConstructor"
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed";"CfNoLookup";"CfAbstractConstructor";"CfNoExpr"
 ]
 
 type flag_tenum =
@@ -550,7 +551,10 @@ type flag_tvar =
 	| VStatic
 	| VUsedByTyper (* Set if the typer looked up this variable *)
 	| VHxb (* Flag used by hxb *)
+	| VCoroCaptured
+	| VCoroScope
+	| VCoroRestrictedSuspension
 
 let flag_tvar_names = [
-	"VCaptured";"VFinal";"VAnalyzed";"VAssigned";"VCaught";"VStatic";"VUsedByTyper"
+	"VCaptured";"VFinal";"VAnalyzed";"VAssigned";"VCaught";"VStatic";"VUsedByTyper";"VHxb";"VCoroCaptured";"VCoroScope";"VRestrictedSuspension"
 ]

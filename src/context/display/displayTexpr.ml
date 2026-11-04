@@ -166,7 +166,7 @@ let check_display_file ctx cs =
 	| Some cc ->
 		begin try
 			let p = DisplayPosition.display_position#get in
-			let cfile = cc#find_file (ctx.com.file_keys#get p.pfile) in
+			let cfile = cc#find_file (ctx.com.part_scope.file_keys#get p.pfile) in
 			let path = (cfile.c_package,get_module_name_of_cfile p.pfile cfile) in
 			TypeloadParse.PdiHandler.handle_pdi ctx.com cfile.c_pdi;
 			(* We have to go through type_module_hook because one of the module's dependencies could be
@@ -187,10 +187,7 @@ let check_display_file ctx cs =
 			in
 			check_display_module ctx cfile.c_decls m
 		with Not_found ->
-			let fkey = DisplayPosition.display_position#get_file_key in
-			(* force parsing again : if the completion point have been changed *)
-			cs#remove_files fkey;
-			cs#taint_modules fkey CheckDisplayFile;
+			()
 		end
 	| None ->
 		()

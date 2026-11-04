@@ -631,6 +631,7 @@ module CopyPropagationImpl = struct
 							| [bb'] when in_scope bb bb' -> ()
 							| _ -> leave()
 						end;
+						maybe_inherit_var_name v' v;
 						commit bb {e with eexpr = TLocal v'}
 					| This t ->
 						if not (type_change_ok actx.com t v.v_type) then leave();

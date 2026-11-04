@@ -24,6 +24,7 @@ package python.io;
 
 import haxe.io.Bytes;
 import haxe.io.Encoding;
+import haxe.Int32;
 
 interface IInput {
 	public var bigEndian(default, set):Bool;
@@ -58,7 +59,7 @@ interface IInput {
 
 	public function readUInt24():Int;
 
-	public function readInt32():Int;
+	public function readInt32():Int32;
 
 	public function readString(len:Int, ?encoding:Encoding):String;
 }

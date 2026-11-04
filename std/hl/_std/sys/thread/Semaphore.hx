@@ -8,6 +8,7 @@ package sys.thread;
 	function release():Void;
 }
 #else
+@:coreApi(check = Off)
 abstract Semaphore(hl.Abstract<"hl_semaphore">) {
 	public function new(value:Int):Void {
 		this = alloc(value);

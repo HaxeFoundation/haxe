@@ -20,6 +20,30 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#if lua_vanilla
+
+// Vanilla Lua mode - EReg requires lrexlib-pcre2 which is not available
+@:coreApi
+class EReg {
+	static inline function notImplemented():Dynamic
+		throw new haxe.exceptions.NotImplementedException("EReg cannot be used with -D lua-vanilla because it requires lrexlib-pcre2");
+
+	public function new(r:String, opt:String):Void notImplemented();
+	public function match(s:String):Bool return notImplemented();
+	public function matched(n:Int):String return notImplemented();
+	public function matchedLeft():String return notImplemented();
+	public function matchedRight():String return notImplemented();
+	public function matchedPos():{pos:Int, len:Int} return notImplemented();
+	public function matchedNum():Int return notImplemented();
+	public function matchSub(s:String, pos:Int, len:Int = -1):Bool return notImplemented();
+	public function split(s:String):Array<String> return notImplemented();
+	public function replace(s:String, by:String):String return notImplemented();
+	public function map(s:String, f:EReg->String):String return notImplemented();
+	public static function escape(s:String):String return notImplemented();
+}
+
+#else
+
 import lua.Table;
 import lua.Lib;
 import lua.lib.lrexlib.Rex;
@@ -220,3 +244,5 @@ class EReg {
 		}
 	}
 }
+
+#end

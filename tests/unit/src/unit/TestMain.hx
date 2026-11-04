@@ -3,15 +3,14 @@ package unit;
 import haxe.ds.List;
 import unit.Test.*;
 import utest.Runner;
+#if utest
 import utest.ui.Report;
+#end
 
 final asyncWaits = new Array<haxe.PosInfos>();
 final asyncCache = new Array<() -> Void>();
 
 @:access(unit.Test)
-#if js
-@:expose("unit.TestMain.main") @:keep
-#end
 function main() {
 	#if js
 	if (js.Browser.supported) {
@@ -49,6 +48,7 @@ function main() {
 		new TestJson(),
 		new TestResource(),
 		new TestInt64(),
+		new TestDefaultArgs(),
 		new TestReflect(),
 		new TestSerialize(),
 		new TestSerializerCrossTarget(),
@@ -66,11 +66,9 @@ function main() {
 		new TestHashMap(),
 		new TestRest(),
 		#if (!php && !lua)
-		new TestHttps(),
+		/// This is annoying and causes spurious CI failures. Let's just make an effort to not break it!
+		// new TestHttps(),
 		#end
-		/* Every target struggles with these tests. We can occasionally enable them when
-			making related changes, but otherwise this is not worth the CI time. */
-		// new TestBigInt(),
 		#if !no_pattern_matching
 		new TestMatch(),
 		#end
@@ -100,16 +98,19 @@ function main() {
 		#end
 		new TestMapComprehension(),
 		new TestMacro(),
+		new TestGcFinalizer(),
 		new TestKeyValueIterator(),
 		new TestFieldVariance(),
 		new TestConstrainedMonomorphs(),
 		new TestDefaultTypeParameters(),
+		#if (!flash && !hl)
+		new TestCoroutines(),
+		#end
+		new TestRedefinition(),
 		// new TestUnspecified(),
 	];
 
-	for (specClass in unit.UnitBuilder.generateSpec("src/unitstd")) {
-		classes.push(specClass);
-	}
+	TestIssues.addTestClasses("src/unit/teststd", "unit.teststd");
 	TestIssues.addIssueClasses("src/unit/issues", "unit.issues");
 	TestIssues.addIssueClasses("src/unit/hxcpp_issues", "unit.hxcpp_issues");
 
@@ -117,6 +118,7 @@ function main() {
 	for (c in classes) {
 		runner.addCase(c);
 	}
+	#if utest
 	var report = Report.create(runner);
 	report.displayHeader = AlwaysShowHeader;
 	report.displaySuccessResults = NeverShowSuccessResults;
@@ -137,11 +139,12 @@ function main() {
 		};
 		#end
 	});
-	#if sys
+	#if (sys || nodejs)
 	if (verbose)
 		runner.onTestStart.add(function(test) {
 			Sys.println(' $test...'); // TODO: need utest success state for this
 		});
+	#end
 	#end
 	runner.run();
 

@@ -13,4 +13,12 @@ class TestProcess extends TestCommandBase {
 		p.close();
 		return exitCode;
 	}
+
+	#if eval
+	function testIssue8210_nonExistentCommand() {
+		var exitCode = run("haxe_issue_8210_does_not_exist", []);
+		utest.Assert.equals(127, exitCode);
+		utest.Assert.isTrue(runInfo.err.indexOf("haxe_issue_8210_does_not_exist") >= 0);
+	}
+	#end
 }

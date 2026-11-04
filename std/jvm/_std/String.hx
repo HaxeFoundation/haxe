@@ -26,6 +26,7 @@ extern class String implements java.lang.CharSequence {
 
 	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int, charsetName:String):Void {})
 	@:overload(function(b:haxe.io.BytesData, offset:Int, length:Int):Void {})
+	@:overload(function(b:haxe.io.BytesData):Void {})
 	@:overload(function(b:jvm.NativeArray<jvm.Char16>):Void {})
 	@:overload(function(b:jvm.NativeArray<Int>, offset:Int, count:Int):Void {})
 	function new(string:String):Void;
@@ -37,11 +38,11 @@ extern class String implements java.lang.CharSequence {
 		return jvm.StringExt.charAt(this, index);
 	}
 
-	inline function charCodeAt(index:Int):Null<Int> {
+	@:runtime inline function charCodeAt(index:Int):Null<Int> {
 		return jvm.StringExt.charCodeAt(this, index);
 	}
 
-	inline function indexOf(str:String, ?startIndex:Int):Int {
+	@:runtime inline function indexOf(str:String, ?startIndex:Int):Int {
 		return jvm.StringExt.indexOf(this, str, startIndex);
 	}
 
