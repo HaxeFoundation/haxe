@@ -3,7 +3,13 @@ package cases;
 
 #if target.threaded
 import haxe.atomic.AtomicInt;
+import haxe.atomic.AtomicObject;
 #end
+
+private enum Outcome {
+	Succeeded;
+	Failed(error:String);
+}
 
 @:timeout(2000)
 class TestAtomics extends ThreadTestBase {
@@ -17,6 +23,28 @@ class TestAtomics extends ThreadTestBase {
 
 		while (a.compareExchange(2, 2) != 2) { gcSafePoint(); }
 
+		async.done();
+	}
+
+	// Enum values are reference types on every target, so an enum with payloads should be
+	// usable with AtomicObject like a class instance is.
+	function testAtomicObjectEnum(async:Async) {
+		final outcome = new AtomicObject<Null<Outcome>>(null);
+		final done = new AtomicInt(0);
+		final failed = Failed("boom");
+		isTrue(outcome.compareExchange(null, failed) == null);
+		Thread.create(() -> {
+			// The outcome is already set, so this exchange must lose.
+			outcome.compareExchange(null, Succeeded);
+			done.store(1);
+		});
+		while (done.load() == 0) { gcSafePoint(); }
+		isTrue(outcome.load() == failed);
+		switch (outcome.load()) {
+			case Failed("boom"):
+			case other:
+				fail('unexpected outcome $other');
+		}
 		async.done();
 	}
 
