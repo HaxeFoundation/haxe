@@ -106,6 +106,7 @@ function main() {
 		#if (!flash && !hl)
 		new TestCoroutines(),
 		#end
+		new TestRedefinition(),
 		// new TestUnspecified(),
 	];
 
