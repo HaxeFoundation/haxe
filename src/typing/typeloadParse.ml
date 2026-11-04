@@ -63,15 +63,14 @@ let parse_file_from_string com file p string =
 
 let parse_file com rfile p =
 	let file_key = com.part_scope.file_keys#get rfile.ClassPaths.file in
-	let contents = match com.file_contents with
-		| [] when (Common.defined com Define.DisplayStdin) && DisplayPosition.display_position#is_in_file file_key ->
+	let contents =
+		if Hashtbl.length com.file_contents = 0 && (Common.defined com Define.DisplayStdin) && DisplayPosition.display_position#is_in_file file_key then begin
 			let s = Std.input_all stdin in
 			close_in stdin;
-			com.file_contents <- [file_key, Some s];
+			Common.set_file_contents com [file_key, Some s];
 			Some s
-		| [] -> None
-		| files ->
-			(try List.assoc file_key files with Not_found -> None)
+		end else
+			Common.find_file_contents com file_key
 	in
 
 	match contents with

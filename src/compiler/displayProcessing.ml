@@ -60,9 +60,9 @@ let process_display_file com actx =
 		| DFPOnly when (DisplayPosition.display_position#get).pfile = file_input_marker ->
 			actx.classes <- [];
 			com.main.main_path <- None;
-			begin match com.file_contents with
-			| [_, Some input] ->
-				com.file_contents <- [];
+			begin match Hashtbl.fold (fun _ contents acc -> contents :: acc) com.file_contents [] with
+			| [Some input] ->
+				Common.set_file_contents com [];
 				DPKInput input
 			| _ ->
 				DPKNone

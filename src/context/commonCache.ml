@@ -88,13 +88,8 @@ let rec cache_context cs com =
 	let parallels = DynArray.create () in
 	(* Modules of files whose contents came with the request were typed from unsaved buffers. They are
 	   cached as tainted so that dependencies can still be found, but they are never reused. *)
-	let request_files = Hashtbl.create 0 in
-	List.iter (function
-		| (file_key,Some _) -> Hashtbl.replace request_files file_key ()
-		| (_,None) -> ()
-	) com.file_contents;
 	let cache_state m =
-		if Hashtbl.mem request_files (Path.UniqueKey.lazy_key m.m_extra.m_file) then
+		if Common.has_file_contents com (Path.UniqueKey.lazy_key m.m_extra.m_file) then
 			MSBad (Tainted RequestFileContents)
 		else
 			MSGood
