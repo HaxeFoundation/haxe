@@ -1,0 +1,18 @@
+class Main {
+	static function main() {
+		var a:Dynamic = 1;
+		trace(Std.is(a, Int));
+		trace(Std.is(
+			a,
+			Float
+		));
+	}
+
+	static function f() {
+		return 1;
+	}
+
+	static function g() {
+		return Std.is(1, Int);
+	}
+}
