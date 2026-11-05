@@ -75,8 +75,9 @@
 	},
 	{
 		"name": "WMigration",
-		"doc": "Code whose meaning changed in a newer Haxe version",
-		"generic": true
+		"doc": "Code whose meaning changed in a newer Haxe version. Enabled by -D apply-fixes",
+		"generic": true,
+		"enabled": false
 	},
 	{
 		"name": "WEnumConstructorShadowed",

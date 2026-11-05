@@ -204,8 +204,9 @@ let resolve_against_expected_enum ctx i =
 		loop mt
 
 let check_shadowed_enum_constructor ctx rl i p res =
+	let options = Warning.from_meta ctx.f.curfield.cf_meta @ Warning.from_meta ctx.c.curclass.cl_meta @ ctx.com.warning_options in
 	match res.r_kind with
-	| RTypeImport(_,mt) ->
+	| RTypeImport(_,mt) when Warning.get_mode WEnumConstructorShadowed options = WMEnable ->
 		begin try
 			let owner,name = match (rl#resolve_enum_constructor i).r_kind with
 				| REnumConstructorImport(_,en,ef) -> TEnumDecl en,ef.ef_name

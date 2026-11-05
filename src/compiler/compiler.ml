@@ -497,6 +497,13 @@ let process_actx com actx =
 	let check_deprecation_settings () =
 		if defined com NoDeprecationWarnings then begin
 			com.warning_options <- [{wo_warning = WDeprecated; wo_mode = WMDisable}] :: com.warning_options
+		end;
+		if defined com ApplyFixes then begin
+			let rec before_defaults l = match l with
+				| [] | [_] -> [{wo_warning = WMigration; wo_mode = WMEnable}] :: l
+				| options :: l -> options :: before_defaults l
+			in
+			com.warning_options <- before_defaults com.warning_options
 		end
 	in
 	match DisplayProcessing.process_display_arg com actx with
