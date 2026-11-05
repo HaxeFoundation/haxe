@@ -1,0 +1,5 @@
+-cp bin
+--main Main
+-D haxe-next
+-D apply-fixes
+--no-output
