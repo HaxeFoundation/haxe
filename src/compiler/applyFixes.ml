@@ -131,13 +131,35 @@ let unified_diff file content edits =
 	) 0 (group [] [] blocks));
 	Buffer.contents b
 
+let parse_version s =
+	let s = try String.sub s 0 (String.index s '-') with Not_found -> s in
+	List.map (fun n -> try int_of_string n with Failure _ -> 0) (String.split_on_char '.' s)
+
+let rec compare_versions v1 v2 = match v1,v2 with
+	| [],[] -> 0
+	| [],v2 -> compare_versions [0] v2
+	| v1,[] -> compare_versions v1 [0]
+	| n1 :: v1,n2 :: v2 -> if n1 <> n2 then compare n1 n2 else compare_versions v1 v2
+
 let run com =
 	let targets = parse_targets (Common.defined_value_safe com Define.ApplyFixes) in
 	let dry = Common.defined com Define.ApplyFixesDry in
+	let compat = match Common.defined_value_safe com Define.ApplyFixesCompat with
+		| "" -> None
+		| v -> Some (parse_version v)
+	in
+	let too_recent = ref [] in
+	let compatible f = match compat,f.fix_since with
+		| Some compat,Some since when compare_versions (parse_version since) compat > 0 ->
+			too_recent := since :: !too_recent;
+			false
+		| _ ->
+			true
+	in
 	let by_file = Hashtbl.create 0 in
 	List.iter (fun f ->
 		let file = f.fix_range.pfile in
-		if is_target com targets file then
+		if is_target com targets file && compatible f then
 			Hashtbl.replace by_file file (f :: (try Hashtbl.find by_file file with Not_found -> []))
 	) com.part_scope.fixes;
 	let files = Hashtbl.fold (fun file fixes acc -> (file,fixes) :: acc) by_file [] in
@@ -161,6 +183,15 @@ let run com =
 		end;
 		(total + n,skipped + s)
 	) (0,0) files in
+	begin match List.sort_uniq compare !too_recent with
+		| [] ->
+			()
+		| versions ->
+			let n = List.length !too_recent in
+			let msg = Printf.sprintf "%d fix%s skipped: %s Haxe %s (-D apply-fixes.compat=%s)" n (if n = 1 then " was" else "es were")
+				(if n = 1 then "it needs" else "they need") (String.concat ", " versions) (Common.defined_value_safe com Define.ApplyFixesCompat) in
+			if dry then com.warning WInfo [] msg null_pos else com.info msg null_pos
+	end;
 	if skipped > 0 then begin
 		let msg = Printf.sprintf "%d overlapping fix%s skipped, compile again to apply" skipped (if skipped = 1 then " was" else "es were") in
 		if dry then com.warning WInfo [] msg null_pos else com.info msg null_pos

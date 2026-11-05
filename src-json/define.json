@@ -664,6 +664,12 @@
 		"params": ["targets"]
 	},
 	{
+		"name": "ApplyFixesCompat",
+		"define": "apply-fixes.compat",
+		"doc": "With `-D apply-fixes`, only apply the fixes whose replacement compiles with this Haxe version.",
+		"params": ["version"]
+	},
+	{
 		"name": "ApplyFixesDry",
 		"define": "apply-fixes.dry",
 		"doc": "With `-D apply-fixes`, print the fixes as a unified diff instead of changing the files."
