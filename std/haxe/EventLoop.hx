@@ -288,11 +288,11 @@ class EventLoop {
 		return e;
 	}
 
-	@:deprecated @:noCompletion public function repeat( callb, delay : Int ) {
+	@:deprecated("Use addTimer instead", this.addTimer(callb, delay / 1000)) @:noCompletion public function repeat( callb, delay : Int ) {
 		return addTimer(callb,delay/1000);
 	}
 
-	@:deprecated @:noCompletion public function cancel( e : Event ) {
+	@:deprecated("Use Event.stop instead", e.stop()) @:noCompletion public function cancel( e : Event ) {
 		e.stop();
 	}
 

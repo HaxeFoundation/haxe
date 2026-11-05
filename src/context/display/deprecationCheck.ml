@@ -60,46 +60,60 @@ let rec is_atomic e = match e.eexpr with
 
 exception Not_fixable
 
+let replacement_template cf = match Meta.get Meta.Deprecated cf.cf_meta with
+	| _,[_;template],_ -> Some template
+	| _ | exception Not_found -> None
+
+let add_fix_from_template dctx cf template e_this args p =
+	let in_range ep = ep <> p && ep.pfile = p.pfile && ep.pmin >= p.pmin && ep.pmax <= p.pmax in
+	let text_of e () =
+		if not (in_range e.epos) then raise Not_fixable;
+		match SourceText.read e.epos with
+		| Some s -> s,is_atomic e
+		| None -> raise Not_fixable
+	in
+	let this_text () = match e_this with
+		| Some { eexpr = TConst TThis } -> "this",true
+		| Some e -> text_of e ()
+		| None -> raise Not_fixable
+	in
+	let bindings = ("this",this_text) :: List.map (fun (n,eo) -> n,match eo with Some e -> text_of e | None -> (fun () -> raise Not_fixable)) args in
+	let rec subst wrap e = match fst e with
+		| EConst (Ident n) when List.mem_assoc n bindings ->
+			let s,atomic = (List.assoc n bindings) () in
+			(EConst (Ident (if wrap && not atomic then "(" ^ s ^ ")" else s)),snd e)
+		| ECall(e1,el) ->
+			(ECall(subst true e1,List.map (subst false) el),snd e)
+		| EArrayDecl el ->
+			(EArrayDecl (List.map (subst false) el),snd e)
+		| EParenthesis e1 ->
+			(EParenthesis (subst false e1),snd e)
+		| _ ->
+			Ast.map_expr (subst true) e
+	in
+	try
+		let text = Ast.Printer.s_expr (subst false template) in
+		let options = Warning.from_meta (dctx.class_meta @ dctx.field_meta) in
+		add_fix dctx.com WDeprecated options ("Replace deprecated " ^ cf.cf_name) p text
+	with Not_fixable ->
+		()
+
 let add_replacement_fix dctx cf e_this el p_call =
-	match Meta.get Meta.Deprecated cf.cf_meta with
-	| _,[_;template],_ ->
-		let in_call p = p <> p_call && p.pfile = p_call.pfile && p.pmin >= p_call.pmin && p.pmax <= p_call.pmax in
-		let text_of e =
-			if not (in_call e.epos) then raise Not_fixable;
-			match SourceText.read e.epos with
-			| Some s -> if is_atomic e then s else "(" ^ s ^ ")"
-			| None -> raise Not_fixable
-		in
-		let names = match follow cf.cf_type with
-			| TFun(args,_) -> List.map (fun (n,_,_) -> n) args
-			| _ -> raise Not_fixable
-		in
+	match replacement_template cf,follow cf.cf_type with
+	| Some template,TFun(args,_) ->
 		let rec bind names el = match names,el with
-			| n :: names,e :: el -> (n,(fun () -> text_of e)) :: bind names el
-			| n :: names,[] -> (n,(fun () -> raise Not_fixable)) :: bind names []
+			| (n,_,_) :: names,e :: el -> (n,Some e) :: bind names el
+			| (n,_,_) :: names,[] -> (n,None) :: bind names []
 			| [],_ -> []
 		in
-		let this_text () = match e_this with
-			| Some { eexpr = TConst TThis } -> "this"
-			| Some e -> text_of e
-			| None -> raise Not_fixable
-		in
-		let bindings = ("this",this_text) :: bind names el in
-		let rec subst e = match fst e with
-			| EConst (Ident n) when List.mem_assoc n bindings ->
-				(EConst (Ident ((List.assoc n bindings) ())),snd e)
-			| _ ->
-				Ast.map_expr subst e
-		in
-		begin try
-			let text = Ast.Printer.s_expr (subst template) in
-			let options = Warning.from_meta (dctx.class_meta @ dctx.field_meta) in
-			add_fix dctx.com WDeprecated options ("Replace deprecated " ^ cf.cf_name) p_call text
-		with Not_fixable ->
-			()
-		end
-	| _ | exception Not_found ->
+		add_fix_from_template dctx cf template e_this (bind args el) p_call
+	| _ ->
 		()
+
+let add_access_fix dctx cf e_this p =
+	match replacement_template cf,cf.cf_kind with
+	| Some template,Var _ -> add_fix_from_template dctx cf template e_this [] p
+	| _ -> ()
 
 let run_on_expr com e =
 	let rec expr e = match e.eexpr with
@@ -114,9 +128,14 @@ let run_on_expr com e =
 		| TField(e1,fa) ->
 			expr e1;
 			begin match fa with
-				| FStatic(c,cf) | FInstance(c,_,cf) ->
+				| FStatic(c,cf) ->
 					check_class com c e.epos;
-					check_cf com cf e.epos
+					check_cf com cf e.epos;
+					add_access_fix com cf None e.epos
+				| FInstance(c,_,cf) ->
+					check_class com c e.epos;
+					check_cf com cf e.epos;
+					add_access_fix com cf (Some e1) e.epos
 				| FAnon cf ->
 					check_cf com cf e.epos
 				| FClosure(co,cf) ->

@@ -23,7 +23,7 @@
 import flash.Boot;
 
 @:coreApi class Std {
-	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.', Std.isOfType(v, t))
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {
 		return isOfType(v, t);
 	}
@@ -36,7 +36,7 @@ import flash.Boot;
 		return flash.Lib.as(value, c);
 	}
 
-	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
+	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.', Std.downcast(value, c))
 	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return downcast(value, c);
 	}

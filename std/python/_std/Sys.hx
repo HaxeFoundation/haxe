@@ -112,7 +112,7 @@ class Sys {
 		return python.lib.Timeit.default_timer();
 	}
 
-	@:deprecated("Use programPath instead") public static function executablePath():String {
+	@:deprecated("Use programPath instead", Sys.programPath()) public static function executablePath():String {
 		return python.lib.Sys.argv[0];
 	}
 

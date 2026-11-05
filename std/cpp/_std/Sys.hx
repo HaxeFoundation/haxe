@@ -117,7 +117,7 @@ import haxe.SysTools;
 		return NativeSys.sys_cpu_time();
 	}
 
-	@:deprecated("Use programPath instead") public static function executablePath():String {
+	@:deprecated("Use programPath instead", Sys.programPath()) public static function executablePath():String {
 		return NativeSys.sys_exe_path();
 	}
 

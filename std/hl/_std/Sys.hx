@@ -141,7 +141,7 @@ class Sys {
 		return code;
 	}
 
-	@:deprecated("Use programPath instead") public static function executablePath():String {
+	@:deprecated("Use programPath instead", Sys.programPath()) public static function executablePath():String {
 		return makePath(sys_exe_path());
 	}
 

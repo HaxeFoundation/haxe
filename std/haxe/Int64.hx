@@ -69,7 +69,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		return x.low;
 	}
 
-	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
+	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead', haxe.Int64.isInt64(val))
 	inline public static function is(val:Dynamic):Bool {
 		return isInt64(val);
 	}
@@ -83,14 +83,14 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	/**
 		Returns the high 32-bit word of `x`.
 	**/
-	@:deprecated("Use high instead")
+	@:deprecated("Use high instead", x.high)
 	public static inline function getHigh(x:Int64):Int32
 		return x.high;
 
 	/**
 		Returns the low 32-bit word of `x`.
 	**/
-	@:deprecated("Use low instead")
+	@:deprecated("Use low instead", x.low)
 	public static inline function getLow(x:Int64):Int32
 		return x.low;
 
