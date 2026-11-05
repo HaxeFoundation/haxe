@@ -1,0 +1,9 @@
+import pack.Mod;
+
+class Main {
+	static function main() {
+		var t:pack.SubType = null;
+		var a:pack.Alias = [pack.SubType.x];
+		trace(t, a);
+	}
+}

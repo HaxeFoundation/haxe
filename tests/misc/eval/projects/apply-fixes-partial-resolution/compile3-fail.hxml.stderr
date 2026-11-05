@@ -1,0 +1,2 @@
+src/Fail.hx:5: characters 9-21 : Type not found : pack.SubType
+src/Fail.hx:5: characters 9-21 : Haxe 4 resolved it to pack.Mod.SubType through an import of its module, use that path instead

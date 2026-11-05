@@ -119,7 +119,12 @@ let resolve_dot_path ctx (path_parts : dot_path_part list) mode with_type =
 			let accessor, path_rest =
 				if pack_acc <> [] then
 					let pack = List.rev_map (fun part -> part.name) pack_acc in
-					resolve_qualified ctx pack name path p mode with_type
+					try
+						resolve_qualified ctx pack name path p mode with_type
+					with Not_found ->
+						let first = List.hd (List.rev pack_acc) in
+						ignore (Typeload.partial_resolution_fix ctx pack name (Ast.punion first.pos p));
+						raise Not_found
 				else
 					resolve_unqualified ctx name path p mode with_type
 			in
