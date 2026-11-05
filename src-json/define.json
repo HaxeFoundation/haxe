@@ -660,8 +660,8 @@
 	{
 		"name": "ApplyFixes",
 		"define": "apply-fixes",
-		"doc": "Apply the fixes suggested by compiler warnings, such as the replacements of `@:deprecated` functions, to the source files of the user class paths, or to all source files with `all`.",
-		"params": ["scope: all"]
+		"doc": "Apply the fixes suggested by compiler warnings, such as the replacements of `@:deprecated` functions, to source files. Without value, only files of the user class paths (`-cp`) are changed. The value is a comma-separated list of class path kinds (`user`, `lib`, `std` or `all`) and of paths to directories or files.",
+		"params": ["targets"]
 	},
 	{
 		"name": "NoOpt",

@@ -1,0 +1,5 @@
+class Other {
+	public static function check() {
+		return Std.is(1, Int);
+	}
+}

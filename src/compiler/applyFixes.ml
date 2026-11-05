@@ -1,19 +1,39 @@
 open Globals
 open Common
 
-let is_user_file com file =
-	let file = Path.get_full_path file in
+type target =
+	| Scopes of ClassPath.class_path_scope list
+	| Path of string
+
+let parse_targets value =
+	let entries = List.filter (fun s -> s <> "") (List.map String.trim (ExtString.String.nsplit value ",")) in
+	List.map (function
+		| "1" | "user" -> Scopes [ClassPath.User]
+		| "lib" -> Scopes [ClassPath.Lib]
+		| "std" -> Scopes [ClassPath.Std;ClassPath.StdTarget]
+		| "all" -> Scopes [ClassPath.User;ClassPath.Lib;ClassPath.Std;ClassPath.StdTarget]
+		| path ->
+			let full = Path.get_full_path path in
+			Path (if Sys.file_exists full && Sys.is_directory full then Path.add_trailing_slash full else full)
+	) entries
+
+let scope_of com file =
 	let owner = ref None in
 	com.class_paths#iter (fun cp ->
-		let dir = Path.get_full_path cp#path in
-		let dir = Path.add_trailing_slash dir in
+		let dir = Path.add_trailing_slash (Path.get_full_path cp#path) in
 		if ExtString.String.starts_with file dir then match !owner with
 			| Some (d,_) when String.length d >= String.length dir -> ()
 			| _ -> owner := Some (dir,cp#scope)
 	);
-	match !owner with
-	| Some (_,ClassPath.User) -> true
-	| _ -> false
+	Option.map snd !owner
+
+let is_target com targets file =
+	let file = Path.get_full_path file in
+	let scope = scope_of com file in
+	List.exists (function
+		| Scopes scopes -> (match scope with Some scope -> List.mem scope scopes | None -> false)
+		| Path path -> file = path || ExtString.String.starts_with file path
+	) targets
 
 let apply_to_file file fixes =
 	let content = Std.input_file ~bin:true file in
@@ -39,11 +59,11 @@ let apply_to_file file fixes =
 	List.length applied,skipped
 
 let run com =
-	let all = Common.defined_value_safe com Define.ApplyFixes = "all" in
+	let targets = parse_targets (Common.defined_value_safe com Define.ApplyFixes) in
 	let by_file = Hashtbl.create 0 in
 	List.iter (fun f ->
 		let file = f.fix_range.pfile in
-		if all || is_user_file com file then
+		if is_target com targets file then
 			Hashtbl.replace by_file file (f :: (try Hashtbl.find by_file file with Not_found -> []))
 	) com.part_scope.fixes;
 	let files = Hashtbl.fold (fun file fixes acc -> (file,fixes) :: acc) by_file [] in
