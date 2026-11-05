@@ -383,6 +383,7 @@ let compile com actx sctx =
 			filter com com ectx (fun () -> ());
 		end;
 		if has_error com && is_compilation then raise CompilerMessage.Abort;
+		if Common.defined com Define.ApplyFixes then ApplyFixes.run com;
 		if is_compilation then Generate.check_auxiliary_output com actx;
 		enter_stage com CGenerationStart;
 		ServerMessage.compiler_stage com;
@@ -531,6 +532,7 @@ let create_context (sctx : ServerCompilationContext.t) request_scope runtime_arg
 		has_error = false;
 		running_macros = 0;
 		messages = [];
+		fixes = [];
 		report_mode = RMNone;
 		message_capture = None;
 		compilation_step = sctx.compilation_step;

@@ -1,0 +1,5 @@
+-cp bin
+-libcp lib
+--main Main
+-D apply-fixes
+--no-output

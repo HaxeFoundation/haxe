@@ -27,7 +27,7 @@ let warn_deprecation dctx s p_usage =
 
 let print_deprecation_message dctx meta s p_usage =
 	let s = match meta with
-		| _,[EConst(String(s,_)),_],_ -> s
+		| _,(EConst(String(s,_)),_) :: _,_ -> s
 		| _ -> Printf.sprintf "Usage of this %s is deprecated" s
 	in
 	warn_deprecation dctx s p_usage
@@ -53,8 +53,69 @@ let check_module_type com mt p = match mt with
 	| TEnumDecl en -> check_enum com en p
 	| _ -> ()
 
+let rec is_atomic e = match e.eexpr with
+	| TConst _ | TLocal _ | TField _ | TTypeExpr _ | TCall _ | TArray _ | TParenthesis _ | TArrayDecl _ | TObjectDecl _ | TNew _ -> true
+	| TMeta(_,e1) | TCast(e1,None) -> is_atomic e1
+	| _ -> false
+
+exception Not_fixable
+
+let add_replacement_fix dctx cf e_this el p_call =
+	match Meta.get Meta.Deprecated cf.cf_meta with
+	| _,[_;template],_ ->
+		let in_call p = p <> p_call && p.pfile = p_call.pfile && p.pmin >= p_call.pmin && p.pmax <= p_call.pmax in
+		let text_of e =
+			if not (in_call e.epos) then raise Not_fixable;
+			match SourceText.read e.epos with
+			| Some s -> if is_atomic e then s else "(" ^ s ^ ")"
+			| None -> raise Not_fixable
+		in
+		let names = match follow cf.cf_type with
+			| TFun(args,_) -> List.map (fun (n,_,_) -> n) args
+			| _ -> raise Not_fixable
+		in
+		let rec bind names el = match names,el with
+			| n :: names,e :: el -> (n,(fun () -> text_of e)) :: bind names el
+			| n :: names,[] -> (n,(fun () -> raise Not_fixable)) :: bind names []
+			| [],_ -> []
+		in
+		let this_text () = match e_this with
+			| Some { eexpr = TConst TThis } -> "this"
+			| Some e -> text_of e
+			| None -> raise Not_fixable
+		in
+		let bindings = ("this",this_text) :: bind names el in
+		let rec subst e = match fst e with
+			| EConst (Ident n) when List.mem_assoc n bindings ->
+				(EConst (Ident ((List.assoc n bindings) ())),snd e)
+			| _ ->
+				Ast.map_expr subst e
+		in
+		begin try
+			let text = Ast.Printer.s_expr (subst template) in
+			let part_scope = dctx.com.part_scope in
+			if not (List.exists (fun f -> f.fix_range = p_call) part_scope.fixes) then
+				part_scope.fixes <- {
+					fix_reason = "Replace deprecated " ^ cf.cf_name;
+					fix_range = p_call;
+					fix_text = text;
+				} :: part_scope.fixes
+		with Not_fixable ->
+			()
+		end
+	| _ | exception Not_found ->
+		()
+
 let run_on_expr com e =
 	let rec expr e = match e.eexpr with
+		| TCall({eexpr = TField(e1,fa)} as ef,el) ->
+			expr ef;
+			List.iter expr el;
+			begin match fa with
+				| FStatic(_,cf) -> add_replacement_fix com cf None el e.epos
+				| FInstance(_,_,cf) -> add_replacement_fix com cf (Some e1) el e.epos
+				| _ -> ()
+			end
 		| TField(e1,fa) ->
 			expr e1;
 			begin match fa with

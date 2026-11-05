@@ -1,0 +1,12 @@
+class Main {
+	static function main() {
+		var s = "héllo";
+		var a:Dynamic = s;
+		trace(Std.isOfType(a, String));
+		if (Std.isOfType((a ?? 2), Float) && Std.isOfType(Std.isOfType(a, Int), Bool)) {}
+		var o = new Old(1);
+		trace(o.add((1 + 2) * 2));
+		trace(Old.make(1, 2), Old.create(1));
+		trace(Old.fromLib());
+	}
+}

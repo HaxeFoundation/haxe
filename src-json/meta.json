@@ -215,7 +215,8 @@
 	{
 		"name": "Deprecated",
 		"metadata": ":deprecated",
-		"doc": "Mark a type or field as deprecated."
+		"doc": "Mark a type or field as deprecated. On a function, the second argument is an optional replacement for calls to it, where the names of the function arguments and `this` refer to the corresponding expressions of the call.",
+		"params": ["Message", "Replacement"]
 	},
 	{
 		"name": "DirectlyUsed",
