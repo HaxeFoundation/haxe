@@ -236,6 +236,7 @@ and expr_def =
 	| ETernary of expr * expr * expr
 	| ECheckType of expr * type_hint
 	| EMeta of metadata_entry * expr
+	| ETypeArgs of expr * type_hint list
 
 and expr = expr_def * pos
 
@@ -825,6 +826,10 @@ let map_expr loop (e,p) =
 		let e = loop e in
 		let t = type_hint t in
 		EIs (e,t)
+	| ETypeArgs (e,tl) ->
+		let e = loop e in
+		let tl = List.map type_hint tl in
+		ETypeArgs (e,tl)
 	| EDisplay (e,f) -> EDisplay (loop e,f)
 	| ETernary (e1,e2,e3) ->
 		let e1 = loop e1 in
@@ -845,7 +850,7 @@ let iter_expr loop (e,p) =
 	match e with
 	| EConst _ | EContinue | EBreak | EReturn None -> ()
 	| EParenthesis e1 | EField(e1,_,_) | EUnop(_,_,e1) | EReturn(Some e1) | EThrow e1 | EMeta(_,e1)
-	| ECheckType(e1,_) | EDisplay(e1,_) | ECast(e1,_) | EIs(e1,_) | EUntyped e1 -> loop e1;
+	| ECheckType(e1,_) | EDisplay(e1,_) | ECast(e1,_) | EIs(e1,_) | ETypeArgs(e1,_) | EUntyped e1 -> loop e1;
 	| EArray(e1,e2) | EBinop(_,e1,e2) | EFor(e1,e2) | EWhile(e1,e2,_) | EIf(e1,e2,None) -> loop e1; loop e2;
 	| ETernary(e1,e2,e3) | EIf(e1,e2,Some e3) -> loop e1; loop e2; loop e3;
 	| EArrayDecl el | ENew(_,el) | EBlock el -> List.iter loop el
@@ -928,6 +933,7 @@ module Printer = struct
 		| ECast (e,Some (t,_)) -> "cast (" ^ s_expr_inner tabs e ^ ", " ^ s_complex_type tabs t ^ ")"
 		| ECast (e,None) -> "cast " ^ s_expr_inner tabs e
 		| EIs (e,(t,_)) -> s_expr_inner tabs e ^ " is " ^ s_complex_type tabs t
+		| ETypeArgs (e,tl) -> s_expr_inner tabs e ^ ".<" ^ String.concat ", " (List.map (fun (t,_) -> s_complex_type tabs t) tl) ^ ">"
 		| ETernary (e1,e2,e3) -> s_expr_inner tabs e1 ^ " ? " ^ s_expr_inner tabs e2 ^ " : " ^ s_expr_inner tabs e3
 		| ECheckType (e,(t,_)) -> "(" ^ s_expr_inner tabs e ^ " : " ^ s_complex_type tabs t ^ ")"
 		| EMeta (m,e) -> s_metadata tabs m ^ " " ^ s_expr_inner tabs e
@@ -1233,6 +1239,9 @@ module Expr = struct
 				loop e1;
 			| EIs(e1,_) ->
 				add "EIs";
+				loop e1;
+			| ETypeArgs(e1,_) ->
+				add "ETypeArgs";
 				loop e1;
 			| EDisplay(e1,dk) ->
 				add ("EDisplay " ^ (s_display_kind dk));

@@ -707,6 +707,10 @@ class hxb_reader
 			let m = self#read_metadata_entry in
 			let e = self#read_expr in
 			EMeta(m,e)
+		| 37 ->
+			let e = self#read_expr in
+			let thl = self#read_list (fun () -> self#read_type_hint) in
+			ETypeArgs(e,thl)
 		| _ -> assert false
 		in
 		(e,p)

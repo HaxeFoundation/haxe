@@ -586,6 +586,11 @@ enum ExprDef {
 		An `expr is Type` expression.
 	**/
 	EIs(e:Expr, t:ComplexType);
+
+	/**
+		Explicit type arguments on a callee: `f.<Int, String>` in `f.<Int, String>(x)`.
+	**/
+	ETypeArgs(e:Expr, params:Array<ComplexType>);
 }
 
 enum DisplayKind {
