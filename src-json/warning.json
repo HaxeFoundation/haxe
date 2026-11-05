@@ -74,6 +74,16 @@
 		"parent": "WDeprecated"
 	},
 	{
+		"name": "WMigration",
+		"doc": "Code whose meaning changed in a newer Haxe version",
+		"generic": true
+	},
+	{
+		"name": "WEnumConstructorShadowed",
+		"doc": "An identifier resolves to a type where Haxe 4 resolved it to an enum constructor of the same name",
+		"parent": "WMigration"
+	},
+	{
 		"name": "WVarInit",
 		"doc": "A local variable might be used before being assigned a value",
 		"parent": "WTyper"

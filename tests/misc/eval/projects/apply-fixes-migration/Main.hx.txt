@@ -1,0 +1,30 @@
+import p.Things;
+import p.Bar;
+import p.High;
+
+enum E {
+	Foo;
+}
+
+class Foo {
+	public static var v = 1;
+}
+
+class Main {
+	static function f(a:Int, ?a:Int) {
+		return a;
+	}
+
+	static function g(x:String, y:Int, x:String) {
+		return x;
+	}
+
+	static function main() {
+		var a = Foo;
+		var b = Foo.v + Bar.v;
+		var c = Bar;
+		var d = High;
+		var e:Kind = Bar;
+		trace(a, b, c, d, e, f(1, 2), g("a", 0, "b"));
+	}
+}

@@ -377,6 +377,15 @@ let warning ?(depth=0) ctx w msg p =
 	| WMDisable ->
 		()
 
+let warning_with_fix ctx w msg p reason text =
+	let options = (Warning.from_meta ctx.f.curfield.cf_meta) @ (Warning.from_meta ctx.c.curclass.cl_meta) in
+	match Warning.get_mode w options with
+	| WMEnable ->
+		module_warning ctx.com ctx.m.curmod w options msg p;
+		add_fix ctx.com w options reason p text
+	| WMDisable ->
+		()
+
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
 let type_expr ?(mode=MGet) ctx e with_type = (!type_expr_ref) ~mode ctx e with_type
