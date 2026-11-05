@@ -732,7 +732,7 @@ and init_meta_overloads ctx co cf =
 					()
 				| l ->
 					ctx.type_params <- List.filter (fun ttp ->
-						ttp.ttp_host <> TPHMethod
+						ttp.ttp_host <> TPHMethod && ttp.ttp_host <> TPHConstructor
 					) ctx.type_params
 			end;
 			let params : type_params = (!type_function_params_ref) ctx f TPHMethod cf.cf_name in
@@ -817,15 +817,15 @@ and type_type_params ctx host path tpl =
 				let r = make_lazy ctx.g ttp.ttp_type (fun () ->
 					let t = load_complex_type ctx true LoadNormal ct in
 					begin match host with
-						| TPHType ->
+						| TPHType
+						| TPHMethod ->
 							()
 						| TPHConstructor
-						| TPHMethod
 						| TPHEnumConstructor
 						| TPHAnonField
 						| TPHLocal
 						| TPHUnbound ->
-							display_error ctx.com "Default type parameters are only supported on types" (pos ct)
+							display_error ctx.com "Default type parameters are only supported on types and methods" (pos ct)
 					end;
 					check_param_constraints ctx t (fun t -> t) ttp (pos ct);
 					t

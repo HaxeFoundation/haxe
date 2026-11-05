@@ -9,6 +9,14 @@ private class DefaultTPClass_yn<S=String, T> {}
 private class DefaultTPClass_ny<S, T=String> {}
 private class DefaultTPClass_yy<S=Int, T=String> {}
 
+private class DefaultTPBox<T> {
+	public function new() {}
+
+	public function get<U = T>():Array<U> {
+		return [];
+	}
+}
+
 class TestDefaultTypeParameters extends Test {
 	function test() {
 		t(HelperMacros.typeString((null : DefaultTPClass_y)).endsWith("DefaultTPClass_y<String>"));
@@ -19,6 +27,28 @@ class TestDefaultTypeParameters extends Test {
 		t(HelperMacros.typeString((null : DefaultTPClass_yy)).endsWith("DefaultTPClass_yy<Int, String>"));
 		t(HelperMacros.typeString((null : DefaultTPClass_yy<String>)).endsWith("DefaultTPClass_yy<String, String>"));
 		t(HelperMacros.typeString((null : DefaultTPClass_yy<Int, Int>)).endsWith("DefaultTPClass_yy<Int, Int>"));
+	}
+
+	static function make<T = String>():Array<T> {
+		return [];
+	}
+
+	static function wrap<T = String>(?x:T):Array<T> {
+		return x == null ? [] : [x];
+	}
+
+	static function convert<In, Out = In>(x:In, ?f:In->Out):Out {
+		return f == null ? cast x : f(x);
+	}
+
+	function testFunctions() {
+		eq("Array<String>", HelperMacros.typeString(make()));
+		eq("Array<Int>", HelperMacros.typeString(make.<Int>()));
+		eq("Array<String>", HelperMacros.typeString(wrap()));
+		eq("Array<Int>", HelperMacros.typeString(wrap(1)));
+		eq("Int", HelperMacros.typeString(convert(1)));
+		eq("String", HelperMacros.typeString(convert(1, Std.string)));
+		eq("Array<Int>", HelperMacros.typeString(new DefaultTPBox<Int>().get()));
 	}
 
 	macro static function printThings() {

@@ -1298,7 +1298,7 @@ let setup_args_ret ctx cctx fctx name fd p =
 
 let create_method (ctx,cctx,fctx) c f cf fd p =
 	let name = fst f.cff_name in
-	let params = TypeloadFunction.type_function_params ctx fd TPHMethod name in
+	let params = TypeloadFunction.type_function_params ctx fd (if name = "new" then TPHConstructor else TPHMethod) name in
 	if fctx.is_generic then begin
 		if params = [] then raise_typing_error "Generic functions must have type parameters" p;
 	end;

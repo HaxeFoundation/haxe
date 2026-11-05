@@ -456,6 +456,7 @@ and encode_tparam_decl tp =
 			| None -> encode_array []
 			| Some th -> encode_array [encode_ctype th]);
 		"meta", encode_meta_content tp.tp_meta;
+		"defaultType", (match tp.tp_default with None -> vnull | Some th -> encode_ctype th);
 	]
 
 and encode_fun f =
