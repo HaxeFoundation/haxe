@@ -398,8 +398,11 @@ let process_args (com : Common.context) =
 			actx.measure_times <- true
 		| AddWarning s ->
 			let p = fake_pos ("-w " ^ s) in
-			let l = Warning.parse_options s p in
-			com.warning_options <- l :: com.warning_options
+			let l = Warning.parse_scoped_options s p in
+			let unscoped = List.filter_map (fun (opt,scope) -> if scope = None then Some opt else None) l in
+			let scoped = List.filter_map (fun (opt,scope) -> Option.map (fun scope -> opt,scope) scope) l in
+			com.warning_options <- unscoped :: com.warning_options;
+			com.scoped_warning_options <- scoped @ com.scoped_warning_options
 		| AddClass cpath ->
 			actx.classes <- cpath :: actx.classes
 		| IncludeModule cl ->

@@ -48,6 +48,17 @@ class class_paths = object(self)
 	method find (f : class_path -> bool) =
 		List.find f l
 
+	method scope_of (file : string) =
+		let file = Path.comparable_path file in
+		List.fold_left (fun acc cp ->
+			let dir = Path.add_trailing_slash (Path.comparable_path cp#path) in
+			if ExtString.String.starts_with file dir then match acc with
+				| Some (d,_) when String.length d >= String.length dir -> acc
+				| _ -> Some (dir,cp#scope)
+			else
+				acc
+		) None l |> Option.map snd
+
 	method iter (f : class_path -> unit) =
 		List.iter f l
 
