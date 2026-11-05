@@ -203,7 +203,35 @@ let resolve_against_expected_enum ctx i =
 	| Some mt ->
 		loop mt
 
-let rec type_ident_raise ctx i p mode with_type =
+let check_shadowed_enum_constructor ctx rl i p res =
+	match res.r_kind with
+	| RTypeImport(_,mt) ->
+		begin try
+			let owner,name = match (rl#resolve_enum_constructor i).r_kind with
+				| REnumConstructorImport(_,en,ef) -> TEnumDecl en,ef.ef_name
+				| RAbstractFieldImport(_,a,_,cf) -> TAbstractDecl a,cf.cf_name
+				| _ -> raise Not_found
+			in
+			let infos = t_infos owner in
+			let owner_name = snd infos.mt_path in
+			let owner_in_scope =
+				try t_infos (Typeload.load_type_def ctx p (mk_type_path ([],owner_name))) == infos with _ -> false
+			in
+			let owner_text =
+				if owner_in_scope then owner_name
+				else if infos.mt_module.m_path = infos.mt_path then s_type_path infos.mt_path
+				else s_type_path infos.mt_module.m_path ^ "." ^ owner_name
+			in
+			let text = owner_text ^ "." ^ name in
+			let msg = Printf.sprintf "%s resolves to the type %s, Haxe 4 resolved it to the enum constructor %s" i (s_type_path (t_infos mt).mt_path) text in
+			warning_with_fix ctx WEnumConstructorShadowed msg p ("Use enum constructor " ^ text) text
+		with Not_found ->
+			()
+		end
+	| _ ->
+		()
+
+let rec type_ident_raise ctx check_shadowing i p mode with_type =
 	let resolve res =
 		ImportHandling.mark_import_position ctx res.r_pos;
 		match res.r_kind with
@@ -357,13 +385,17 @@ let rec type_ident_raise ctx i p mode with_type =
 		resolve (resolve_against_expected_enum ctx i)
 	with Not_found -> try
 		let own_resolution = get_own_resolution ctx in
-		resolve (own_resolution#resolve i)
+		let res = own_resolution#resolve i in
+		if check_shadowing then check_shadowed_enum_constructor ctx own_resolution i p res;
+		resolve res
 	with Not_found ->
-		resolve (ctx.m.import_resolution#resolve i)
+		let res = ctx.m.import_resolution#resolve i in
+		if check_shadowing then check_shadowed_enum_constructor ctx ctx.m.import_resolution i p res;
+		resolve res
 
-and type_ident ctx i p mode with_type =
+and type_ident ctx check_shadowing i p mode with_type =
 	try
-		type_ident_raise ctx i p mode with_type
+		type_ident_raise ctx check_shadowing i p mode with_type
 	with Not_found -> try
 		(* lookup type *)
 		if is_lower_ident i p then raise Not_found;
@@ -426,7 +458,7 @@ and handle_efield ctx e p0 mode with_type =
 			(* first, try to resolve the first ident in the chain and access its fields.
 			   this doesn't support untyped identifiers yet, because we want to check fully-qualified
 			   paths first (even in an untyped block) *)
-			field_chain ctx pnext (type_ident_raise ctx name p MGet WithType.value)
+			field_chain ctx pnext (type_ident_raise ctx false name p MGet WithType.value)
 		with Not_found ->
 			(* first ident couldn't be resolved, it's probably a fully qualified path - resolve it *)
 			let path = (first :: pnext) in
@@ -436,7 +468,7 @@ and handle_efield ctx e p0 mode with_type =
 				(* dot-path resolution failed, it could be an untyped field access that happens to look like a dot-path, e.g. `untyped __global__.String` *)
 				try
 					(* TODO: we don't really want to do full type_ident again, just the second part of it *)
-					field_chain ctx pnext (type_ident ctx name p MGet WithType.value)
+					field_chain ctx pnext (type_ident ctx false name p MGet WithType.value)
 				with Error ({ err_message = Unknown_ident _; err_pos = p2 } as e) when p = p2 ->
 					try
 						(* try raising a more sensible error if there was an uppercase-first (module name) part *)
@@ -513,7 +545,7 @@ and handle_efield ctx e p0 mode with_type =
 and type_access ctx e p mode with_type =
 	match e with
 	| EConst (Ident s) ->
-		type_ident ctx s p mode with_type
+		type_ident ctx true s p mode with_type
 	| EField (e1,"new",efk) ->
 		if efk = EFSafe then raise_typing_error "?.new is not supported" p;
 		let e1 = type_expr ctx e1 WithType.value in
@@ -1770,7 +1802,7 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		raise_typing_error "Field names starting with $ are not allowed" p
 	| EConst (Ident s) ->
 		if s = "super" && with_type <> WithType.NoValue && not ctx.f.in_display then raise_typing_error "Cannot use super as value" p;
-		let e = maybe_type_against_enum ctx (fun () -> type_ident ctx s p mode with_type) with_type false p in
+		let e = maybe_type_against_enum ctx (fun () -> type_ident ctx true s p mode with_type) with_type false p in
 		acc_get ctx e
 	| EField _
 	| EArray _

@@ -151,6 +151,38 @@ class resolution_list (id : string list) = object(self)
 		self#resolve_lazies;
 		self#resolve' i
 
+	method resolve_enum_constructor (i : string) : resolution =
+		self#resolve_lazies;
+		let rec loop l = match l with
+			| [] ->
+				raise Not_found
+			| res :: l ->
+				begin match res.r_kind with
+				| REnumStatics en ->
+					begin match (try Some (PMap.find i en.e_constrs) with Not_found -> None) with
+					| Some ef when not (has_meta Meta.NoImportGlobal ef.ef_meta) ->
+						enum_constructor_resolution en ef None res.r_pos
+					| _ ->
+						loop l
+					end
+				| RClassStatics ({cl_kind = KAbstractImpl {a_enum = true}} as c) ->
+					begin match (try Some (PMap.find i c.cl_statics) with Not_found -> None) with
+					| Some cf when has_class_field_flag cf CfEnum ->
+						begin match as_importable_static c cf res.r_pos with
+						| Some(_,res) -> res
+						| None -> loop l
+						end
+					| _ ->
+						loop l
+					end
+				| REnumConstructorImport(alias,_,_) when alias = i ->
+					res
+				| _ ->
+					loop l
+				end
+		in
+		loop l
+
 	method expand_enum_constructors (mt : module_type) = match mt with
 		| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
 			Some (class_statics_resolution c null_pos)
