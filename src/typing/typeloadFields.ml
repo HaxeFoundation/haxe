@@ -553,11 +553,28 @@ let create_field_context ctx cctx cff is_display_file display_modifier =
 		match m with
 		| Meta.Final ->
 			is_final := true;
-			if p <> null_pos then
-				warning ctx WDeprecated "`@:final` is deprecated in favor of `final`" p;
+			if p <> null_pos then begin
+				let msg = "`@:final` is deprecated in favor of `final`" in
+				let fix = match cff.cff_kind with
+					| FFun _ -> SourceText.meta_to_keyword p (snd cff.cff_name) "function" "final function"
+					| FVar _ -> SourceText.meta_to_keyword p (snd cff.cff_name) "var" "final"
+					| FProp _ -> None
+				in
+				match fix with
+				| Some (fix_p,text) -> warning_with_fix ctx WDeprecated msg p "Use final" fix_p text
+				| None -> warning ctx WDeprecated msg p
+			end
 		| Meta.Extern ->
-			if p <> null_pos then
-				warning ctx WDeprecated "`@:extern` is deprecated in favor of `extern`" p;
+			if p <> null_pos then begin
+				let msg = "`@:extern` is deprecated in favor of `extern`" in
+				let fix = match cff.cff_kind with
+					| FFun _ -> SourceText.meta_to_keyword p (snd cff.cff_name) "function" "extern function"
+					| FVar _ | FProp _ -> SourceText.meta_to_keyword p (snd cff.cff_name) "var" "extern var"
+				in
+				match fix with
+				| Some (fix_p,text) -> warning_with_fix ctx WDeprecated msg p "Use extern" fix_p text
+				| None -> warning ctx WDeprecated msg p
+			end;
 			is_extern := true;
 		| _ ->
 			()
