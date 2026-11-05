@@ -45,6 +45,12 @@ type warning_option = {
 	wo_mode : warning_mode;
 }
 
+type warning_scope =
+	| WSUser
+	| WSLib of string option
+	| WSStd
+	| WSPath of string
+
 type message_kind =
 	| MKError
 	| MKWarning of WarningList.warning * (warning_option list list)

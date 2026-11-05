@@ -328,6 +328,7 @@ and context = {
 	mutable info : ?depth:int -> string -> pos -> unit;
 	mutable warning : Gctx.warning_function;
 	mutable warning_options : warning_option list list;
+	mutable scoped_warning_options : (warning_option * warning_scope) list;
 	mutable get_messages : unit -> Message.t list;
 	mutable filter_messages : (Message.t -> bool) -> unit;
 	mutable run_command : string -> int;
@@ -454,6 +455,25 @@ let add_fix_since com w options reason p text since =
 
 let add_fix com w options reason p text =
 	add_fix_since com w options reason p text None
+
+let scoped_warning_mode com w p =
+	match com.scoped_warning_options with
+	| [] ->
+		None
+	| scoped ->
+		let file_scope = if p.pfile = "?" then None else com.class_paths#scope_of p.pfile in
+		let in_scope scope = match scope,file_scope with
+			| WSUser,Some ClassPath.User -> true
+			| WSStd,Some (ClassPath.Std | ClassPath.StdTarget) -> true
+			| WSLib None,Some (ClassPath.Lib _) -> true
+			| WSLib (Some name),Some (ClassPath.Lib (Some name')) -> name = name'
+			| WSPath path,_ ->
+				let path = Path.get_full_path path in
+				let file = Path.get_full_path p.pfile in
+				file = path || ExtString.String.starts_with file (Path.add_trailing_slash path)
+			| _ -> false
+		in
+		Warning.matches_scoped w scoped in_scope
 
 (* Defines *)
 
@@ -830,6 +850,10 @@ let create sctx request_scope part_scope display_mode =
 		info = (fun ?depth _ _ -> die "" __LOC__);
 		warning = (fun ?depth _ _ _ -> die "" __LOC__);
 		warning_options = [List.map (fun w -> {wo_warning = w;wo_mode = WMDisable}) WarningList.disabled_warnings];
+		scoped_warning_options = [
+			{wo_warning = WDeprecated; wo_mode = WMDisable},WSLib None;
+			{wo_warning = WDeprecated; wo_mode = WMDisable},WSStd;
+		];
 		error = (fun _ _ -> die "" __LOC__);
 		error_ext = (fun _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
@@ -955,6 +979,7 @@ let clone com is_macro_context =
 		info = com.info;
 		warning = com.warning;
 		warning_options = com.warning_options;
+		scoped_warning_options = com.scoped_warning_options;
 		error = com.error;
 		error_ext = com.error_ext;
 		get_messages = com.get_messages;
