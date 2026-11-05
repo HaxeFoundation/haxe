@@ -665,12 +665,12 @@
 	},
 	{
 		"name": "ApplyFixesDry",
-		"define": "apply-fixes-dry",
+		"define": "apply-fixes.dry",
 		"doc": "With `-D apply-fixes`, print the fixes as a unified diff instead of changing the files."
 	},
 	{
 		"name": "ApplyFixesPasses",
-		"define": "apply-fixes-passes",
+		"define": "apply-fixes.passes",
 		"doc": "With `-D apply-fixes`, compile again while fixes were applied, up to this number of compilations. (default: 1)",
 		"params": ["passes"]
 	},
