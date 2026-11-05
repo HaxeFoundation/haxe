@@ -123,7 +123,7 @@ import haxe.SysTools;
 		return sys_cpu_time();
 	}
 
-	@:deprecated("Use programPath instead") public static function executablePath() : String {
+	@:deprecated("Use programPath instead", Sys.programPath()) public static function executablePath() : String {
 		return new String(sys_exe_path());
 	}
 

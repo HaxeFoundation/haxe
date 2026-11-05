@@ -1,0 +1,13 @@
+import haxe.Int64;
+import haxe.io.Bytes;
+
+class Main {
+	static function main() {
+		var d:Dynamic = "s";
+		var i = Int64.make(1, 2);
+		var b = Bytes.ofString("hello");
+		trace(Std.is(d, String), Std.instance(d, String));
+		trace(Int64.is(i), Int64.getHigh(i + i), Int64.getLow(i));
+		trace(b.readString(0, 2), StringTools.quoteUnixArg("a b"), StringTools.winMetaCharacters.length);
+	}
+}

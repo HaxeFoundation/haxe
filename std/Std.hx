@@ -62,7 +62,7 @@ extern class Std {
 	**/
 	static function downcast<T:{}, S:T>(value:T, c:Class<S>):Null<S>;
 
-	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
+	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.', Std.downcast(value, c))
 	static function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S>;
 
 	/**

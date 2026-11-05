@@ -113,7 +113,7 @@ abstract AdjustableContext(ElementTree) {
 		return abstract;
 	}
 
-	@:deprecated("Use `set` instead")
+	@:deprecated("Use `set` instead", this.set(key, element))
 	public inline function add<T>(key:Key<T>, element:T) {
 		return set(key, element);
 	}

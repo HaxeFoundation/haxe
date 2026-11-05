@@ -1,0 +1,3 @@
+-cp bin
+--main Main
+--no-output

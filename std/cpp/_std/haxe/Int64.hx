@@ -155,7 +155,7 @@ abstract Int64(__Int64) from __Int64 from Int to __Int64 {
 		return x.low;
 	}
 
-	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
+	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead', haxe.Int64.isInt64(val))
 	inline public static function is(val:Dynamic):Bool {
 		return val is cpp.Int64;
 	}
@@ -163,11 +163,11 @@ abstract Int64(__Int64) from __Int64 from Int to __Int64 {
 	public static #if !cppia inline #end function isInt64(val:Dynamic):Bool
 		return val is cpp.Int64;
 
-	@:deprecated("Use high instead")
+	@:deprecated("Use high instead", x.high)
 	public static #if !cppia inline #end function getHigh(x:Int64):Int32
 		return x.high;
 
-	@:deprecated("Use low instead")
+	@:deprecated("Use low instead", x.low)
 	public static #if !cppia inline #end function getLow(x:Int64):Int32
 		return x.low;
 

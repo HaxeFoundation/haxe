@@ -198,7 +198,7 @@ class Bytes {
 		return Utf8.decode(this.asView().slice(pos, len));
 	}
 
-	@:deprecated("readString is deprecated, use getString instead")
+	@:deprecated("readString is deprecated, use getString instead", this.getString(pos, len))
 	@:noCompletion
 	public function readString(pos:Int, len:Int):String {
 		return getString(pos, len);
