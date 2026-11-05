@@ -349,8 +349,9 @@ let unify_field_call ctx fa el_typed el p inline =
 		Option.may (fun tl ->
 			if List.length tl <> List.length monos then
 				raise_error_msg (Call_error (Could_not_unify (Custom (Printf.sprintf "Expected %i type argument%s, got %i" (List.length monos) (if List.length monos = 1 then "" else "s") (List.length tl))))) p;
-			List.iter2 (fun mono (t,pt) ->
-				try unify_raise t mono pt with Error err -> raise_error { err with err_message = Call_error (Could_not_unify err.err_message) }
+			List.iter2 (fun mono (t,pt) -> match mono with
+				| TMono m -> (try Monomorph.bind m t with Unify_error l -> raise_error_msg (Call_error (Could_not_unify (Unify l))) pt)
+				| _ -> die "" __LOC__
 			) monos tl
 		) fa.fa_type_args;
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
