@@ -2,3 +2,5 @@ Main.hx:1: characters 8-20 : Type not found : sys.db.Mysql
 Main.hx:1: characters 8-20 : This module moved to the hx4compat library in Haxe 5
 Main.hx:5: characters 9-30 : Type not found : haxe.remoting.Context
 Main.hx:5: characters 9-30 : This module moved to the hx4compat library in Haxe 5
+Main.hx:6: characters 11-20 : Type not found : haxe.Ucs2
+Main.hx:6: characters 11-20 : haxe.Ucs2 was removed in Haxe 5
