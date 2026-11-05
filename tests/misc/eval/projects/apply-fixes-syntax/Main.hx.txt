@@ -1,0 +1,28 @@
+@:enum abstract Color(Int) {
+	var Red = 1;
+}
+
+@:enum
+private abstract Size(Int) {
+	var Small = 1;
+}
+
+class Base {
+	public function new() {}
+
+	@:final public function locked() {}
+
+	@:keep @:final
+	public var count:Int = 0;
+
+	@:extern public inline function ext() {}
+
+	@:final @:extern inline function both() {}
+}
+
+class Main {
+	static function main() {
+		var b = new Base();
+		trace(Red, Small, b.count);
+	}
+}

@@ -225,7 +225,7 @@ let check_shadowed_enum_constructor ctx rl i p res =
 			in
 			let text = owner_text ^ "." ^ name in
 			let msg = Printf.sprintf "%s resolves to the type %s, Haxe 4 resolved it to the enum constructor %s" i (s_type_path (t_infos mt).mt_path) text in
-			warning_with_fix ctx WEnumConstructorShadowed msg p ("Use enum constructor " ^ text) text
+			warning_with_fix ctx WEnumConstructorShadowed msg p ("Use enum constructor " ^ text) p text
 		with Not_found ->
 			()
 		end
