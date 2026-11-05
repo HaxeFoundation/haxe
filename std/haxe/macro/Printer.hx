@@ -244,8 +244,10 @@ class Printer {
 		"untyped", "using", "var", "while"
 	];
 
+	static final identifier = ~/^\$?[A-Za-z_][A-Za-z0-9_]*$/;
+
 	public function printFieldName(name:String) {
-		return keywords.contains(name) ? '"$name"' : name;
+		return keywords.contains(name) || !identifier.match(name) ? printString(name) : name;
 	}
 
 	function printFieldAccessName(name:String) {
