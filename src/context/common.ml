@@ -413,6 +413,28 @@ let module_warning com m w options msg p =
 	end;
 	com.warning w options msg p
 
+let class_path_scope_of com file =
+	let file = Path.get_full_path file in
+	let owner = ref None in
+	com.class_paths#iter (fun cp ->
+		let dir = Path.add_trailing_slash (Path.get_full_path cp#path) in
+		if ExtString.String.starts_with file dir then match !owner with
+			| Some (d,_) when String.length d >= String.length dir -> ()
+			| _ -> owner := Some (dir,cp#scope)
+	);
+	Option.map snd !owner
+
+let is_library_deprecation com w p =
+	let rec is_deprecation w = w = Warning.WDeprecated || match (Warning.warning_obj w).w_parent with
+		| Some w -> is_deprecation w
+		| None -> false
+	in
+	p.pfile <> "?" && is_deprecation w
+	&& not (Define.defined com.defines Define.LibDeprecationWarnings || Define.defined com.defines Define.ApplyFixes)
+	&& match class_path_scope_of com p.pfile with
+		| Some (ClassPath.Lib _ | ClassPath.Std | ClassPath.StdTarget) -> true
+		| _ -> false
+
 let written_type_path mt =
 	let infos = t_infos mt in
 	if infos.mt_module.m_path = infos.mt_path then s_type_path infos.mt_path
