@@ -51,6 +51,28 @@ class TestDefaultTypeParameters extends Test {
 		eq("Array<Int>", HelperMacros.typeString(new DefaultTPBox<Int>().get()));
 	}
 
+	function testFunctionsExpectedType() {
+		// Arguments, then the expected type, then the default
+		var a:Array<Int> = make();
+		eq(0, a.length);
+		var b:Array<Float> = wrap();
+		eq(0, b.length);
+		eq("Array<Int>", HelperMacros.typeString((make() : Array<Int>)));
+		eq("Array<Int>", HelperMacros.typeString(wrap((make() : Array<Int>)[0])));
+		eq("Array<Int>", HelperMacros.typeString(take(make())));
+		var c:Array<Float> = make.<Float>();
+		eq(0, c.length);
+		t(HelperMacros.typeError((make.<String>() : Array<Int>)));
+		t(HelperMacros.typeError((wrap(1) : Array<String>)));
+		var d:Dynamic = make();
+		var e:Any = make();
+		t(d != null && e != null);
+	}
+
+	static function take(a:Array<Int>):Array<Int> {
+		return a;
+	}
+
 	macro static function printThings() {
 		var pr = new haxe.macro.Printer();
 		var tds = [
