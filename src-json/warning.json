@@ -84,6 +84,11 @@
 		"parent": "WMigration"
 	},
 	{
+		"name": "WBuildMacroOrder",
+		"doc": "Build macros inherited from a parent type run in a different order than with Haxe 4",
+		"parent": "WMigration"
+	},
+	{
 		"name": "WVarInit",
 		"doc": "A local variable might be used before being assigned a value",
 		"parent": "WTyper"

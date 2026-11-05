@@ -1,0 +1,2 @@
+Main.hx:9: characters 7-8 : Warning : (WBuildMacroOrder) Haxe 4 ran the build macros inherited from Base in the reverse order:
+Main.hx:9: characters 7-8 : ... Macro.check changed checked before Macro.markup ran
