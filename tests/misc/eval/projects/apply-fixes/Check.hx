@@ -1,15 +1,18 @@
 import sys.io.File;
 
 class Check {
+	static function read(path:String) {
+		return File.getContent(path).split("\r\n").join("\n");
+	}
+
 	static function main() {
-		var actual = File.getContent("bin/Main.hx").split("\r\n").join("\n");
-		var expected = File.getContent("Main.hx.expected").split("\r\n").join("\n");
-		if (actual != expected) {
-			Sys.println(actual);
+		var main = read("bin/src/Main.hx");
+		if (main != read("Main.hx.expected")) {
+			Sys.println(main);
 			Sys.exit(1);
 		}
-		// Fixes are only applied to user class paths
-		if (File.getContent("lib/Old.hx").indexOf("Std.is(") == -1) {
+		// Library class paths are only changed when selected
+		if (read("lib/Old.hx").indexOf("Std.is(") == -1 || read("bin/other/Other.hx").indexOf("Std.isOfType(1, Int)") == -1) {
 			Sys.exit(1);
 		}
 	}

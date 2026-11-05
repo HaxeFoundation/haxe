@@ -7,6 +7,6 @@ class Main {
 		var o = new Old(1);
 		trace(o.add((1 + 2) * 2));
 		trace(Old.make(1, 2), Old.create(1));
-		trace(Old.fromLib());
+		trace(Old.fromLib(), Other.check());
 	}
 }
