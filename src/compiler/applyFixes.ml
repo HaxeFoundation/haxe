@@ -20,19 +20,9 @@ let parse_targets value =
 			[Path (if Sys.file_exists full && Sys.is_directory full then Path.add_trailing_slash full else full)]
 	) entries
 
-let scope_of com file =
-	let owner = ref None in
-	com.class_paths#iter (fun cp ->
-		let dir = Path.add_trailing_slash (Path.get_full_path cp#path) in
-		if ExtString.String.starts_with file dir then match !owner with
-			| Some (d,_) when String.length d >= String.length dir -> ()
-			| _ -> owner := Some (dir,cp#scope)
-	);
-	Option.map snd !owner
-
 let is_target com targets file =
 	let file = Path.get_full_path file in
-	let scope = scope_of com file in
+	let scope = Common.class_path_scope_of com file in
 	List.exists (fun target -> match target,scope with
 		| User,Some ClassPath.User
 		| Lib None,Some (ClassPath.Lib _)

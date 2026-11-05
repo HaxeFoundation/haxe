@@ -1,0 +1,4 @@
+-cp src
+-libcp lib
+--main Main
+--no-output
