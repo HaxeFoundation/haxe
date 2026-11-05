@@ -1,0 +1,2 @@
+Macro.hx:3: characters 23-34 : Class<haxe.macro.Compiler> has no field removeField
+Macro.hx:3: characters 23-34 : removeField was removed in Haxe 5

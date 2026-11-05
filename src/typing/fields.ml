@@ -630,7 +630,15 @@ let type_field cfg ctx e i p mode (with_type : WithType.t) =
 					if not (Diagnostics.error_in_diagnostics_run ctx.com pfield) then raise Exit;
 					DisplayFields.handle_missing_field_raise ctx tthis i mode with_type pfield
 				with Exit ->
-					display_error ctx.com (StringError.string_error i (string_source tthis) (s_type (print_context()) tthis ^ " has no field " ^ i)) pfield
+					let msg = StringError.string_error i (string_source tthis) (s_type (print_context()) tthis ^ " has no field " ^ i) in
+					let removed = match e.eexpr,i with
+						| TTypeExpr (TClassDecl { cl_path = (["haxe";"macro"],"Compiler") }),("removeField" | "setFieldType" | "patchTypes") -> true
+						| _ -> false
+					in
+					if removed then
+						display_error_ext ctx.com (make_error ~sub:[make_error (Custom (i ^ " was removed in Haxe 5")) pfield] (Custom msg) pfield)
+					else
+						display_error ctx.com msg pfield
 		end;
 		AKExpr (mk (TField (e,FDynamic i)) (spawn_monomorph ctx p) p)
 
