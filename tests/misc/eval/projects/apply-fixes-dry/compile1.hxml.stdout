@@ -1,0 +1,24 @@
+--- bin/Main.hx
++++ bin/Main.hx
+@@ -1,11 +1,8 @@
+ class Main {
+ 	static function main() {
+ 		var a:Dynamic = 1;
+-		trace(Std.is(a, Int));
+-		trace(Std.is(
+-			a,
+-			Float
+-		));
++		trace(Std.isOfType(a, Int));
++		trace(Std.isOfType(a, Float));
+ 	}
+ 
+ 	static function f() {
+@@ -13,6 +10,6 @@
+ 	}
+ 
+ 	static function g() {
+-		return Std.is(1, Int);
++		return Std.isOfType(1, Int);
+ 	}
+ }
