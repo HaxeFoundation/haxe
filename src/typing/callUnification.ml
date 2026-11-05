@@ -363,6 +363,10 @@ let unify_field_call ctx fa el_typed el p inline =
 				with DisplayException.DisplayException de ->
 					raise_augmented_display_exception cf de;
 			in
+			List.iter2 (fun mono ttp -> match ttp.ttp_default,follow mono with
+				| Some t,TMono { tm_type = None } -> unify_raise (map (apply_params cf.cf_params monos t)) mono p
+				| _ -> ()
+			) monos cf.cf_params;
 			(* here *)
 			let el = el_typed @ el in
 			let args = (args_typed @ args) in
