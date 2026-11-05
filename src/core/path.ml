@@ -257,6 +257,14 @@ let add_trailing_slash p =
 		| '\\' | '/' -> p
 		| _ -> p ^ "/"
 
+let comparable_path f =
+	let f = get_full_path (if f = "" then "." else f) in
+	if Globals.is_windows then String.lowercase_ascii (String.map (fun c -> if c = '\\' then '/' else c) f)
+	else f
+
+let is_in_path path file =
+	file = path || ExtString.String.starts_with file (add_trailing_slash path)
+
 let rec remove_trailing_slash p =
 	let l = String.length p in
 	if l = 0 then
