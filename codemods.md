@@ -36,8 +36,8 @@ Haxe compiles libraries from source with the user's compiler, so neither applies
 versions are not realistic for Haxe (see Rejected alternatives). What remains:
 
 - Fixes are only applied to user code by default, with a bypass for library and std maintainers.
-- Deprecation warnings located in libraries are hidden by default (`-D lib-deprecation-warnings` shows
-  them, and `-D apply-fixes` always does).
+- Deprecation warnings located in libraries are hidden by default (`-w +WDeprecated@lib` shows
+  them, and `--fix` always does).
 - Breaking changes keep a deprecation period with a fix, so library authors can migrate, and
   `#if (haxe >= version("..."))` covers code that has to support both compiler versions.
 
@@ -94,7 +94,7 @@ They are collected per compilation (`part_scope.fixes`). Sources of fixes:
    `WMigration` family carries a fix that keeps the Haxe 4 meaning (see Haxe 5 breaking changes).
    They are disabled by default, since they keep firing on code that is correct for Haxe 5 (a class
    meant to win over an enum constructor, a library already adapted to the new build order), and
-   their checks cost time. `-D apply-fixes` enables them below the user's `-w` options, so
+   their checks cost time. `--fix` enables them below the user's `-w` options, so
    `-w -WBuildMacroOrder` still disables one; `-w +WMigration` enables them without the codemod.
 5. **Syntax deprecations**: `@:final`, `@:extern` and `@:enum abstract` are replaced by the keyword,
    placed before `function`, `var` or `abstract` (`@:final public var x` becomes `public final x`).
@@ -111,33 +111,66 @@ applied by default.
 
 ### Applying
 
-- `-D apply-fixes` applies the fixes at the end of the compilation, including failed ones, so errors
-  can carry fixes. Which files get changed is selected by its value, a comma-separated list of:
-  - class path kinds: `user` (`-cp`), `lib` (libraries), `std` (std and target std), `all`;
-  - libraries by name: `lib:name`, e.g. `-D apply-fixes=user,lib:mylib` for a library maintainer
-    compiling the library's tests, without touching other dependencies;
-  - paths to directories or files, e.g. `-D apply-fixes=src/legacy`.
+| Argument | Define it sets | |
+|---|---|---|
+| `--fix` | `apply-fixes` | Apply the fixes to the files of the user class paths |
+| `--fix-scope <scopes>` | `apply-fixes=<scopes>` | Comma-separated: `user`, `lib`, `lib:name`, `std`, `all`, or paths |
+| `--fix-diff` | `apply-fixes.dry` | Print a unified diff instead of changing files |
+| `--fix-passes <n>` | `apply-fixes.passes` | Compile again while fixes were applied, up to n compilations |
+| `--fix-compat <version>` | `apply-fixes.compat` | Skip fixes needing a newer Haxe version |
+| `--fix-allow-dirty` | `apply-fixes.allow-dirty` | Also change files with uncommitted changes or outside of git |
 
-  Without value it is `user`: library and std files are left alone by default.
+The arguments only set the defines, so macros can tell a migration is running
+(`Context.defined("apply-fixes")`); their order doesn't matter (`--fix-scope lib --fix` keeps the scope).
+The prior art for the names: Rust's `cargo fix` (`--allow-dirty`, `--broken-code`), Go's `go fix -diff`,
+ESLint's `--fix`/`--fix-dry-run`, Ruff's `--fix`/`--diff`/`--unsafe-fixes`, Dart's
+`dart fix --apply`/`--dry-run`, clang-tidy's `-fix`/`-fix-errors`.
+
+- Fixes are applied at the end of the compilation, including failed ones, so errors can carry fixes.
+- Files with uncommitted changes, or outside of a git repository (including ignored files), are not
+  changed: nothing is applied, and an error lists them. `--fix-allow-dirty` overrides it; `--fix-diff`
+  doesn't need it.
+- Scopes: `user` (`-cp`), `lib` (libraries), `lib:name` (one library, e.g. `--fix-scope user,lib:mylib`
+  for a library maintainer compiling the library's tests), `std` (std and target std), `all`, or paths
+  to directories or files (`--fix-scope src/legacy`). The default is `user`.
 - Library names come from `haxelib path`, which prints `-D name=version` right after each library's
-  class path. The compiler now records that name on the class path (`ClassPath.Lib of string option`,
+  class path. The compiler records that name on the class path (`ClassPath.Lib of string option`,
   internal argument `-libcp-of name path`).
 - Libraries resolved by lix are added as plain `-cp` through `haxe_libraries/*.hxml`, so they count as
-  user class paths and can't be selected by name. Recognizing them needs another marker in those hxml
-  files (open question).
+  user class paths and can't be selected by name (open question).
 - Overlapping fixes (a deprecated call nested in another one) keep the outermost one, and the compiler
   says to compile again. Each pass converges.
 - Typing stops at the first error, so a pass fixes at most one error, plus the warnings found before it.
-  `-D apply-fixes.passes=N` compiles again while fixes were applied, up to N compilations, invalidating
-  the cache of the changed files in between. It is opt-in: a failed compilation leaves nothing in the
-  cache, so each pass after an error is a full compilation, and init macros run again on each pass.
-- `-D apply-fixes.dry` prints the fixes as a unified diff on stdout instead of changing the files, with
-  the same selection and overlap handling. Paths are as the compiler knows them, so the diff applies
-  with `git apply -p0` or `patch -p0`. Only the first pass can be shown, since later passes depend on
-  the files actually changing.
-- `-D apply-fixes.compat=VERSION` skips the fixes whose replacement needs a newer Haxe version, and
-  tells how many were skipped (see Compatibility).
-- A dedicated CLI argument (`--apply-fixes`) could replace the define once the design settles.
+  `--fix-passes` is opt-in: a failed compilation leaves nothing in the cache, so each pass after an
+  error is a full compilation, and init macros run again on each pass. The cache of changed files is
+  invalidated between passes.
+- `--fix-diff` paths are as the compiler knows them, so the diff applies with `git apply -p0` or
+  `patch -p0`. Only the first pass can be shown, since later passes depend on the files changing.
+- Later: `--fix-only <warnings>` to pick fixes by warning, in `-w` syntax (like Ruff's `--select` or
+  Dart's `--code`), and a safe/unsafe split (Ruff's `--unsafe-fixes`, RuboCop's `-a`/`-A`).
+
+### Warning scopes
+
+`-w` accepts a scope after a warning, to apply to warnings located in some files only:
+
+```
+-w -WDeprecated@lib              # all libraries
+-w +WDeprecated@lib:tink_core    # one library
+-w -WIfDisplay@std               # std and target std
+-w +WDeprecated@user             # -cp class paths
+-w -WDeprecated@"src/generated"  # a path
+```
+
+A scoped option takes precedence over options without scope. Deprecation warnings located in libraries
+and the standard library are disabled by default (`-WDeprecated@lib -WDeprecated@std`): users can't act
+on them. `-w +WDeprecated@lib` reports them again, and `--fix` enables them below the user's own scoped
+options (`--fix -w -WDeprecated@lib` still hides them). Other ecosystems: GCC's `-isystem`, Rust's
+`--cap-lints` on dependencies, ESLint rules scoped by file globs.
+
+This part is independent from the fixes, and can be extracted on top of `development` with the
+patches in the project files (`warning-scopes/*.patch`, `git am`): the library-name hunks of
+`fe3f39fba3` (args, compilationCache, highLevel, parsedArg, classPath), then `2be1d72fa0` and
+`485cfac45c` (conflicts with fix code resolved). Built and tested on `origin/development`.
 
 ### IDE
 
@@ -178,7 +211,7 @@ parsed bodies are identical; the cause is #11582. Components inherit two build m
 `ComponentMacro` only adds the `return` when the body is still a markup string, and `XMacro` has
 already converted it.
 
-`-D apply-fixes` changes nothing there: no source rewrite can undo a macro ordering change. The
+`--fix` changes nothing there: no source rewrite can undo a macro ordering change. The
 `WBuildMacroOrder` warning reports the cause instead:
 
 ```
@@ -196,7 +229,7 @@ inherited build macros, and is emitted once per parent type, only when such an i
 ### Case study: buddy
 
 buddy's `tests.hxml`, with the tink libraries of its local `.haxelib`, fails with Haxe 5 on two
-partial resolutions in tink_macro (`tink.OutcomeTools`, `haxe.macro.Error`). `-D apply-fixes=all` fixes
+partial resolutions in tink_macro (`tink.OutcomeTools`, `haxe.macro.Error`). `--fix-scope all` fixes
 both (`tink.CoreApi.OutcomeTools`, `haxe.macro.Expr.Error`); the remaining errors are then the same as
 with Haxe 4.3.7 (those tink versions don't build with 4.3.7 either).
 
@@ -213,7 +246,7 @@ code that only Haxe 5 accepts, unless the user says so.
 
 - Each fix can declare the oldest Haxe version accepting its replacement (`fix_since`); templates give
   it as third `@:deprecated` argument.
-- `-D apply-fixes.compat=4.3` gives the oldest version the code must keep compiling with. Fixes needing
+- `--fix-compat 4.3` gives the oldest version the code must keep compiling with. Fixes needing
   a newer version are skipped, with a note telling how many and which versions they need. Without it,
   the fixes target the current compiler.
 - Later, a too recent fix could be replaced by an alternative instead of skipped: a different
@@ -284,7 +317,8 @@ Specs aren't ready, but if metadata gets declared signatures, `@:deprecated` imp
 - `src/compiler/highLevel.ml`, `src/compiler/args.ml`, `src/core/classPath.ml`: library names on class
   paths, passes.
 - `src/compiler/compiler.ml`: applying after failed compilations, enabling `WMigration`.
-- `src/compiler/io/compilerMessage.ml`: hiding library deprecation warnings.
+- `src/core/warning.ml`, `src/core/classPaths.ml`, `src/compiler/io/compilerMessage.ml`: warning scopes.
+- `src/compiler/args.ml`, `src/compiler/parsedArg.ml`: `--fix` arguments.
 - `src/context/display/diagnosticsPrinter.ml`: fixes as `DKReplacableCode`.
 - `src/typing/functionArguments.ml`: duplicate argument names.
 - `src/context/resolution.ml`, `src/typing/typer.ml`: `WEnumConstructorShadowed`.
@@ -295,15 +329,15 @@ Specs aren't ready, but if metadata gets declared signatures, `@:deprecated` imp
 - `std/**`: replacement templates.
 - Tests in `tests/misc/eval/projects/`: `apply-fixes` (selection, libraries), `apply-fixes-migration`,
   `apply-fixes-dry`, `apply-fixes-partial-resolution`, `apply-fixes-syntax`, `apply-fixes-std`,
-  `apply-fixes-alias`, `apply-fixes-compat`, `build-macro-order-warning`, `lib-deprecation-warnings`,
+  `apply-fixes-alias`, `apply-fixes-compat`, `apply-fixes-is`, `apply-fixes-dirty`,
+  `build-macro-order-warning`, `lib-deprecation-warnings`, `warning-scopes`,
   `removed-modules`.
-- Unit macro and js, misc (749), server and null safety tests pass.
+- Unit macro and js, misc (762), server and null safety tests pass.
 
 ## Next steps
 
-1. `is` as an identifier (rename locals and arguments; fields need find references).
-2. Hints for moved modules in expressions too.
-3. Safety flag; text check before applying.
-4. Library names for lix-resolved libraries.
-5. Decide between the defines and CLI arguments.
-6. 4.3.x backport behind `-D haxe-next`.
+1. Safety flag (`--fix` applies safe fixes only, `--fix-unsafe` the others); text check before applying.
+2. `--fix-only <warnings>`.
+3. Library names for lix-resolved libraries.
+4. `is` fields (needs find references).
+5. 4.3.x backport behind `-D haxe-next`.
