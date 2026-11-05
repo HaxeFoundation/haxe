@@ -1,0 +1,2 @@
+src/Main.hx:3: characters 23-30 : Warning : (WDeprecated) Use check instead
+src/Main.hx:3: characters 35-41 : Warning : (WDeprecated) Std.is is deprecated. Use Std.isOfType instead.
