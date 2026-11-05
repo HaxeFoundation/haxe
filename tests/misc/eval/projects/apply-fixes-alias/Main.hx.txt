@@ -1,0 +1,10 @@
+import pack.Old;
+
+class Main {
+	static function main() {
+		var a:Old<String> = new Old("a");
+		var b:pack.Old.OldPair<Int, String> = null;
+		var c:IntBox = null;
+		trace(a, b, c);
+	}
+}
