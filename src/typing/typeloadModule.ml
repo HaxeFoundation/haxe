@@ -766,6 +766,19 @@ class hxb_reader_api_typeload
 		TLazy (make_lazy g t f "typeload-api")
 end
 
+let raise_module_not_found m p =
+	let hint = match m with
+		| ("sys" :: "db" :: _),_ | ("haxe" :: "remoting" :: _),_ | ["php"],"Web" | ["neko"],"Web" ->
+			Some "This module moved to the hx4compat library in Haxe 5"
+		| ["haxe"],"Ucs2" ->
+			Some "haxe.Ucs2 was removed in Haxe 5"
+		| _ ->
+			None
+	in
+	match hint with
+	| Some hint -> raise_typing_error_ext (make_error ~sub:[make_error (Custom hint) p] (Module_not_found m) p)
+	| None -> raise_error_msg (Module_not_found m) p
+
 let rec load_hxb_module com g path p =
 	let read file bytes =
 		try
@@ -812,19 +825,7 @@ and load_module' com g m p =
 		| NoModule | BadModule _ | BadBinaryModule _ -> try
 			load_hxb_module com g m p
 		with Not_found ->
-			let raise_not_found () =
-				let hint = match m with
-					| ("sys" :: "db" :: _),_ | ("haxe" :: "remoting" :: _),_ | ["php"],"Web" | ["neko"],"Web" ->
-						Some "This module moved to the hx4compat library in Haxe 5"
-					| ["haxe"],"Ucs2" ->
-						Some "haxe.Ucs2 was removed in Haxe 5"
-					| _ ->
-						None
-				in
-				match hint with
-				| Some hint -> raise_typing_error_ext (make_error ~sub:[make_error (Custom hint) p] (Module_not_found m) p)
-				| None -> raise_error_msg (Module_not_found m) p
-			in
+			let raise_not_found () = raise_module_not_found m p in
 			if com.module_nonexistent_lut#mem m then raise_not_found();
 			if g.load_only_cached_modules then raise_not_found();
 			let is_extern = ref false in
