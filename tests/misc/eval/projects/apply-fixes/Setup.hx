@@ -7,5 +7,6 @@ class Setup {
 		FileSystem.createDirectory("bin/other");
 		File.saveContent("bin/src/Main.hx", File.getContent("Main.hx.txt"));
 		File.saveContent("bin/other/Other.hx", File.getContent("Other.hx.txt"));
+		File.saveContent("bin/other/haxelib.json", '{"name": "apply-fixes-other", "version": "1.0.0"}');
 	}
 }

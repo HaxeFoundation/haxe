@@ -2,19 +2,22 @@ open Globals
 open Common
 
 type target =
-	| Scopes of ClassPath.class_path_scope list
+	| User
+	| Lib of string option
+	| Std
 	| Path of string
 
 let parse_targets value =
 	let entries = List.filter (fun s -> s <> "") (List.map String.trim (ExtString.String.nsplit value ",")) in
-	List.map (function
-		| "1" | "user" -> Scopes [ClassPath.User]
-		| "lib" -> Scopes [ClassPath.Lib]
-		| "std" -> Scopes [ClassPath.Std;ClassPath.StdTarget]
-		| "all" -> Scopes [ClassPath.User;ClassPath.Lib;ClassPath.Std;ClassPath.StdTarget]
+	List.concat_map (function
+		| "1" | "user" -> [User]
+		| "lib" -> [Lib None]
+		| "std" -> [Std]
+		| "all" -> [User;Lib None;Std]
+		| s when ExtString.String.starts_with s "lib:" -> [Lib (Some (String.sub s 4 (String.length s - 4)))]
 		| path ->
 			let full = Path.get_full_path path in
-			Path (if Sys.file_exists full && Sys.is_directory full then Path.add_trailing_slash full else full)
+			[Path (if Sys.file_exists full && Sys.is_directory full then Path.add_trailing_slash full else full)]
 	) entries
 
 let scope_of com file =
@@ -30,9 +33,17 @@ let scope_of com file =
 let is_target com targets file =
 	let file = Path.get_full_path file in
 	let scope = scope_of com file in
-	List.exists (function
-		| Scopes scopes -> (match scope with Some scope -> List.mem scope scopes | None -> false)
-		| Path path -> file = path || ExtString.String.starts_with file path
+	List.exists (fun target -> match target,scope with
+		| User,Some ClassPath.User
+		| Lib None,Some (ClassPath.Lib _)
+		| Std,Some (ClassPath.Std | ClassPath.StdTarget) ->
+			true
+		| Lib (Some name),Some (ClassPath.Lib (Some name')) ->
+			name = name'
+		| Path path,_ ->
+			file = path || ExtString.String.starts_with file path
+		| _ ->
+			false
 	) targets
 
 let apply_to_file file fixes =
