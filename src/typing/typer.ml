@@ -1990,7 +1990,8 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 		if e.etype == t then e else mk (TCast (e,None)) t p
 	| EMeta (m,e1) ->
 		type_meta ~mode ctx m e1 with_type p
-	| ETypeArgs _ ->
+	| ETypeArgs (_,tl) ->
+		List.iter (fun th -> ignore (Typeload.load_complex_type ctx true LoadNormal th)) tl;
 		raise_typing_error "Explicit type arguments are only allowed on calls" p
 	| EIs (e,(t,p_t)) ->
 		match t with
