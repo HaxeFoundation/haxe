@@ -121,6 +121,19 @@ let unified_diff file content edits =
 	) 0 (group [] [] blocks));
 	Buffer.contents b
 
+let is_clean file =
+	let dir = Filename.dirname file and base = Filename.basename file in
+	try
+		let (cin,cout,cerr) as ch = Unix.open_process_args_full "git" [|"git";"-C";dir;"status";"--porcelain";"--ignored";"--";base|] (Unix.environment ()) in
+		close_out cout;
+		let output = try input_line cin with End_of_file -> "" in
+		ignore (Std.input_list cerr);
+		match Unix.close_process_full ch with
+		| Unix.WEXITED 0 -> output = ""
+		| _ -> false
+	with _ ->
+		false
+
 let parse_version s =
 	let s = try String.sub s 0 (String.index s '-') with Not_found -> s in
 	List.map (fun n -> try int_of_string n with Failure _ -> 0) (String.split_on_char '.' s)
@@ -154,6 +167,12 @@ let run com =
 	) com.part_scope.fixes;
 	let files = Hashtbl.fold (fun file fixes acc -> (file,fixes) :: acc) by_file [] in
 	let files = List.sort compare files in
+	let dirty = if dry || Common.defined com Define.ApplyFixesAllowDirty then [] else List.filter (fun (file,_) -> not (is_clean file)) files in
+	if dirty <> [] then begin
+		let names = String.concat ", " (List.map fst dirty) in
+		com.error (Printf.sprintf "Not applying fixes: %s %s uncommitted changes or %s not in a git repository. Commit them first, use --fix-allow-dirty, or review the fixes with --fix-diff" names (if List.length dirty = 1 then "has" else "have") (if List.length dirty = 1 then "is" else "are")) null_pos;
+		0
+	end else
 	let total,skipped = List.fold_left (fun (total,skipped) (file,fixes) ->
 		let content = Std.input_file ~bin:true file in
 		let edits,s = edits_of content fixes in

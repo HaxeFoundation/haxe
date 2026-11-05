@@ -2,5 +2,6 @@
 -libcp lib
 -lib apply-fixes-other
 --main Main
--D apply-fixes
+--fix
+--fix-allow-dirty
 --no-output

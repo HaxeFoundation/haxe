@@ -1,5 +1,6 @@
 -cp bin
 --main Main
 -D haxe-next
--D apply-fixes
+--fix
+--fix-allow-dirty
 --no-output

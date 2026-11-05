@@ -1,6 +1,7 @@
 -cp bin
 -cp src
 --main Main
--D apply-fixes
--D apply-fixes.passes=3
+--fix
+--fix-allow-dirty
+--fix-passes 3
 --no-output

@@ -1,0 +1,6 @@
+class Main {
+	static function main() {
+		var d:Dynamic = 1;
+		trace(Std.is(d, Int));
+	}
+}

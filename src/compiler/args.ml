@@ -94,6 +94,12 @@ let adv_args_descriptions = [
 	("Compilation",           ["-C";"--cwd"],          [],                 Arg.Unit ignore, "<directory>",        "set current working directory");
 	("Compilation",           ["--haxelib-global"],    [],                 Arg.Unit ignore, "",                   "pass --global argument to haxelib");
 	("Compilation",           ["-w"],                  [],                 Arg.Unit ignore, "<warning list>",     "enable or disable specific warnings");
+	("Fixes",                 ["--fix"],               [],                 Arg.Unit ignore, "",                   "apply the fixes suggested by warnings and errors to the source files of the user class paths");
+	("Fixes",                 ["--fix-scope"],         [],                 Arg.Unit ignore, "<scopes>",           "apply fixes to these files: user, lib, lib:name, std, all or paths, comma-separated");
+	("Fixes",                 ["--fix-diff"],          [],                 Arg.Unit ignore, "",                   "print the fixes as a unified diff instead of applying them");
+	("Fixes",                 ["--fix-passes"],        [],                 Arg.Unit ignore, "<count>",            "compile again while fixes were applied, up to this number of compilations");
+	("Fixes",                 ["--fix-compat"],        [],                 Arg.Unit ignore, "<version>",          "only apply the fixes whose replacement compiles with this Haxe version");
+	("Fixes",                 ["--fix-allow-dirty"],   [],                 Arg.Unit ignore, "",                   "apply fixes to files with uncommitted changes or outside of git repositories");
 ]
 
 (** Expand [%VAR%] environment variable references in compiler arguments.
@@ -253,6 +259,18 @@ let parse_args args =
 			add HaxelibGlobal; loop rest
 		| "-w" :: s :: rest ->
 			add (AddWarning s); loop rest
+		| "--fix" :: rest ->
+			add Fix; loop rest
+		| "--fix-scope" :: s :: rest ->
+			add (FixScope s); loop rest
+		| "--fix-diff" :: rest ->
+			add FixDiff; loop rest
+		| "--fix-passes" :: s :: rest ->
+			add (FixPasses s); loop rest
+		| "--fix-compat" :: s :: rest ->
+			add (FixCompat s); loop rest
+		| "--fix-allow-dirty" :: rest ->
+			add FixAllowDirty; loop rest
 		| arg :: rest ->
 			(match List.rev (ExtString.String.nsplit arg ".") with
 			| "hxml" :: _ :: _ ->
@@ -396,6 +414,19 @@ let process_args (com : Common.context) =
 			actx.no_output <- true
 		| SetMeasureTimes ->
 			actx.measure_times <- true
+		| Fix ->
+			if not (Common.defined com Define.ApplyFixes) then Common.define com Define.ApplyFixes
+		| FixScope s ->
+			Common.define_value com Define.ApplyFixes s
+		| FixDiff ->
+			if not (Common.defined com Define.ApplyFixes) then Common.define com Define.ApplyFixes;
+			Common.define com Define.ApplyFixesDry
+		| FixPasses s ->
+			Common.define_value com Define.ApplyFixesPasses s
+		| FixCompat s ->
+			Common.define_value com Define.ApplyFixesCompat s
+		| FixAllowDirty ->
+			Common.define com Define.ApplyFixesAllowDirty
 		| AddWarning s ->
 			let p = fake_pos ("-w " ^ s) in
 			let l = Warning.parse_scoped_options s p in
@@ -522,6 +553,12 @@ let to_raw_args (parsed_args : parsed_arg list) =
 		| SetJsonOut file -> ["--json"; file]
 		| SetHxbOut file -> ["--hxb"; file]
 		| SetNoOutput -> ["--no-output"]
+		| Fix -> ["--fix"]
+		| FixScope s -> ["--fix-scope"; s]
+		| FixDiff -> ["--fix-diff"]
+		| FixPasses s -> ["--fix-passes"; s]
+		| FixCompat s -> ["--fix-compat"; s]
+		| FixAllowDirty -> ["--fix-allow-dirty"]
 		| SetMeasureTimes -> ["--times"]
 		| AddWarning s -> ["-w"; s]
 		| AddClass p -> [s_path p]

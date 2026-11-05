@@ -1,5 +1,5 @@
 --main Main
--D apply-fixes
--D apply-fixes.dry
--D apply-fixes.compat=5.0
+--fix
+--fix-diff
+--fix-compat 5.0
 --no-output

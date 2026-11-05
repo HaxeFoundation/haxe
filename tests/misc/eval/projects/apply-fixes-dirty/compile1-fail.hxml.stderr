@@ -1,0 +1,2 @@
+bin/Main.hx:4: characters 9-15 : Warning : (WDeprecated) Std.is is deprecated. Use Std.isOfType instead.
+Not applying fixes: bin/Main.hx has uncommitted changes or is not in a git repository. Commit them first, use --fix-allow-dirty, or review the fixes with --fix-diff
