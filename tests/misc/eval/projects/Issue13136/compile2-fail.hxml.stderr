@@ -1,0 +1,4 @@
+Semantics.hx:1: characters 20-31 : Type cannot have more than one @:semantics
+Semantics.hx:3: characters 1-12 : @:semantics expects exactly one of value, reference, variable, object
+Semantics.hx:5: characters 1-12 : @:semantics expects exactly one of value, reference, variable, object
+Semantics.hx:7: characters 1-12 : @:semantics expects exactly one of value, reference, variable, object
