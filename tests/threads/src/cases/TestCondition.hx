@@ -22,7 +22,17 @@ class TestCondition extends ThreadTestBase {
 		final cond = new Condition();
 		cond.acquire();
 		final start = haxe.Timer.stamp();
-		Assert.isFalse(cond.wait(0.1));
+		// a single wait may return true as a spurious wakeup (MSVC reports one
+		// when the OS wait returns slightly before the deadline), so keep
+		// waiting until a timeout is reported, with a generous upper bound
+		var timedOut = false;
+		while (haxe.Timer.stamp() - start < 10.0) {
+			if (!cond.wait(0.1)) {
+				timedOut = true;
+				break;
+			}
+		}
+		Assert.isTrue(timedOut);
 		Assert.isTrue(haxe.Timer.stamp() - start >= 0.05);
 		// the mutex must still be held by this thread after the timeout
 		final lock = new sys.thread.Lock();
