@@ -198,6 +198,26 @@ let load_type_def' ctx pack mname tname p =
 (*
 	load a type or a subtype definition
 *)
+let partial_resolution_fix ctx pack name p =
+	let rec find l = match l with
+		| { Resolution.r_kind = Resolution.RTypeImport(_,mt) } :: l -> if t_path mt = (pack,name) then Some mt else find l
+		| _ :: l -> find l
+		| [] -> None
+	in
+	match find ctx.m.import_resolution#get_list with
+	| Some mt ->
+		let old_path = String.concat "." (pack @ [name]) in
+		let new_path = s_type_path (t_infos mt).mt_module.m_path ^ "." ^ name in
+		begin match SourceText.read p with
+		| Some s when ExtString.String.starts_with s old_path ->
+			Common.add_error_fix ctx.com ("Use " ^ new_path) { p with pmax = p.pmin + String.length old_path } new_path
+		| _ ->
+			()
+		end;
+		Some new_path
+	| None ->
+		None
+
 let load_type_def ctx p t =
 	if t = Parser.magic_type_path then
 		raise_fields (DisplayToplevel.collect ctx TKType NoValue true) CRTypeHint (DisplayTypes.make_subject None p);
@@ -208,8 +228,15 @@ let load_type_def ctx p t =
 		(* If there's a sub-type, there's no reason to look in our module or its imports *)
 		if t.tsub <> None then raise Not_found;
 		find_type_in_current_module_context ctx t.tpackage tname
-	with Not_found ->
+	with Not_found -> try
 		load_type_def' ctx t.tpackage t.tname tname p
+	with Error err when t.tpackage <> [] && t.tsub = None ->
+		match partial_resolution_fix ctx t.tpackage t.tname p with
+		| Some new_path ->
+			let msg = Printf.sprintf "Haxe 4 resolved it to %s through an import of its module, use that path instead" new_path in
+			raise (Error { err with err_sub = make_error (Custom msg) p :: err.err_sub })
+		| None ->
+			raise (Error err)
 
 let generate_args_meta com cls_opt add_meta args =
 	let values = List.fold_left (fun acc ((name,p),_,_,_,eo) -> match eo with Some e -> ((name,p,NoQuotes),e) :: acc | _ -> acc) [] args in

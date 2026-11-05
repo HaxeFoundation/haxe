@@ -1,0 +1,3 @@
+-cp src
+--main Fail
+--no-output
