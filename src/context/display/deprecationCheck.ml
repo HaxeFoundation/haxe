@@ -77,13 +77,21 @@ let add_fix_from_template dctx cf template e_this args p =
 		| Some e -> text_of e ()
 		| None -> raise Not_fixable
 	in
-	let bindings = ("this",this_text) :: List.map (fun (n,eo) -> n,match eo with Some e -> text_of e | None -> (fun () -> raise Not_fixable)) args in
+	let omitted = List.filter_map (fun (n,eo) -> match eo with
+		| Some e when e.epos <> p -> None
+		| _ -> Some n
+	) args in
+	let bindings = ("this",this_text) :: List.map (fun (n,eo) -> n,match eo with Some e when e.epos <> p -> text_of e | _ -> (fun () -> raise Not_fixable)) args in
+	let rec drop_omitted el = match List.rev el with
+		| (EConst (Ident n),_) :: el when List.mem n omitted -> drop_omitted (List.rev el)
+		| _ -> el
+	in
 	let rec subst wrap e = match fst e with
 		| EConst (Ident n) when List.mem_assoc n bindings ->
 			let s,atomic = (List.assoc n bindings) () in
 			(EConst (Ident (if wrap && not atomic then "(" ^ s ^ ")" else s)),snd e)
 		| ECall(e1,el) ->
-			(ECall(subst true e1,List.map (subst false) el),snd e)
+			(ECall(subst true e1,List.map (subst false) (drop_omitted el)),snd e)
 		| EArrayDecl el ->
 			(EArrayDecl (List.map (subst false) el),snd e)
 		| EParenthesis e1 ->
