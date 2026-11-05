@@ -503,7 +503,15 @@ let process_actx com actx =
 				| [] | [_] -> [{wo_warning = WMigration; wo_mode = WMEnable}] :: l
 				| options :: l -> options :: before_defaults l
 			in
-			com.warning_options <- before_defaults com.warning_options
+			com.warning_options <- before_defaults com.warning_options;
+			let rec before_scoped_defaults l =
+				if l == Common.default_scoped_warning_options then
+					({wo_warning = WDeprecated; wo_mode = WMEnable},WSLib None) :: ({wo_warning = WDeprecated; wo_mode = WMEnable},WSStd) :: l
+				else match l with
+					| opt :: l -> opt :: before_scoped_defaults l
+					| [] -> []
+			in
+			com.scoped_warning_options <- before_scoped_defaults com.scoped_warning_options
 		end
 	in
 	match DisplayProcessing.process_display_arg com actx with

@@ -646,11 +646,6 @@
 		"doc": "Remove all debug macros from cpp output."
 	},
 	{
-		"name": "LibDeprecationWarnings",
-		"define": "lib-deprecation-warnings",
-		"doc": "Report deprecation warnings located in the files of libraries and of the standard library, which are hidden by default (they are always reported with -D apply-fixes)."
-	},
-	{
 		"name": "NoDeprecationWarnings",
 		"define": "no-deprecation-warnings",
 		"doc": "Do not warn if fields annotated with `@:deprecated` are used.",

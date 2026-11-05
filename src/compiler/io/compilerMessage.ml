@@ -116,8 +116,6 @@ let default_warning_handler com =
 			| None -> Warning.get_mode w (options @ com.warning_options)
 		in
 		match mode with
-		| WMEnable when Common.is_library_deprecation com w p ->
-			()
 		| WMEnable ->
 			let wobj = Warning.warning_obj w in
 			let msg = if wobj.w_generic then
