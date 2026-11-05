@@ -388,8 +388,23 @@ let build_module_def ctx mt meta fvars fbuild =
 		| TTypeDecl _ -> true, t_infos mt
 		| _ -> false, t_infos mt
 	in
+	let reordered_groups = match mt with
+		| TClassDecl c ->
+			let parents = (match c.cl_super with Some (csup,_) -> [csup] | None -> []) @ List.map fst c.cl_implements in
+			List.filter_map (fun csup ->
+				match List.filter (fun (m,_,_) -> m = Meta.AutoBuild) csup.cl_meta with
+				| _ :: _ :: _ as l -> Some (csup,List.map (fun (_,el,_) -> el) l)
+				| _ -> None
+			) parents
+		| _ ->
+			[]
+	in
+	let in_reordered_group args = List.exists (fun (_,group) -> List.exists (fun el -> el == args) group) reordered_groups in
+	let build_changes = ref [] in
+	let snapshot () = List.map (fun f -> fst f.cff_name,Ast.Printer.s_class_field "" f) (fvars()) in
 	let loop f_build = function
 		| Meta.Build,args,p when not is_typedef -> (fun () ->
+				let before = if in_reordered_group args then Some (snapshot ()) else None in
 				let epath, el = (match args with
 					| [ECall (epath,el),p] -> epath, el
 					| _ -> raise_typing_error "Invalid build parameters" p
@@ -412,7 +427,13 @@ let build_module_def ctx mt meta fvars fbuild =
 					let msg = Printf.sprintf "Build failure (%s.%s)" (s_type_path cpath) meth in
 					(* if this build was triggered from another macro, raise so that the error reaches that macro *)
 					if display_recovery_enabled ctx.com && ctx.com.part_scope.running_macros = 0 then display_error ctx.com msg p else raise_typing_error msg p
-				| MSuccess e -> fbuild e)
+				| MSuccess e -> fbuild e);
+				Option.may (fun before ->
+					let after = snapshot () in
+					let differs l1 l2 = List.filter (fun (n,s) -> try List.assoc n l2 <> s with Not_found -> true) l1 in
+					let changed = List.sort_uniq compare (List.map fst (differs after before @ differs before after)) in
+					build_changes := (args,s_type_path cpath ^ "." ^ meth,changed) :: !build_changes
+				) before
 			) :: f_build
 		| _ ->
 			f_build
@@ -439,6 +460,38 @@ let build_module_def ctx mt meta fvars fbuild =
 			None
 	in
 	List.iter (fun f -> f()) (List.rev f_build);
+	begin match mt with
+		| TClassDecl c ->
+			List.iter (fun (csup,group) ->
+				let runs = List.filter (fun (args,_,_) -> List.exists (fun el -> el == args) group) (List.rev !build_changes) in
+				let rec find runs = match runs with
+					| (_,name,(_ :: _ as changed)) :: ((_,next,_) :: _ as rest) -> Some (name,changed,next) :: find rest
+					| _ :: rest -> find rest
+					| [] -> []
+				in
+				match find runs with
+				| [] ->
+					()
+				| interactions ->
+					let key = (csup.cl_pos.pfile,csup.cl_pos.pmin) in
+					if not (Hashtbl.mem ctx.com.part_scope.warned_positions key) then begin
+						let s_interaction = function
+							| Some (name,changed,next) ->
+								let shown = ExtList.List.take 3 changed in
+								let fields = String.concat ", " shown ^ (if List.length changed > 3 then ", ..." else "") in
+								Some (Printf.sprintf "%s changed %s before %s ran" name fields next)
+							| None ->
+								None
+						in
+						let msg = Printf.sprintf "Haxe 4 ran the build macros inherited from %s in the reverse order:\n%s"
+							(s_type_path csup.cl_path) (String.concat "\n" (List.filter_map s_interaction interactions)) in
+						Hashtbl.add ctx.com.part_scope.warned_positions key (msg,c.cl_name_pos,[]);
+						module_warning ctx.com c.cl_module WBuildMacroOrder (Warning.from_meta c.cl_meta) msg c.cl_name_pos
+					end
+			) reordered_groups
+		| _ ->
+			()
+	end;
 	let apply_using = function
 		| Meta.Using,el,p ->
 			List.iter (fun e ->
