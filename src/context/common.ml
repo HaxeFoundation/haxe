@@ -248,11 +248,18 @@ module LocalWrapper = struct
 	end
 end
 
+type fix = {
+	fix_reason : string;
+	fix_range : Globals.pos;
+	fix_text : string;
+}
+
 type part_scope = {
 	runtime_args : string list;
 	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
 	has_next : bool;
 	mutable messages : Message.t list;
+	mutable fixes : fix list;
 	mutable has_error : bool;
 	mutable running_macros : int;
 	mutable report_mode : report_mode;

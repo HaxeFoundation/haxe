@@ -262,6 +262,13 @@ let json_of_diagnostics com dctx =
 			"range",if rc.replace_range = null_pos then JNull else Genjson.generate_pos_as_range rc.replace_range
 		])
 	) dctx.replaceable_code;
+	List.iter (fun f ->
+		add DKReplacableCode f.fix_range MessageSeverity.Warning None (JObject [
+			"description",JString f.fix_reason;
+			"newCode",JString f.fix_text;
+			"range",Genjson.generate_pos_as_range f.fix_range
+		])
+	) com.part_scope.fixes;
 	Hashtbl.iter (fun file ranges ->
 		List.iter (fun (p,e) ->
 			let jo = JObject [

@@ -658,6 +658,12 @@
 		"platforms": ["flash"]
 	},
 	{
+		"name": "ApplyFixes",
+		"define": "apply-fixes",
+		"doc": "Apply the fixes suggested by compiler warnings, such as the replacements of `@:deprecated` functions, to the source files of the user class paths, or to all source files with `all`.",
+		"params": ["scope: all"]
+	},
+	{
 		"name": "NoOpt",
 		"define": "no-opt",
 		"doc": "Disable optimizations."
