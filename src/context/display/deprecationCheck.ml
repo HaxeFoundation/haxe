@@ -174,10 +174,52 @@ let run_on_expr com e =
 	in
 	expr e
 
-let run_on_field dctx cf =
+let rename_is_locals dctx c e =
+	let vars = Hashtbl.create 0 in
+	let names = Hashtbl.create 0 in
+	let add_var v =
+		Hashtbl.replace names v.v_name ();
+		match v.v_kind with
+		| VUser _ when v.v_name = "is" -> Hashtbl.replace vars v.v_id v
+		| _ -> ()
+	in
+	let rec collect e =
+		begin match e.eexpr with
+			| TVar(v,_) -> add_var v
+			| TFunction tf -> List.iter (fun (v,_) -> add_var v) tf.tf_args
+			| _ -> ()
+		end;
+		Type.iter collect e
+	in
+	collect e;
+	if Hashtbl.length vars > 0 then begin
+		let taken s = Hashtbl.mem names s || PMap.mem s c.cl_fields || PMap.mem s c.cl_statics in
+		let rec fresh n =
+			let s = if n = 1 then "isValue" else "isValue" ^ string_of_int n in
+			if taken s then fresh (n + 1) else s
+		in
+		let name = fresh 1 in
+		let options = Warning.from_meta (dctx.class_meta @ dctx.field_meta) in
+		let fix p =
+			if SourceText.read p = Some "is" then add_fix dctx.com WDeprecated options ("Rename to " ^ name) p name
+		in
+		Hashtbl.iter (fun _ v -> fix v.v_pos) vars;
+		let rec uses e =
+			begin match e.eexpr with
+				| TLocal v when Hashtbl.mem vars v.v_id -> fix e.epos
+				| _ -> ()
+			end;
+			Type.iter uses e
+		in
+		uses e
+	end
+
+let run_on_field dctx c cf =
 	match cf.cf_expr with
 	| Some e when not (Meta.has Meta.Deprecated cf.cf_meta) ->
-		run_on_expr {dctx with field_meta = cf.cf_meta} e
+		let dctx = {dctx with field_meta = cf.cf_meta} in
+		run_on_expr dctx e;
+		if is_next dctx.com then rename_is_locals dctx c e
 	| _ ->
 		()
 
@@ -186,10 +228,10 @@ let run com types =
 	List.iter (fun t -> match t with
 		| TClassDecl c when not (Meta.has Meta.Deprecated c.cl_meta) ->
 			let dctx = {dctx with class_meta = c.cl_meta; curmod = c.cl_module} in
-			(match c.cl_constructor with None -> () | Some cf -> run_on_field dctx cf);
+			(match c.cl_constructor with None -> () | Some cf -> run_on_field dctx c cf);
 			(match TClass.get_cl_init c with None -> () | Some e -> run_on_expr dctx e);
-			List.iter (run_on_field dctx) c.cl_ordered_statics;
-			List.iter (run_on_field dctx) c.cl_ordered_fields;
+			List.iter (run_on_field dctx c) c.cl_ordered_statics;
+			List.iter (run_on_field dctx c) c.cl_ordered_fields;
 		| _ ->
 			()
 	) types

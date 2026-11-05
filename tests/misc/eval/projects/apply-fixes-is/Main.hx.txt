@@ -1,0 +1,19 @@
+class Main {
+	var isValue = 1;
+
+	function new() {}
+
+	static function check(is:Bool) {
+		return !is;
+	}
+
+	function run() {
+		var is = check(false);
+		var f = () -> is && isValue > 0;
+		trace(is, f());
+	}
+
+	static function main() {
+		new Main().run();
+	}
+}
