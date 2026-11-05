@@ -3,42 +3,55 @@ open Message
 open Error
 include WarningList
 
-let parse_options lctx s ps lexbuf =
+let parse_scoped_options s ps =
+	let lctx = Lexer.create_temp_ctx ps.pfile in
+	let lexbuf = Sedlexing.Utf8.from_string s in
 	let fail msg p =
 		raise_typing_error msg {p with pmin = ps.pmin + p.pmin; pmax = ps.pmin + p.pmax}
 	in
-	let parse_string s p =
-		begin try
-			from_string s
-		with Exit ->
-			fail (Printf.sprintf "Unknown warning: %s" s) p
-		end
+	let rec tokens acc = match Lexer.token lctx lexbuf with
+		| (Eof,_) as tk -> List.rev (tk :: acc)
+		| tk -> tokens (tk :: acc)
 	in
-	let parse_warning () = match Lexer.token lctx lexbuf with
-		| Const (Ident s),p ->
-			parse_string s p
-		| (_,p) ->
+	let parse_warning (tl : (Ast.token * pos) list) = match tl with
+		| (Const (Ident s),p) :: tl ->
+			begin try
+				from_string s,tl
+			with Exit ->
+				fail (Printf.sprintf "Unknown warning: %s" s) p
+			end
+		| (_,p) :: _ ->
 			fail "Expected identifier" p
+		| [] ->
+			die "" __LOC__
 	in
-	let add acc mode warning =
-		{ wo_warning = warning; wo_mode = mode } :: acc
+	let parse_scope (tl : (Ast.token * pos) list) = match tl with
+		| (At,_) :: (Const (Ident "user"),_) :: tl -> Some WSUser,tl
+		| (At,_) :: (Const (Ident "std"),_) :: tl -> Some WSStd,tl
+		| (At,_) :: (Const (Ident "lib"),_) :: (DblDot,_) :: (Const (Ident s | String(s,_)),_) :: tl -> Some (WSLib (Some s)),tl
+		| (At,_) :: (Const (Ident "lib"),_) :: tl -> Some (WSLib None),tl
+		| (At,_) :: (Const (String(s,_)),_) :: tl -> Some (WSPath s),tl
+		| (At,_) :: (_,p) :: _ -> fail "Expected user, lib, lib:name, std or a path string" p
+		| tl -> None,tl
 	in
-	let rec next acc = match Lexer.token lctx lexbuf with
-		| Binop OpAdd,_ ->
-			next (add acc WMEnable (parse_warning()))
-		| Binop OpSub,_ ->
-			next (add acc WMDisable (parse_warning()))
-		| Eof,_ ->
+	let rec next acc (tl : (Ast.token * pos) list) = match tl with
+		| (Binop (OpAdd | OpSub as op),_) :: tl ->
+			let warning,tl = parse_warning tl in
+			let scope,tl = parse_scope tl in
+			let mode = if op = OpAdd then WMEnable else WMDisable in
+			next (({ wo_warning = warning; wo_mode = mode },scope) :: acc) tl
+		| (Eof,_) :: _ | [] ->
 			List.rev acc
-		| (_,p) ->
+		| (_,p) :: _ ->
 			fail "Expected + or -" p
 	in
-	next []
+	next [] (tokens [])
 
 let parse_options s ps =
-	let lctx = Lexer.create_temp_ctx ps.pfile in
-	let lexbuf = Sedlexing.Utf8.from_string s in
-	parse_options lctx s ps lexbuf
+	List.map (fun (opt,scope) -> match scope with
+		| None -> opt
+		| Some _ -> raise_typing_error "Warning scopes (@) are only supported by -w" ps
+	) (parse_scoped_options s ps)
 
 let from_meta ml =
 	let parse_arg e = match fst e with
@@ -84,3 +97,26 @@ let get_mode w (l : warning_option list list) =
 				mode
 	in
 	loop l
+
+let rec matches_scoped w scoped in_scope = match scoped with
+	| [] ->
+		None
+	| (opt,scope) :: scoped ->
+		let rec matches w id =
+			id = w || match (warning_obj w).w_parent with
+				| None -> false
+				| Some w' -> matches w' id
+		in
+		if matches w opt.wo_warning && in_scope scope then Some opt.wo_mode else matches_scoped w scoped in_scope
+
+
+let rec matches_scoped w scoped in_scope = match scoped with
+	| [] ->
+		None
+	| (opt,scope) :: scoped ->
+		let rec matches w id =
+			id = w || match (warning_obj w).w_parent with
+				| None -> false
+				| Some w' -> matches w' id
+		in
+		if matches w opt.wo_warning && in_scope scope then Some opt.wo_mode else matches_scoped w scoped in_scope
