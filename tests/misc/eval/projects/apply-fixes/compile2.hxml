@@ -1,6 +1,6 @@
 -cp bin/src
 -libcp lib
--libcp bin/other
+-lib apply-fixes-other
 --main Main
--D apply-fixes=user,bin/other
+-D apply-fixes=user,lib:apply-fixes-other
 --no-output

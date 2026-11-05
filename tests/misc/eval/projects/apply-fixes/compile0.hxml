@@ -1,0 +1,2 @@
+--macro Setup.run()
+--cmd haxelib dev apply-fixes-other bin/other

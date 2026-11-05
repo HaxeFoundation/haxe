@@ -1,7 +1,6 @@
---macro Setup.run()
 -cp bin/src
 -libcp lib
--libcp bin/other
+-lib apply-fixes-other
 --main Main
 -D apply-fixes
 --no-output

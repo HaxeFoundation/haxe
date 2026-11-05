@@ -1,7 +1,7 @@
 type class_path_scope =
 	| Std
 	| StdTarget
-	| Lib
+	| Lib of string option
 	| User
 
 type file_kind =
@@ -25,7 +25,8 @@ class virtual class_path (path : string) (scope : class_path_scope) (file_kind :
 	method scope_string = match scope with
 		| Std -> "Std"
 		| StdTarget -> "StdTarget"
-		| Lib -> "Lib"
+		| Lib None -> "Lib"
+		| Lib (Some name) -> "Lib " ^ name
 		| User -> "User"
 end
 
