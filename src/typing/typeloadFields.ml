@@ -389,7 +389,7 @@ let build_module_def ctx mt meta fvars fbuild =
 		| _ -> false, t_infos mt
 	in
 	let reordered_groups = match mt with
-		| TClassDecl c ->
+		| TClassDecl c when Warning.get_mode WBuildMacroOrder (Warning.from_meta c.cl_meta @ ctx.com.warning_options) = WMEnable ->
 			let parents = (match c.cl_super with Some (csup,_) -> [csup] | None -> []) @ List.map fst c.cl_implements in
 			List.filter_map (fun csup ->
 				match List.filter (fun (m,_,_) -> m = Meta.AutoBuild) csup.cl_meta with

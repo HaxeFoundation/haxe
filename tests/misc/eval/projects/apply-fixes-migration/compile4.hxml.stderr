@@ -1,0 +1,1 @@
+src/Warn.hx:6: characters 11-14 : Warning : (WEnumConstructorShadowed) Bar resolves to the type p.Bar, Haxe 4 resolved it to the enum constructor Kind.Bar

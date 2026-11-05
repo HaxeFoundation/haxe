@@ -1,0 +1,4 @@
+-cp src
+--main Warn
+--no-output
+-w +WMigration
