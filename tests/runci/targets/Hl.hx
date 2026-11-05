@@ -39,8 +39,7 @@ class Hl {
 			return;
 		}
 		if (!FileSystem.exists(hlSrc))
-			// TODO: drop the branch once HaxeFoundation/hashlink#1008 is merged
-			runCommand("git", ["clone", "--depth=1", "--branch", "claude/jolly-wozniak-93trgh", "https://github.com/HaxeFoundation/hashlink.git", hlSrc]);
+			runCommand("git", ["clone", "--depth=1", "https://github.com/HaxeFoundation/hashlink.git", hlSrc]);
 		else
 			infoMsg("Reusing hashlink repository");
 
