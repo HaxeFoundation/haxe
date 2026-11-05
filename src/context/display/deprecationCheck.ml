@@ -61,10 +61,11 @@ let rec is_atomic e = match e.eexpr with
 exception Not_fixable
 
 let replacement_template cf = match Meta.get Meta.Deprecated cf.cf_meta with
-	| _,[_;template],_ -> Some template
+	| _,[_;template],_ -> Some (template,None)
+	| _,[_;template;(EConst(String(since,_)),_)],_ -> Some (template,Some since)
 	| _ | exception Not_found -> None
 
-let add_fix_from_template dctx cf template e_this args p =
+let add_fix_from_template dctx cf (template,since) e_this args p =
 	let in_range ep = ep <> p && ep.pfile = p.pfile && ep.pmin >= p.pmin && ep.pmax <= p.pmax in
 	let text_of e () =
 		if not (in_range e.epos) then raise Not_fixable;
@@ -102,7 +103,7 @@ let add_fix_from_template dctx cf template e_this args p =
 	try
 		let text = Ast.Printer.s_expr (subst false template) in
 		let options = Warning.from_meta (dctx.class_meta @ dctx.field_meta) in
-		add_fix dctx.com WDeprecated options ("Replace deprecated " ^ cf.cf_name) p text
+		add_fix_since dctx.com WDeprecated options ("Replace deprecated " ^ cf.cf_name) p text since
 	with Not_fixable ->
 		()
 

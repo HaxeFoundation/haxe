@@ -252,6 +252,7 @@ type fix = {
 	fix_reason : string;
 	fix_range : Globals.pos;
 	fix_text : string;
+	fix_since : string option;
 }
 
 type part_scope = {
@@ -417,14 +418,20 @@ let written_type_path mt =
 	if infos.mt_module.m_path = infos.mt_path then s_type_path infos.mt_path
 	else s_type_path infos.mt_module.m_path ^ "." ^ snd infos.mt_path
 
-let add_error_fix com reason p text =
+let record_fix com reason p text since =
 	if not (List.exists (fun f -> f.fix_range = p) com.part_scope.fixes) then
-		com.part_scope.fixes <- { fix_reason = reason; fix_range = p; fix_text = text } :: com.part_scope.fixes
+		com.part_scope.fixes <- { fix_reason = reason; fix_range = p; fix_text = text; fix_since = since } :: com.part_scope.fixes
+
+let add_error_fix com reason p text =
+	record_fix com reason p text None
+
+let add_fix_since com w options reason p text since =
+	match Warning.get_mode w (options @ com.warning_options) with
+	| WMEnable -> record_fix com reason p text since
+	| WMDisable -> ()
 
 let add_fix com w options reason p text =
-	match Warning.get_mode w (options @ com.warning_options) with
-	| WMEnable -> add_error_fix com reason p text
-	| WMDisable -> ()
+	add_fix_since com w options reason p text None
 
 (* Defines *)
 

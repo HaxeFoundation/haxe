@@ -215,8 +215,8 @@
 	{
 		"name": "Deprecated",
 		"metadata": ":deprecated",
-		"doc": "Mark a type or field as deprecated. On a function, the second argument is an optional replacement for calls to it, where the names of the function arguments and `this` refer to the corresponding expressions of the call.",
-		"params": ["Message", "Replacement"]
+		"doc": "Mark a type or field as deprecated. The second argument is an optional replacement for calls to a function, or accesses to a variable, where the names of the function arguments and `this` refer to the corresponding expressions. The third argument is the oldest Haxe version accepting the replacement, if it is newer than the oldest supported one.",
+		"params": ["Message", "Replacement", "Since"]
 	},
 	{
 		"name": "DirectlyUsed",
