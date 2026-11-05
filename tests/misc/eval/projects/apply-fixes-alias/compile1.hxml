@@ -1,0 +1,5 @@
+-cp bin
+-cp src
+--main Main
+-D apply-fixes
+--no-output

@@ -425,6 +425,30 @@ let rec load_params ctx info params p =
 	end;
 	params
 
+and deprecated_alias_fix ctx td p =
+	if Meta.has Meta.Deprecated td.t_meta then delay ctx.g PFinal (fun () -> deprecated_alias_fix' ctx td p)
+
+and deprecated_alias_fix' ctx td p =
+	let target = match follow_lazy_and_mono td.t_type with
+		| TInst(c,tl) -> Some (TClassDecl c,tl)
+		| TEnum(e,tl) -> Some (TEnumDecl e,tl)
+		| TAbstract(a,tl) -> Some (TAbstractDecl a,tl)
+		| TType(t,tl) -> Some (TTypeDecl t,tl)
+		| _ -> None
+	in
+	let same_param t ttp = match follow t,follow ttp.ttp_type with
+		| TInst(c1,_),TInst(c2,_) -> c1 == c2
+		| _ -> false
+	in
+	match target with
+	| Some (mt,tl) when Meta.has Meta.Deprecated td.t_meta && not (t_infos mt).mt_private
+		&& List.length tl = List.length td.t_params && List.for_all2 same_param tl td.t_params ->
+		let options = Warning.from_meta ctx.f.curfield.cf_meta @ Warning.from_meta ctx.c.curclass.cl_meta in
+		let text = written_type_path mt in
+		add_fix ctx.com WDeprecated options ("Use " ^ text) p text
+	| _ ->
+		()
+
 (* build an instance from a full type *)
 and load_instance' ctx ptp get_params mode =
 	let t = ptp.path in
@@ -435,6 +459,7 @@ and load_instance' ctx ptp get_params mode =
 		pt
 	with Not_found ->
 		let mt = load_type_def ctx ptp.pos_path t in
+		(match mt with TTypeDecl td -> deprecated_alias_fix ctx td ptp.pos_path | _ -> ());
 		let info = ctx.g.get_build_info ctx mt ptp.pos_full in
 		if info.build_path = ([],"Dynamic") then match t.tparams with
 			| [] -> t_dynamic

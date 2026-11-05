@@ -412,6 +412,11 @@ let module_warning com m w options msg p =
 	end;
 	com.warning w options msg p
 
+let written_type_path mt =
+	let infos = t_infos mt in
+	if infos.mt_module.m_path = infos.mt_path then s_type_path infos.mt_path
+	else s_type_path infos.mt_module.m_path ^ "." ^ snd infos.mt_path
+
 let add_error_fix com reason p text =
 	if not (List.exists (fun f -> f.fix_range = p) com.part_scope.fixes) then
 		com.part_scope.fixes <- { fix_reason = reason; fix_range = p; fix_text = text } :: com.part_scope.fixes
