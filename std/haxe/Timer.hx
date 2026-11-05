@@ -173,6 +173,8 @@ class Timer {
 		return untyped __global__.__time_stamp();
 		#elseif python
 		return Sys.cpuTime();
+		#elseif lua
+		return lua.Os.clock();
 		#elseif sys
 		return Sys.time();
 		#else
@@ -185,7 +187,7 @@ class Timer {
 	 *
 	 * The precision and epoch of the timer is platform defined.
 	 */
-	public static inline function milliseconds():Int64 {
+	public static #if !cppia inline #end function milliseconds():Int64 {
 		#if flash
 		return flash.Lib.getTimer();
 		#elseif js

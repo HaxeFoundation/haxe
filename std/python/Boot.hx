@@ -368,6 +368,9 @@ class Boot {
 				default:
 					def();
 			}
+		} else if (o == String && field == "fromCharCode") {
+			// String is Python's str, which has no fromCharCode
+			StringImpl.fromCharCode;
 		} else {
 			def();
 		}

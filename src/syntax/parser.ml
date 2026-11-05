@@ -54,6 +54,11 @@ type type_decl_completion_mode =
 	| TCAfterImport
 	| TCAfterType
 
+type field_owner =
+	| FOClass
+	| FOReifiedClass
+	| FOStructure
+
 type syntax_completion =
 	| SCComment
 	| SCClassRelation

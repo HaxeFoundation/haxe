@@ -48,12 +48,21 @@ class subject (e : texpr) (bind : Bind.bind option) = object (self)
 		is_explicit_null_or_abstract_over_that e.etype
 
 	(* How array patterns read this subject, looked up when they first do. They are only typed against values which
-	   can be accessed by index (see ExprToPattern), but an element of an abstract has the type of its @:arrayAccess
-	   getter here, which can differ from the `from` type the element's own patterns were typed against. *)
+	   can be accessed by index (see ExprToPattern), but the subject's own type can differ from the one its patterns
+	   were typed against:
+	   - an element of a Dynamic value, or an enum argument read through a cast, is a monomorph, which this unifies
+	     with an array like the typer does for `e[i]` (Calls.array_access);
+	   - an element of an abstract has the type of its @:arrayAccess getter, which can differ from the `from` type. *)
 	method get_array_access ctx = match array_access with
 		| Some aa ->
 			aa
 		| None ->
+			begin match follow e.etype with
+				| TMono _ ->
+					(try unify_raise e.etype (ctx.t.tarray (spawn_monomorph ctx e.epos)) e.epos with Error.Error { err_message = Unify _ } -> ())
+				| _ ->
+					()
+			end;
 			let aa = match ExprToPattern.get_array_access ctx e.etype e.epos with
 				| Some aa -> aa
 				| None -> ExprToPattern.no_array_access e.etype e.epos
@@ -123,6 +132,9 @@ let make_scrutinee ctx (subject : subject) e_switch cons =
 		| TInst({cl_kind = KTypeParameter _ },_) ->
 			SKValue,Infinite
 		| TInst({cl_path=[],"Array"},_) as t ->
+			(* Array patterns replace this with the subject's own access below, a switch without cases with SKValue, and
+			   other constructors don't match this kind (see TexprConverter.unmatched_ctors): the access of `t` is never
+			   read. *)
 			SKLength (ArrayAccess.get_array_access ctx t e_switch.epos),Infinite
 		| TEnum(en,pl) ->
 			if not deep then

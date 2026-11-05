@@ -166,6 +166,9 @@ private class SocketOutput extends haxe.io.Output {
 		__s.shutdown((read && write) ? PSocketModule.SHUT_RDWR : read ? PSocketModule.SHUT_RD : PSocketModule.SHUT_WR);
 
 	public function bind(host:Host, port:Int):Void {
+		// like the other targets, so a port can be bound again while connections on it are in TIME_WAIT
+		if (Sys.systemName() != "Windows")
+			__s.setsockopt(PSocketModule.SOL_SOCKET, PSocketModule.SO_REUSEADDR, true);
 		var host_str = host.toString();
 		__s.bind(Tuple2.make(host_str, port));
 	}

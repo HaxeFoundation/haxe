@@ -70,17 +70,22 @@ jobs:
     env:
       PLATFORM: linux${{ matrix.arch == 'arm64' && '-arm' || '' }}64
       OPAMYES: 1
+      OPAMROOT: /opt/opam
     steps:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
 
+      # The opam root lives at a fixed path so that agents can reuse it (see below).
+      - name: Create opam root
+        run: sudo mkdir -p $OPAMROOT && sudo chown $USER $OPAMROOT
+
       - name: Cache opam
         id: cache-opam
         uses: actions/cache@v6
         with:
-          path: ~/.opam/
-          key: ${{ runner.os }}-${{ runner.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-1
+          path: /opt/opam/
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ env.OCAML_VERSION }}-${{ hashFiles('./haxe.opam', './libs/') }}-2
 
       - uses: ./.github/actions/setup-neko
 
@@ -99,6 +104,21 @@ jobs:
           opam install haxe --deps-only --assume-depexts
           opam list
           ocamlopt -v
+
+      # Coding agents outside GitHub Actions can't use the cache, so development also
+      # publishes the opam root for extra/agent-setup.sh (see publish-opam-root).
+      - name: Package the opam root for agents
+        if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+        run: tar -C /opt --zstd -cf opam-root.tar.zst opam
+
+      - name: Upload the opam root for agents
+        if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+        uses: actions/upload-artifact@v7
+        with:
+          name: opam-root-${{ matrix.arch == 'arm64' && 'aarch64' || 'x86_64' }}
+          path: opam-root.tar.zst
+          retention-days: 1
+          compression-level: 0
 
       - name: Set ADD_REVISION=1 for non-release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -145,6 +165,55 @@ jobs:
         with:
           name: xmldoc
           path: extra/doc
+
+  # Publishes new opam roots from linux-build for coding agents (extra/agent-setup.sh),
+  # and removes the ones they replace, so the release holds one archive per architecture.
+  publish-opam-root:
+    needs: linux-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: extra/agent-setup.sh
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: opam-root-*
+          path: assets
+
+      # Each artifact is named opam-root-<arch>; extra/agent-setup.sh names the asset it
+      # will look for. Upload it if it's missing, and drop the older ones for that arch.
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -e
+          if ! gh release view opam-root >/dev/null 2>&1; then
+            gh release create opam-root --prerelease --target "$GITHUB_SHA" \
+              --title "Prebuilt OCaml dependencies" \
+              --notes "Prebuilt opam roots used by extra/agent-setup.sh. Updated automatically from CI's linux-build job."
+          fi
+          existing=$(gh release view opam-root --json assets -q '.assets[].name')
+          for dir in assets/opam-root-*; do
+            arch=${dir#assets/opam-root-}
+            asset=$(OPAM_ROOT_ARCH=$arch extra/agent-setup.sh --print-asset)
+            if grep -qxF "$asset" <<<"$existing"; then
+              echo "$asset is already published"
+              continue
+            fi
+            mv "$dir/opam-root.tar.zst" "$asset"
+            gh release upload opam-root "$asset"
+            for old in $existing; do
+              if [[ "$old" == *"-$arch-"*.tar.zst ]]; then
+                echo "Deleting $old"
+                gh release delete-asset opam-root "$old" -y
+              fi
+            done
+          done
 
   linux-test:
     needs: linux-build
@@ -626,6 +695,9 @@ jobs:
 
       - name: Download build artifacts
         uses: actions/download-artifact@v8
+        with:
+          # Only the binaries; this skips e.g. the opam-root-* artifacts of linux-build.
+          pattern: '*Binaries'
 
       - name: Install rclone
         run: |

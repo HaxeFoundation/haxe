@@ -737,7 +737,40 @@ module TypeBinding = struct
 		if not fctx.is_static && not cctx.is_lib then begin match get_declared cf.cf_name c.cl_super with
 				| None -> ()
 				| Some (csup,_) ->
-					display_error ctx.com ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path) ) cf.cf_name_pos
+					let error_redefinition () =
+						display_error ctx.com ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed. Previously declared at " ^ (s_type_path csup.cl_path)) cf.cf_name_pos
+					in
+					(try
+						let cf_parent = PMap.find cf.cf_name csup.cl_fields in
+						if (
+							has_class_field_flag cf_parent CfPublic
+							&& not (has_class_field_flag cf CfPublic)
+						) then
+							display_error ctx.com ("Variable " ^ cf.cf_name ^ " has less visibility (public/private) than superclass one") cf.cf_name_pos
+						else if is_physical_var_field cf_parent then
+							error_redefinition ()
+						else begin
+							(* Same rule as for structural unification: where the parent goes through an accessor, the
+							   child has to as well, or access through the two types would end up in different places. *)
+							let uctx = default_unification_context () in
+							let check is_read parent_acc child_acc =
+								if unify_var_access uctx child_acc parent_acc then
+									true
+								else begin
+									display_error ctx.com (Printf.sprintf "Cannot redefine %s access of %s as %s in subclass, superclass uses %s"
+										(if is_read then "read" else "write") cf.cf_name
+										(TPrinting.s_access is_read child_acc) (TPrinting.s_access is_read parent_acc)) cf.cf_name_pos;
+									false
+								end
+							in
+							match cf.cf_kind, cf_parent.cf_kind with
+							| Var child_v, Var parent_v ->
+								ignore (check true parent_v.v_read child_v.v_read && check false parent_v.v_write child_v.v_write)
+							| _ ->
+								error_redefinition ()
+						end
+					with Not_found ->
+						error_redefinition ())
 		end
 
 	let bind_var_expression ctx_f cctx fctx cf e =

@@ -5,8 +5,8 @@ class TestMath extends unit.Test {
 		// constants
 		var zero = 0.0;
 		var one = 1.0;
-		//1.0 / zero == Math.POSITIVE_INFINITY;
-		//-1.0 / zero == Math.NEGATIVE_INFINITY;
+		//feq(1.0 / zero, Math.POSITIVE_INFINITY);
+		//feq(-1.0 / zero, Math.NEGATIVE_INFINITY);
 		f((Math.NaN == Math.NaN));
 		t(Math.isNaN(Math.NaN));
 		t(Math.isNaN(Math.sqrt( -1)));
@@ -51,8 +51,8 @@ class TestMath extends unit.Test {
 		// /
 		feq(Math.POSITIVE_INFINITY / one, Math.POSITIVE_INFINITY);
 		feq(Math.NEGATIVE_INFINITY / one, Math.NEGATIVE_INFINITY);
-		//Math.POSITIVE_INFINITY / zero == Math.POSITIVE_INFINITY;
-		//Math.NEGATIVE_INFINITY / zero == Math.NEGATIVE_INFINITY;
+		//feq(Math.POSITIVE_INFINITY / zero, Math.POSITIVE_INFINITY);
+		//feq(Math.NEGATIVE_INFINITY / zero, Math.NEGATIVE_INFINITY);
 		t(Math.isNaN(Math.POSITIVE_INFINITY / Math.POSITIVE_INFINITY));
 		t(Math.isNaN(Math.POSITIVE_INFINITY / Math.NEGATIVE_INFINITY));
 		t(Math.isNaN(Math.NEGATIVE_INFINITY / Math.POSITIVE_INFINITY));
@@ -64,7 +64,7 @@ class TestMath extends unit.Test {
 
 		// %
 		// var izero = 0;
-		// Math.isNaN(1%izero) == true;
+		// t(Math.isNaN(1%izero));
 		// abs
 		feq(Math.abs(-1.223), 1.223);
 		feq(Math.abs(1.223), 1.223);
@@ -236,8 +236,8 @@ class TestMath extends unit.Test {
 		var math = Math;
 
 
-		//1.0 / zero == math.POSITIVE_INFINITY;
-		//-1.0 / zero == math.NEGATIVE_INFINITY;
+		//feq(1.0 / zero, math.POSITIVE_INFINITY);
+		//feq(-1.0 / zero, math.NEGATIVE_INFINITY);
 		f((math.NaN == math.NaN));
 		t(math.isNaN(math.NaN));
 		t(math.isNaN(math.sqrt( -1)));
@@ -279,8 +279,8 @@ class TestMath extends unit.Test {
 		// /
 		feq(math.POSITIVE_INFINITY / one, math.POSITIVE_INFINITY);
 		feq(math.NEGATIVE_INFINITY / one, math.NEGATIVE_INFINITY);
-		//math.POSITIVE_INFINITY / zero == math.POSITIVE_INFINITY;
-		//math.NEGATIVE_INFINITY / zero == math.NEGATIVE_INFINITY;
+		//feq(math.POSITIVE_INFINITY / zero, math.POSITIVE_INFINITY);
+		//feq(math.NEGATIVE_INFINITY / zero, math.NEGATIVE_INFINITY);
 		t(math.isNaN(math.POSITIVE_INFINITY / math.POSITIVE_INFINITY));
 		t(math.isNaN(math.POSITIVE_INFINITY / math.NEGATIVE_INFINITY));
 		t(math.isNaN(math.NEGATIVE_INFINITY / math.POSITIVE_INFINITY));

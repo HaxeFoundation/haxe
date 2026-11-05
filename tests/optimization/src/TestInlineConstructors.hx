@@ -66,6 +66,13 @@ class P {
 		this.x = x;
 }
 
+class PFieldInit {
+	public var x = 0;
+
+	public inline function new(x = 0)
+		this.x = x;
+}
+
 @:forward
 abstract PA(P) to P {
 	public inline function new(x)
@@ -181,6 +188,18 @@ class TestInlineConstructors extends TestBase {
 		var p2 = {v: new PA(5)};
 		return [p2.v.x];
 	}
+
+	@:js('
+		var x = Std.random(0);
+		if(x == null) {x = 0;}
+		TestInlineConstructors.sink.x = x;
+	')
+	static function testDeadFieldInitFusion() {
+		var p = new PFieldInit(Std.random(0));
+		sink.x = p.x;
+	}
+
+	static var sink:PFieldInit = new PFieldInit();
 
 	static var seed = 1;
 

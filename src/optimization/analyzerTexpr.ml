@@ -828,8 +828,12 @@ module Fusion = struct
 			end;
 			b
 		in
+		let can_fuse_var_init v init e_assign = match init with
+			| None -> true
+			| Some e -> config.local_dce && not (has_var_flag v VCaptured) && not (has_side_effect e) && not (has_var_read (InterferenceReport.from_texpr e_assign) v)
+		in
 		let rec fuse acc el = match el with
-			| ({eexpr = TVar(v1,None)} as e1) :: {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v1 == v2 ->
+			| ({eexpr = TVar(v1,init)} as e1) :: {eexpr = TBinop(OpAssign,{eexpr = TLocal v2},e2)} :: el when v1 == v2 && can_fuse_var_init v1 init e2 ->
 				state#changed;
 				let e1 = {e1 with eexpr = TVar(v1,Some e2)} in
 				state#dec_writes v1;
