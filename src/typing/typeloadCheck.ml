@@ -384,6 +384,12 @@ let check_semantics com meta =
 		end
 	) meta
 
+(* Adds global metadata to a module type and validates its type-level metadata. *)
+let check_module_type_metadata ctx mt =
+	let infos = t_infos mt in
+	check_global_metadata ctx infos.mt_meta (fun m -> infos.mt_meta <- m :: infos.mt_meta) infos.mt_module.m_path infos.mt_path None;
+	check_semantics ctx.com infos.mt_meta
+
 module Inheritance = struct
 	let is_basic_class_path path = match path with
 		| ([],("Array" | "String" | "Date" | "Xml")) -> true
