@@ -1,5 +1,5 @@
 -cp bin
 --main Main
--D apply-fixes
--D apply-fixes.dry
+--fix
+--fix-diff
 --no-output

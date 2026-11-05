@@ -2,5 +2,6 @@
 -libcp lib
 -lib apply-fixes-other
 --main Main
--D apply-fixes=user,lib:apply-fixes-other
+--fix-scope user,lib:apply-fixes-other
+--fix-allow-dirty
 --no-output

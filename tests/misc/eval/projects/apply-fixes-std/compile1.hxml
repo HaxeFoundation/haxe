@@ -1,4 +1,5 @@
 -cp bin
 --main Main
--D apply-fixes
+--fix
+--fix-allow-dirty
 --no-output

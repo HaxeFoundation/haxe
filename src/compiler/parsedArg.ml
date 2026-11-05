@@ -58,6 +58,12 @@ and parsed_arg =
 	| SetNoOutput
 	| SetMeasureTimes
 	| AddWarning of string
+	| Fix
+	| FixScope of string
+	| FixDiff
+	| FixPasses of string
+	| FixCompat of string
+	| FixAllowDirty
 
 	| AddClass of path
 	| IncludeModule of string

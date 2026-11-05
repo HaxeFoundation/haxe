@@ -664,6 +664,11 @@
 		"params": ["targets"]
 	},
 	{
+		"name": "ApplyFixesAllowDirty",
+		"define": "apply-fixes.allow-dirty",
+		"doc": "With `-D apply-fixes`, also change files with uncommitted changes, or outside of git repositories. Set by --fix-allow-dirty."
+	},
+	{
 		"name": "ApplyFixesCompat",
 		"define": "apply-fixes.compat",
 		"doc": "With `-D apply-fixes`, only apply the fixes whose replacement compiles with this Haxe version.",
