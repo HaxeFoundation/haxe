@@ -1,2 +1,3 @@
 compile1.hxml
--D lib-deprecation-warnings
+-D apply-fixes
+-D apply-fixes.dry

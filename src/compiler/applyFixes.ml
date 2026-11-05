@@ -22,7 +22,7 @@ let parse_targets value =
 
 let is_target com targets file =
 	let file = Path.get_full_path file in
-	let scope = Common.class_path_scope_of com file in
+	let scope = com.class_paths#scope_of file in
 	List.exists (fun target -> match target,scope with
 		| User,Some ClassPath.User
 		| Lib None,Some (ClassPath.Lib _)
