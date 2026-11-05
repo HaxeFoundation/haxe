@@ -93,13 +93,8 @@ let add_replacement_fix dctx cf e_this el p_call =
 		in
 		begin try
 			let text = Ast.Printer.s_expr (subst template) in
-			let part_scope = dctx.com.part_scope in
-			if not (List.exists (fun f -> f.fix_range = p_call) part_scope.fixes) then
-				part_scope.fixes <- {
-					fix_reason = "Replace deprecated " ^ cf.cf_name;
-					fix_range = p_call;
-					fix_text = text;
-				} :: part_scope.fixes
+			let options = Warning.from_meta (dctx.class_meta @ dctx.field_meta) in
+			add_fix dctx.com WDeprecated options ("Replace deprecated " ^ cf.cf_name) p_call text
 		with Not_fixable ->
 			()
 		end

@@ -143,8 +143,13 @@ object(self)
 					delay ctx.g PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
 					if not is_extern then begin
 						Naming.check_local_variable_name ctx.com name TVOArgument pn;
-						if name <> "_" && List.exists (fun (v,_) -> v.v_name = name) acc then
-							raise_typing_error ("Duplicate argument name \"" ^ name ^ "\"") pn;
+						if name <> "_" then begin match List.find_opt (fun (v,_) -> v.v_name = name) acc with
+							| Some (v,_) ->
+								Common.add_error_fix ctx.com "Rename the unused argument to _" v.v_pos "_";
+								raise_typing_error ("Duplicate argument name \"" ^ name ^ "\"") pn
+							| None ->
+								()
+						end
 					end;
 					let eo = type_function_arg_value ctx t eo do_display in
 					let v = make_local name (VUser TVOArgument) t m pn in

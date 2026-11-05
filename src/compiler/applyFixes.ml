@@ -81,9 +81,19 @@ let run com =
 	let files = List.sort compare files in
 	let total,skipped = List.fold_left (fun (total,skipped) (file,fixes) ->
 		let n,s = apply_to_file file fixes in
+		if n > 0 then begin
+			let key = com.part_scope.file_keys#get file in
+			com.cs#taint_modules key ServerInvalidateFiles;
+			com.cs#remove_files key
+		end;
 		if n > 0 then com.info (Printf.sprintf "Applied %d fix%s" n (if n = 1 then "" else "es")) { pfile = file; pmin = 0; pmax = 0 };
 		(total + n,skipped + s)
 	) (0,0) files in
 	if skipped > 0 then
 		com.info (Printf.sprintf "%d overlapping fix%s skipped, compile again to apply" skipped (if skipped = 1 then " was" else "es were")) null_pos;
-	ignore total
+	total
+
+let max_passes com =
+	match int_of_string_opt (Common.defined_value_safe ~default:"1" com Define.ApplyFixesPasses) with
+	| Some n when n > 1 -> n
+	| _ -> 1

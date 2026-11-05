@@ -96,9 +96,16 @@ let entry sctx request_scope (request_args : Args.request_args) =
 		| [] ->
 			0
 		| part :: rest ->
-			let com = create_context_from_part sctx request_scope has_display (rest <> []) part in
-			let code = Compiler.compile_ctx sctx com in
-			Unix.chdir curdir;
+			let rec compile_part pass =
+				let com = create_context_from_part sctx request_scope has_display (rest <> []) part in
+				let code = Compiler.compile_ctx sctx com in
+				Unix.chdir curdir;
+				if com.part_scope.applied_fixes > 0 && pass < ApplyFixes.max_passes com then
+					compile_part (pass + 1)
+				else
+					code
+			in
+			let code = compile_part 1 in
 			if code = 0 && rest <> [] && not has_display then
 				loop rest
 			else

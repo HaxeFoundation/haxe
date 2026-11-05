@@ -664,6 +664,12 @@
 		"params": ["targets"]
 	},
 	{
+		"name": "ApplyFixesPasses",
+		"define": "apply-fixes-passes",
+		"doc": "With `-D apply-fixes`, compile again while fixes were applied, up to this number of compilations. (default: 1)",
+		"params": ["passes"]
+	},
+	{
 		"name": "NoOpt",
 		"define": "no-opt",
 		"doc": "Disable optimizations."

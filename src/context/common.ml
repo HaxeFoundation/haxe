@@ -260,6 +260,7 @@ type part_scope = {
 	has_next : bool;
 	mutable messages : Message.t list;
 	mutable fixes : fix list;
+	mutable applied_fixes : int;
 	mutable has_error : bool;
 	mutable running_macros : int;
 	mutable report_mode : report_mode;
@@ -410,6 +411,15 @@ let module_warning com m w options msg p =
 		DynArray.add m.m_extra.m_cache_bound_objects (Message cm)
 	end;
 	com.warning w options msg p
+
+let add_error_fix com reason p text =
+	if not (List.exists (fun f -> f.fix_range = p) com.part_scope.fixes) then
+		com.part_scope.fixes <- { fix_reason = reason; fix_range = p; fix_text = text } :: com.part_scope.fixes
+
+let add_fix com w options reason p text =
+	match Warning.get_mode w (options @ com.warning_options) with
+	| WMEnable -> add_error_fix com reason p text
+	| WMDisable -> ()
 
 (* Defines *)
 
