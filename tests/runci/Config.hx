@@ -21,7 +21,7 @@ class Config {
 	static public final hlcodeDir = Path.join([cwd, "hlcode"]);
 	// this stands for third-party, but I've always wanted a party directory
 	static public final partyDir = Path.join([cwd, "party"]);
-	static public final hxcoroVersion = "claude/youthful-mccarthy-9jxhk6";
+	static public final hxcoroVersion = "master";
 
 	static public function getMiscSubDir(...subDir:String)
 		return Path.join([cwd, "misc"].concat(subDir.toArray()));
