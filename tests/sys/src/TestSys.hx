@@ -125,7 +125,7 @@ class TestSys extends TestCommandBase {
 			"sys.js"
 		#elseif hl
 			#if hlc
-				"sys.exe"
+				"main" + (Sys.systemName() == "Windows" ? ".exe" : "")
 			#else
 				"sys.hl"
 			#end
