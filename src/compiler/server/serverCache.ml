@@ -145,7 +145,7 @@ let check_module sctx com m_path m_extra p =
 				positions in the parsed declarations to differ. *)
 			let _,decls,_ = TypeloadParse.parse_module com m_path p in
 			cfile.c_decls <> decls
-		with Not_found ->
+		with _ ->
 			true
 	in
 	let check_module_shadowing paths m_path m_extra =
@@ -175,7 +175,7 @@ let check_module sctx com m_path m_extra p =
 						if sctx.verbose then print_endline ("No library file was found for " ^ s_type_path m_path); (* TODO *)
 						raise (Dirty LibraryChanged)
 					| (file,load) :: l ->
-						match load m_path p with
+						match (try load m_path p with _ -> raise (Dirty LibraryChanged)) with
 						| None ->
 							loop l
 						| Some _ ->

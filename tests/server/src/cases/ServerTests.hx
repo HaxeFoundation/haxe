@@ -795,4 +795,33 @@ class ServerTests extends TestCase {
 		}
 		// Hover may also succeed in some configurations — that's fine too.
 	}
+
+	function testErrorWhileCheckingModules() {
+		// server/invalidate would mark Util as bad up front, so the check would never parse it.
+		// Pinned mtimes reach that path without depending on the clock or file system resolution (#8761).
+		function putUtil(content:String, time:Float) {
+			vfs.putContent("Util.hx", content);
+			var date = Date.fromTime(time * 1000);
+			js.node.Fs.utimesSync('$testDir/Util.hx', date, date);
+		}
+		putUtil("class Util {\n\tpublic static function foo() return 1;\n}", 1000000000);
+		// import.hx modules are kept in the cache by reference, so a stale cache state survives the request
+		vfs.putContent("import.hx", "import Util;");
+		vfs.putContent("Main.hx", "class Main {\n\tstatic function main() {\n\t\ttrace(Util.foo());\n\t}\n}");
+		var args = [
+			"-main", "Main", "--macro",
+			"server.setModuleCheckPolicy(['Util'], [CheckFileContentModification], false)", "--no-output", "-js", "no.js"
+		];
+		runHaxe(args);
+		assertSuccess();
+		putUtil("class Util {\n\tpublic static function foo() return 1;\n\t@#$%\n}", 1000000010);
+		runHaxe(args);
+		assertErrorMessage("Invalid character '#'");
+		// The error must not leave any module in an unknown cache state
+		runHaxe(args);
+		assertErrorMessage("Invalid character '#'");
+		putUtil("class Util {\n\tpublic static function foo() return 2;\n}", 1000000020);
+		runHaxe(args);
+		assertSuccess();
+	}
 }
