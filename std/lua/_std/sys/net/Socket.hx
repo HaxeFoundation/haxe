@@ -86,7 +86,8 @@ class Socket {
 	}
 
 	public function close():Void {
-		_socket.close();
+		if (_socket != null)
+			_socket.close();
 	}
 
 	public function read():String {
