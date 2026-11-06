@@ -258,11 +258,10 @@ let add_trailing_slash p =
 		| _ -> p ^ "/"
 
 (* Full path with forward slashes, lowercased on Windows, for prefix checks. *)
-let comparable_path =
-	if Globals.is_windows then
-		(fun f -> String.lowercase_ascii (String.map (fun c -> if c = '\\' then '/' else c) (get_full_path f)))
-	else
-		get_full_path
+let comparable_path f =
+	let f = get_full_path (if f = "" then "." else f) in
+	if Globals.is_windows then String.lowercase_ascii (String.map (fun c -> if c = '\\' then '/' else c) f)
+	else f
 
 let is_in_path path file =
 	file = path || ExtString.String.starts_with file (add_trailing_slash path)
