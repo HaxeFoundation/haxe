@@ -356,7 +356,7 @@ and context = {
 	mutable info : ?depth:int -> string -> pos -> unit;
 	mutable warning : Gctx.warning_function;
 	mutable warning_options : warning_option list list;
-	mutable scoped_warning_options : (warning_option * warning_scope) list;
+	mutable scoped_warning_options : (warning_option * SourceScope.t) list;
 	mutable fix_config : fix_config option;
 	mutable get_messages : unit -> Message.t list;
 	mutable filter_messages : (Message.t -> bool) -> unit;
@@ -501,18 +501,7 @@ let scoped_warning_mode com w p =
 	| [] ->
 		None
 	| scoped ->
-		let file_scope = if p.pfile = "?" then None else com.class_paths#scope_of p.pfile in
-		let in_scope scope = match scope,file_scope with
-			| WSUser,Some ClassPath.User -> true
-			| WSStd,Some (ClassPath.Std | ClassPath.StdTarget) -> true
-			| WSLib None,Some (ClassPath.Lib _) -> true
-			| WSLib (Some name),Some (ClassPath.Lib (Some name')) -> ClassPath.same_lib_name name name'
-			| WSPath path,_ ->
-				Path.is_in_path (Path.comparable_path path) (Path.comparable_path p.pfile)
-			| WSPack pack,_ ->
-				Warning.matches_package pack (com.class_paths#package_of p.pfile)
-			| _ -> false
-		in
+		let in_scope = if p.pfile = "?" then (fun _ -> false) else SourceScope.matcher com.class_paths p.pfile in
 		Warning.matches_scoped w scoped in_scope
 
 (* Defines *)
@@ -839,8 +828,8 @@ let get_config com =
 let memory_marker = [|Unix.time()|]
 
 let default_scoped_warning_options = [
-	{wo_warning = WDeprecated; wo_mode = WMDisable},WSLib None;
-	{wo_warning = WDeprecated; wo_mode = WMDisable},WSStd;
+	{wo_warning = WDeprecated; wo_mode = WMDisable},SourceScope.Lib None;
+	{wo_warning = WDeprecated; wo_mode = WMDisable},SourceScope.Std;
 ]
 
 let create sctx request_scope part_scope display_mode =

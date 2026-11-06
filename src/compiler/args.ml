@@ -432,7 +432,7 @@ let process_args (com : Common.context) =
 			ignore (fix_config com)
 		| FixScope s ->
 			(try ignore (ApplyFixes.parse_targets s)
-			with ApplyFixes.Invalid_target msg -> Error.raise_typing_error msg (fake_pos ("--fix-scope " ^ s)));
+			with SourceScope.Invalid msg -> Error.raise_typing_error msg (fake_pos ("--fix-scope " ^ s)));
 			(fix_config com).fix_scope <- s
 		| FixDiff ->
 			(fix_config com).fix_diff <- true

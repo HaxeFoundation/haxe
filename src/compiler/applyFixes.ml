@@ -1,61 +1,18 @@
 open Globals
 open Common
 
-type target =
-	| User
-	| Lib of string option
-	| Std
-	| Path of string
-	| Pack of string list
-
-exception Invalid_target of string
-
 let split_list value =
 	List.filter (fun s -> s <> "") (List.map String.trim (ExtString.String.nsplit value ","))
 
 let parse_targets value =
-	let entries = split_list value in
 	List.concat_map (function
-		| "1" | "user" -> [User]
-		| "lib" -> [Lib None]
-		| "std" -> [Std]
-		| "all" -> [User;Lib None;Std]
-		| s when ExtString.String.starts_with s "lib:" -> [Lib (Some (String.sub s 4 (String.length s - 4)))]
-		| s when ExtString.String.starts_with s "pack:" ->
-			let pack = ExtString.String.nsplit (String.sub s 5 (String.length s - 5)) "." in
-			let rec check parts = match parts with
-				| [] -> ()
-				| part :: parts ->
-					if part = "" then raise (Invalid_target ("Invalid dot path: " ^ s));
-					if Warning.is_module_name part && parts <> [] then raise (Invalid_target "Sub-types can't be selected, use the module or package path");
-					check parts
-			in
-			check pack;
-			[Pack pack]
-		| s when ExtString.String.starts_with s "path:" ->
-			[Path (Path.comparable_path (String.sub s 5 (String.length s - 5)))]
-		| path ->
-			[Path (Path.comparable_path path)]
-	) entries
+		| "1" -> [SourceScope.User]
+		| "all" -> [SourceScope.User;SourceScope.Lib None;SourceScope.Std]
+		| s -> try [SourceScope.parse s] with SourceScope.Unknown_kind -> [SourceScope.Path s]
+	) (split_list value)
 
 let is_target com targets file =
-	let scope = com.class_paths#scope_of file in
-	let original = file in
-	let file = Path.comparable_path file in
-	List.exists (fun target -> match target,scope with
-		| User,Some ClassPath.User
-		| Lib None,Some (ClassPath.Lib _)
-		| Std,Some (ClassPath.Std | ClassPath.StdTarget) ->
-			true
-		| Lib (Some name),Some (ClassPath.Lib (Some name')) ->
-			ClassPath.same_lib_name name name'
-		| Path path,_ ->
-			Path.is_in_path path file
-		| Pack pack,_ ->
-			Warning.matches_package pack (com.class_paths#package_of original)
-		| _ ->
-			false
-	) targets
+	List.exists (SourceScope.matcher com.class_paths file) targets
 
 let edits_of content fixes =
 	let sorted = List.sort (fun a b ->

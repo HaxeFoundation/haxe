@@ -45,13 +45,6 @@ type warning_option = {
 	wo_mode : warning_mode;
 }
 
-type warning_scope =
-	| WSUser
-	| WSLib of string option
-	| WSStd
-	| WSPath of string
-	| WSPack of string list
-
 type fix_choice = {
 	fc_text : string;
 	fc_since : string option;
