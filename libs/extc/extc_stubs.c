@@ -612,6 +612,12 @@ CAMLprim value sys_filetime( value file ) {
 	struct stat sbuf;
 	if( stat(String_val(file),&sbuf) < 0 )
 		return caml_copy_double(0.);
+#		if defined(__APPLE__)
+	return caml_copy_double( TimeSpecToSeconds(sbuf.st_mtimespec) );
+#		elif defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+	return caml_copy_double( TimeSpecToSeconds(sbuf.st_mtim) );
+#		else
 	return caml_copy_double( sbuf.st_mtime );
+#		endif
 #	endif
 }
