@@ -162,6 +162,9 @@ ESLint's `--fix`/`--fix-dry-run`, Ruff's `--fix`/`--diff`/`--unsafe-fixes`, Dart
   compiler says how many fixes were skipped: their positions may not match anymore. Their modification
   time is compared with the start of the compilation; with the compilation server, cached files were
   checked at that point.
+- With the compilation server, modules served from the cache aren't typed again. Fixes are bound to
+  the module of their file, like warnings (`m_cache_bound_objects`), and replayed with it, checking the
+  current `-w` options again.
 - A fix can require other files to be in scope: a renamed field's uses are only renamed when all the
   declarations of the field (overridden and implemented ones included) can be renamed too.
 
@@ -358,10 +361,10 @@ Specs aren't ready, but if metadata gets declared signatures, `@:deprecated` imp
   `apply-fixes-safety` (unsafe templates, changed files), `apply-fixes-dirty`,
   `build-macro-order-warning`, `lib-deprecation-warnings`, `warning-scopes`,
   `removed-modules`.
+- `tests/server/src/cases/ApplyFixes.hx`: fixes of cached modules.
 - Unit macro, misc (770) and server tests pass.
 
 ## Next steps
 
 1. Library names for lix-resolved libraries.
 2. 4.3.x backport behind `-D haxe-next`.
-3. Fixes of modules served from the compilation server cache: only retyped modules produce fixes.
