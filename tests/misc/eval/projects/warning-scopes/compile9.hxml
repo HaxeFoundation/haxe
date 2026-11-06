@@ -1,0 +1,2 @@
+base.hxml
+-w -WDeprecated@path:"src/sub" -WDeprecated@pack:Main
