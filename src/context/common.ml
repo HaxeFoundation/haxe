@@ -259,6 +259,26 @@ type fix = Message.fix = {
 	fix_time : float;
 }
 
+type fix_config = {
+	mutable fix_scope : string;
+	mutable fix_diff : bool;
+	mutable fix_passes : int;
+	mutable fix_compat : string option;
+	mutable fix_allow_dirty : bool;
+	mutable fix_unsafe : bool;
+	mutable fix_only : WarningList.warning list;
+}
+
+let default_fix_config () = {
+	fix_scope = "user";
+	fix_diff = false;
+	fix_passes = 1;
+	fix_compat = None;
+	fix_allow_dirty = false;
+	fix_unsafe = false;
+	fix_only = [];
+}
+
 type part_scope = {
 	runtime_args : string list;
 	warned_positions : (string * int, string * Globals.pos * warning_option list list) Hashtbl.t;
@@ -333,6 +353,7 @@ and context = {
 	mutable warning : Gctx.warning_function;
 	mutable warning_options : warning_option list list;
 	mutable scoped_warning_options : (warning_option * warning_scope) list;
+	mutable fix_config : fix_config option;
 	mutable get_messages : unit -> Message.t list;
 	mutable filter_messages : (Message.t -> bool) -> unit;
 	mutable run_command : string -> int;
@@ -865,6 +886,7 @@ let create sctx request_scope part_scope display_mode =
 		warning = (fun ?depth _ _ _ -> die "" __LOC__);
 		warning_options = [List.map (fun w -> {wo_warning = w;wo_mode = WMDisable}) WarningList.disabled_warnings];
 		scoped_warning_options = default_scoped_warning_options;
+		fix_config = None;
 		error = (fun _ _ -> die "" __LOC__);
 		error_ext = (fun _ -> die "" __LOC__);
 		get_messages = (fun() -> []);
@@ -991,6 +1013,7 @@ let clone com is_macro_context =
 		warning = com.warning;
 		warning_options = com.warning_options;
 		scoped_warning_options = com.scoped_warning_options;
+		fix_config = com.fix_config;
 		error = com.error;
 		error_ext = com.error_ext;
 		get_messages = com.get_messages;

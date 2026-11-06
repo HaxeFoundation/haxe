@@ -2347,6 +2347,19 @@ let macro_api ccom get_api =
 				"stdPath", encode_array (List.map (fun path -> encode_string path#path) com.class_paths#get_std_paths);
 				"mainClass", (match com.main.main_path with None -> vnull | Some path -> encode_path path);
 				"packageRules", encode_string_map encode_package_rule com.package_rules;
+				"fix", (match com.fix_config with
+					| None ->
+						vnull
+					| Some config ->
+						encode_obj [
+							"scope", encode_array (List.map encode_string (ApplyFixes.split_list config.fix_scope));
+							"diff", vbool config.fix_diff;
+							"passes", vint config.fix_passes;
+							"compat", (match config.fix_compat with None -> vnull | Some s -> encode_string s);
+							"allowDirty", vbool config.fix_allow_dirty;
+							"unsafe", vbool config.fix_unsafe;
+							"only", encode_array (List.map (fun w -> encode_string (WarningList.warning_obj w).w_name) config.fix_only);
+						]);
 			]
 		);
 		"set_platform_configuration", vfun1 (fun v ->

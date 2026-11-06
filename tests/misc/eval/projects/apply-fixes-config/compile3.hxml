@@ -1,0 +1,9 @@
+--macro Macro.init()
+--no-output
+--fix-scope user,lib:foo
+--fix-diff
+--fix-passes 3
+--fix-compat 4.3
+--fix-allow-dirty
+--fix-unsafe
+--fix-only WDeprecated,WMigration

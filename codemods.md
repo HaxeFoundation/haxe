@@ -118,19 +118,21 @@ unsafe fixes were skipped otherwise. Unsafe fixes:
 
 ### Applying
 
-| Argument | Define it sets | |
-|---|---|---|
-| `--fix` | `apply-fixes` | Apply the fixes to the files of the user class paths |
-| `--fix-scope <scopes>` | `apply-fixes=<scopes>` | Comma-separated: `user`, `lib`, `lib:name`, `std`, `all`, or paths |
-| `--fix-diff` | `apply-fixes.dry` | Print a unified diff instead of changing files |
-| `--fix-passes <n>` | `apply-fixes.passes` | Compile again while fixes were applied, up to n compilations |
-| `--fix-compat <version>` | `apply-fixes.compat` | Skip fixes needing a newer Haxe version |
-| `--fix-allow-dirty` | `apply-fixes.allow-dirty` | Also change files with uncommitted changes or outside of git |
-| `--fix-unsafe` | `apply-fixes.unsafe` | Also apply unsafe fixes |
-| `--fix-only <warnings>` | `apply-fixes.only` | Only apply the fixes of these warnings or warning groups, and of errors |
+| Argument | |
+|---|---|
+| `--fix` | Apply the fixes to the files of the user class paths |
+| `--fix-scope <scopes>` | Comma-separated: `user`, `lib`, `lib:name`, `std`, `all`, or paths |
+| `--fix-diff` | Print a unified diff instead of changing files |
+| `--fix-passes <n>` | Compile again while fixes were applied, up to n compilations |
+| `--fix-compat <version>` | Skip fixes needing a newer Haxe version |
+| `--fix-allow-dirty` | Also change files with uncommitted changes or outside of git |
+| `--fix-unsafe` | Also apply unsafe fixes |
+| `--fix-only <warnings>` | Only apply the fixes of these warnings or warning groups, and of errors |
 
-The arguments only set the defines, so macros can tell a migration is running
-(`Context.defined("apply-fixes")`); their order doesn't matter (`--fix-scope lib --fix` keeps the scope).
+Each argument enables fixes, and their order doesn't matter (`--fix-scope lib --fix` keeps the scope).
+They are not defines: these would change the context signature, so a `--fix` compilation couldn't
+reuse the compilation server's cache of a normal one. Macros get the settings from
+`haxe.macro.Compiler.getConfiguration().fix` (`null` without fixes).
 The prior art for the names: Rust's `cargo fix` (`--allow-dirty`, `--broken-code`), Go's `go fix -diff`,
 ESLint's `--fix`/`--fix-dry-run`, Ruff's `--fix`/`--diff`/`--unsafe-fixes`, Dart's
 `dart fix --apply`/`--dry-run`, clang-tidy's `-fix`/`-fix-errors`.
@@ -358,11 +360,11 @@ Specs aren't ready, but if metadata gets declared signatures, `@:deprecated` imp
 - Tests in `tests/misc/eval/projects/`: `apply-fixes` (selection, libraries), `apply-fixes-migration`,
   `apply-fixes-dry`, `apply-fixes-partial-resolution`, `apply-fixes-syntax`, `apply-fixes-std`,
   `apply-fixes-alias`, `apply-fixes-compat`, `apply-fixes-is`, `apply-fixes-is-fields`,
-  `apply-fixes-safety` (unsafe templates, changed files), `apply-fixes-dirty`,
+  `apply-fixes-safety` (unsafe templates, changed files), `apply-fixes-config`, `apply-fixes-dirty`,
   `build-macro-order-warning`, `lib-deprecation-warnings`, `warning-scopes`,
   `removed-modules`.
 - `tests/server/src/cases/ApplyFixes.hx`: fixes of cached modules.
-- Unit macro, misc (770) and server tests pass.
+- Unit macro, misc (774), server and null safety tests pass.
 
 ## Next steps
 

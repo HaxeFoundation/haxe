@@ -298,6 +298,14 @@ let parse_args args =
 (** Apply a single-part [parsed_arg list] to [com], returning the populated
     [arg_context].  Higher-level concerns ([Next], [Each], [AddLib] expansion,
     hxml expansion) are handled by [Compiler.HighLevel.process_params]. *)
+let fix_config com = match com.fix_config with
+	| Some config ->
+		config
+	| None ->
+		let config = Common.default_fix_config () in
+		com.fix_config <- Some config;
+		config
+
 let process_args (com : Common.context) =
 	let actx = {
 		classes = [([],"Std")];
@@ -421,28 +429,26 @@ let process_args (com : Common.context) =
 		| SetMeasureTimes ->
 			actx.measure_times <- true
 		| Fix ->
-			if not (Common.defined com Define.ApplyFixes) then Common.define com Define.ApplyFixes
+			ignore (fix_config com)
 		| FixScope s ->
-			Common.define_value com Define.ApplyFixes s
+			(fix_config com).fix_scope <- s
 		| FixDiff ->
-			if not (Common.defined com Define.ApplyFixes) then Common.define com Define.ApplyFixes;
-			Common.define com Define.ApplyFixesDry
+			(fix_config com).fix_diff <- true
 		| FixPasses s ->
-			Common.define_value com Define.ApplyFixesPasses s
+			(match int_of_string_opt s with
+			| Some n when n > 0 -> (fix_config com).fix_passes <- n
+			| _ -> Error.raise_typing_error ("Invalid number of passes: " ^ s) (fake_pos ("--fix-passes " ^ s)))
 		| FixCompat s ->
-			Common.define_value com Define.ApplyFixesCompat s
+			(fix_config com).fix_compat <- Some s
 		| FixAllowDirty ->
-			Common.define com Define.ApplyFixesAllowDirty
+			(fix_config com).fix_allow_dirty <- true
 		| FixUnsafe ->
-			if not (Common.defined com Define.ApplyFixes) then Common.define com Define.ApplyFixes;
-			Common.define com Define.ApplyFixesUnsafe
+			(fix_config com).fix_unsafe <- true
 		| FixOnly s ->
-			List.iter (fun name ->
-				try ignore (Warning.from_string name)
+			(fix_config com).fix_only <- List.map (fun name ->
+				try Warning.from_string name
 				with Exit -> Error.raise_typing_error ("Unknown warning: " ^ name) (fake_pos ("--fix-only " ^ s))
-			) (ApplyFixes.split_list s);
-			if not (Common.defined com Define.ApplyFixes) then Common.define com Define.ApplyFixes;
-			Common.define_value com Define.ApplyFixesOnly s
+			) (ApplyFixes.split_list s)
 		| AddWarning s ->
 			let p = fake_pos ("-w " ^ s) in
 			let l = Warning.parse_scoped_options s p in
