@@ -113,7 +113,7 @@ private class OverloadedJavaMethod {
 }
 #end
 
-#if cpp
+#if (cpp && !cppia) // cppia can't link the native overloads of cpp.encoding.Utf8
 private class OverloadedNativeStatic {
 	// The C++ generator used to crash on this call, because the coroutine transform turned it
 	// into a call of the first overload, `getByteCount(Char32):Int`.
@@ -840,7 +840,7 @@ class TestCoroutines extends Test {
 
 	#end
 
-	#if cpp
+	#if (cpp && !cppia)
 
 	function testIssue13099() {
 		var cont = new TrackingCont<Int>();

@@ -578,6 +578,25 @@ module Builder = struct
 		in
 		mk (TCall (ef, args)) tret p
 
+	let make_null_safe_to_string basic to_string e p =
+		let rec needs_temp_var e = match e.eexpr with
+			| TLocal _ | TTypeExpr _ | TConst _ -> false
+			| TField (e, _) | TParenthesis e -> needs_temp_var e
+			| _ -> true
+		in
+		let make_check e =
+			let chk_null = binop OpEq e (make_null e.etype p) basic.tbool p in
+			mk (TIf (chk_null, make_string basic "null" p, Some (to_string e))) basic.tstring p
+		in
+		if needs_temp_var e then begin
+			let v = alloc_var VGenerated "tmp" e.etype p in
+			mk (TBlock [
+				mk (TVar (v, Some e)) basic.tvoid p;
+				make_check (make_local v p)
+			]) basic.tstring p
+		end else
+			make_check e
+
 end
 
 let set_default basic a c p =

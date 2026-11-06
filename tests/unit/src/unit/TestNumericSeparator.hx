@@ -26,6 +26,8 @@ class TestNumericSeparator extends Test {
 		// science float
 		feq(1_2e3_4, 12e34);
 		feq(1_2.3e4_5, 12.3e45);
+		feq(1.5_5e5_5, 1.55e55);
+		feq(1_2.3_4e5_6, 12.34e56);
 
 		// int but actually float
 		feq(1_2f64, 12f64);
