@@ -90,12 +90,24 @@ let property_ident = function%parser
 	| [ (Kwd Default,p) ] -> "default",p
 	| [ (Kwd Null,p) ] -> "null",p
 
-let questionable_dollar_ident ctx s =
+let check_quoted_field_name ctx s name kind p =
+	if kind <> SDoubleQuotes then
+		syntax_error ctx (Custom "Quoted field names must use double quotes") ~pos:(Some p) s ()
+	else if not (Lexer.is_valid_identifier name || Hashtbl.mem Lexer.keywords name) then
+		syntax_error ctx (Custom "Quoted field names must be identifiers or keywords") ~pos:(Some p) s ()
+
+let field_decl_ident ctx owner s = match%parser s with
+	| [ (Const (String (name,kind)),p) ] when owner = FOStructure ->
+		check_quoted_field_name ctx s name kind p;
+		name,p
+	| [ dollar_ident as i ] -> i
+
+let questionable_dollar_ident ctx owner s =
 	let po = match%parser s with
 		| [ (Question,p) ] -> Some p
 		| [ ] -> None
 	in
-	let name,p = dollar_ident s in
+	let name,p = field_decl_ident ctx owner s in
 	match po with
 		| None ->
 			false,(name,p)
@@ -858,7 +870,7 @@ and parse_function_type_next ctx tl p1 = function%parser
 and parse_type_anonymous ctx s =
 	let p0 = popt question_mark s in
 	match%parser s with
-	| [ [%let name, p1 = dollar_ident]; [%let t = parse_type_hint ctx] ] ->
+	| [ [%let name, p1 = field_decl_ident ctx FOStructure]; [%let t = parse_type_hint ctx] ] ->
 		let opt,p1 = match p0 with
 			| Some p -> true,punion p p1
 			| None -> false,p1
@@ -962,7 +974,7 @@ and parse_class_field ctx owner s =
 				meta
 		in
 		let name,pos,k,al,meta = (match%parser s with
-		| [ (Kwd Var,p1); [%let opt,name = questionable_dollar_ident ctx] ] ->
+		| [ (Kwd Var,p1); [%let opt,name = questionable_dollar_ident ctx owner] ] ->
 			let meta = check_optional opt name in
 			begin match%parser s with
 			| [ (POpen,_); property_ident as i1; (Comma,_); property_ident as i2; (PClose,_) ] ->
@@ -976,7 +988,7 @@ and parse_class_field ctx owner s =
 		| [ (Kwd Final,p1) ] ->
 			check_redundant_var ctx p1 s;
 			begin match%parser s with
-			| [ [%let opt,name = questionable_dollar_ident ctx]] ->
+			| [ [%let opt,name = questionable_dollar_ident ctx owner]] ->
 				begin match%parser s with
 				| [(POpen,_); property_ident as i1; (Comma,_); property_ident as i2; (PClose,_); [%let t = popt (parse_type_hint ctx)]; [%let e, p2 = parse_var_field_assignment ctx] ] ->
 					let meta = check_optional opt name in
@@ -1654,6 +1666,9 @@ and parse_field ctx e1 efk p s =
 		| [ (Kwd k,p2) ] when !parsing_macro_cond && p.pmax = p2.pmin -> expr_next ctx (EField (e1,s_keyword k,efk) , punion (pos e1) p2) s
 		| [ (Const (Ident f),p2) ] when p.pmax = p2.pmin -> expr_next ctx (EField (e1,f,efk) , punion (pos e1) p2) s
 		| [ (Dollar v,p2) ] -> expr_next ctx (EField (e1,"$"^v,efk) , punion (pos e1) p2) s
+		| [ (Const (String (f,kind)),p2) ] when p.pmax = p2.pmin ->
+			check_quoted_field_name ctx s f kind p2;
+			expr_next ctx (EField (e1,f,efk) , punion (pos e1) p2) s
 		| [ ] ->
 			(* turn an integer followed by a dot into a float *)
 			match e1 with
