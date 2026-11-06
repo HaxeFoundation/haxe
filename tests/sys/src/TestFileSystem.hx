@@ -128,24 +128,16 @@ class TestFileSystem extends utest.Test {
 		Assert.isTrue(stat != null);
 	}
 
-	function testStatSize64() {
-		var path = dir + "statSize64.txt";
-		sys.io.File.saveContent(path, "hello");
-		var stat = FileSystem.stat(path);
-		Assert.equals(5, stat.size);
-		#if (js || cpp || neko || (hl && !(hl_ver >= version("2.0.0"))))
-		Assert.isNull(stat.size64);
-		#else
-		Assert.isTrue(stat.size64 == 5);
-		#end
-	}
-
 	function testStatFile() {
 		var path = dir + "statFile.txt";
 		var before = Date.now().getTime();
 		sys.io.File.saveContent(path, "hello");
 		var stat = FileSystem.stat(path);
-		Assert.equals(5, stat.size);
+		#if js // TODO: hxnodejs still reports size as a JS number
+		Assert.equals(5, (cast stat.size : Int));
+		#else
+		Assert.isTrue(stat.size == 5);
+		#end
 		Assert.isTrue(Math.abs(stat.mtime.getTime() - before) < 10000);
 	}
 

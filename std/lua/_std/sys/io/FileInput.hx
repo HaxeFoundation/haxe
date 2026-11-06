@@ -43,18 +43,21 @@ class FileInput extends haxe.io.Input {
 		this._eof = false;
 	}
 
-	inline public function seek(p:Int, pos:FileSeek):Void {
+	inline public function seek(p:haxe.Int64, pos:FileSeek):Void {
 		var arg = switch (pos) {
 			case SeekBegin: "set";
 			case SeekCur: "cur";
 			case SeekEnd: "end";
 		}
 		_eof = false;
-		return f.seek(arg, p);
+		f.seek(arg, cast p.toFloat());
 	}
 
-	inline public function tell():Int {
-		return f.seek();
+	inline public function tell():haxe.Int64 {
+		var p:Null<Float> = f.seek();
+		if (p == null || p < 0)
+			throw haxe.io.Error.Custom("tell() failure");
+		return haxe.Int64.fromFloat(p);
 	}
 
 	inline public function eof():Bool {

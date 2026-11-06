@@ -26,6 +26,6 @@ package sys.io;
 	Use `sys.io.File.write` to create a `FileOutput`.
 **/
 extern class FileOutput extends haxe.io.Output {
-	function seek(p:Int, pos:FileSeek):Void;
-	function tell():Int;
+	function seek(p:haxe.Int64, pos:FileSeek):Void;
+	function tell():haxe.Int64;
 }

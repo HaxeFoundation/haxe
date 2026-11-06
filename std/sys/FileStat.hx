@@ -54,15 +54,7 @@ typedef FileStat = {
 	/** 
 		The size of the file, in bytes.
 	**/
-	var size:Int;
-
-	/**
-		The size of the file, in bytes, as a 64-bit integer.
-
-		Unlike `size`, it is correct for files of 2GB or more. It is `null` on
-		targets that can't report such sizes reliably.
-	**/
-	@:optional var size64:haxe.Int64;
+	var size:haxe.Int64;
 
 	/** 
 		The device on which stat resides.
