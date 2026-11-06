@@ -27,7 +27,7 @@ class TestCondition extends ThreadTestBase {
 		// waiting until a timeout is reported, with a generous upper bound
 		var timedOut = false;
 		while (haxe.Timer.stamp() - start < 10.0) {
-			if (!cond.wait(0.1)) {
+			if (!cond.timedWait(0.1)) {
 				timedOut = true;
 				break;
 			}
@@ -62,7 +62,7 @@ class TestCondition extends ThreadTestBase {
 		final deadline = haxe.Timer.stamp() + 10.0;
 		while (!ready) {
 			final remaining = deadline - haxe.Timer.stamp();
-			if (remaining <= 0 || !cond.wait(remaining)) {
+			if (remaining <= 0 || !cond.timedWait(remaining)) {
 				break;
 			}
 		}
@@ -73,9 +73,9 @@ class TestCondition extends ThreadTestBase {
 	function testTimedWaitNonPositive() {
 		final cond = new Condition();
 		cond.acquire();
-		Assert.isFalse(cond.wait(0));
-		Assert.isFalse(cond.wait(-1));
-		Assert.isFalse(cond.wait(Math.NaN));
+		Assert.isFalse(cond.timedWait(0));
+		Assert.isFalse(cond.timedWait(-1));
+		Assert.isFalse(cond.timedWait(Math.NaN));
 		cond.release();
 	}
 
@@ -92,31 +92,13 @@ class TestCondition extends ThreadTestBase {
 		});
 		// must neither overflow into an immediate timeout nor into a negative wait
 		while (!ready) {
-			if (!cond.wait(1e12)) {
+			if (!cond.timedWait(1e12)) {
 				timedOut = true;
 				break;
 			}
 		}
 		Assert.isFalse(timedOut);
 		Assert.isTrue(ready);
-		cond.release();
-	}
-
-	function testUntimedWaitReturnsTrue() {
-		final cond = new Condition();
-		var ready = false;
-		var result = false;
-		cond.acquire();
-		Thread.create(() -> {
-			cond.acquire();
-			ready = true;
-			cond.signal();
-			cond.release();
-		});
-		while (!ready) {
-			result = cond.wait();
-		}
-		Assert.isTrue(result);
 		cond.release();
 	}
 

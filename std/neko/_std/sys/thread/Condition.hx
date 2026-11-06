@@ -5,7 +5,7 @@ class Condition {
 
 	/**
 		Incremented by `signal` and `broadcast` while the mutex is held, so that
-		the polling fallback of `wait` can detect notifications.
+		the polling fallback of `timedWait` can detect notifications.
 	**/
 	var generation:Int = 0;
 
@@ -25,11 +25,11 @@ class Condition {
 		cond_release(c);
 	}
 
-	public function wait(?timeout:Float):Bool {
-		if (timeout == null) {
-			cond_wait(c);
-			return true;
-		}
+	public function wait():Void {
+		cond_wait(c);
+	}
+
+	public function timedWait(timeout:Float):Bool {
 		if (cond_timed_wait != null) {
 			return cond_timed_wait(c, timeout);
 		}

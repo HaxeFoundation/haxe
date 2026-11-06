@@ -32,12 +32,12 @@ class Condition {
 	// and "wait() in Condition cannot override wait() in Object" from javac
 
 	@:native("waitOn")
-	public function wait(?timeout:Float):Bool {
-		if (timeout == null) {
-			native.await();
-			return true;
-		}
-		final t:Float = timeout;
+	public function wait():Void {
+		native.await();
+	}
+
+	public function timedWait(timeout:Float):Bool {
+		final t = timeout;
 		// Int64.fromFloat only accepts values up to 2^53, which is about 104 days in nanoseconds
 		final maxSeconds = 9e6;
 		final capped = t > maxSeconds;

@@ -1998,32 +1998,35 @@ module StdCondition = struct
 		vnull
 	)
 
-	let wait = vifun1 (fun vthis timeout ->
+	let wait = vifun0 (fun vthis ->
 		let c = this vthis in
 		check_owner c "wait";
 		let id = current () in
-		match timeout with
-		| VNull ->
+		Atomic.set c.cowner (-1);
+		Luv.Condition.wait c.cond c.cmutex;
+		Atomic.set c.cowner id;
+		vnull
+	)
+
+	let timedWait = vifun1 (fun vthis timeout ->
+		let c = this vthis in
+		check_owner c "timedWait";
+		let id = current () in
+		let timeout = num timeout in
+		(* also catches NaN *)
+		if not (timeout > 0.) then
+			vfalse
+		else begin
+			let capped = timeout > CountingSemaphore.max_single_wait in
+			let timeout = if capped then CountingSemaphore.max_single_wait else timeout in
 			Atomic.set c.cowner (-1);
-			Luv.Condition.wait c.cond c.cmutex;
+			let result = Luv.Condition.timedwait c.cond c.cmutex (int_of_float (timeout *. 1e9)) in
 			Atomic.set c.cowner id;
-			vtrue
-		| _ ->
-			let timeout = num timeout in
-			(* also catches NaN *)
-			if not (timeout > 0.) then
-				vfalse
-			else begin
-				let capped = timeout > CountingSemaphore.max_single_wait in
-				let timeout = if capped then CountingSemaphore.max_single_wait else timeout in
-				Atomic.set c.cowner (-1);
-				let result = Luv.Condition.timedwait c.cond c.cmutex (int_of_float (timeout *. 1e9)) in
-				Atomic.set c.cowner id;
-				match result with
-				| Ok () -> vtrue
-				(* a capped wait did not reach the requested timeout, so it counts as a spurious wakeup *)
-				| Error _ -> vbool capped
-			end
+			match result with
+			| Ok () -> vtrue
+			(* a capped wait did not reach the requested timeout, so it counts as a spurious wakeup *)
+			| Error _ -> vbool capped
+		end
 	)
 
 	let signal = vifun0 (fun vthis ->
@@ -3925,6 +3928,7 @@ let init_standard_library builtins =
 		"tryAcquire",StdCondition.tryAcquire;
 		"release",StdCondition.release;
 		"wait",StdCondition.wait;
+		"timedWait",StdCondition.timedWait;
 		"signal",StdCondition.signal;
 		"broadcast",StdCondition.broadcast;
 	];

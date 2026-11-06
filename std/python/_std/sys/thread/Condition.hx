@@ -20,12 +20,12 @@ class Condition {
 		cond.release();
 	}
 
-	public function wait(?timeout:Float):Bool {
-		if (timeout == null) {
-			cond.wait();
-			return true;
-		}
-		final t:Float = timeout;
+	public function wait():Void {
+		cond.wait();
+	}
+
+	public function timedWait(timeout:Float):Bool {
+		final t = timeout;
 		// larger values than TIMEOUT_MAX raise an OverflowError
 		final max = Math.min(1e9, python.lib.Threading.TIMEOUT_MAX);
 		return cond.wait(if (!(t > 0)) 0.0 else if (t > max) max else t);

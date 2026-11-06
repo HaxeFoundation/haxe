@@ -10,7 +10,9 @@ package sys.thread;
 
 	public function release():Void;
 
-	public function wait(?timeout:Float):Bool;
+	public function wait():Void;
+
+	public function timedWait(timeout:Float):Bool;
 
 	public function signal():Void;
 
@@ -34,18 +36,13 @@ abstract Condition(hl.Abstract<"hl_condition">) {
 	@:hlNative("std", "condition_release")
 	public function release():Void {}
 
-	public function wait(?timeout:Float):Bool {
-		if (timeout == null) {
-			waitNative();
-			return true;
-		}
-		// clamp here as well, older HashLink runtimes don't
-		final t:Float = timeout;
-		return timedWaitNative(if (!(t > 0)) 0 else if (t > 1e9) 1e9 else t);
-	}
-
 	@:hlNative("std", "condition_wait")
-	function waitNative():Void {}
+	public function wait():Void {}
+
+	public function timedWait(timeout:Float):Bool {
+		// clamp here as well, older HashLink runtimes don't
+		return timedWaitNative(if (!(timeout > 0)) 0 else if (timeout > 1e9) 1e9 else timeout);
+	}
 
 	@:hlNative("std", "condition_timed_wait")
 	function timedWaitNative(timeout:Float):Bool {

@@ -34,11 +34,11 @@ class Condition {
 		c.release();
 	}
 
-	public function wait(?timeout:Float):Bool {
-		if (timeout == null) {
-			c.wait();
-			return true;
-		}
+	public function wait():Void {
+		c.wait();
+	}
+
+	public function timedWait(timeout:Float):Bool {
 		return c.timedWait(timeout);
 	}
 
