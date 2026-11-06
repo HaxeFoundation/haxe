@@ -33,17 +33,25 @@ class TestDate extends unit.Test {
 		eq(date.getUTCDate(), 10);
 		eq(date.getUTCDay(), 3);
 
+		// milliseconds
+		#if (hl && hl_ver >= version("2.0.0"))
+		var date = Date.fromTime(405781340123.);
+		eq(date.getTime(), 405781340123.);
+		eq(date.getUTCSeconds(), 20);
+		eq(Date.fromTime(date.getTime()).getTime(), 405781340123.);
+		#end
+
 		// timezone issues
 		var date1 = Date.fromTime(1455555555 * 1000.); // 15 Feb 2016 16:59:15 GMT
 		var date2 = new Date(2016, 1, 15, 16, 59, 15);
 		#if github
-		date1.getTime() == date2.getTime(); // depends on GitHub timezone setting!
+		eq(date1.getTime(), date2.getTime()); // depends on GitHub timezone setting!
 		#end
 
 		var referenceDate = new Date(1970, 0, 12, 2, 0, 0);
 		eq(referenceDate.toString(), "1970-01-12 02:00:00");
 		#if github
-		referenceDate.getTime() == 957600000.; // depends on GitHub timezone setting!
+		eq(referenceDate.getTime(), 957600000.); // depends on GitHub timezone setting!
 		#end
 
 		var date = new Date(1970, 0, 12, 1, 59, 59);
@@ -99,19 +107,19 @@ class TestDate extends unit.Test {
 		var date = Date.fromTime(-2052910800.0);
 		eq(date.getFullYear(), 1904);
 		eq(date.getMonth(), 11);
-		date.getDate() == 12; // could fail on very large UTC offsets
+		eq(date.getDate(), 12); // could fail on very large UTC offsets
 		var date = Date.fromTime(-2587294800.0);
 		eq(date.getFullYear(), 1888);
 		eq(date.getMonth(), 0);
-		date.getDate() == 5; // could fail on very large UTC offsets
+		eq(date.getDate(), 5); // could fail on very large UTC offsets
 		var date = Date.fromTime(2177838000.0);
 		eq(date.getFullYear(), 2039);
 		eq(date.getMonth(), 0);
-		date.getDate() == 5; // could fail on very large UTC offsets
+		eq(date.getDate(), 5); // could fail on very large UTC offsets
 		var date = Date.fromTime(4481434800.0);
 		eq(date.getFullYear(), 2039);
 		eq(date.getMonth(), 0);
-		date.getDate() == 5; // could fail on very large UTC offsets
+		eq(date.getDate(), 5); // could fail on very large UTC offsets
 		*/
 
 		// weekdays
@@ -176,6 +184,16 @@ class TestDate extends unit.Test {
 		eq(Date.fromString("2015-12-08 12:22:00").getTimezoneOffset() % 15, 0);
 
 		eq(Date.fromString("2015-06-15 10:00:00").getTimezoneOffset(), Date.fromString("2016-06-15 10:00:00").getTimezoneOffset());
+
+		// timezone offset matches local - UTC, also right after epoch
+		#if (hl && hl_ver >= version("2.0.0"))
+		for (time in [0., 1800000., 1718459130000.]) {
+			var date = Date.fromTime(time);
+			var local = date.getHours() * 60 + date.getMinutes();
+			var utc = date.getUTCHours() * 60 + date.getUTCMinutes();
+			eq((local - utc + date.getTimezoneOffset() + 1440) % 1440, 0);
+		}
+		#end
 
 	}
 }

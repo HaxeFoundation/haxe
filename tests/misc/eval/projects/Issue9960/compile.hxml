@@ -1,0 +1,3 @@
+-m Main
+-D no-inline
+--interp
