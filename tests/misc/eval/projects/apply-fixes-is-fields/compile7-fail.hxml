@@ -1,0 +1,8 @@
+-cp src
+-cp lib
+--main Main
+-D haxe-next
+--fix-diff
+--fix-unsafe
+--no-output
+--fix-scope pack:a.B.C

@@ -1,0 +1,14 @@
+--- src/Util.hx
++++ src/Util.hx
+@@ -1,9 +1,9 @@
+ class Util {
+-	public static function is(v:Dynamic) {
++	public static function isValue2(v:Dynamic) {
+ 		return v != null;
+ 	}
+ 
+ 	public static function check(v:Dynamic) {
+-		return is(v) && Util.is(v);
++		return isValue2(v) && Util.isValue2(v);
+ 	}
+ }

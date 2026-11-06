@@ -121,7 +121,7 @@ unsafe fixes were skipped otherwise. Unsafe fixes:
 | Argument | |
 |---|---|
 | `--fix` | Apply the fixes to the files of the user class paths |
-| `--fix-scope <scopes>` | Comma-separated: `user`, `lib`, `lib:name`, `std`, `all`, or paths |
+| `--fix-scope <scopes>` | Comma-separated: `user`, `lib`, `lib:name`, `std`, `all`, `path:path` or `pack:dot.path` |
 | `--fix-diff` | Print a unified diff instead of changing files |
 | `--fix-passes <n>` | Compile again while fixes were applied, up to n compilations |
 | `--fix-compat <version>` | Skip fixes needing a newer Haxe version |
@@ -142,8 +142,9 @@ ESLint's `--fix`/`--fix-dry-run`, Ruff's `--fix`/`--diff`/`--unsafe-fixes`, Dart
   changed: nothing is applied, and an error lists them. `--fix-allow-dirty` overrides it; `--fix-diff`
   doesn't need it.
 - Scopes: `user` (`-cp`), `lib` (libraries), `lib:name` (one library, e.g. `--fix-scope user,lib:mylib`
-  for a library maintainer compiling the library's tests), `std` (std and target std), `all`, or paths
-  to directories or files (`--fix-scope src/legacy`). The default is `user`.
+  for a library maintainer compiling the library's tests), `std` (std and target std), `all`, directories or
+  files (`path:src/legacy`, or just `src/legacy`), packages or modules (`pack:my.legacy`), as in warning
+  scopes. The default is `user`.
 - Library names come from `haxelib path`, which prints `-D name=version` right after each library's
   class path. The compiler records that name on the class path (`ClassPath.Lib of string option`,
   internal argument `-libcp-of name path`).
@@ -179,8 +180,18 @@ ESLint's `--fix`/`--fix-dry-run`, Ruff's `--fix`/`--diff`/`--unsafe-fixes`, Dart
 -w +WDeprecated@lib:tink_core    # one library
 -w -WIfDisplay@std               # std and target std
 -w +WDeprecated@user             # -cp class paths
--w -WDeprecated@"src/generated"  # a path
+-w -WDeprecated@path:src/gen    # a directory or file
+-w -WDeprecated@pack:my.gen      # a package (and its subpackages) or a module (my.gen.Types)
 ```
+
+- A scope value (`lib:`, `path:`, `pack:`) ends at whitespace, and can be quoted (`@path:"my dir"`).
+  The parser doesn't use the Haxe lexer, so library names and paths can contain any character.
+- Library names match regardless of `-` and `_` (`@lib:haxeui-core` and `@lib:haxeui_core`), as
+  defines do.
+- `pack:` takes a package or a module dot path, like `Compiler.keep` and `Compiler.nullSafety`. The
+  package of a file comes from its path relative to its class path. Sub-types can't be selected, since
+  warnings are located by file: `pack:my.Mod.Sub` is an error.
+- `@:haxe.warning` doesn't accept scopes: the metadata already applies to one class or field.
 
 A scoped option takes precedence over options without scope. Deprecation warnings located in libraries
 and the standard library are disabled by default (`-WDeprecated@lib -WDeprecated@std`): users can't act
@@ -188,10 +199,9 @@ on them. `-w +WDeprecated@lib` reports them again, and `--fix` enables them belo
 options (`--fix -w -WDeprecated@lib` still hides them). Other ecosystems: GCC's `-isystem`, Rust's
 `--cap-lints` on dependencies, ESLint rules scoped by file globs.
 
-This part is independent from the fixes, and can be extracted on top of `development` with the
-patches in the project files (`warning-scopes/*.patch`, `git am`): the library-name hunks of
-`fe3f39fba3` (args, compilationCache, highLevel, parsedArg, classPath), then `2be1d72fa0` and
-`485cfac45c` (conflicts with fix code resolved). Built and tested on `origin/development`.
+This part is independent from the fixes, and is on its own branch on top of `development`
+(`feature/warning-scopes`), to be upstreamed first. Changes to the scope code are made on both
+branches.
 
 ### IDE
 
@@ -364,7 +374,7 @@ Specs aren't ready, but if metadata gets declared signatures, `@:deprecated` imp
   `build-macro-order-warning`, `lib-deprecation-warnings`, `warning-scopes`,
   `removed-modules`.
 - `tests/server/src/cases/ApplyFixes.hx`: fixes of cached modules.
-- Unit macro, misc (774), server and null safety tests pass.
+- Unit macro, misc (783) and server tests pass.
 
 ## Next steps
 
