@@ -17,7 +17,7 @@ class Main {
 		#if false
 		runner.addCase(new net.TestAsyncSocket( #if (hl_ver < version("1.16.0")) false #end ));
 		#end
-		#if (!jvm && !php)
+		#if (!jvm && !php && !js && !python)
 		runner.addCase(new ssl.TestSocket());
 		#end
 		var report = Report.create(runner);
