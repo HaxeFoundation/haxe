@@ -74,12 +74,12 @@ let from_meta ml =
 	in
 	loop [] ml
 
+let rec matches w id =
+	id = w || match (warning_obj w).w_parent with
+		| None -> false
+		| Some w' -> matches w' id
+
 let get_mode w (l : warning_option list list) =
-	let rec matches w id =
-		id = w || match (warning_obj w).w_parent with
-			| None -> false
-			| Some w' -> matches w' id
-	in
 	let rec loop l = match l with
 		| [] ->
 			WMEnable
@@ -102,21 +102,4 @@ let rec matches_scoped w scoped in_scope = match scoped with
 	| [] ->
 		None
 	| (opt,scope) :: scoped ->
-		let rec matches w id =
-			id = w || match (warning_obj w).w_parent with
-				| None -> false
-				| Some w' -> matches w' id
-		in
-		if matches w opt.wo_warning && in_scope scope then Some opt.wo_mode else matches_scoped w scoped in_scope
-
-
-let rec matches_scoped w scoped in_scope = match scoped with
-	| [] ->
-		None
-	| (opt,scope) :: scoped ->
-		let rec matches w id =
-			id = w || match (warning_obj w).w_parent with
-				| None -> false
-				| Some w' -> matches w' id
-		in
 		if matches w opt.wo_warning && in_scope scope then Some opt.wo_mode else matches_scoped w scoped in_scope
