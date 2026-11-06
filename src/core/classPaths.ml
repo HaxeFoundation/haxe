@@ -49,9 +49,9 @@ class class_paths = object(self)
 		List.find f l
 
 	method scope_of (file : string) =
-		let file = Path.get_full_path file in
+		let file = Path.comparable_path file in
 		List.fold_left (fun acc cp ->
-			let dir = Path.add_trailing_slash (Path.get_full_path cp#path) in
+			let dir = Path.add_trailing_slash (Path.comparable_path cp#path) in
 			if ExtString.String.starts_with file dir then match acc with
 				| Some (d,_) when String.length d >= String.length dir -> acc
 				| _ -> Some (dir,cp#scope)
