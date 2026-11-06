@@ -5,7 +5,7 @@ import haxe.coro.context.Context;
 import haxe.coro.dispatchers.Dispatcher;
 import haxe.coro.dispatchers.IDispatchObject;
 #if coro.stack_traces
-import haxe.coro.context.ExceptionHandler;
+import haxe.coro.context.CallStackHandler;
 
 private enum abstract StackItemKind(Int) {
 	final ClassFunction;
@@ -117,7 +117,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 	}
 
 	function startException(exception:Exception) {
-		final handler = context.get(ExceptionHandler);
+		final handler = context.get(CallStackHandler);
 		if (handler != null) {
 			return handler.startException(context, this, exception);
 		}
@@ -125,7 +125,7 @@ abstract class BaseContinuation<T> extends SuspensionResult<T> implements IConti
 	}
 
     function buildCallStack() {
-		final handler = context.get(ExceptionHandler);
+		final handler = context.get(CallStackHandler);
 		if (handler != null) {
 			handler.buildCallStack(context, this);
 		}

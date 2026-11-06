@@ -232,6 +232,9 @@ Also run the appropriate target tests of hxcoro: https://github.com/HaxeFoundati
 - Standard library should have minimal overhead
 - Optimization passes should not break correctness
 
+### Readability Is a Cost Too
+Every change has to be read and maintained by people. Count the added reading complexity as a cost, and weigh it against the benefit of the change. Aim for a balance between optimized and readable code: when the gain is small or uncertain, prefer the simpler version. The same applies when reviewing: don't suggest changes whose added complexity outweighs their gain.
+
 ## CI/CD
 - CI runs on GitHub Actions (see `.github/workflows/`)
 - Tests run on multiple platforms (Windows, Linux, macOS), on both x86_64 and ARM64
