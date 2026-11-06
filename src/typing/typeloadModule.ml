@@ -696,6 +696,7 @@ let make_curmod com g m =
 		enum_with_type = None;
 		module_using = [];
 		import_statements = [];
+		alias_imports = [];
 		is_display_file = (com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key m.m_extra.m_file));
 	}
 

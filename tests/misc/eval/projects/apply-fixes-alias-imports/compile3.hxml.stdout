@@ -1,0 +1,7 @@
+bin/app/Clean.hx:13: neu.HTMLDivElement,1,neu.HTMLDivElement,neu.Event,null
+bin/app/Leftover.hx:11: neu.HTMLDivElement
+bin/app/Aliased.hx:8: neu.HTMLDivElement,1
+bin/app/Clash.hx:8: neu.HTMLDivElement
+bin/app/Both.hx:10: null,null
+bin/app/Wild.hx:9: null,other
+bin/sub/Sub.hx:7: neu.HTMLDivElement,neu.Event

@@ -429,24 +429,26 @@ and deprecated_alias_fix ctx td p =
 	if Meta.has Meta.Deprecated td.t_meta then delay ctx.g PFinal (fun () -> deprecated_alias_fix' ctx td p)
 
 and deprecated_alias_fix' ctx td p =
-	let target = match follow_lazy_and_mono td.t_type with
-		| TInst(c,tl) -> Some (TClassDecl c,tl)
-		| TEnum(e,tl) -> Some (TEnumDecl e,tl)
-		| TAbstract(a,tl) -> Some (TAbstractDecl a,tl)
-		| TType(t,tl) -> Some (TTypeDecl t,tl)
-		| _ -> None
-	in
-	let same_param t ttp = match follow t,follow ttp.ttp_type with
-		| TInst(c1,_),TInst(c2,_) -> c1 == c2
-		| _ -> false
-	in
-	match target with
-	| Some (mt,tl) when Meta.has Meta.Deprecated td.t_meta && not (t_infos mt).mt_private
-		&& List.length tl = List.length td.t_params && List.for_all2 same_param tl td.t_params ->
+	match DeprecationCheck.alias_target td with
+	| Some mt ->
 		let options = Warning.from_meta ctx.f.curfield.cf_meta @ Warning.from_meta ctx.c.curclass.cl_meta in
 		let text = written_type_path mt in
-		add_fix ctx.com ctx.m.curmod WDeprecated options ("Use " ^ text) p text
-	| _ ->
+		let add ?guard text = add_fix ctx.com ctx.m.curmod ?guard WDeprecated options ("Use " ^ text) p text in
+		let imported = match SourceText.read p with
+			| Some name -> (match List.assoc_opt name ctx.m.alias_imports with
+				| Some (path,decision) when path = td.t_path -> Some (name,Stdlib.Lazy.force decision)
+				| _ -> None)
+			| None -> None
+		in
+		begin match imported with
+		| Some (_,AIKeepName) ->
+			()
+		| Some (name,AIShort (short,group,check_short)) ->
+			add ~guard:{ Message.fg_group = group; fg_names = ImportHandling.guarded_names name short check_short; fg_fallback = Some text } short
+		| Some (_,AINone) | None ->
+			add text
+		end
+	| None ->
 		()
 
 (* build an instance from a full type *)

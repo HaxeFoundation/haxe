@@ -26,6 +26,43 @@ let edits_of content fixes =
 	) ([],0,0) sorted in
 	List.rev applied,skipped
 
+let identifier_offsets content name =
+	let is_ident c = match c with 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' -> true | _ -> false in
+	let len = String.length content and n = String.length name in
+	let rec loop acc i =
+		if i + n > len then List.rev acc
+		else if content.[i] = name.[0] && String.sub content i n = name && (i = 0 || not (is_ident content.[i - 1])) && (i + n = len || not (is_ident content.[i + n])) then loop (i :: acc) (i + n)
+		else loop acc (i + 1)
+	in
+	loop [] 0
+
+(* A guarded group applies only if its anchor (the fix without fallback) is there and its
+   names only appear in the file where fixes replace them; otherwise its fixes use their fallbacks. *)
+let resolve_guards content fixes =
+	let groups = Hashtbl.create 0 in
+	List.iter (fun f -> match f.fix_guard with
+		| Some g -> Hashtbl.replace groups g.fg_group (f :: (try Hashtbl.find groups g.fg_group with Not_found -> []))
+		| None -> ()
+	) fixes;
+	let ranges = List.map (fun f -> SourceText.byte_range content f.fix_range) fixes in
+	let holds = Hashtbl.create 0 in
+	let check group =
+		let members = Hashtbl.find groups group in
+		let guard f = Option.get f.fix_guard in
+		List.exists (fun f -> (guard f).fg_fallback = None) members &&
+
+		List.for_all (fun name ->
+			List.for_all (fun b -> List.exists (fun (bmin,bmax) -> b >= bmin && b < bmax) ranges) (identifier_offsets content name)
+		) (guard (List.hd members)).fg_names
+	in
+	let holds group = try Hashtbl.find holds group with Not_found -> let b = check group in Hashtbl.add holds group b; b in
+	List.filter_map (fun f -> match f.fix_guard with
+		| None -> Some f
+		| Some g when holds g.fg_group -> Some f
+		| Some { fg_fallback = Some text } -> Some { f with fix_choices = [choice text] }
+		| Some { fg_fallback = None } -> None
+	) fixes
+
 let apply_edits content offset edits =
 	let b = Buffer.create (String.length content) in
 	let last = List.fold_left (fun pos (bmin,bmax,text) ->
@@ -172,7 +209,7 @@ let run com config =
 	end else
 	let total,skipped = List.fold_left (fun (total,skipped) (file,fixes) ->
 		let content = Std.input_file ~bin:true file in
-		let edits,s = edits_of content fixes in
+		let edits,s = edits_of content (resolve_guards content fixes) in
 		let n = List.length edits in
 		if n > 0 then begin
 			if dry then

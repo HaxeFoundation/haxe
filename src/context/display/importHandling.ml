@@ -62,6 +62,55 @@ let commit_import ctx path mode p =
 	ctx.m.import_statements <- (path,mode) :: ctx.m.import_statements;
 	if Filename.basename p.pfile <> "import.hx" then add_import_position ctx p path
 
+let guarded_names name short check_short =
+	if check_short then [name;short] else [name]
+
+let binding_name (path,mode) = match mode,List.rev path with
+	| IAsName (n,_),_ -> Some n
+	| INormal,(n,_) :: _ when not (is_lower_ident n) -> Some n
+	| _ -> None
+
+(* The import's path is rewritten to the alias target. When the target has another name, its
+   usages are rewritten to that name, unless a fallback is needed (see ApplyFixes.resolve_guards). *)
+let decide_alias_import ctx td target binding p_path =
+	let short = snd (t_infos target).mt_path in
+	if binding <> snd td.t_path || short = binding then
+		AIKeepName
+	else if Filename.basename p_path.pfile = "import.hx" then
+		AINone
+	else begin
+		let target_path = written_type_path target in
+		let bindings = List.filter_map (fun (path,_ as import) ->
+			if binding_name import = Some short then Some (String.concat "." (List.map fst path)) else None
+		) ctx.m.import_statements in
+		if List.exists (fun mt -> t_name mt = short) ctx.m.curmod.m_types || List.exists (fun path -> path <> target_path) bindings then
+			AINone
+		else
+			AIShort (short,p_path.pfile ^ ":" ^ s_type_path td.t_path,bindings = [])
+	end
+
+let check_alias_import ctx mt binding p_path =
+	match mt with
+	| TTypeDecl td when Meta.has Meta.Deprecated td.t_meta ->
+		DeprecationCheck.check_typedef (create_deprecation_context ctx) td p_path;
+		begin match DeprecationCheck.alias_target td with
+		| Some target ->
+			let decision = lazy (decide_alias_import ctx td target binding p_path) in
+			ctx.m.alias_imports <- (binding,(td.t_path,decision)) :: ctx.m.alias_imports;
+			delay ctx.g PFinal (fun () ->
+				let text = written_type_path target in
+				let add ?guard () = add_fix ctx.com ctx.m.curmod ?guard WDeprecated [] ("Use " ^ text) p_path text in
+				match Stdlib.Lazy.force decision with
+				| AIKeepName -> add ()
+				| AIShort (short,group,check_short) -> add ~guard:{ Message.fg_group = group; fg_names = guarded_names binding short check_short; fg_fallback = None } ()
+				| AINone -> ()
+			)
+		| None ->
+			()
+		end
+	| _ ->
+		()
+
 let init_import ctx path mode p =
 	let rec loop acc = function
 		| x :: l when is_lower_ident (fst x) -> loop (x::acc) l
@@ -143,6 +192,10 @@ let init_import ctx path mode p =
 			| [] ->
 				begin match name with
 				| None ->
+					begin match List.filter not_private types with
+						| [mt] when has_name tname mt -> check_alias_import ctx mt tname p_type
+						| _ -> ()
+					end;
 					List.iter (fun mt ->
 						if not_private mt then
 							ctx.m.import_resolution#add (module_type_resolution mt None p)
@@ -153,6 +206,7 @@ let init_import ctx path mode p =
 				| Some(newname,pname) ->
 					let mt = get_type tname in
 					check_alias mt newname pname;
+					check_alias_import ctx mt newname p_type;
 					ctx.m.import_resolution#add (module_type_resolution mt (Some newname) p)
 				end
 			| [tsub,p2] ->
@@ -167,6 +221,7 @@ let init_import ctx path mode p =
 							check_alias tsub name pname;
 							Some name
 					in
+					check_alias_import ctx tsub (Option.default (snd (t_infos tsub).mt_path) alias) pu;
 					ctx.m.import_resolution#add (module_type_resolution tsub alias p);
 				with Not_found ->
 					(* this might be a static property, wait later to check *)

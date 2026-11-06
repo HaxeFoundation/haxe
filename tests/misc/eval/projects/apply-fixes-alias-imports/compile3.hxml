@@ -1,0 +1,4 @@
+-cp bin
+-cp src
+--main Main
+--interp

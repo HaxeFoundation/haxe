@@ -1,0 +1,12 @@
+package app;
+
+import old.DivElement;
+
+class Clash {
+	public static function run() {
+		var d:DivElement = new DivElement();
+		trace(d);
+	}
+}
+
+class HTMLDivElement {}

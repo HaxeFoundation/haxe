@@ -275,6 +275,7 @@ let create com macros =
 			enum_with_type = None;
 			module_using = [];
 			import_statements = [];
+			alias_imports = [];
 			is_display_file = false;
 		};
 		c = {

@@ -1,0 +1,15 @@
+package app;
+
+import neu.HTMLDivElement;
+import neu.Event;
+
+class Clean {
+	public static function run() {
+		var d:HTMLDivElement = new HTMLDivElement();
+		var n = HTMLDivElement.COUNT;
+		var m = HTMLDivElement.make();
+		var e:Event = new Event();
+		var q:neu.HTMLDivElement = null;
+		trace(d, n, m, e, q);
+	}
+}

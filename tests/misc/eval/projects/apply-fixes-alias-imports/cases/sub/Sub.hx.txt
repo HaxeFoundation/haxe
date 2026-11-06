@@ -1,0 +1,9 @@
+package sub;
+
+class Sub {
+	public static function run() {
+		var d:DivElement = new DivElement();
+		var e:Event = new Event();
+		trace(d, e);
+	}
+}

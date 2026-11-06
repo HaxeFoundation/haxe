@@ -51,6 +51,11 @@ type access_mode =
 	| MSet of Ast.expr option (* rhs, if exists *)
 	| MCall of Ast.expr list (* call arguments *)
 
+type alias_import =
+	| AIShort of string * string * bool
+	| AIKeepName
+	| AINone
+
 type typer_module = {
 	curmod : module_def;
 	import_resolution : resolution_list;
@@ -58,6 +63,7 @@ type typer_module = {
 	mutable enum_with_type : module_type option;
 	mutable module_using : (tclass * pos) list;
 	mutable import_statements : import list;
+	mutable alias_imports : (string * (path * alias_import Stdlib.Lazy.t)) list;
 	mutable is_display_file : bool;
 }
 

@@ -1,0 +1,11 @@
+package app;
+
+import other.*;
+import old.DivElement;
+
+class Wild {
+	public static function run() {
+		var b:DivElement = null;
+		trace(b, HTMLDivElement.NAME);
+	}
+}

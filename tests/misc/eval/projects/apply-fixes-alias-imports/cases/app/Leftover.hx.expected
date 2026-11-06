@@ -1,0 +1,13 @@
+package app;
+
+import old.DivElement;
+
+class Leftover {
+	public static function run() {
+		var d:neu.HTMLDivElement = new neu.HTMLDivElement();
+		#if never
+		var x:DivElement = null;
+		#end
+		trace(d);
+	}
+}

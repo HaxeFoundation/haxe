@@ -1,0 +1,12 @@
+package app;
+
+import neu.HTMLDivElement;
+import neu.HTMLDivElement;
+
+class Both {
+	public static function run() {
+		var a:HTMLDivElement = null;
+		var b:HTMLDivElement = null;
+		trace(a, b);
+	}
+}

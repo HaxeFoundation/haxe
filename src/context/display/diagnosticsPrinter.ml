@@ -264,17 +264,22 @@ let json_of_diagnostics com dctx =
 		])
 	) dctx.replaceable_code;
 	List.iter (fun f ->
-		List.iteri (fun i c ->
+		let f = match f.fix_guard with
+			| None -> Some f
+			| Some { fg_fallback = Some text } -> Some { f with fix_choices = [Common.choice text] }
+			| Some { fg_fallback = None } -> None
+		in
+		Option.may (fun f -> List.iter (fun c ->
 			let description = match c.fc_since,f.fix_choices with
 				| Some since,_ :: _ :: _ -> Printf.sprintf "%s (Haxe %s)" f.fix_reason since
 				| _ -> f.fix_reason
 			in
-			add ~append:(i > 0) DKReplacableCode f.fix_range MessageSeverity.Warning None (JObject [
+			add ~append:true DKReplacableCode f.fix_range MessageSeverity.Warning None (JObject [
 				"description",JString description;
 				"newCode",JString c.fc_text;
 				"range",Genjson.generate_pos_as_range f.fix_range
 			])
-		) f.fix_choices
+		) f.fix_choices) f
 	) com.part_scope.fixes;
 	Hashtbl.iter (fun file ranges ->
 		List.iter (fun (p,e) ->

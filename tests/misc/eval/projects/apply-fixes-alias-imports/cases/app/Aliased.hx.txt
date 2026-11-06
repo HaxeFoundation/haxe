@@ -1,0 +1,10 @@
+package app;
+
+import old.DivElement as Div;
+
+class Aliased {
+	public static function run() {
+		var d:Div = new Div();
+		trace(d, Div.COUNT);
+	}
+}

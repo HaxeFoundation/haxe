@@ -50,6 +50,25 @@ let check_ef com ef p = check_meta com ef.ef_meta "enum field" p
 
 let check_typedef com t p = check_meta com t.t_meta "typedef" p
 
+let alias_target td =
+	let target = match follow_lazy_and_mono td.t_type with
+		| TInst(c,tl) -> Some (TClassDecl c,tl)
+		| TEnum(e,tl) -> Some (TEnumDecl e,tl)
+		| TAbstract(a,tl) -> Some (TAbstractDecl a,tl)
+		| TType(t,tl) -> Some (TTypeDecl t,tl)
+		| _ -> None
+	in
+	let same_param t ttp = match follow t,follow ttp.ttp_type with
+		| TInst(c1,_),TInst(c2,_) -> c1 == c2
+		| _ -> false
+	in
+	match target with
+	| Some (mt,tl) when Meta.has Meta.Deprecated td.t_meta && not (t_infos mt).mt_private
+		&& List.length tl = List.length td.t_params && List.for_all2 same_param tl td.t_params ->
+		Some mt
+	| _ ->
+		None
+
 let check_module_type com mt p = match mt with
 	| TClassDecl c -> check_class com c p
 	| TEnumDecl en -> check_enum com en p

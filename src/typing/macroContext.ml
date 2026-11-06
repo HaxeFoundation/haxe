@@ -763,6 +763,7 @@ let load_macro_module mctx com cpath display p =
 		enum_with_type = None;
 		module_using = [];
 		import_statements = [];
+		alias_imports = [];
 		is_display_file = (com.display.dms_kind <> DMNone && DisplayPosition.display_position#is_in_file (Path.UniqueKey.lazy_key mloaded.m_extra.m_file));
 	}; *)
 	mloaded,(fun () -> mctx.com.display <- old)

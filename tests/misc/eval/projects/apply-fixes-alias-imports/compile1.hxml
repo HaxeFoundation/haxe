@@ -1,0 +1,6 @@
+-cp bin
+-cp src
+--main Main
+--fix
+--fix-allow-dirty
+--no-output

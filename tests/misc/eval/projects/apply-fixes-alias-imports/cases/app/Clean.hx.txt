@@ -1,0 +1,15 @@
+package app;
+
+import old.DivElement;
+import old.Event;
+
+class Clean {
+	public static function run() {
+		var d:DivElement = new DivElement();
+		var n = DivElement.COUNT;
+		var m = DivElement.make();
+		var e:Event = new Event();
+		var q:old.DivElement = null;
+		trace(d, n, m, e, q);
+	}
+}

@@ -51,12 +51,19 @@ type fix_choice = {
 	fc_safe : bool;
 }
 
+type fix_guard = {
+	fg_group : string;
+	fg_names : string list;
+	fg_fallback : string option;
+}
+
 type fix = {
 	fix_reason : string;
 	fix_range : Globals.pos;
 	fix_choices : fix_choice list;
 	fix_warning : WarningList.warning option;
 	fix_requires : string list;
+	fix_guard : fix_guard option;
 	fix_time : float;
 }
 

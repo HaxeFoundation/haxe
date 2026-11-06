@@ -60,7 +60,14 @@ type fix = {
 	fix_choices : fix_choice list;
 	fix_warning : warning option; (* None for errors *)
 	fix_requires : string list; (* files that must be in the fix scope *)
+	fix_guard : fix_guard option; (* see deprecated typedef aliases *)
 	fix_time : float; (* file time when it was loaded *)
+}
+
+type fix_guard = {
+	fg_group : string;
+	fg_names : string list; (* must only appear where fixes replace them *)
+	fg_fallback : string option; (* text when the guard fails, None drops the fix *)
 }
 ```
 
@@ -110,8 +117,20 @@ They are collected per compilation (`part_scope.fixes`). Sources of fixes:
    `quoteWinArg`/`winMetaCharacters`, `Bytes.readString`, `Thread.events`, `EventLoop.repeat`/`cancel`,
    the coro `Context.add`, `php.Boot.is`.
 2. **Deprecated typedef aliases**: a deprecated typedef that only renames a type, with the same type
-   parameters, needs no template: its uses in type hints are replaced by the aliased type's path
-   (`js.Error` becomes `js.lib.Error`, `js.Error.RangeError` becomes `js.lib.Error.RangeError`).
+   parameters, needs no template: its uses in type hints, `new` and static accesses are replaced by
+   the aliased type's path (`js.Error` becomes `js.lib.Error`, `js.Error.RangeError` becomes
+   `js.lib.Error.RangeError`). Imports of the alias are deprecated too, and rewritten to the aliased
+   type's path:
+   - `import old.Alias as A` and imports where both types have the same name only need the path to
+     change.
+   - Otherwise (`import js.html.DivElement` for `js.web.html.HTMLDivElement`), the usages written
+     `DivElement` become `HTMLDivElement`. This only holds if every `DivElement` in the file is
+     fixed: code the compiler doesn't type (inactive `#if` branches, strings, comments) would break.
+     Those fixes form a guarded group, checked when applying: if `DivElement` appears anywhere no fix
+     replaces, or `HTMLDivElement` already appears without being imported (it could mean another
+     type), usages get full paths and the import is left, still warning. The group also gives up
+     when `HTMLDivElement` is a type of the module or imported from elsewhere, and for `import.hx`.
+   - The IDE gets the full-path fixes only, since a quick fix is applied alone.
 3. **Fixes on errors**: where Haxe 5 rejects code Haxe 4 accepted, the error carries a fix computed
    from the old behavior. For example, a duplicate argument name renames the first argument, which the
    function body could never refer to, to `_`.
@@ -415,11 +434,13 @@ Specs aren't ready, but if metadata gets declared signatures, `@:deprecated` imp
 - `src/typing/typeloadFields.ml`: `WBuildMacroOrder`, `@:final`/`@:extern`.
 - `src/typing/typeloadModule.ml`: `@:enum abstract`, moved and removed modules.
 - `src/typing/typeload.ml`, `src/typing/typerDotPath.ml`: partial resolution, deprecated typedef aliases.
+- `src/context/display/importHandling.ml`: imports of deprecated typedef aliases; `src/compiler/applyFixes.ml`
+  checks their guards.
 - `src/typing/fields.ml`: removed `Compiler` functions.
 - `std/**`: replacement templates.
 - Tests in `tests/misc/eval/projects/`: `apply-fixes` (selection, libraries), `apply-fixes-migration`,
   `apply-fixes-dry`, `apply-fixes-partial-resolution`, `apply-fixes-syntax`, `apply-fixes-std`,
-  `apply-fixes-alias`, `apply-fixes-compat`, `apply-fixes-is`, `apply-fixes-is-fields`,
+  `apply-fixes-alias`, `apply-fixes-alias-imports`, `apply-fixes-compat`, `apply-fixes-is`, `apply-fixes-is-fields`,
   `apply-fixes-safety` (unsafe templates, changed files), `apply-fixes-config`, `apply-fixes-dirty`,
   `build-macro-order-warning`, `lib-deprecation-warnings`, `warning-scopes`,
   `removed-modules`.

@@ -1,0 +1,9 @@
+function main() {
+	app.Clean.run();
+	app.Leftover.run();
+	app.Aliased.run();
+	app.Clash.run();
+	app.Both.run();
+	app.Wild.run();
+	sub.Sub.run();
+}
