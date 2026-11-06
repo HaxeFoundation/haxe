@@ -58,7 +58,7 @@ class Browser {
 		return js.Lib.global.navigator;
 
 	/** Shortcut to Window.console. */
-	public static var console(get, never):js.html.ConsoleInstance;
+	public static var console(get, never):js.ConsoleInstance;
 
 	extern inline static function get_console()
 		return js.Lib.global.console;

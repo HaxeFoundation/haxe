@@ -147,7 +147,7 @@ extern class Window extends EventTarget {
 	/**
 		Returns a reference to the console object which provides access to the browser's debugging console.
 	**/
-	var console(default,null) : ConsoleInstance;
+	var console(default,null) : js.ConsoleInstance;
 
 	/**
 		Returns a reference to the screen object associated with the window.
