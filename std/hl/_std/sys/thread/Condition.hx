@@ -12,6 +12,8 @@ package sys.thread;
 
 	public function wait():Void;
 
+	public function timedWait(timeout:Float):Bool;
+
 	public function signal():Void;
 
 	public function broadcast():Void;
@@ -36,6 +38,17 @@ abstract Condition(hl.Abstract<"hl_condition">) {
 
 	@:hlNative("std", "condition_wait")
 	public function wait():Void {}
+
+	public function timedWait(timeout:Float):Bool {
+		// clamp here as well, older HashLink runtimes don't
+		// a capped wait counts as a spurious wakeup
+		return timedWaitNative(if (!(timeout > 0)) 0 else if (timeout > 1e9) 1e9 else timeout) || timeout > 1e9;
+	}
+
+	@:hlNative("std", "condition_timed_wait")
+	function timedWaitNative(timeout:Float):Bool {
+		return false;
+	}
 
 	@:hlNative("std", "condition_signal")
 	public function signal():Void {}
