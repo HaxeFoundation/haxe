@@ -50,6 +50,7 @@ type warning_scope =
 	| WSLib of string option
 	| WSStd
 	| WSPath of string
+	| WSPack of string list
 
 type message_kind =
 	| MKError

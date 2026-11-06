@@ -1,2 +1,2 @@
 base.hxml
--w -WDeprecated@"src"
+-w -WDeprecated@path:src

@@ -48,16 +48,29 @@ class class_paths = object(self)
 	method find (f : class_path -> bool) =
 		List.find f l
 
-	method scope_of (file : string) =
+	method private locate (file : string) =
 		let file = Path.comparable_path file in
-		Option.map snd (List.fold_left (fun acc cp ->
+		List.fold_left (fun acc cp ->
 			let dir = Path.add_trailing_slash (Path.comparable_path cp#path) in
 			if ExtString.String.starts_with file dir then match acc with
 				| Some (d,_) when String.length d >= String.length dir -> acc
-				| _ -> Some (dir,cp#scope)
+				| _ -> Some (dir,cp)
 			else
 				acc
-		) None l)
+		) None l
+
+	method scope_of (file : string) =
+		Option.map (fun (_,cp) -> cp#scope) (self#locate file)
+
+	method package_of (file : string) =
+		Option.map (fun (dir,_) ->
+			let full = Path.get_full_path file in
+			let rel = String.sub full (String.length dir) (String.length full - String.length dir) in
+			let parts = List.filter (fun s -> s <> "") (ExtString.String.nsplit (String.map (fun c -> if c = '\\' then '/' else c) rel) "/") in
+			match List.rev parts with
+			| file :: pack -> List.rev ((try Filename.chop_extension file with Invalid_argument _ -> file) :: pack)
+			| [] -> []
+		) (self#locate file)
 
 	method iter (f : class_path -> unit) =
 		List.iter f l

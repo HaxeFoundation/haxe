@@ -415,9 +415,11 @@ let scoped_warning_mode com w p =
 			| WSUser,Some ClassPath.User -> true
 			| WSStd,Some (ClassPath.Std | ClassPath.StdTarget) -> true
 			| WSLib None,Some (ClassPath.Lib _) -> true
-			| WSLib (Some name),Some (ClassPath.Lib (Some name')) -> name = name'
+			| WSLib (Some name),Some (ClassPath.Lib (Some name')) -> ClassPath.same_lib_name name name'
 			| WSPath path,_ ->
 				Path.is_in_path (Path.comparable_path path) (Path.comparable_path p.pfile)
+			| WSPack pack,_ ->
+				Warning.matches_package pack (com.class_paths#package_of p.pfile)
 			| _ -> false
 		in
 		Warning.matches_scoped w scoped in_scope

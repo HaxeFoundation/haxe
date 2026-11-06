@@ -1,0 +1,1 @@
+-w -WDeprecated@pack:sub.Helper.Inner:1: characters 13-34 : Sub-types can't be selected, use the module or package path

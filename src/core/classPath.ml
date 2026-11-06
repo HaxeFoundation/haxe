@@ -4,6 +4,10 @@ type class_path_scope =
 	| Lib of string option
 	| User
 
+let same_lib_name a b =
+	let normalize = String.map (fun c -> if c = '-' then '_' else c) in
+	normalize a = normalize b
+
 type file_kind =
 	| FFile
 
