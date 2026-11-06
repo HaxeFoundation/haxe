@@ -206,7 +206,7 @@ module ModuleLevel = struct
 							let options = Warning.from_meta d.d_meta in
 							module_warning com ctx_m.m.curmod WDeprecatedEnumAbstract options "`@:enum abstract` is deprecated in favor of `enum abstract`" p;
 							Option.may (fun (fix_p,text) ->
-								add_fix com WDeprecatedEnumAbstract options "Use enum abstract" fix_p text
+								add_fix com ctx_m.m.curmod WDeprecatedEnumAbstract options "Use enum abstract" fix_p text
 							) (SourceText.meta_to_keyword p (snd d.d_name) "abstract" "enum abstract")
 					end;
 					add_declaration decl (TAbstractDecl a);

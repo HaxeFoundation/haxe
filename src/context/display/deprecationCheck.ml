@@ -120,7 +120,7 @@ let add_fix_from_template dctx cf (template,since) e_this args p =
 		(* Duplicating or dropping an argument changes how often its side effects run. *)
 		let safe = List.for_all (fun (n,e) -> is_pure e || (try Hashtbl.find uses n with Not_found -> 0) = 1) given in
 		let options = Warning.from_meta (dctx.class_meta @ dctx.field_meta) in
-		add_fix_since dctx.com ~safe WDeprecated options ("Replace deprecated " ^ cf.cf_name) p text since
+		add_fix_since dctx.com dctx.curmod ~safe WDeprecated options ("Replace deprecated " ^ cf.cf_name) p text since
 	with Not_fixable ->
 		()
 
@@ -154,7 +154,7 @@ let add_is_access_fix dctx cf p =
 		in
 		if separated && SourceText.read p = Some "is" then begin
 			let options = Warning.from_meta (dctx.class_meta @ dctx.field_meta) in
-			add_fix dctx.com ~safe:false ~requires WDeprecated options ("Rename to " ^ name) p name
+			add_fix dctx.com dctx.curmod ~safe:false ~requires WDeprecated options ("Rename to " ^ name) p name
 		end
 	| _ ->
 		()
@@ -242,7 +242,7 @@ let rename_is_locals dctx c e =
 		let name = fresh 1 in
 		let options = Warning.from_meta (dctx.class_meta @ dctx.field_meta) in
 		let fix p =
-			if SourceText.read p = Some "is" then add_fix dctx.com WDeprecated options ("Rename to " ^ name) p name
+			if SourceText.read p = Some "is" then add_fix dctx.com dctx.curmod WDeprecated options ("Rename to " ^ name) p name
 		in
 		Hashtbl.iter (fun _ v -> fix v.v_pos) vars;
 		let rec uses e =
@@ -268,7 +268,7 @@ let rename_is_field dctx cf =
 	match Hashtbl.find_opt dctx.is_renames (name_key cf) with
 	| Some (name,requires) ->
 		let options = Warning.from_meta (dctx.class_meta @ cf.cf_meta) in
-		add_fix dctx.com ~safe:false ~requires WDeprecated options ("Rename to " ^ name) cf.cf_name_pos name
+		add_fix dctx.com dctx.curmod ~safe:false ~requires WDeprecated options ("Rename to " ^ name) cf.cf_name_pos name
 	| None ->
 		()
 

@@ -210,7 +210,7 @@ let partial_resolution_fix ctx pack name p =
 		let new_path = s_type_path (t_infos mt).mt_module.m_path ^ "." ^ name in
 		begin match SourceText.read p with
 		| Some s when ExtString.String.starts_with s old_path ->
-			Common.add_error_fix ctx.com ("Use " ^ new_path) { p with pmax = p.pmin + String.length old_path } new_path
+			Common.add_error_fix ctx.com ctx.m.curmod ("Use " ^ new_path) { p with pmax = p.pmin + String.length old_path } new_path
 		| _ ->
 			()
 		end;
@@ -445,7 +445,7 @@ and deprecated_alias_fix' ctx td p =
 		&& List.length tl = List.length td.t_params && List.for_all2 same_param tl td.t_params ->
 		let options = Warning.from_meta ctx.f.curfield.cf_meta @ Warning.from_meta ctx.c.curclass.cl_meta in
 		let text = written_type_path mt in
-		add_fix ctx.com WDeprecated options ("Use " ^ text) p text
+		add_fix ctx.com ctx.m.curmod WDeprecated options ("Use " ^ text) p text
 	| _ ->
 		()
 
