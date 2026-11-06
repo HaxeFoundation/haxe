@@ -1,0 +1,5 @@
+-cp bin
+--main Changed
+--macro Changer.init()
+--fix-diff
+--no-output

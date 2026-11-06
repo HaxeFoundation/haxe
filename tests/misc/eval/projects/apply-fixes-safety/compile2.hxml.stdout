@@ -1,0 +1,10 @@
+--- Main.hx
++++ Main.hx
+@@ -23,6 +23,6 @@
+ 
+ 	static function main() {
+ 		var a = 1;
+-		trace(Old.double(a), Old.double(next()), Old.nothing(2), Old.nothing(next()));
++		trace(Old.twice(a, a), Old.twice(next(), next()), 0, 0);
+ 	}
+ }

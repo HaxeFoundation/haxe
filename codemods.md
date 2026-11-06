@@ -106,8 +106,15 @@ They are collected per compilation (`part_scope.fixes`). Sources of fixes:
 Fixes attached to warnings are only made when the warning is enabled at that position, so disabling a
 warning (`-w`, `@:haxe.warning`) also keeps its fix from being applied.
 
-Later: a safety flag on each fix (Rust's machine-applicable vs maybe-incorrect), with only safe fixes
-applied by default.
+Each fix is safe or unsafe (Rust's machine-applicable vs maybe-incorrect, Ruff's safe and unsafe
+fixes). `--fix` only applies safe fixes; `--fix-unsafe` applies both, and the compiler says how many
+unsafe fixes were skipped otherwise. Unsafe fixes:
+
+- Templates that duplicate or drop an argument with side effects: `@:deprecated(.., Old.twice(x, x))`
+  is safe on `Old.double(a)` but not on `Old.double(next())`, where `next()` would run twice. Arguments
+  are pure when they are constants, locals, type expressions, functions, or field accesses on those.
+- Renamed fields (`is`, see Haxe 5 breaking changes): uses the compiler doesn't type (reflection,
+  `Dynamic` accesses, code in other `#if` branches, other projects using the library) are missed.
 
 ### Applying
 
@@ -119,6 +126,8 @@ applied by default.
 | `--fix-passes <n>` | `apply-fixes.passes` | Compile again while fixes were applied, up to n compilations |
 | `--fix-compat <version>` | `apply-fixes.compat` | Skip fixes needing a newer Haxe version |
 | `--fix-allow-dirty` | `apply-fixes.allow-dirty` | Also change files with uncommitted changes or outside of git |
+| `--fix-unsafe` | `apply-fixes.unsafe` | Also apply unsafe fixes |
+| `--fix-only <warnings>` | `apply-fixes.only` | Only apply the fixes of these warnings or warning groups, and of errors |
 
 The arguments only set the defines, so macros can tell a migration is running
 (`Context.defined("apply-fixes")`); their order doesn't matter (`--fix-scope lib --fix` keeps the scope).
@@ -146,8 +155,15 @@ ESLint's `--fix`/`--fix-dry-run`, Ruff's `--fix`/`--diff`/`--unsafe-fixes`, Dart
   invalidated between passes.
 - `--fix-diff` paths are as the compiler knows them, so the diff applies with `git apply -p0` or
   `patch -p0`. Only the first pass can be shown, since later passes depend on the files changing.
-- Later: `--fix-only <warnings>` to pick fixes by warning, in `-w` syntax (like Ruff's `--select` or
-  Dart's `--code`), and a safe/unsafe split (Ruff's `--unsafe-fixes`, RuboCop's `-a`/`-A`).
+- `--fix-only` takes comma-separated warning names, groups included (`--fix-only WMigration`), like
+  Ruff's `--select` or Dart's `--code`. Fixes of errors are always applied: the code doesn't compile
+  without them.
+- Files changed since the compilation started (by an editor, or a macro) are not changed, and the
+  compiler says how many fixes were skipped: their positions may not match anymore. Their modification
+  time is compared with the start of the compilation; with the compilation server, cached files were
+  checked at that point.
+- A fix can require other files to be in scope: a renamed field's uses are only renamed when all the
+  declarations of the field (overridden and implemented ones included) can be renamed too.
 
 ### Warning scopes
 
@@ -195,8 +211,16 @@ From the 5.0.0-preview.1 changelog, compared with Haxe 4.3.7:
 | Java/C# targets | | | Not a source edit | | |
 
 Deprecations still warning in Haxe 5 are handled too: `@:final`, `@:extern` and `@:enum abstract`, the
-std `@:deprecated` fields with a direct replacement, and deprecated typedef aliases (see Fixes). `is` as
-an identifier (only warned with `-D haxe-next`) would need a rename through find references; not done.
+std `@:deprecated` fields with a direct replacement, and deprecated typedef aliases (see Fixes).
+
+`is` as an identifier (only warned with `-D haxe-next`) is renamed to `isValue` (or `isValue2`, ...,
+avoiding the names in use):
+
+- Locals and arguments, with their uses (safe).
+- Fields, with the uses the compiler types (unsafe). Fields that override or implement each other are
+  renamed together, and only when none is extern or `@:native` and all are in the fix scope: a class
+  overriding a library's `is` keeps it. Fields of anonymous structures and `import Foo.is` are not
+  renamed.
 
 The enum constructor case shows the general pattern: the fix is made where Haxe 5 decides differently,
 by computing what Haxe 4 would have done there. Identifiers heading a field access (`Foo.v`) are not
@@ -310,10 +334,11 @@ Specs aren't ready, but if metadata gets declared signatures, `@:deprecated` imp
   capping.
 - `src/context/sourceText.ml`: code point to byte offsets, reading a position's source text, meta to
   keyword rewrites.
-- `src/context/display/deprecationCheck.ml`: templates on calls and accesses.
+- `src/context/display/deprecationCheck.ml`: templates on calls and accesses, `is` renames.
 - `src/typing/calls.ml`: templates on inline calls.
 - `src/compiler/applyFixes.ml`: file selection (class path kinds, libraries, paths), compatibility
-  target, overlap handling, writing files, dry mode (unified diff built from the edit ranges).
+  target, safety, `--fix-only`, files changed during the compilation, overlap handling, writing files,
+  dry mode (unified diff built from the edit ranges).
 - `src/compiler/highLevel.ml`, `src/compiler/args.ml`, `src/core/classPath.ml`: library names on class
   paths, passes.
 - `src/compiler/compiler.ml`: applying after failed compilations, enabling `WMigration`.
@@ -329,15 +354,14 @@ Specs aren't ready, but if metadata gets declared signatures, `@:deprecated` imp
 - `std/**`: replacement templates.
 - Tests in `tests/misc/eval/projects/`: `apply-fixes` (selection, libraries), `apply-fixes-migration`,
   `apply-fixes-dry`, `apply-fixes-partial-resolution`, `apply-fixes-syntax`, `apply-fixes-std`,
-  `apply-fixes-alias`, `apply-fixes-compat`, `apply-fixes-is`, `apply-fixes-dirty`,
+  `apply-fixes-alias`, `apply-fixes-compat`, `apply-fixes-is`, `apply-fixes-is-fields`,
+  `apply-fixes-safety` (unsafe templates, changed files), `apply-fixes-dirty`,
   `build-macro-order-warning`, `lib-deprecation-warnings`, `warning-scopes`,
   `removed-modules`.
-- Unit macro and js, misc (762), server and null safety tests pass.
+- Unit macro, misc (770) and server tests pass.
 
 ## Next steps
 
-1. Safety flag (`--fix` applies safe fixes only, `--fix-unsafe` the others); text check before applying.
-2. `--fix-only <warnings>`.
-3. Library names for lix-resolved libraries.
-4. `is` fields (needs find references).
-5. 4.3.x backport behind `-D haxe-next`.
+1. Library names for lix-resolved libraries.
+2. 4.3.x backport behind `-D haxe-next`.
+3. Fixes of modules served from the compilation server cache: only retyped modules produce fixes.

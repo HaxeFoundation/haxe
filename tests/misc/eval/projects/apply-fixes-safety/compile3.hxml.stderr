@@ -1,0 +1,2 @@
+bin/Changed.hx:3: characters 3-9 : Warning : (WDeprecated) Std.is is deprecated. Use Std.isOfType instead.
+Warning : 1 fix was skipped: its file changed during the compilation

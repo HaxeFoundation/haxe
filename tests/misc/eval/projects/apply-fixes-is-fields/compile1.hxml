@@ -1,0 +1,7 @@
+-cp src
+-cp lib
+--main Main
+-D haxe-next
+--fix-scope src
+--fix-diff
+--no-output
