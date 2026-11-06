@@ -25,4 +25,13 @@ class TestLock extends ThreadTestBase {
 		Assert.pass();
 		async.done();
 	}
+
+	function testLockNoTimeout(async:Async) {
+		final lock = new Lock();
+		Thread.create(() -> {
+			lock.release();
+		});
+		isTrue(lock.wait());
+		async.done();
+	}
 }
