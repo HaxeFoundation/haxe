@@ -145,7 +145,7 @@ object(self)
 						Naming.check_local_variable_name ctx.com name TVOArgument pn;
 						if name <> "_" then begin match List.find_opt (fun (v,_) -> v.v_name = name) acc with
 							| Some (v,_) ->
-								Common.add_error_fix ctx.com "Rename the unused argument to _" v.v_pos "_";
+								Common.add_error_fix ctx.com ctx.m.curmod "Rename the unused argument to _" v.v_pos "_";
 								raise_typing_error ("Duplicate argument name \"" ^ name ^ "\"") pn
 							| None ->
 								()

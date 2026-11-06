@@ -163,7 +163,7 @@ ESLint's `--fix`/`--fix-dry-run`, Ruff's `--fix`/`--diff`/`--unsafe-fixes`, Dart
   time is compared with the start of the compilation; with the compilation server, cached files were
   checked at that point.
 - With the compilation server, modules served from the cache aren't typed again. Fixes are bound to
-  the module of their file, like warnings (`m_cache_bound_objects`), and replayed with it, checking the
+  the module being typed when they are recorded, like warnings (`m_cache_bound_objects`), and replayed with it, checking the
   current `-w` options again.
 - A fix can require other files to be in scope: a renamed field's uses are only renamed when all the
   declarations of the field (overridden and implemented ones included) can be renamed too.

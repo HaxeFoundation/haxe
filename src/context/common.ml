@@ -427,26 +427,16 @@ let push_fix com fix =
 	if not exists then com.part_scope.fixes <- fix :: com.part_scope.fixes;
 	not exists
 
-(* Like warnings, fixes are bound to the module of their file, to be replayed when it comes from the server cache. *)
-let cache_fix com fix options =
-	if com.display.dms_full_typing then begin
-		let key = com.part_scope.file_keys#get fix.fix_range.pfile in
-		try
-			com.module_lut#iter (fun _ m ->
-				if Path.UniqueKey.lazy_key m.m_extra.m_file = key then begin
-					DynArray.add m.m_extra.m_cache_bound_objects (Fix(fix,options));
-					raise Exit
-				end
-			)
-		with Exit ->
-			()
-	end
+(* Like warnings, fixes are bound to the module being typed, to be replayed when it comes from the server cache. *)
+let cache_fix com m fix options =
+	if com.display.dms_full_typing && m != null_module then
+		DynArray.add m.m_extra.m_cache_bound_objects (Fix(fix,options))
 
 let fix_enabled com fix options = match fix.fix_warning with
 	| None -> true
 	| Some w -> Warning.get_mode w (options @ com.warning_options) = WMEnable
 
-let record_fix com ?(safe=true) ?(requires=[]) w options reason p text since =
+let record_fix com m ?(safe=true) ?(requires=[]) w options reason p text since =
 	let fix = {
 		fix_reason = reason;
 		fix_range = p;
@@ -456,19 +446,19 @@ let record_fix com ?(safe=true) ?(requires=[]) w options reason p text since =
 		fix_safe = safe;
 		fix_requires = requires;
 	} in
-	if fix_enabled com fix options && push_fix com fix then cache_fix com fix options
+	if fix_enabled com fix options && push_fix com fix then cache_fix com m fix options
 
 let replay_fix com fix options =
 	if fix_enabled com fix options then ignore (push_fix com fix)
 
-let add_error_fix com reason p text =
-	record_fix com None [] reason p text None
+let add_error_fix com m reason p text =
+	record_fix com m None [] reason p text None
 
-let add_fix_since com ?safe ?requires w options reason p text since =
-	record_fix com ?safe ?requires (Some w) options reason p text since
+let add_fix_since com m ?safe ?requires w options reason p text since =
+	record_fix com m ?safe ?requires (Some w) options reason p text since
 
-let add_fix com ?safe ?requires w options reason p text =
-	add_fix_since com ?safe ?requires w options reason p text None
+let add_fix com m ?safe ?requires w options reason p text =
+	add_fix_since com m ?safe ?requires w options reason p text None
 
 let scoped_warning_mode com w p =
 	match com.scoped_warning_options with

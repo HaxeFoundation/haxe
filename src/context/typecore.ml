@@ -382,7 +382,7 @@ let warning_with_fix ctx w msg p reason fix_p text =
 	match Warning.get_mode w options with
 	| WMEnable ->
 		module_warning ctx.com ctx.m.curmod w options msg p;
-		add_fix ctx.com w options reason fix_p text
+		add_fix ctx.com ctx.m.curmod w options reason fix_p text
 	| WMDisable ->
 		()
 
