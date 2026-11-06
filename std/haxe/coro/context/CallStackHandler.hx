@@ -13,13 +13,10 @@ interface ISynchronousRun {
 	function complete():Void;
 }
 /**
-	An abstract context element that handles exception stack trace management for coroutines.
-	`BaseContinuation.startException` and `BaseContinuation.buildCallStack` delegate to this element.
-
-	The default implementation is `DefaultExceptionHandler`.
+	A context element that builds the call stacks of exceptions thrown in coroutines.
 **/
-abstract class ExceptionHandler implements IElement<ExceptionHandler> {
-	public static final key = new Key<ExceptionHandler>('ExceptionHandler');
+abstract class CallStackHandler implements IElement<CallStackHandler> {
+	public static final key = new Key<CallStackHandler>('CallStackHandler');
 
 	abstract public function startSynchronousRun(context:Context, p:PosInfos):ISynchronousRun;
 
