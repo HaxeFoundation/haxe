@@ -215,8 +215,14 @@
 	{
 		"name": "Deprecated",
 		"metadata": ":deprecated",
-		"doc": "Mark a type or field as deprecated. The second argument is an optional replacement for calls to a function, or accesses to a variable, where the names of the function arguments and `this` refer to the corresponding expressions. The third argument is the oldest Haxe version accepting the replacement, if it is newer than the oldest supported one.",
-		"params": ["Message", "Replacement", "Since"]
+		"doc": "Mark a type or field as deprecated."
+	},
+	{
+		"name": "DeprecatedReplace",
+		"metadata": ":deprecated.replace",
+		"doc": "Replacement for calls to a deprecated function, or accesses to a deprecated variable, applied by `--fix`. The names of the function arguments and `this` refer to the corresponding expressions. The second argument is the oldest Haxe version accepting the replacement. Can be repeated: the newest replacement allowed by `--fix-compat` is used.",
+		"params": ["Replacement", "Since"],
+		"targets": ["TClassField"]
 	},
 	{
 		"name": "DirectlyUsed",

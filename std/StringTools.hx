@@ -560,7 +560,8 @@ class StringTools {
 		The input will be quoted, or escaped if necessary.
 	**/
 	@:noCompletion
-	@:deprecated('StringTools.quoteUnixArg() is deprecated. Use haxe.SysTools.quoteUnixArg() instead.', haxe.SysTools.quoteUnixArg(argument))
+	@:deprecated('StringTools.quoteUnixArg() is deprecated. Use haxe.SysTools.quoteUnixArg() instead.')
+	@:deprecated.replace(haxe.SysTools.quoteUnixArg(argument))
 	public static function quoteUnixArg(argument:String):String {
 		return inline haxe.SysTools.quoteUnixArg(argument);
 	}
@@ -569,7 +570,8 @@ class StringTools {
 		Character codes of the characters that will be escaped by `quoteWinArg(_, true)`.
 	**/
 	@:noCompletion
-	@:deprecated('StringTools.winMetaCharacters is deprecated. Use haxe.SysTools.winMetaCharacters instead.', haxe.SysTools.winMetaCharacters)
+	@:deprecated('StringTools.winMetaCharacters is deprecated. Use haxe.SysTools.winMetaCharacters instead.')
+	@:deprecated.replace(haxe.SysTools.winMetaCharacters)
 	public static var winMetaCharacters:Array<Int> = cast haxe.SysTools.winMetaCharacters;
 
 	/**
@@ -586,7 +588,8 @@ class StringTools {
 		```
 	**/
 	@:noCompletion
-	@:deprecated('StringTools.quoteWinArg() is deprecated. Use haxe.SysTools.quoteWinArg() instead.', haxe.SysTools.quoteWinArg(argument, escapeMetaCharacters))
+	@:deprecated('StringTools.quoteWinArg() is deprecated. Use haxe.SysTools.quoteWinArg() instead.')
+	@:deprecated.replace(haxe.SysTools.quoteWinArg(argument, escapeMetaCharacters))
 	public static function quoteWinArg(argument:String, escapeMetaCharacters:Bool):String {
 		return inline haxe.SysTools.quoteWinArg(argument, escapeMetaCharacters);
 	}

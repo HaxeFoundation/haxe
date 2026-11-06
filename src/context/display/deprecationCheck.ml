@@ -29,7 +29,7 @@ let warn_deprecation dctx s p_usage =
 
 let print_deprecation_message dctx meta s p_usage =
 	let s = match meta with
-		| _,(EConst(String(s,_)),_) :: _,_ -> s
+		| _,[EConst(String(s,_)),_],_ -> s
 		| _ -> Printf.sprintf "Usage of this %s is deprecated" s
 	in
 	warn_deprecation dctx s p_usage
@@ -62,10 +62,13 @@ let rec is_atomic e = match e.eexpr with
 
 exception Not_fixable
 
-let replacement_template cf = match Meta.get Meta.Deprecated cf.cf_meta with
-	| _,[_;template],_ -> Some (template,None)
-	| _,[_;template;(EConst(String(since,_)),_)],_ -> Some (template,Some since)
-	| _ | exception Not_found -> None
+let replacement_templates cf =
+	if not (Meta.has Meta.Deprecated cf.cf_meta) then []
+	else List.filter_map (function
+		| Meta.DeprecatedReplace,[template],_ -> Some (template,None)
+		| Meta.DeprecatedReplace,[template;(EConst(String(since,_)),_)],_ -> Some (template,Some since)
+		| _ -> None
+	) cf.cf_meta
 
 let rec is_pure e = match e.eexpr with
 	| TConst _ | TLocal _ | TTypeExpr _ | TFunction _ -> true
@@ -73,7 +76,7 @@ let rec is_pure e = match e.eexpr with
 	| TField(e1,(FStatic _ | FInstance _ | FAnon _ | FClosure _ | FEnum _)) -> is_pure e1
 	| _ -> false
 
-let add_fix_from_template dctx cf (template,since) e_this args p =
+let choice_of_template (template,since) e_this args p =
 	let in_range ep = ep <> p && ep.pfile = p.pfile && ep.pmin >= p.pmin && ep.pmax <= p.pmax in
 	let text_of e () =
 		if not (in_range e.epos) then raise Not_fixable;
@@ -119,26 +122,33 @@ let add_fix_from_template dctx cf (template,since) e_this args p =
 		let text = Ast.Printer.s_expr (subst false template) in
 		(* Duplicating or dropping an argument changes how often its side effects run. *)
 		let safe = List.for_all (fun (n,e) -> is_pure e || (try Hashtbl.find uses n with Not_found -> 0) = 1) given in
-		let options = Warning.from_meta (dctx.class_meta @ dctx.field_meta) in
-		add_fix_since dctx.com dctx.curmod ~safe WDeprecated options ("Replace deprecated " ^ cf.cf_name) p text since
+		Some (choice ~safe ?since text)
 	with Not_fixable ->
+		None
+
+let add_fix_from_templates dctx cf templates e_this args p =
+	match List.filter_map (fun template -> choice_of_template template e_this args p) templates with
+	| [] ->
 		()
+	| choices ->
+		let options = Warning.from_meta (dctx.class_meta @ dctx.field_meta) in
+		add_fix_choices dctx.com dctx.curmod WDeprecated options ("Replace deprecated " ^ cf.cf_name) p choices
 
 let add_replacement_fix dctx cf e_this el p_call =
-	match replacement_template cf,follow cf.cf_type with
-	| Some template,TFun(args,_) ->
+	match replacement_templates cf,follow cf.cf_type with
+	| (_ :: _) as templates,TFun(args,_) ->
 		let rec bind names el = match names,el with
 			| (n,_,_) :: names,e :: el -> (n,Some e) :: bind names el
 			| (n,_,_) :: names,[] -> (n,None) :: bind names []
 			| [],_ -> []
 		in
-		add_fix_from_template dctx cf template e_this (bind args el) p_call
+		add_fix_from_templates dctx cf templates e_this (bind args el) p_call
 	| _ ->
 		()
 
 let add_access_fix dctx cf e_this p =
-	match replacement_template cf,cf.cf_kind with
-	| Some template,Var _ -> add_fix_from_template dctx cf template e_this [] p
+	match replacement_templates cf,cf.cf_kind with
+	| (_ :: _) as templates,Var _ -> add_fix_from_templates dctx cf templates e_this [] p
 	| _ -> ()
 
 let name_key cf = (cf.cf_name_pos.pfile,cf.cf_name_pos.pmin)

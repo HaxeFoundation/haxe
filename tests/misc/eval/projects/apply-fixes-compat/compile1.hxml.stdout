@@ -1,10 +1,10 @@
 --- Main.hx
 +++ Main.hx
-@@ -12,6 +12,6 @@
+@@ -19,6 +19,6 @@
  
  class Main {
  	static function main() {
--		trace(Old.next(1), Old.before(2));
-+		trace(Old.next(1), Old.now(2));
+-		trace(Old.next(1), Old.before(2), Old.either(3));
++		trace(Old.next(1), Old.now(2), Old.now(3));
  	}
  }

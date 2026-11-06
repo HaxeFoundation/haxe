@@ -26,7 +26,8 @@ using StringTools;
 
 @:coreApi
 class Std {
-	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.', Std.isOfType(v, t))
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
+	@:deprecated.replace(Std.isOfType(v, t))
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {
 		return isOfType(v, t);
 	}
@@ -186,7 +187,8 @@ class Std {
 		return Std.isOfType(value, c) ? cast value : null;
 	}
 
-	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.', Std.downcast(value, c))
+	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
+	@:deprecated.replace(Std.downcast(value, c))
 	inline public static function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return downcast(value, c);
 	}

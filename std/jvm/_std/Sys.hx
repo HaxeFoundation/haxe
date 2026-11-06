@@ -138,7 +138,7 @@ using jvm.NativeTools;
 		return cast(System.nanoTime(), Float) / 1000000000;
 	}
 
-	@:deprecated("Use programPath instead", Sys.programPath()) public static function executablePath():String {
+	@:deprecated("Use programPath instead") @:deprecated.replace(Sys.programPath()) public static function executablePath():String {
 		return getCwd();
 	}
 

@@ -145,17 +145,18 @@ let json_of_diagnostics com dctx =
 			Hashtbl.replace diagnostics file (diag :: fdiag)
 	in
 	let file_keys = new Common.file_keys in
-	let add dk p sev code args =
-		let append = match dk with
-			| DKUnusedImport
+	let add ?append dk p sev code args =
+		let append = match append,dk with
+			| Some append,_ -> append
+			| None,(DKUnusedImport
 			| DKReplacableCode
 			| DKDeprecationWarning
-			| DKInactiveBlock ->
+			| DKInactiveBlock) ->
 				false
-			| DKUnresolvedIdentifier
+			| None,(DKUnresolvedIdentifier
 			| DKCompilerMessage
 			| DKParserError
-			| DKMissingFields ->
+			| DKMissingFields) ->
 				true
 		in
 		if p = null_pos || is_diagnostics_file com (file_keys#get p.pfile) then begin
@@ -263,11 +264,17 @@ let json_of_diagnostics com dctx =
 		])
 	) dctx.replaceable_code;
 	List.iter (fun f ->
-		add DKReplacableCode f.fix_range MessageSeverity.Warning None (JObject [
-			"description",JString f.fix_reason;
-			"newCode",JString f.fix_text;
-			"range",Genjson.generate_pos_as_range f.fix_range
-		])
+		List.iteri (fun i c ->
+			let description = match c.fc_since,f.fix_choices with
+				| Some since,_ :: _ :: _ -> Printf.sprintf "%s (Haxe %s)" f.fix_reason since
+				| _ -> f.fix_reason
+			in
+			add ~append:(i > 0) DKReplacableCode f.fix_range MessageSeverity.Warning None (JObject [
+				"description",JString description;
+				"newCode",JString c.fc_text;
+				"range",Genjson.generate_pos_as_range f.fix_range
+			])
+		) f.fix_choices
 	) com.part_scope.fixes;
 	Hashtbl.iter (fun file ranges ->
 		List.iter (fun (p,e) ->

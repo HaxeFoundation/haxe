@@ -1,6 +1,6 @@
 --- Main.hx
 +++ Main.hx
-@@ -23,6 +23,6 @@
+@@ -25,6 +25,6 @@
  
  	static function main() {
  		var a = 1;

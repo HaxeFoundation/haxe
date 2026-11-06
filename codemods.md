@@ -48,30 +48,55 @@ versions are not realistic for Haxe (see Rejected alternatives). What remains:
 A fix is a text edit attached to a compiler message:
 
 ```ocaml
+type fix_choice = {
+	fc_text : string;
+	fc_since : string option; (* oldest Haxe version accepting fc_text *)
+	fc_safe : bool;
+}
+
 type fix = {
 	fix_reason : string;
 	fix_range : pos;
-	fix_text : string;
-	fix_since : string option; (* oldest Haxe version accepting fix_text *)
+	fix_choices : fix_choice list;
+	fix_warning : warning option; (* None for errors *)
+	fix_requires : string list; (* files that must be in the fix scope *)
+	fix_time : float; (* file time when it was loaded *)
 }
 ```
 
 They are collected per compilation (`part_scope.fixes`). Sources of fixes:
 
-1. **Declared replacements**: `@:deprecated` takes the replacement as second argument. On a function,
-   it replaces calls, and the function's argument names and `this` refer to the expressions of the
-   call. On a variable or property, it replaces accesses, with `this` referring to the receiver. An
-   optional third argument gives the oldest Haxe version accepting the replacement:
+1. **Declared replacements**: `@:deprecated.replace` gives the replacement of a deprecated field. On
+   a function, it replaces calls, and the function's argument names and `this` refer to the expressions
+   of the call. On a variable or property, it replaces accesses, with `this` referring to the receiver.
+   An optional second argument gives the oldest Haxe version accepting the replacement:
 
    ```haxe
-   @:deprecated('Std.is is deprecated. Use Std.isOfType instead.', Std.isOfType(v, t))
+   @:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
+   @:deprecated.replace(Std.isOfType(v, t))
    static function is(v:Dynamic, t:Dynamic):Bool;
 
-   @:deprecated("Use high instead", x.high)
+   @:deprecated("Use high instead")
+   @:deprecated.replace(x.high)
    public static inline function getHigh(x:Int64):Int32;
 
-   @:deprecated("Use haxe.EventLoop.getThreadLoop(thread) instead", haxe.EventLoop.getThreadLoop(this), "5.0.0")
+   @:deprecated("Use haxe.EventLoop.getThreadLoop(thread) instead")
+   @:deprecated.replace(haxe.EventLoop.getThreadLoop(this), "5.0.0")
    public var events(get, null):Null<haxe.EventLoop>;
+   ```
+
+   It is a separate metadata so that older compilers keep the message: Haxe 4.2, 4.3 and the
+   development builds before it only use the `@:deprecated` message when it is the only argument, and
+   print `Usage of this field is deprecated` otherwise. Unknown metadata is ignored by them.
+
+   It can be repeated to give alternatives for different Haxe versions. The fix uses the newest one
+   allowed by `--fix-compat` (see Compatibility), and the IDE offers each of them as a quick fix:
+
+   ```haxe
+   @:deprecated("use future, or now before Haxe 6")
+   @:deprecated.replace(Old.future(x), "6.0.0")
+   @:deprecated.replace(Old.now(x))
+   public static function either(x:Int):Int;
    ```
 
    The source text of each argument is reused verbatim. It is wrapped in parentheses where the template
@@ -110,7 +135,7 @@ Each fix is safe or unsafe (Rust's machine-applicable vs maybe-incorrect, Ruff's
 fixes). `--fix` only applies safe fixes; `--fix-unsafe` applies both, and the compiler says how many
 unsafe fixes were skipped otherwise. Unsafe fixes:
 
-- Templates that duplicate or drop an argument with side effects: `@:deprecated(.., Old.twice(x, x))`
+- Templates that duplicate or drop an argument with side effects: `@:deprecated.replace(Old.twice(x, x))`
   is safe on `Old.double(a)` but not on `Old.double(next())`, where `next()` would run twice. Arguments
   are pure when they are constants, locals, type expressions, functions, or field accesses on those.
 - Renamed fields (`is`, see Haxe 5 breaking changes): uses the compiler doesn't type (reflection,
@@ -310,14 +335,13 @@ Each warning needs checking against 4.3's typer, since the code paths differ fro
 Libraries usually have to keep compiling with Haxe 4 while they migrate, so a fix must not introduce
 code that only Haxe 5 accepts, unless the user says so.
 
-- Each fix can declare the oldest Haxe version accepting its replacement (`fix_since`); templates give
-  it as third `@:deprecated` argument.
-- `--fix-compat 4.3` gives the oldest version the code must keep compiling with. Fixes needing
-  a newer version are skipped, with a note telling how many and which versions they need. Without it,
-  the fixes target the current compiler.
-- Later, a too recent fix could be replaced by an alternative instead of skipped: a different
-  replacement older versions accept, or `#if (haxe >= version("5.0.0")) new #else old #end` as a last
-  resort.
+- Each choice of a fix can declare the oldest Haxe version accepting it (`fc_since`); templates give
+  it as second `@:deprecated.replace` argument.
+- `--fix-compat 4.3` gives the oldest version the code must keep compiling with. The newest choice it
+  allows is applied; a fix without any is skipped, with a note telling how many and which versions they
+  need. Without it, the fixes target the current compiler.
+- A fix with no compatible choice could later fall back to
+  `#if (haxe >= version("5.0.0")) new #else old #end`.
 
 All the fixes so far are compatible with Haxe 4 except `Thread.events` (`haxe.EventLoop` is new in
 Haxe 5): `Std.isOfType`, `Std.downcast`, `haxe.SysTools`, `Sys.programPath` and `js.lib.*` exist in 4.3,
@@ -354,12 +378,11 @@ Specs aren't ready, but if metadata gets declared signatures, `@:deprecated` imp
   of broken rewrites in users' code.
 - **Hygiene**: identifiers in the typed template are resolved at the declaration. The fix can then print
   fully qualified paths, or add the imports it needs, instead of relying on the call site's scope.
-- **Structured arguments**: a declared signature such as
-  `(message:String, ?replacement:Expr, ?since:String)` validates the arguments (`since` being the
-  minimum Haxe version of the replacement, see Compatibility), instead of the compiler
-  guessing from positional expressions.
+- **Structured arguments**: a declared signature such as `(replacement:Expr, ?since:String)` for
+  `@:deprecated.replace` validates the arguments (`since` being the minimum Haxe version of the
+  replacement, see Compatibility), instead of the compiler guessing from positional expressions.
 - **Library-defined migrations**: libraries could declare their own typed metas that the compiler
-  recognizes as fix providers, e.g. for renamed types (`@:deprecated(..., NewName)` on a typedef or
+  recognizes as fix providers, e.g. for renamed types (`@:deprecated.replace(NewName)` on a typedef or
   class) or moved fields.
 - **IDE support**: completion and hover inside meta arguments come for free with typed arguments.
 
@@ -401,4 +424,4 @@ Specs aren't ready, but if metadata gets declared signatures, `@:deprecated` imp
   `build-macro-order-warning`, `lib-deprecation-warnings`, `warning-scopes`,
   `removed-modules`.
 - `tests/server/src/cases/ApplyFixes.hx`: fixes of cached modules.
-- Unit macro, misc (783) and server tests pass.
+- Unit macro and js, misc (784), server and null safety tests pass.

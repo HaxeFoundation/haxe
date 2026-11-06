@@ -3,12 +3,14 @@ class Old {
 		return x + y;
 	}
 
-	@:deprecated("use twice", Old.twice(x, x))
+	@:deprecated("use twice")
+	@:deprecated.replace(Old.twice(x, x))
 	public static function double(x:Int) {
 		return x * 2;
 	}
 
-	@:deprecated("use zero", 0)
+	@:deprecated("use zero")
+	@:deprecated.replace(0)
 	public static function nothing(x:Int) {
 		return 0;
 	}

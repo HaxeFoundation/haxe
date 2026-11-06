@@ -42,7 +42,7 @@ class Sys {
 	public static inline function getChar(echo:Bool):Int return lua.Io.read().charCodeAt(0);
 	public static function systemName():String return lua.Boot.systemName();
 	public static function environment():Map<String, String> return notImplemented();
-	@:deprecated("Use programPath instead", Sys.programPath()) public static function executablePath():String return notImplemented();
+	@:deprecated("Use programPath instead") @:deprecated.replace(Sys.programPath()) public static function executablePath():String return notImplemented();
 	public static inline function programPath():String return haxe.io.Path.join([getCwd(), Lua.arg[0]]);
 	public static function getCwd():String return notImplemented();
 	public static function setCwd(s:String):Void notImplemented();
@@ -118,7 +118,7 @@ class Sys {
 		return lua.Table.toMap(env);
 	}
 
-	@:deprecated("Use programPath instead", Sys.programPath()) public static function executablePath():String {
+	@:deprecated("Use programPath instead") @:deprecated.replace(Sys.programPath()) public static function executablePath():String {
 		return Misc.exepath();
 	}
 

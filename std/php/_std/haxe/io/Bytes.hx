@@ -126,7 +126,8 @@ class Bytes {
 		}
 	}
 
-	@:deprecated("readString is deprecated, use getString instead", this.getString(pos, len))
+	@:deprecated("readString is deprecated, use getString instead")
+	@:deprecated.replace(this.getString(pos, len))
 	@:noCompletion
 	public inline function readString(pos:Int, len:Int):String {
 		return getString(pos, len);

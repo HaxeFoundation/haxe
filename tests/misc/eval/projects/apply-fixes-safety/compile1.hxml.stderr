@@ -1,5 +1,5 @@
-Main.hx:26: characters 9-19 : Warning : (WDeprecated) use twice
-Main.hx:26: characters 24-34 : Warning : (WDeprecated) use twice
-Main.hx:26: characters 44-55 : Warning : (WDeprecated) use zero
-Main.hx:26: characters 60-71 : Warning : (WDeprecated) use zero
+Main.hx:28: characters 9-19 : Warning : (WDeprecated) use twice
+Main.hx:28: characters 24-34 : Warning : (WDeprecated) use twice
+Main.hx:28: characters 44-55 : Warning : (WDeprecated) use zero
+Main.hx:28: characters 60-71 : Warning : (WDeprecated) use zero
 Warning : 2 unsafe fixes were skipped, review them with --fix-diff --fix-unsafe and apply them with --fix-unsafe

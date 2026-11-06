@@ -5,7 +5,8 @@ class Old {
 		this.n = n;
 	}
 
-	@:deprecated("Use add instead", this.add(x * 2))
+	@:deprecated("Use add instead")
+	@:deprecated.replace(this.add(x * 2))
 	public function twice(x:Int) {
 		return add(x * 2);
 	}
@@ -14,7 +15,8 @@ class Old {
 		return n + x;
 	}
 
-	@:deprecated("Use make instead", Old.make(a, b))
+	@:deprecated("Use make instead")
+	@:deprecated.replace(Old.make(a, b))
 	public static function create(a:Int, ?b:Int) {
 		return make(a, b);
 	}

@@ -248,13 +248,17 @@ module LocalWrapper = struct
 	end
 end
 
+type fix_choice = Message.fix_choice = {
+	fc_text : string;
+	fc_since : string option;
+	fc_safe : bool;
+}
+
 type fix = Message.fix = {
 	fix_reason : string;
 	fix_range : Globals.pos;
-	fix_text : string;
-	fix_since : string option;
+	fix_choices : fix_choice list;
 	fix_warning : WarningList.warning option;
-	fix_safe : bool;
 	fix_requires : string list;
 	fix_time : float;
 }
@@ -458,7 +462,7 @@ let fix_enabled com fix options = match fix.fix_warning with
 	| None -> true
 	| Some w -> Warning.get_mode w (options @ com.warning_options) = WMEnable
 
-let record_fix com m ?(safe=true) ?(requires=[]) w options reason p text since =
+let record_fix com m ?(requires=[]) w options reason p choices =
 	(* The module's time is the file's time when it was parsed. *)
 	let time =
 		if m != null_module && Path.UniqueKey.lazy_key m.m_extra.m_file = com.part_scope.file_keys#get p.pfile then m.m_extra.m_time
@@ -467,26 +471,30 @@ let record_fix com m ?(safe=true) ?(requires=[]) w options reason p text since =
 	let fix = {
 		fix_reason = reason;
 		fix_range = p;
-		fix_text = text;
-		fix_since = since;
+		fix_choices = choices;
 		fix_warning = w;
-		fix_safe = safe;
 		fix_requires = requires;
 		fix_time = time;
 	} in
-	if fix_enabled com fix options && push_fix com fix then cache_fix com m fix options
+	if choices <> [] && fix_enabled com fix options && push_fix com fix then cache_fix com m fix options
 
 let replay_fix com fix options =
 	if fix_enabled com fix options then ignore (push_fix com fix)
 
-let add_error_fix com m reason p text =
-	record_fix com m None [] reason p text None
+let choice ?(safe=true) ?since text = {
+	fc_text = text;
+	fc_since = since;
+	fc_safe = safe;
+}
 
-let add_fix_since com m ?safe ?requires w options reason p text since =
-	record_fix com m ?safe ?requires (Some w) options reason p text since
+let add_error_fix com m reason p text =
+	record_fix com m None [] reason p [choice text]
+
+let add_fix_choices com m ?requires w options reason p choices =
+	record_fix com m ?requires (Some w) options reason p choices
 
 let add_fix com m ?safe ?requires w options reason p text =
-	add_fix_since com m ?safe ?requires w options reason p text None
+	add_fix_choices com m ?requires w options reason p [choice ?safe text]
 
 let scoped_warning_mode com w p =
 	match com.scoped_warning_options with

@@ -65,7 +65,7 @@ let edits_of content fixes =
 	let applied,skipped,_ = List.fold_left (fun (applied,skipped,last) f ->
 		let bmin,bmax = SourceText.byte_range content f.fix_range in
 		if bmin < last || bmax > String.length content then (applied,skipped + 1,last)
-		else ((bmin,bmax,f.fix_text) :: applied,skipped,bmax)
+		else ((bmin,bmax,(List.hd f.fix_choices).fc_text) :: applied,skipped,bmax)
 	) ([],0,0) sorted in
 	List.rev applied,skipped
 
@@ -170,18 +170,25 @@ let run com config =
 	let dry = config.fix_diff in
 	let compat = Option.map parse_version config.fix_compat in
 	let too_recent = ref [] in
-	let compatible f = match compat,f.fix_since with
-		| Some compat,Some since when compare_versions (parse_version since) compat > 0 ->
-			too_recent := since :: !too_recent;
-			false
-		| _ ->
-			true
-	in
 	let unsafe = config.fix_unsafe in
 	let skipped_unsafe = ref 0 in
-	let safe f =
-		if f.fix_safe || unsafe then true
-		else begin incr skipped_unsafe; false end
+	let since_of c = match c.fc_since with Some since -> parse_version since | None -> [] in
+	let choose f =
+		let newest_first = List.stable_sort (fun c1 c2 -> compare_versions (since_of c2) (since_of c1)) f.fix_choices in
+		let compatible = List.filter (fun c -> match compat,c.fc_since with
+			| Some compat,Some since -> compare_versions (parse_version since) compat <= 0
+			| _ -> true
+		) newest_first in
+		match compatible,List.rev newest_first with
+		| [],{fc_since = Some since} :: _ ->
+			too_recent := since :: !too_recent;
+			None
+		| [],_ ->
+			None
+		| _ ->
+			match List.find_opt (fun c -> c.fc_safe || unsafe) compatible with
+			| Some c -> Some { f with fix_choices = [c] }
+			| None -> incr skipped_unsafe; None
 	in
 	let selected f = match config.fix_only,f.fix_warning with
 		| [],_ | _,None -> true
@@ -190,8 +197,8 @@ let run com config =
 	let by_file = Hashtbl.create 0 in
 	List.iter (fun f ->
 		let file = f.fix_range.pfile in
-		if is_target com targets file && List.for_all (is_target com targets) f.fix_requires && selected f && compatible f && safe f then
-			Hashtbl.replace by_file file (f :: (try Hashtbl.find by_file file with Not_found -> []))
+		if is_target com targets file && List.for_all (is_target com targets) f.fix_requires && selected f then
+			Option.may (fun f -> Hashtbl.replace by_file file (f :: (try Hashtbl.find by_file file with Not_found -> []))) (choose f)
 	) com.part_scope.fixes;
 	let files = Hashtbl.fold (fun file fixes acc -> (file,fixes) :: acc) by_file [] in
 	let files = List.sort compare files in

@@ -2,7 +2,7 @@ package cases;
 
 class ApplyFixes extends TestCase {
 	function testCachedModuleFixes(_) {
-		vfs.putContent("Old.hx", "class Old {\n\t@:deprecated(\"use now\", Old.now(x))\n\tpublic static function before(x:Int) return x;\n\n\tpublic static function now(x:Int) return x;\n}");
+		vfs.putContent("Old.hx", "class Old {\n\t@:deprecated(\"use now\")\n\t@:deprecated.replace(Old.now(x))\n\tpublic static function before(x:Int) return x;\n\n\tpublic static function now(x:Int) return x;\n}");
 		vfs.putContent("Main.hx", "class Main {\n\tstatic function main() {\n\t\tOld.before(1);\n\t}\n}");
 		var args = ["--main", "Main", "--fix-diff", "--no-output"];
 		runHaxe(args);

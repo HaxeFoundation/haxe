@@ -152,7 +152,7 @@ import haxe.SysTools;
 		return time() - SuperGlobal._SERVER['REQUEST_TIME'];
 	}
 
-	@:deprecated("Use programPath instead", Sys.programPath()) public static inline function executablePath():String {
+	@:deprecated("Use programPath instead") @:deprecated.replace(Sys.programPath()) public static inline function executablePath():String {
 		return SuperGlobal._SERVER['SCRIPT_FILENAME'];
 	}
 

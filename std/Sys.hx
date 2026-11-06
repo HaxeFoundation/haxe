@@ -149,7 +149,7 @@ extern class Sys {
 	/**
 		Returns the path to the current executable that we are running.
 	**/
-	@:deprecated("Use programPath instead", Sys.programPath()) static function executablePath():String;
+	@:deprecated("Use programPath instead") @:deprecated.replace(Sys.programPath()) static function executablePath():String;
 
 	/**
 		Returns the absolute path to the current program file that we are running.

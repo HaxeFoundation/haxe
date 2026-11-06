@@ -75,7 +75,8 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	public static inline function fromInt(x:Int):Int64
 		return cast x;
 
-	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead', haxe.Int64.isInt64(val))
+	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
+	@:deprecated.replace(haxe.Int64.isInt64(val))
 	inline public static function is(val:Dynamic):Bool
 		return isInt64(val);
 
@@ -285,7 +286,8 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 		return x.low;
 	}
 
-	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead', haxe.Int64.isInt64(val))
+	@:deprecated('haxe.Int64.is() is deprecated. Use haxe.Int64.isInt64() instead')
+	@:deprecated.replace(haxe.Int64.isInt64(val))
 	inline public static function is(val:Dynamic):Bool {
 		return isInt64(val);
 	}
@@ -293,11 +295,13 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	inline public static function isInt64(val:Dynamic):Bool
 		return Std.isOfType(val, __Int64);
 
-	@:deprecated("Use high instead", x.high)
+	@:deprecated("Use high instead")
+	@:deprecated.replace(x.high)
 	public static inline function getHigh(x:Int64):Int32
 		return x.high;
 
-	@:deprecated("Use low instead", x.low)
+	@:deprecated("Use low instead")
+	@:deprecated.replace(x.low)
 	public static inline function getLow(x:Int64):Int32
 		return x.low;
 

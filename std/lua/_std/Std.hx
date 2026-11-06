@@ -25,7 +25,8 @@ import lua.NativeStringTools;
 
 @:keepInit
 @:coreApi class Std {
-	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.', Std.isOfType(v, t))
+	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
+	@:deprecated.replace(Std.isOfType(v, t))
 	public static inline function is(v:Dynamic, t:Dynamic):Bool {
 		return isOfType(v, t);
 	}
@@ -38,7 +39,8 @@ import lua.NativeStringTools;
 		return untyped lua.Boot.__instanceof(value, c) ? cast value : null;
 	}
 
-	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.', Std.downcast(value, c))
+	@:deprecated('Std.instance() is deprecated. Use Std.downcast() instead.')
+	@:deprecated.replace(Std.downcast(value, c))
 	public static inline function instance<T:{}, S:T>(value:T, c:Class<S>):Null<S> {
 		return downcast(value, c);
 	}

@@ -52,13 +52,17 @@ type warning_scope =
 	| WSPath of string
 	| WSPack of string list
 
+type fix_choice = {
+	fc_text : string;
+	fc_since : string option;
+	fc_safe : bool;
+}
+
 type fix = {
 	fix_reason : string;
 	fix_range : Globals.pos;
-	fix_text : string;
-	fix_since : string option;
+	fix_choices : fix_choice list;
 	fix_warning : WarningList.warning option;
-	fix_safe : bool;
 	fix_requires : string list;
 	fix_time : float;
 }

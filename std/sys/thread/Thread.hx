@@ -66,7 +66,8 @@ class Thread {
 	static var idCounter : Int; // TODO: Should probably be an AtomicInt
 	static var globalCallbacks : ThreadCallbackManager;
 
-	@:deprecated("Use haxe.EventLoop.getThreadLoop(thread) instead", haxe.EventLoop.getThreadLoop(this), "5.0.0")
+	@:deprecated("Use haxe.EventLoop.getThreadLoop(thread) instead")
+	@:deprecated.replace(haxe.EventLoop.getThreadLoop(this), "5.0.0")
 	public var events(get, null):Null<haxe.EventLoop>;
 
 	inline function get_events() {
