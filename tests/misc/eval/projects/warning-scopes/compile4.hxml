@@ -1,7 +1,7 @@
 -cp src
 -libcp-of
-mylib
+my-lib
 lib
 --main Main
 --no-output
--w +WDeprecated@lib:mylib
+-w +WDeprecated@lib:my_lib
