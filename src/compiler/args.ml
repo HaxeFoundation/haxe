@@ -95,7 +95,7 @@ let adv_args_descriptions = [
 	("Compilation",           ["--haxelib-global"],    [],                 Arg.Unit ignore, "",                   "pass --global argument to haxelib");
 	("Compilation",           ["-w"],                  [],                 Arg.Unit ignore, "<warning list>",     "enable or disable specific warnings");
 	("Fixes",                 ["--fix"],               [],                 Arg.Unit ignore, "",                   "apply the fixes suggested by warnings and errors to the source files of the user class paths");
-	("Fixes",                 ["--fix-scope"],         [],                 Arg.Unit ignore, "<scopes>",           "apply fixes to these files: user, lib, lib:name, std, all or paths, comma-separated");
+	("Fixes",                 ["--fix-scope"],         [],                 Arg.Unit ignore, "<scopes>",           "apply fixes to these files, comma-separated: user, lib, lib:name, std, all, path:path or pack:dot.path");
 	("Fixes",                 ["--fix-diff"],          [],                 Arg.Unit ignore, "",                   "print the fixes as a unified diff instead of applying them");
 	("Fixes",                 ["--fix-passes"],        [],                 Arg.Unit ignore, "<count>",            "compile again while fixes were applied, up to this number of compilations");
 	("Fixes",                 ["--fix-compat"],        [],                 Arg.Unit ignore, "<version>",          "only apply the fixes whose replacement compiles with this Haxe version");
@@ -431,6 +431,8 @@ let process_args (com : Common.context) =
 		| Fix ->
 			ignore (fix_config com)
 		| FixScope s ->
+			(try ignore (ApplyFixes.parse_targets s)
+			with ApplyFixes.Invalid_target msg -> Error.raise_typing_error msg (fake_pos ("--fix-scope " ^ s)));
 			(fix_config com).fix_scope <- s
 		| FixDiff ->
 			(fix_config com).fix_diff <- true
