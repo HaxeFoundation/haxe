@@ -7,8 +7,11 @@ type target =
 	| Std
 	| Path of string
 
+let split_list value =
+	List.filter (fun s -> s <> "") (List.map String.trim (ExtString.String.nsplit value ","))
+
 let parse_targets value =
-	let entries = List.filter (fun s -> s <> "") (List.map String.trim (ExtString.String.nsplit value ",")) in
+	let entries = split_list value in
 	List.concat_map (function
 		| "1" | "user" -> [User]
 		| "lib" -> [Lib None]
@@ -144,7 +147,10 @@ let rec compare_versions v1 v2 = match v1,v2 with
 	| v1,[] -> compare_versions v1 [0]
 	| n1 :: v1,n2 :: v2 -> if n1 <> n2 then compare n1 n2 else compare_versions v1 v2
 
-let run com =
+let changed_since time file =
+	try (Unix.stat file).Unix.st_mtime >= time with Unix.Unix_error _ -> true
+
+let run com start_time =
 	let targets = parse_targets (Common.defined_value_safe com Define.ApplyFixes) in
 	let dry = Common.defined com Define.ApplyFixesDry in
 	let compat = match Common.defined_value_safe com Define.ApplyFixesCompat with
@@ -159,14 +165,30 @@ let run com =
 		| _ ->
 			true
 	in
+	let unsafe = Common.defined com Define.ApplyFixesUnsafe in
+	let skipped_unsafe = ref 0 in
+	let safe f =
+		if f.fix_safe || unsafe then true
+		else begin incr skipped_unsafe; false end
+	in
+	let only = match Common.defined_value_safe com Define.ApplyFixesOnly with
+		| "" -> None
+		| s -> Some (List.map Warning.from_string (split_list s))
+	in
+	let selected f = match only,f.fix_warning with
+		| None,_ | _,None -> true
+		| Some l,Some w -> List.exists (Warning.matches w) l
+	in
 	let by_file = Hashtbl.create 0 in
 	List.iter (fun f ->
 		let file = f.fix_range.pfile in
-		if is_target com targets file && compatible f then
+		if is_target com targets file && List.for_all (is_target com targets) f.fix_requires && selected f && compatible f && safe f then
 			Hashtbl.replace by_file file (f :: (try Hashtbl.find by_file file with Not_found -> []))
 	) com.part_scope.fixes;
 	let files = Hashtbl.fold (fun file fixes acc -> (file,fixes) :: acc) by_file [] in
 	let files = List.sort compare files in
+	let changed,files = List.partition (fun (file,_) -> changed_since start_time file) files in
+	let changed = List.fold_left (fun n (_,fixes) -> n + List.length fixes) 0 changed in
 	let dirty = if dry || Common.defined com Define.ApplyFixesAllowDirty then [] else List.filter (fun (file,_) -> not (is_clean file)) files in
 	if dirty <> [] then begin
 		let names = String.concat ", " (List.map fst dirty) in
@@ -192,6 +214,8 @@ let run com =
 		end;
 		(total + n,skipped + s)
 	) (0,0) files in
+	let note msg = if dry then com.warning WInfo [] msg null_pos else com.info msg null_pos in
+	let plural n one many = if n = 1 then one else many in
 	begin match List.sort_uniq compare !too_recent with
 		| [] ->
 			()
@@ -199,12 +223,14 @@ let run com =
 			let n = List.length !too_recent in
 			let msg = Printf.sprintf "%d fix%s skipped: %s Haxe %s (-D apply-fixes.compat=%s)" n (if n = 1 then " was" else "es were")
 				(if n = 1 then "it needs" else "they need") (String.concat ", " versions) (Common.defined_value_safe com Define.ApplyFixesCompat) in
-			if dry then com.warning WInfo [] msg null_pos else com.info msg null_pos
+			note msg
 	end;
-	if skipped > 0 then begin
-		let msg = Printf.sprintf "%d overlapping fix%s skipped, compile again to apply" skipped (if skipped = 1 then " was" else "es were") in
-		if dry then com.warning WInfo [] msg null_pos else com.info msg null_pos
-	end;
+	if !skipped_unsafe > 0 then
+		note (Printf.sprintf "%d unsafe fix%s skipped, review %s with --fix-diff --fix-unsafe and apply %s with --fix-unsafe" !skipped_unsafe (plural !skipped_unsafe " was" "es were") (plural !skipped_unsafe "it" "them") (plural !skipped_unsafe "it" "them"));
+	if changed > 0 then
+		note (Printf.sprintf "%d fix%s skipped: %s changed during the compilation" changed (plural changed " was" "es were") (plural changed "its file" "their files"));
+	if skipped > 0 then
+		note (Printf.sprintf "%d overlapping fix%s skipped, compile again to apply" skipped (plural skipped " was" "es were"));
 	if dry then 0 else total
 
 let max_passes com =

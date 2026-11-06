@@ -1,0 +1,54 @@
+--- src/Base.hx
++++ src/Base.hx
+@@ -1,7 +1,7 @@
+ class Base implements IShape {
+ 	public function new() {}
+ 
+-	public function is(other:IShape) {
++	public function isValue2(other:IShape) {
+ 		return other == this;
+ 	}
+ }
+--- src/IShape.hx
++++ src/IShape.hx
+@@ -1,3 +1,3 @@
+ interface IShape {
+-	function is(other:IShape):Bool;
++	function isValue2(other:IShape):Bool;
+ }
+--- src/Main.hx
++++ src/Main.hx
+@@ -3,7 +3,7 @@
+ 
+ 	static function main() {
+ 		var shape:IShape = new Sub();
+-		var f = shape.is;
+-		trace(shape.is(new Base()), f(shape), Util.check(1), new User().is(1));
++		var f = shape.isValue2;
++		trace(shape.isValue2(new Base()), f(shape), Util.check(1), new User().is(1));
+ 	}
+ }
+--- src/Sub.hx
++++ src/Sub.hx
+@@ -1,5 +1,5 @@
+ class Sub extends Base {
+-	override public function is(other:IShape) {
+-		return !super.is(other);
++	override public function isValue2(other:IShape) {
++		return !super.isValue2(other);
+ 	}
+ }
+--- src/Util.hx
++++ src/Util.hx
+@@ -1,9 +1,9 @@
+ class Util {
+-	public static function is(v:Dynamic) {
++	public static function isValue2(v:Dynamic) {
+ 		return v != null;
+ 	}
+ 
+ 	public static function check(v:Dynamic) {
+-		return is(v) && Util.is(v);
++		return isValue2(v) && Util.isValue2(v);
+ 	}
+ }

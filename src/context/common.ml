@@ -253,6 +253,9 @@ type fix = {
 	fix_range : Globals.pos;
 	fix_text : string;
 	fix_since : string option;
+	fix_warning : WarningList.warning option;
+	fix_safe : bool;
+	fix_requires : string list;
 }
 
 type part_scope = {
@@ -419,20 +422,30 @@ let written_type_path mt =
 	if infos.mt_module.m_path = infos.mt_path then s_type_path infos.mt_path
 	else s_type_path infos.mt_module.m_path ^ "." ^ snd infos.mt_path
 
-let record_fix com reason p text since =
-	if not (List.exists (fun f -> f.fix_range = p) com.part_scope.fixes) then
-		com.part_scope.fixes <- { fix_reason = reason; fix_range = p; fix_text = text; fix_since = since } :: com.part_scope.fixes
+let record_fix com ?(safe=true) ?(requires=[]) w reason p text since =
+	if not (List.exists (fun f -> f.fix_range = p) com.part_scope.fixes) then begin
+		let fix = {
+			fix_reason = reason;
+			fix_range = p;
+			fix_text = text;
+			fix_since = since;
+			fix_warning = w;
+			fix_safe = safe;
+			fix_requires = requires;
+		} in
+		com.part_scope.fixes <- fix :: com.part_scope.fixes
+	end
 
 let add_error_fix com reason p text =
-	record_fix com reason p text None
+	record_fix com None reason p text None
 
-let add_fix_since com w options reason p text since =
+let add_fix_since com ?safe ?requires w options reason p text since =
 	match Warning.get_mode w (options @ com.warning_options) with
-	| WMEnable -> record_fix com reason p text since
+	| WMEnable -> record_fix com ?safe ?requires (Some w) reason p text since
 	| WMDisable -> ()
 
-let add_fix com w options reason p text =
-	add_fix_since com w options reason p text None
+let add_fix com ?safe ?requires w options reason p text =
+	add_fix_since com ?safe ?requires w options reason p text None
 
 let scoped_warning_mode com w p =
 	match com.scoped_warning_options with

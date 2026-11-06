@@ -64,6 +64,8 @@ and parsed_arg =
 	| FixPasses of string
 	| FixCompat of string
 	| FixAllowDirty
+	| FixUnsafe
+	| FixOnly of string
 
 	| AddClass of path
 	| IncludeModule of string

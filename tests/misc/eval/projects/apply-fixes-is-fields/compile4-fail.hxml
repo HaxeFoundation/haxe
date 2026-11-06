@@ -1,0 +1,3 @@
+--main Main
+--fix-only WDeprecated,WNope
+--no-output

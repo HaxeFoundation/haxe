@@ -680,10 +680,21 @@
 		"doc": "With `-D apply-fixes`, print the fixes as a unified diff instead of changing the files."
 	},
 	{
+		"name": "ApplyFixesOnly",
+		"define": "apply-fixes.only",
+		"doc": "With `-D apply-fixes`, only apply the fixes of these warnings (comma-separated, including the warnings of these groups) and the fixes of errors. Set by --fix-only.",
+		"params": ["warnings"]
+	},
+	{
 		"name": "ApplyFixesPasses",
 		"define": "apply-fixes.passes",
 		"doc": "With `-D apply-fixes`, compile again while fixes were applied, up to this number of compilations. (default: 1)",
 		"params": ["passes"]
+	},
+	{
+		"name": "ApplyFixesUnsafe",
+		"define": "apply-fixes.unsafe",
+		"doc": "With `-D apply-fixes`, also apply the fixes that may change the behavior of the code or miss some uses. Set by --fix-unsafe."
 	},
 	{
 		"name": "NoOpt",
