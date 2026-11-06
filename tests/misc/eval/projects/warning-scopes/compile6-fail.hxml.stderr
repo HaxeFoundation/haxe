@@ -1,1 +1,1 @@
--w +WDeprecated@nope:1: characters 13-17 : Expected user, lib, lib:name, std or a path string
+-w +WDeprecated@nope:1: characters 13-17 : Expected user, std, lib, lib:name, path:path or pack:dot.path
