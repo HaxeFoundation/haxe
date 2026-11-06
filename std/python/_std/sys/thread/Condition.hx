@@ -26,9 +26,12 @@ class Condition {
 
 	public function timedWait(timeout:Float):Bool {
 		final t = timeout;
-		// larger values than TIMEOUT_MAX raise an OverflowError
+		// larger values than TIMEOUT_MAX (about 49 days on Windows) raise an OverflowError
 		final max = Math.min(1e9, python.lib.Threading.TIMEOUT_MAX);
-		return cond.wait(if (!(t > 0)) 0.0 else if (t > max) max else t);
+		final capped = t > max;
+		final signaled = cond.wait(if (!(t > 0)) 0.0 else if (capped) max else t);
+		// a capped wait did not reach the requested timeout, so it counts as a spurious wakeup
+		return signaled || capped;
 	}
 
 	public function signal():Void {

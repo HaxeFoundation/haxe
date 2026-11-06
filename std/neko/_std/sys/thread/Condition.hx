@@ -31,7 +31,8 @@ class Condition {
 
 	public function timedWait(timeout:Float):Bool {
 		if (cond_timed_wait != null) {
-			return cond_timed_wait(c, timeout);
+			// the native wait caps at 1e9 seconds, a capped wait counts as a spurious wakeup
+			return cond_timed_wait(c, timeout) || timeout > 1e9;
 		}
 		return pollingWait(timeout);
 	}

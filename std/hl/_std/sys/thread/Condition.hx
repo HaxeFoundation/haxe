@@ -41,7 +41,8 @@ abstract Condition(hl.Abstract<"hl_condition">) {
 
 	public function timedWait(timeout:Float):Bool {
 		// clamp here as well, older HashLink runtimes don't
-		return timedWaitNative(if (!(timeout > 0)) 0 else if (timeout > 1e9) 1e9 else timeout);
+		// a capped wait counts as a spurious wakeup
+		return timedWaitNative(if (!(timeout > 0)) 0 else if (timeout > 1e9) 1e9 else timeout) || timeout > 1e9;
 	}
 
 	@:hlNative("std", "condition_timed_wait")

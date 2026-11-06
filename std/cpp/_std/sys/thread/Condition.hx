@@ -39,7 +39,8 @@ class Condition {
 	}
 
 	public function timedWait(timeout:Float):Bool {
-		return c.timedWait(timeout);
+		// hxcpp caps the wait at 1e9 seconds, a capped wait counts as a spurious wakeup
+		return c.timedWait(timeout) || timeout > 1e9;
 	}
 
 	public function signal():Void {

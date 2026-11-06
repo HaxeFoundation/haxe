@@ -75,8 +75,10 @@ package sys.thread;
 		Like `wait`, but blocks the current thread for at most `timeout` seconds.
 
 		A `timeout` that is zero or negative does not block for any meaningful
-		amount of time. Very large values are clamped to the largest timeout
-		supported by the target.
+		amount of time. Very large timeouts may be cut short at a
+		target-specific limit. A wait cut short this way returns `true`, like a
+		spurious wakeup, so a loop that recomputes the remaining time (see
+		below) keeps waiting.
 
 		Returns `false` if the timeout expired, and `true` otherwise, that is
 		when the condition variable was signaled or a spurious wakeup occurred.
