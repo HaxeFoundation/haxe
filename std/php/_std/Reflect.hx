@@ -66,6 +66,9 @@ using php.Global;
 
 		if (Boot.isClass(o)) {
 			var phpClassName = Boot.castClass(o).phpClassName;
+			if (phpClassName == 'String') {
+				return field == 'fromCharCode' ? Boot.getStaticClosure(Boot.getStaticsClassName('String'), field) : null;
+			}
 			if (Global.defined('$phpClassName::$field')) {
 				return Global.constant('$phpClassName::$field');
 			}
