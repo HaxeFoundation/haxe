@@ -96,7 +96,8 @@ class Int64Helper {
 
 		var neg = noFractions < 0;
 		var rest = neg ? -noFractions : noFractions;
-		// rest < 2^53: split it exactly in two 32-bit words
+
+		// rest < 2^53: split it directly in two 32-bit words
 		var high = Math.ffloor(rest / 4294967296.);
 		var low = rest - high * 4294967296.;
 		if (low >= 2147483648.)
