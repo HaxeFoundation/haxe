@@ -19,13 +19,12 @@ let parse_targets value =
 		| "all" -> [User;Lib None;Std]
 		| s when ExtString.String.starts_with s "lib:" -> [Lib (Some (String.sub s 4 (String.length s - 4)))]
 		| path ->
-			let full = Path.get_full_path path in
-			[Path (if Sys.file_exists full && Sys.is_directory full then Path.add_trailing_slash full else full)]
+			[Path (Path.comparable_path path)]
 	) entries
 
 let is_target com targets file =
-	let file = Path.get_full_path file in
 	let scope = com.class_paths#scope_of file in
+	let file = Path.comparable_path file in
 	List.exists (fun target -> match target,scope with
 		| User,Some ClassPath.User
 		| Lib None,Some (ClassPath.Lib _)
@@ -34,7 +33,7 @@ let is_target com targets file =
 		| Lib (Some name),Some (ClassPath.Lib (Some name')) ->
 			name = name'
 		| Path path,_ ->
-			file = path || ExtString.String.starts_with file path
+			Path.is_in_path path file
 		| _ ->
 			false
 	) targets
@@ -147,10 +146,7 @@ let rec compare_versions v1 v2 = match v1,v2 with
 	| v1,[] -> compare_versions v1 [0]
 	| n1 :: v1,n2 :: v2 -> if n1 <> n2 then compare n1 n2 else compare_versions v1 v2
 
-let changed_since time file =
-	try (Unix.stat file).Unix.st_mtime >= time with Unix.Unix_error _ -> true
-
-let run com start_time =
+let run com =
 	let targets = parse_targets (Common.defined_value_safe com Define.ApplyFixes) in
 	let dry = Common.defined com Define.ApplyFixesDry in
 	let compat = match Common.defined_value_safe com Define.ApplyFixesCompat with
@@ -187,7 +183,10 @@ let run com start_time =
 	) com.part_scope.fixes;
 	let files = Hashtbl.fold (fun file fixes acc -> (file,fixes) :: acc) by_file [] in
 	let files = List.sort compare files in
-	let changed,files = List.partition (fun (file,_) -> changed_since start_time file) files in
+	let changed,files = List.partition (fun (file,fixes) ->
+		let time = Common.file_time file in
+		List.exists (fun f -> f.fix_time <> time) fixes
+	) files in
 	let changed = List.fold_left (fun n (_,fixes) -> n + List.length fixes) 0 changed in
 	let dirty = if dry || Common.defined com Define.ApplyFixesAllowDirty then [] else List.filter (fun (file,_) -> not (is_clean file)) files in
 	if dirty <> [] then begin

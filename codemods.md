@@ -158,10 +158,10 @@ ESLint's `--fix`/`--fix-dry-run`, Ruff's `--fix`/`--diff`/`--unsafe-fixes`, Dart
 - `--fix-only` takes comma-separated warning names, groups included (`--fix-only WMigration`), like
   Ruff's `--select` or Dart's `--code`. Fixes of errors are always applied: the code doesn't compile
   without them.
-- Files changed since the compilation started (by an editor, or a macro) are not changed, and the
-  compiler says how many fixes were skipped: their positions may not match anymore. Their modification
-  time is compared with the start of the compilation; with the compilation server, cached files were
-  checked at that point.
+- Files changed since they were parsed (by an editor, or a macro) are not changed, and the compiler
+  says how many fixes were skipped: their positions may not match anymore. Each fix keeps the file
+  time of its module (taken when the module was loaded, as the compilation server does), compared
+  with the file's time when applying.
 - With the compilation server, modules served from the cache aren't typed again. Fixes are bound to
   the module being typed when they are recorded, like warnings (`m_cache_bound_objects`), and replayed with it, checking the
   current `-w` options again.

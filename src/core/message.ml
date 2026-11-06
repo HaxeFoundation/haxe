@@ -59,6 +59,7 @@ type fix = {
 	fix_warning : WarningList.warning option;
 	fix_safe : bool;
 	fix_requires : string list;
+	fix_time : float;
 }
 
 type message_kind =

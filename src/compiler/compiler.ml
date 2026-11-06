@@ -526,7 +526,6 @@ let process_actx com actx =
 
 let compile_ctx sctx com =
 	let run com =
-		let start_time = Unix.gettimeofday () in
 		ServerCache.before_anything sctx com;
 		Setup.setup_common_context com;
 		compile_safe com (fun () ->
@@ -535,7 +534,7 @@ let compile_ctx sctx com =
 			compile com actx sctx;
 		);
 		if Common.defined com Define.ApplyFixes && com.display.dms_kind = DMNone then
-			com.part_scope.applied_fixes <- ApplyFixes.run com start_time;
+			com.part_scope.applied_fixes <- ApplyFixes.run com;
 		ContextFlush.flush_context com;
 		finalize com;
 	in

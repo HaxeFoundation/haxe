@@ -256,6 +256,7 @@ type fix = Message.fix = {
 	fix_warning : WarningList.warning option;
 	fix_safe : bool;
 	fix_requires : string list;
+	fix_time : float;
 }
 
 type part_scope = {
@@ -437,6 +438,11 @@ let fix_enabled com fix options = match fix.fix_warning with
 	| Some w -> Warning.get_mode w (options @ com.warning_options) = WMEnable
 
 let record_fix com m ?(safe=true) ?(requires=[]) w options reason p text since =
+	(* The module's time is the file's time when it was parsed. *)
+	let time =
+		if m != null_module && Path.UniqueKey.lazy_key m.m_extra.m_file = com.part_scope.file_keys#get p.pfile then m.m_extra.m_time
+		else Extc.filetime p.pfile
+	in
 	let fix = {
 		fix_reason = reason;
 		fix_range = p;
@@ -445,6 +451,7 @@ let record_fix com m ?(safe=true) ?(requires=[]) w options reason p text since =
 		fix_warning = w;
 		fix_safe = safe;
 		fix_requires = requires;
+		fix_time = time;
 	} in
 	if fix_enabled com fix options && push_fix com fix then cache_fix com m fix options
 
@@ -472,9 +479,7 @@ let scoped_warning_mode com w p =
 			| WSLib None,Some (ClassPath.Lib _) -> true
 			| WSLib (Some name),Some (ClassPath.Lib (Some name')) -> name = name'
 			| WSPath path,_ ->
-				let path = Path.get_full_path path in
-				let file = Path.get_full_path p.pfile in
-				file = path || ExtString.String.starts_with file (Path.add_trailing_slash path)
+				Path.is_in_path (Path.comparable_path path) (Path.comparable_path p.pfile)
 			| _ -> false
 		in
 		Warning.matches_scoped w scoped in_scope
