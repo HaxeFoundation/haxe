@@ -8,6 +8,7 @@ class TestMacro extends Test {
 		parseAndPrint("a[b]");
 		parseAndPrint("a + b");
 		parseAndPrint("a.b");
+		parseAndPrint("a.b.<Int, Array<String>>(c)");
 		parseAndPrint("(a)");
 		parseAndPrint("{ a : b }");
 		parseAndPrint("{ \"a\" : b }");

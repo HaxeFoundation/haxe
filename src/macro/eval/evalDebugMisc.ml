@@ -365,7 +365,7 @@ let rec expr_to_value ctx env e =
 			let vc = loop2 ctx.toplevel ["Type";"createInstance"] in
 			safe_call env.env_eval (call_value vc) [v1;encode_array vl]
 		| ETry _ | ESwitch _ | EFunction _ | EFor _ | EDisplay _
-		| ECast(_,Some _) | EIs _ ->
+		| ECast(_,Some _) | EIs _ | ETypeArgs _ ->
 			raise NoValueExpr
 	in
 	loop e
