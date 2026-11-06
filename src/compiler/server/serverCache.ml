@@ -407,6 +407,8 @@ let handle_cache_bound_objects com cbol =
 			com.include_files <- (file,position) :: com.include_files
 		| Message(cm) ->
 			CompilerMessage.replay_message com cm
+		| Fix(fix,options) ->
+			Common.replay_fix com fix options
 	) cbol
 
 (* Adds module [m] and all its dependencies (recursively) from the cache to the current compilation

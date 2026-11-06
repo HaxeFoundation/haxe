@@ -64,6 +64,7 @@ type cache_bound_object =
 	| Resource of string * string
 	| IncludeFile of string * string
 	| Message of Message.t
+	| Fix of Message.fix * Message.warning_option list list
 
 type t =
 	| TMono of tmono

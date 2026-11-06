@@ -51,6 +51,16 @@ type warning_scope =
 	| WSStd
 	| WSPath of string
 
+type fix = {
+	fix_reason : string;
+	fix_range : Globals.pos;
+	fix_text : string;
+	fix_since : string option;
+	fix_warning : WarningList.warning option;
+	fix_safe : bool;
+	fix_requires : string list;
+}
+
 type message_kind =
 	| MKError
 	| MKWarning of WarningList.warning * (warning_option list list)

@@ -248,7 +248,7 @@ module LocalWrapper = struct
 	end
 end
 
-type fix = {
+type fix = Message.fix = {
 	fix_reason : string;
 	fix_range : Globals.pos;
 	fix_text : string;
@@ -422,27 +422,50 @@ let written_type_path mt =
 	if infos.mt_module.m_path = infos.mt_path then s_type_path infos.mt_path
 	else s_type_path infos.mt_module.m_path ^ "." ^ snd infos.mt_path
 
-let record_fix com ?(safe=true) ?(requires=[]) w reason p text since =
-	if not (List.exists (fun f -> f.fix_range = p) com.part_scope.fixes) then begin
-		let fix = {
-			fix_reason = reason;
-			fix_range = p;
-			fix_text = text;
-			fix_since = since;
-			fix_warning = w;
-			fix_safe = safe;
-			fix_requires = requires;
-		} in
-		com.part_scope.fixes <- fix :: com.part_scope.fixes
+let push_fix com fix =
+	let exists = List.exists (fun f -> f.fix_range = fix.fix_range) com.part_scope.fixes in
+	if not exists then com.part_scope.fixes <- fix :: com.part_scope.fixes;
+	not exists
+
+(* Like warnings, fixes are bound to the module of their file, to be replayed when it comes from the server cache. *)
+let cache_fix com fix options =
+	if com.display.dms_full_typing then begin
+		let key = com.part_scope.file_keys#get fix.fix_range.pfile in
+		try
+			com.module_lut#iter (fun _ m ->
+				if Path.UniqueKey.lazy_key m.m_extra.m_file = key then begin
+					DynArray.add m.m_extra.m_cache_bound_objects (Fix(fix,options));
+					raise Exit
+				end
+			)
+		with Exit ->
+			()
 	end
 
+let fix_enabled com fix options = match fix.fix_warning with
+	| None -> true
+	| Some w -> Warning.get_mode w (options @ com.warning_options) = WMEnable
+
+let record_fix com ?(safe=true) ?(requires=[]) w options reason p text since =
+	let fix = {
+		fix_reason = reason;
+		fix_range = p;
+		fix_text = text;
+		fix_since = since;
+		fix_warning = w;
+		fix_safe = safe;
+		fix_requires = requires;
+	} in
+	if fix_enabled com fix options && push_fix com fix then cache_fix com fix options
+
+let replay_fix com fix options =
+	if fix_enabled com fix options then ignore (push_fix com fix)
+
 let add_error_fix com reason p text =
-	record_fix com None reason p text None
+	record_fix com None [] reason p text None
 
 let add_fix_since com ?safe ?requires w options reason p text since =
-	match Warning.get_mode w (options @ com.warning_options) with
-	| WMEnable -> record_fix com ?safe ?requires (Some w) reason p text since
-	| WMDisable -> ()
+	record_fix com ?safe ?requires (Some w) options reason p text since
 
 let add_fix com ?safe ?requires w options reason p text =
 	add_fix_since com ?safe ?requires w options reason p text None
