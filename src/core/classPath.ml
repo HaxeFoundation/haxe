@@ -5,7 +5,7 @@ type class_path_scope =
 	| User
 
 let same_lib_name a b =
-	let normalize = String.map (fun c -> if c = '-' then '_' else c) in
+	let normalize s = String.lowercase_ascii (String.map (fun c -> if c = '-' then '_' else c) s) in
 	normalize a = normalize b
 
 type file_kind =

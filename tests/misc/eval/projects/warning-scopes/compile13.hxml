@@ -1,0 +1,7 @@
+-cp src
+-libcp-of
+My_Lib
+lib
+--main Main
+--no-output
+-w +WDeprecated@lib:my-lib
