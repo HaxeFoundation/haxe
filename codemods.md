@@ -149,7 +149,7 @@ ESLint's `--fix`/`--fix-dry-run`, Ruff's `--fix`/`--diff`/`--unsafe-fixes`, Dart
   class path. The compiler records that name on the class path (`ClassPath.Lib of string option`,
   internal argument `-libcp-of name path`).
 - Libraries resolved by lix are added as plain `-cp` through `haxe_libraries/*.hxml`, so they count as
-  user class paths and can't be selected by name (open question).
+  user class paths and can't be selected by name.
 - Overlapping fixes (a deprecated call nested in another one) keep the outermost one, and the compiler
   says to compile again. Each pass converges.
 - Typing stops at the first error, so a pass fixes at most one error, plus the warnings found before it.
@@ -274,9 +274,36 @@ with Haxe 4.3.7 (those tink versions don't build with 4.3.7 either).
 
 ### Haxe 4.3.x
 
-4.3.x doesn't know the new rules, so the fixes ship with Haxe 5. A 4.3.x release is also planned to add
-some of these warnings behind `-D haxe-next` (the define already exists), so code can be migrated before
-upgrading.
+The goal is to let users find what Haxe 5 will change while still on 4.3, behind `-D haxe-next` (the
+define exists in 4.3, and the std and compiler already use it).
+
+What `4.3_bugfix` already has with `-D haxe-next`:
+
+- The Haxe 5 behavior of `bind` with optional arguments (`calls.ml`), of the type inferred for
+  concatenations with an unknown operand (`operators.ml`), and of the order of inherited `@:autoBuild`
+  macros (`typeloadCheck.ml`): code can be tested against these changes by compiling with the define.
+- The deprecation of `is` as an identifier.
+
+What it lacks for the fixes: `DKReplacableCode` diagnostics (no IDE quick fixes), class path scopes
+(class paths are plain strings), and the fix records, templates and `--fix` arguments.
+
+Options:
+
+1. **Warnings only** (recommended). Backport the warnings for the changes 4.3 doesn't gate yet, each
+   reporting what Haxe 5 will do: partial resolution (#11338) and duplicate argument names (#11978)
+   become warnings saying they are errors in Haxe 5; `WEnumConstructorShadowed` (#9197) reports where
+   Haxe 5 resolves to the type; `WBuildMacroOrder` (#11582) can compare both orders, which 4.3 already
+   implements. Moved and removed modules and `Compiler` functions get `@:deprecated` hints. The
+   fixes themselves are applied with Haxe 5: its fixes produce code that compiles with both versions,
+   and `--fix-compat 4.3.7` skips the others, so a project can migrate with Haxe 5 and keep supporting
+   4.3.
+2. **Warnings and fixes**. Also backport the fix records, `--fix` and the templates. This needs the
+   diagnostics kind, the class path scopes and the warning scopes in 4.3, and the templates in 4.3's
+   std. It lets a project migrate with 4.3 alone, but it is a large port into a bugfix branch.
+3. **Nothing in 4.3**: users compile with Haxe 5 and `--fix-diff` to see what changes. Errors stop
+   the compilation at the first one, so this works badly on code that doesn't compile with Haxe 5 yet.
+
+Each warning needs checking against 4.3's typer, since the code paths differ from development.
 
 ## Compatibility with older Haxe versions
 
@@ -375,8 +402,3 @@ Specs aren't ready, but if metadata gets declared signatures, `@:deprecated` imp
   `removed-modules`.
 - `tests/server/src/cases/ApplyFixes.hx`: fixes of cached modules.
 - Unit macro, misc (783) and server tests pass.
-
-## Next steps
-
-1. Library names for lix-resolved libraries.
-2. 4.3.x backport behind `-D haxe-next`.
