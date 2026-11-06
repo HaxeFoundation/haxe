@@ -168,6 +168,10 @@ let is_string = function
 let is_extern_field f =
 	not (Type.is_physical_field f) || (match f.cf_kind with Method MethNormal -> List.exists (fun (m,_,_) -> m = Meta.HlNative) f.cf_meta | _ -> false) || has_class_field_flag f CfExtern
 
+let check_extern_field c f p =
+	if has_class_flag c CExtern && not (Meta.has Meta.HlNative f.cf_meta) then
+		abort ("Unsupported extern field " ^ s_type_path c.cl_path ^ "." ^ f.cf_name) p
+
 let is_array_class name =
 	match name with
 	| "hl.types.ArrayDyn" | "hl.types.ArrayBytes_Int" | "hl.types.ArrayBytes_Float" | "hl.types.ArrayObj"
@@ -1458,9 +1462,11 @@ and get_access ctx e =
 	| TField (ethis, a) ->
 		(match a, follow ethis.etype with
 		| FStatic (c,({ cf_kind = Var _ | Method MethDynamic } as f)), _ ->
+			check_extern_field c f e.epos;
 			let g, t = class_global ctx c in
 			AStaticVar (g, t, (match t with HObj o -> (try fst (get_index f.cf_name o) with Not_found -> die ~p:e.epos "" __LOC__) | _ -> die ~p:e.epos "" __LOC__))
 		| FStatic (c,({ cf_kind = Method _ } as f)), _ ->
+			check_extern_field c f e.epos;
 			AStaticFun (alloc_fid ctx c f)
 		| FClosure (Some (cdef,pl), f), TInst (c,_)
 		| FInstance (cdef,pl,f), TInst (c,_) when direct_method_call ctx c f ethis ->
@@ -1468,8 +1474,9 @@ and get_access ctx e =
 			let rec loop c =
 				if PMap.mem f.cf_name c.cl_fields then c else (match c.cl_super with None -> cdef | Some (c,_) -> loop c)
 			in
-			let last_def = loop c in
-			AInstanceFun (ethis, alloc_fid ctx (resolve_class ctx last_def pl false) f)
+			let last_def = resolve_class ctx (loop c) pl false in
+			check_extern_field last_def f e.epos;
+			AInstanceFun (ethis, alloc_fid ctx last_def f)
 		| (FInstance (cdef,pl,f) | FClosure (Some (cdef,pl), f)), _ ->
 			let rec loop t =
 				match follow t with
@@ -1850,6 +1857,7 @@ and eval_expr ctx e =
 			(match csup.cl_constructor with
 			| None -> die "" __LOC__
 			| Some f ->
+				check_extern_field csup f e.epos;
 				let r = alloc_tmp ctx HVoid in
 				let el = eval_args ctx el (to_type ctx f.cf_type) e.epos in
 				op ctx (OCallN (r, alloc_fid ctx csup f, 0 :: el));
