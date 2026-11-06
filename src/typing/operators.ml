@@ -873,7 +873,7 @@ let type_unop ctx op flag e with_type p =
 						make_static_extension_access c cf e false p
 					in
 					begin try
-						unify_field_call ctx sea.se_access [sea.se_this] [] p false
+						unify_field_call ctx sea.se_access [sea.se_this] [] p false WithType.value
 					with Error _ ->
 						loop opl
 					end

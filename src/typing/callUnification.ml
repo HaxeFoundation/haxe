@@ -271,7 +271,23 @@ let wrap_with_resolve_to com ecall econt p =
 		]
 	end
 
-let unify_field_call ctx fa el_typed el p inline =
+let unifies_with_fresh_monos a b =
+	let fresh = ref [] in
+	let rec copy t = match t with
+		| TMono ({ tm_type = None } as m) ->
+			begin try List.assq m !fresh with Not_found ->
+				let t = mk_mono() in
+				fresh := (m,t) :: !fresh;
+				t
+			end
+		| TMono { tm_type = Some t } ->
+			copy t
+		| _ ->
+			Type.map copy t
+	in
+	does_unify (copy a) (copy b)
+
+let unify_field_call ctx fa el_typed el p inline with_type =
 	let expand_overloads cf =
 		cf :: cf.cf_overloads
 	in
@@ -363,6 +379,22 @@ let unify_field_call ctx fa el_typed el p inline =
 				with DisplayException.DisplayException de ->
 					raise_augmented_display_exception cf de;
 			in
+			let has_pending_default = List.exists2 (fun mono ttp -> match ttp.ttp_default,follow mono with
+				| Some _,TMono { tm_type = None } -> true
+				| _ -> false
+			) monos cf.cf_params in
+			if has_pending_default then begin
+				begin match with_type with
+				| WithType.WithType(t,_) when unifies_with_fresh_monos ret t ->
+					(try Type.unify ret t with Unify_error _ -> ())
+				| _ ->
+					()
+				end;
+				List.iter2 (fun mono ttp -> match ttp.ttp_default,follow mono with
+					| Some t,TMono { tm_type = None } -> unify_raise (map (apply_params cf.cf_params monos t)) mono p
+					| _ -> ()
+				) monos cf.cf_params
+			end;
 			(* here *)
 			let el = el_typed @ el in
 			let args = (args_typed @ args) in
@@ -538,7 +570,7 @@ class call_dispatcher
 object(self)
 
 	method private make_field_call (fa : field_access) (el_typed : texpr list) (el : expr list) =
-		let fcc = unify_field_call ctx fa el_typed el p fa.fa_inline in
+		let fcc = unify_field_call ctx fa el_typed el p fa.fa_inline with_type in
 		if has_class_field_flag fcc.fc_field CfGeneric then begin
 			!type_generic_function_ref ctx fa fcc with_type p
 		end else begin
@@ -747,5 +779,5 @@ let make_static_call_better ctx c cf tl el t p =
 	in
 	let e1 = Builder.make_static_this c p in
 	let fa = FieldAccess.create e1 cf fh false p in
-	let fcc = unify_field_call ctx fa el [] p false in
+	let fcc = unify_field_call ctx fa el [] p false WithType.value in
 	fcc.fc_data()

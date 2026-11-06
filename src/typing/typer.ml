@@ -865,7 +865,7 @@ and type_new ctx ptp el with_type force_inline p =
 	in
 	let unify_constructor_call c fa =
 		try
-			let fcc = unify_field_call ctx fa [] el p fa.fa_inline in
+			let fcc = unify_field_call ctx fa [] el p fa.fa_inline WithType.value in
 			check_constructor_access ctx c fcc.fc_field p;
 			fcc
 		with Error err ->
@@ -1769,7 +1769,7 @@ and type_call_builtin ctx e el mode with_type p =
 			let e = mk (TConst TSuper) t sp in
 			if (Meta.has Meta.CompilerGenerated cf.cf_meta) then display_error ctx.com (error_msg (No_constructor (TClassDecl c))) p;
 			let fa = FieldAccess.create e cf (FHInstance(c,params)) false p in
-			let fcc = unify_field_call ctx fa [] el p false in
+			let fcc = unify_field_call ctx fa [] el p false WithType.value in
 			let el = fcc.fc_args in
 			el,t
 		) in
