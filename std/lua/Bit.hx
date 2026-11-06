@@ -36,6 +36,6 @@ extern class Bit {
 	static function arshift(x:Float, places:Int):Int;
 	static function mod(numerator:Float, denominator:Float):Int;
 	static function __init__():Void {
-		untyped _hx_bit = __define_feature__("use._bitop", _hx_bit);
+		untyped _hx_bit = __define_feature__("op_bitwise", _hx_bit);
 	}
 }
