@@ -34,7 +34,7 @@ class TestDate extends unit.Test {
 		eq(date.getUTCDay(), 3);
 
 		// milliseconds
-		#if (hl && hl_ver >= version("2.0.0"))
+		#if !(neko || (hl && hl_ver < version("2.0.0")))
 		var date = Date.fromTime(405781340123.);
 		eq(date.getTime(), 405781340123.);
 		eq(date.getUTCSeconds(), 20);
@@ -58,6 +58,11 @@ class TestDate extends unit.Test {
 		t(date.getTime() < referenceDate.getTime());
 
 		// < 1970 (negative timestamp)
+		#if !(neko || (hl && hl_ver < version("2.0.0")))
+		// hl, cpp, eval and lua use the C mktime/localtime, which reject dates before 1970 on Windows
+		#if (hl || cpp || eval || lua)
+		if (Sys.systemName() != "Windows") {
+		#end
 		var date = new Date(1904, 11, 12, 1, 4, 1);
 		eq(date.getHours(), 1);
 		eq(date.getMinutes(), 4);
@@ -67,8 +72,15 @@ class TestDate extends unit.Test {
 		eq(date.getDate(), 12);
 		eq(date.getDay(), 1);
 		t(date.getTime() < referenceDate.getTime());
+		#if (hl || cpp || eval || lua)
+		}
+		#end
 
 		// < 1902 (negative timestamp, outside of signed 32-bit integer range)
+		// the C mktime/localtime also reject dates before 1901 on Mac
+		#if (hl || cpp || eval || lua)
+		if (Sys.systemName() == "Linux") {
+		#end
 		var date = new Date(1888, 0, 1, 15, 4, 2);
 		eq(date.getHours(), 15);
 		eq(date.getMinutes(), 4);
@@ -78,9 +90,13 @@ class TestDate extends unit.Test {
 		eq(date.getDate(), 1);
 		eq(date.getDay(), 0);
 		t(date.getTime() < referenceDate.getTime());
-
+		#if (hl || cpp || eval || lua)
+		}
+		#end
+		#end
 
 		// Y2038 (outside of signed 32-bit integer range)
+		#if !neko
 		var date = new Date(2039, 0, 1, 1, 59, 59);
 		eq(date.getHours(), 1);
 		eq(date.getMinutes(), 59);
@@ -90,8 +106,10 @@ class TestDate extends unit.Test {
 		eq(date.getDate(), 1);
 		eq(date.getDay(), 6);
 		t(date.getTime() > referenceDate.getTime());
+		#end
 
 		// Y2112 (outside of unsigned 32-bit integer range)
+		#if !(neko || (hl && hl_ver < version("2.0.0")))
 		var date = new Date(2112, 0, 1, 1, 59, 59);
 		eq(date.getHours(), 1);
 		eq(date.getMinutes(), 59);
@@ -101,6 +119,7 @@ class TestDate extends unit.Test {
 		eq(date.getDate(), 1);
 		eq(date.getDay(), 5);
 		t(date.getTime() > referenceDate.getTime());
+		#end
 
 		/*
 		// fromTime outside the 1970...2038 range (not supported)
@@ -186,7 +205,7 @@ class TestDate extends unit.Test {
 		eq(Date.fromString("2015-06-15 10:00:00").getTimezoneOffset(), Date.fromString("2016-06-15 10:00:00").getTimezoneOffset());
 
 		// timezone offset matches local - UTC, also right after epoch
-		#if (hl && hl_ver >= version("2.0.0"))
+		#if !(eval || lua || cpp || jvm || (hl && hl_ver < version("2.0.0")))
 		for (time in [0., 1800000., 1718459130000.]) {
 			var date = Date.fromTime(time);
 			var local = date.getHours() * 60 + date.getMinutes();
