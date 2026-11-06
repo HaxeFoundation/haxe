@@ -94,15 +94,6 @@ class Int64Helper {
 			throw "Conversion underflow";
 		}
 
-		#if python
-		return ofNativeInt(python.Syntax.code("int({0})", noFractions));
-		#elseif php
-		if (php.Const.PHP_INT_SIZE == 8)
-			return ofNativeInt(php.Syntax.int(noFractions));
-		#elseif (lua && lua_ver >= 5.3)
-		if (lua.Math.maxinteger > 2147483647)
-			return ofNativeInt(lua.Math.tointeger(noFractions));
-		#end
 		var neg = noFractions < 0;
 		var rest = neg ? -noFractions : noFractions;
 		// rest < 2^53: split it exactly in two 32-bit words
@@ -127,55 +118,4 @@ class Int64Helper {
 		// rounded result.
 		return high * 4294967296. + (low < 0 ? 4294967296. + low : low);
 	}
-
-	#if (php || python || lua)
-	/**
-		Creates an `Int64` from `v`, a native integer (possibly wider than 32 bits) of this target.
-	**/
-	@:noCompletion
-	static function ofNativeInt(v:Int):Int64 {
-		#if php
-		// on 32-bit PHP, values beyond the int range are floats
-		if (php.Const.PHP_INT_SIZE < 8)
-			return php.Global.is_float(v) ? fromFloat(cast v) : Int64.ofInt(v);
-		return Int64.make(php.Syntax.code("{0} >> 32", v), php.Syntax.code("(({0} & 0xFFFFFFFF) ^ 0x80000000) - 0x80000000", v));
-		#elseif python
-		// ints are unbounded: wrap both words to 32 bits
-		return Int64.make(python.Syntax.code("((({0} >> 32) & 0xFFFFFFFF) ^ 0x80000000) - 0x80000000", v),
-			python.Syntax.code("(({0} & 0xFFFFFFFF) ^ 0x80000000) - 0x80000000", v));
-		#elseif (lua_ver >= 5.3)
-		// Lua can be built with 32-bit integers (LUA_32BITS)
-		if (lua.Math.maxinteger <= 2147483647)
-			return fromFloat(v);
-		// normalize a float subtype so both words are integers
-		var v = lua.Math.tointeger(v);
-		if (v == null)
-			throw "Conversion overflow";
-		return Int64.make(lua.Syntax.code("{0} // 4294967296", v), lua.Syntax.code("(({0} & 0xFFFFFFFF) ~ 0x80000000) - 0x80000000", v));
-		#else
-		// numbers are doubles
-		return fromFloat(v);
-		#end
-	}
-
-	/**
-		Converts `x` to a native integer of this target. The result may exceed the 32-bit `Int` range.
-	**/
-	@:noCompletion
-	static function toNativeInt(x:Int64):Int {
-		#if php
-		if (php.Const.PHP_INT_SIZE < 8)
-			return cast toFloat(x);
-		return php.Syntax.code("({0} << 32) | ({1} & 0xFFFFFFFF)", x.high, x.low);
-		#elseif python
-		return python.Syntax.code("({0} << 32) | ({1} & 0xFFFFFFFF)", x.high, x.low);
-		#elseif (lua_ver >= 5.3)
-		if (lua.Math.maxinteger <= 2147483647)
-			return cast toFloat(x);
-		return lua.Syntax.code("({0} << 32) | ({1} & 0xFFFFFFFF)", x.high, x.low);
-		#else
-		return cast toFloat(x);
-		#end
-	}
-	#end
 }

@@ -551,6 +551,7 @@ class TestInt64 extends Test {
 		// truncation toward zero
 		eq(fromFloat(1.5).toStr(), "1");
 		eq(fromFloat(-1.5).toStr(), "-1");
+		eq(fromFloat(-0.0).toStr(), "0");
 
 		try {
 			fromFloat(9007199254740992);
@@ -601,46 +602,6 @@ class TestInt64 extends Test {
 		var a:Int64 = Int64.make(0x12345678, 0x9ABCDEF0);
 		eq(a.toFloat(), 1311768467463790320.0);
 	}
-
-	#if (php || python || lua)
-	public function testNativeInt() {
-		function roundTrip(x:Int64, ?pos:haxe.PosInfos) {
-			var back = @:privateAccess haxe.Int64Helper.ofNativeInt(haxe.Int64Helper.toNativeInt(x));
-			eq(back.high, x.high, pos);
-			eq(back.low, x.low, pos);
-		}
-		// below 2^53, compared as numbers: the native value may be a float on some runtimes
-		function check(x:Int64, value:Float, ?pos:haxe.PosInfos) {
-			t((@:privateAccess haxe.Int64Helper.toNativeInt(x) : Float) == value, pos);
-			roundTrip(x, pos);
-		}
-		check(Int64.ofInt(0), 0);
-		check(Int64.ofInt(1), 1);
-		check(Int64.ofInt(-1), -1);
-		check(Int64.make(0, 0x7FFFFFFF), 2147483647.);
-		check(Int64.make(0xFFFFFFFF, 0x80000000), -2147483648.);
-		check(Int64.make(0, 0x80000000), 2147483648.);
-		check(Int64.make(1, 1), 4294967297.);
-		check(Int64.make(2, 0xDEADBEEF), 12325863151.);
-		check(Int64.make(0xFFFFFFFE, 0), -8589934592.);
-		#if (!lua || lua_ver >= 5.3)
-		// beyond 2^53, only exact where the native integer is 64-bit
-		#if php
-		if (php.Const.PHP_INT_SIZE < 8)
-			return;
-		#elseif lua
-		if (lua.Math.maxinteger <= 2147483647)
-			return;
-		#end
-		function checkExact(x:Int64, str:String, ?pos:haxe.PosInfos) {
-			eq(Std.string(@:privateAccess haxe.Int64Helper.toNativeInt(x)), str, pos);
-			roundTrip(x, pos);
-		}
-		checkExact(Int64.make(0x7FFFFFFF, 0xFFFFFFFF), "9223372036854775807");
-		checkExact(Int64.make(0x80000000, 0), "-9223372036854775808");
-		#end
-	}
-	#end
 
 	static function toHex(v:haxe.Int64) {
 		return "0x" + (v.high == 0 ? StringTools.hex(v.low) : StringTools.hex(v.high) + StringTools.hex(v.low, 8));

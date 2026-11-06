@@ -39,18 +39,6 @@ extern class Math {
 	**/
 	static var huge(default, never):Float;
 
-	#if (lua_ver >= 5.3)
-	/**
-		The maximum value for an integer.
-	**/
-	static var maxinteger(default, never):Int;
-
-	/**
-		If the value x is convertible to an integer, returns that integer. Otherwise, returns nil.
-	**/
-	static function tointeger(x:Float):Null<Int>;
-	#end
-
 	/**
 		Returns the absolute value of x.
 	**/
