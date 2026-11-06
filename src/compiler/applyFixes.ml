@@ -146,13 +146,10 @@ let rec compare_versions v1 v2 = match v1,v2 with
 	| v1,[] -> compare_versions v1 [0]
 	| n1 :: v1,n2 :: v2 -> if n1 <> n2 then compare n1 n2 else compare_versions v1 v2
 
-let run com =
-	let targets = parse_targets (Common.defined_value_safe com Define.ApplyFixes) in
-	let dry = Common.defined com Define.ApplyFixesDry in
-	let compat = match Common.defined_value_safe com Define.ApplyFixesCompat with
-		| "" -> None
-		| v -> Some (parse_version v)
-	in
+let run com config =
+	let targets = parse_targets config.fix_scope in
+	let dry = config.fix_diff in
+	let compat = Option.map parse_version config.fix_compat in
 	let too_recent = ref [] in
 	let compatible f = match compat,f.fix_since with
 		| Some compat,Some since when compare_versions (parse_version since) compat > 0 ->
@@ -161,19 +158,15 @@ let run com =
 		| _ ->
 			true
 	in
-	let unsafe = Common.defined com Define.ApplyFixesUnsafe in
+	let unsafe = config.fix_unsafe in
 	let skipped_unsafe = ref 0 in
 	let safe f =
 		if f.fix_safe || unsafe then true
 		else begin incr skipped_unsafe; false end
 	in
-	let only = match Common.defined_value_safe com Define.ApplyFixesOnly with
-		| "" -> None
-		| s -> Some (List.map Warning.from_string (split_list s))
-	in
-	let selected f = match only,f.fix_warning with
-		| None,_ | _,None -> true
-		| Some l,Some w -> List.exists (Warning.matches w) l
+	let selected f = match config.fix_only,f.fix_warning with
+		| [],_ | _,None -> true
+		| l,Some w -> List.exists (Warning.matches w) l
 	in
 	let by_file = Hashtbl.create 0 in
 	List.iter (fun f ->
@@ -188,7 +181,7 @@ let run com =
 		List.exists (fun f -> f.fix_time <> time) fixes
 	) files in
 	let changed = List.fold_left (fun n (_,fixes) -> n + List.length fixes) 0 changed in
-	let dirty = if dry || Common.defined com Define.ApplyFixesAllowDirty then [] else List.filter (fun (file,_) -> not (is_clean file)) files in
+	let dirty = if dry || config.fix_allow_dirty then [] else List.filter (fun (file,_) -> not (is_clean file)) files in
 	if dirty <> [] then begin
 		let names = String.concat ", " (List.map fst dirty) in
 		com.error (Printf.sprintf "Not applying fixes: %s %s uncommitted changes or %s not in a git repository. Commit them first, use --fix-allow-dirty, or review the fixes with --fix-diff" names (if List.length dirty = 1 then "has" else "have") (if List.length dirty = 1 then "is" else "are")) null_pos;
@@ -220,8 +213,8 @@ let run com =
 			()
 		| versions ->
 			let n = List.length !too_recent in
-			let msg = Printf.sprintf "%d fix%s skipped: %s Haxe %s (-D apply-fixes.compat=%s)" n (if n = 1 then " was" else "es were")
-				(if n = 1 then "it needs" else "they need") (String.concat ", " versions) (Common.defined_value_safe com Define.ApplyFixesCompat) in
+			let msg = Printf.sprintf "%d fix%s skipped: %s Haxe %s (--fix-compat %s)" n (if n = 1 then " was" else "es were")
+				(if n = 1 then "it needs" else "they need") (String.concat ", " versions) (Option.default "" config.fix_compat) in
 			note msg
 	end;
 	if !skipped_unsafe > 0 then
@@ -232,7 +225,6 @@ let run com =
 		note (Printf.sprintf "%d overlapping fix%s skipped, compile again to apply" skipped (plural skipped " was" "es were"));
 	if dry then 0 else total
 
-let max_passes com =
-	match int_of_string_opt (Common.defined_value_safe ~default:"1" com Define.ApplyFixesPasses) with
-	| Some n when n > 1 -> n
-	| _ -> 1
+let max_passes com = match com.fix_config with
+	| Some config -> config.fix_passes
+	| None -> 1

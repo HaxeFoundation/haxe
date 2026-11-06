@@ -498,7 +498,7 @@ let process_actx com actx =
 		if defined com NoDeprecationWarnings then begin
 			com.warning_options <- [{wo_warning = WDeprecated; wo_mode = WMDisable}] :: com.warning_options
 		end;
-		if defined com ApplyFixes then begin
+		if com.fix_config <> None then begin
 			let rec before_defaults l = match l with
 				| [] | [_] -> [{wo_warning = WMigration; wo_mode = WMEnable}] :: l
 				| options :: l -> options :: before_defaults l
@@ -533,8 +533,12 @@ let compile_ctx sctx com =
 			process_actx com actx;
 			compile com actx sctx;
 		);
-		if Common.defined com Define.ApplyFixes && com.display.dms_kind = DMNone then
-			com.part_scope.applied_fixes <- ApplyFixes.run com;
+		begin match com.fix_config with
+		| Some config when com.display.dms_kind = DMNone ->
+			com.part_scope.applied_fixes <- ApplyFixes.run com config
+		| _ ->
+			()
+		end;
 		ContextFlush.flush_context com;
 		finalize com;
 	in

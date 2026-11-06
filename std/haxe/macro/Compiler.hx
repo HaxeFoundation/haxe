@@ -694,6 +694,48 @@ typedef CompilerConfiguration = {
 		For example, the "java" package is "Forbidden" when the target platform is Python.
 	**/
 	final packageRules:Map<String, PackageRule>;
+
+	/**
+		The settings of the `--fix` arguments, or `null` when no fixes are applied.
+	**/
+	final fix:Null<FixConfiguration>;
+}
+
+typedef FixConfiguration = {
+	/**
+		The files fixes are applied to (`--fix-scope`): `user`, `lib`, `lib:name`, `std`, `all` or paths.
+	**/
+	final scope:Array<String>;
+
+	/**
+		If `--fix-diff` is used, fixes are printed as a diff instead of being applied.
+	**/
+	final diff:Bool;
+
+	/**
+		The maximum number of compilations (`--fix-passes`).
+	**/
+	final passes:Int;
+
+	/**
+		The oldest Haxe version the fixes must compile with (`--fix-compat`).
+	**/
+	final compat:Null<String>;
+
+	/**
+		If `--fix-allow-dirty` is used, files with uncommitted changes are changed too.
+	**/
+	final allowDirty:Bool;
+
+	/**
+		If `--fix-unsafe` is used, unsafe fixes are applied too.
+	**/
+	final unsafe:Bool;
+
+	/**
+		The warnings whose fixes are applied (`--fix-only`), or an empty array for all of them.
+	**/
+	final only:Array<String>;
 }
 
 enum Platform {

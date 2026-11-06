@@ -658,45 +658,6 @@
 		"platforms": ["flash"]
 	},
 	{
-		"name": "ApplyFixes",
-		"define": "apply-fixes",
-		"doc": "Apply the fixes suggested by compiler warnings, such as the replacements of `@:deprecated` functions, to source files. Without value, only files of the user class paths (`-cp`) are changed. The value is a comma-separated list of class path kinds (`user`, `lib`, `std` or `all`), of libraries (`lib:name`) and of paths to directories or files.",
-		"params": ["targets"]
-	},
-	{
-		"name": "ApplyFixesAllowDirty",
-		"define": "apply-fixes.allow-dirty",
-		"doc": "With `-D apply-fixes`, also change files with uncommitted changes, or outside of git repositories. Set by --fix-allow-dirty."
-	},
-	{
-		"name": "ApplyFixesCompat",
-		"define": "apply-fixes.compat",
-		"doc": "With `-D apply-fixes`, only apply the fixes whose replacement compiles with this Haxe version.",
-		"params": ["version"]
-	},
-	{
-		"name": "ApplyFixesDry",
-		"define": "apply-fixes.dry",
-		"doc": "With `-D apply-fixes`, print the fixes as a unified diff instead of changing the files."
-	},
-	{
-		"name": "ApplyFixesOnly",
-		"define": "apply-fixes.only",
-		"doc": "With `-D apply-fixes`, only apply the fixes of these warnings (comma-separated, including the warnings of these groups) and the fixes of errors. Set by --fix-only.",
-		"params": ["warnings"]
-	},
-	{
-		"name": "ApplyFixesPasses",
-		"define": "apply-fixes.passes",
-		"doc": "With `-D apply-fixes`, compile again while fixes were applied, up to this number of compilations. (default: 1)",
-		"params": ["passes"]
-	},
-	{
-		"name": "ApplyFixesUnsafe",
-		"define": "apply-fixes.unsafe",
-		"doc": "With `-D apply-fixes`, also apply the fixes that may change the behavior of the code or miss some uses. Set by --fix-unsafe."
-	},
-	{
 		"name": "NoOpt",
 		"define": "no-opt",
 		"doc": "Disable optimizations."
