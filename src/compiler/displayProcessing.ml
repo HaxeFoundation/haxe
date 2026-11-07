@@ -24,7 +24,11 @@ let process_display_configuration com =
 			add_diagnostics_message ~depth com s p MKInfo
 		);
 		com.warning <- (fun ?(depth = 0) w options s p ->
-			match Warning.get_mode w (options @ com.warning_options) with
+			let mode = match Common.scoped_warning_mode com w p with
+				| Some mode -> mode
+				| None -> Warning.get_mode w (options @ com.warning_options)
+			in
+			match mode with
 			| WMEnable ->
 				add_diagnostics_message ~depth com s p (MKWarning(w,options))
 			| WMDisable ->

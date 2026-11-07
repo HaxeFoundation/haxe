@@ -111,7 +111,11 @@ let default_error_handler com =
 
 let default_warning_handler com =
 	(fun ?(depth=0) w options msg p ->
-		match Warning.get_mode w (options @ com.warning_options) with
+		let mode = match Common.scoped_warning_mode com w p with
+			| Some mode -> mode
+			| None -> Warning.get_mode w (options @ com.warning_options)
+		in
+		match mode with
 		| WMEnable ->
 			let wobj = Warning.warning_obj w in
 			let msg = if wobj.w_generic then

@@ -164,7 +164,9 @@ let parse_args args =
 		| ("--class-path" | "-p" | "-cp") :: path :: rest ->
 			add (AddClassPath path); loop rest
 		| "-libcp" :: path :: rest ->
-			add (AddLibClassPath path); loop rest
+			add (AddLibClassPath (path,None)); loop rest
+		| "-libcp-of" :: name :: path :: rest ->
+			add (AddLibClassPath (path,Some name)); loop rest
 		| ("--hxb-lib" | "-hxb-lib") :: file :: rest ->
 			add (AddHxbLib file); loop rest
 		| ("--main" | "-m" | "-main") :: cl :: rest ->
@@ -316,8 +318,8 @@ let process_args (com : Common.context) =
 			set_custom_target com name path
 		| AddClassPath path ->
 			com.class_paths#add (new ClassPath.directory_class_path (Path.add_trailing_slash path) User)
-		| AddLibClassPath path ->
-			com.class_paths#add (new ClassPath.directory_class_path (Path.add_trailing_slash path) Lib)
+		| AddLibClassPath (path,name) ->
+			com.class_paths#add (new ClassPath.directory_class_path (Path.add_trailing_slash path) (Lib name))
 		| AddHxbLib file ->
 			actx.hxb_libs <- create_native_lib file false HxbLib :: actx.hxb_libs
 		| SetMain cpath ->
@@ -396,8 +398,11 @@ let process_args (com : Common.context) =
 			actx.measure_times <- true
 		| AddWarning s ->
 			let p = fake_pos ("-w " ^ s) in
-			let l = Warning.parse_options s p in
-			com.warning_options <- l :: com.warning_options
+			let l = Warning.parse_scoped_options s p in
+			let unscoped = List.filter_map (fun (opt,scope) -> if scope = None then Some opt else None) l in
+			let scoped = List.filter_map (fun (opt,scope) -> Option.map (fun scope -> opt,scope) scope) l in
+			com.warning_options <- unscoped :: com.warning_options;
+			com.scoped_warning_options <- scoped @ com.scoped_warning_options
 		| AddClass cpath ->
 			actx.classes <- cpath :: actx.classes
 		| IncludeModule cl ->
@@ -484,7 +489,8 @@ let to_raw_args (parsed_args : parsed_arg list) =
 		| SetCustomTarget (name, path) ->
 			["--custom-target"; if path = "" then name else name ^ "=" ^ path]
 		| AddClassPath path -> ["-cp"; path]
-		| AddLibClassPath path -> ["-libcp"; path]
+		| AddLibClassPath (path,None) -> ["-libcp"; path]
+		| AddLibClassPath (path,Some name) -> ["-libcp-of"; name; path]
 		| AddHxbLib file -> ["--hxb-lib"; file]
 		| SetMain p -> ["--main"; s_path p]
 		| AddLib name -> ["-lib"; name]

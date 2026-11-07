@@ -1,8 +1,12 @@
 type class_path_scope =
 	| Std
 	| StdTarget
-	| Lib
+	| Lib of string option
 	| User
+
+let same_lib_name a b =
+	let normalize s = String.lowercase_ascii (String.map (fun c -> if c = '-' then '_' else c) s) in
+	normalize a = normalize b
 
 type file_kind =
 	| FFile
@@ -25,7 +29,8 @@ class virtual class_path (path : string) (scope : class_path_scope) (file_kind :
 	method scope_string = match scope with
 		| Std -> "Std"
 		| StdTarget -> "StdTarget"
-		| Lib -> "Lib"
+		| Lib None -> "Lib"
+		| Lib (Some name) -> "Lib " ^ name
 		| User -> "User"
 end
 
