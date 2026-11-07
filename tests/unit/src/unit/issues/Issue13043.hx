@@ -104,7 +104,7 @@ class Issue13043 extends Test {
 		eq("ho!", b.received);
 
 		// assigning null must not wrap it into a non null closure
-		#if (!lua && !cppia)
+		#if !lua
 		b.onItem = null;
 		t(b.onItem == null);
 		#end
