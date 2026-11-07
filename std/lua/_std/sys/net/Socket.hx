@@ -68,7 +68,7 @@ class Socket {
 
 	var custom:Dynamic;
 
-	var _socket:LuaSocket;
+	var _socket:Null<LuaSocket>;
 
 	var blocking = false;
 	var timeout = null;
