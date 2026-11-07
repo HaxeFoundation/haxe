@@ -84,25 +84,120 @@ abstract Loop(hl.Abstract<"uv_loop">) {
 
 }
 
+/**
+	NativeEventLoop adapter: blocking `UV_RUN_ONCE` with an async wake doorbell
+	and a one-shot UV timer for the next Haxe EventLoop deadline.
+**/
 private class LoopWrapper {
 	public final allowsReentrancy = false;
 	final uvLoop:Loop;
+	final keepAliveCb:Void->Void;
+	var asyncHandle:HandleData;
+	var timerHandle:HandleData;
+	var closed = false;
 
 	public function new(loop:Loop) {
 		this.uvLoop = loop;
+		// Closures stored in uv handle data are in hl_gc_alloc_raw; keep a Haxe reference.
+		keepAliveCb = function() {};
+		asyncHandle = async_init(loop, keepAliveCb);
+		if (asyncHandle == null)
+			throw "Failed to create uv_async_t wake handle";
+		handle_unref(asyncHandle);
+		timerHandle = timer_init(loop);
+		if (timerHandle == null)
+			throw "Failed to create uv_timer_t deadline handle";
+		handle_unref(timerHandle);
 	}
 
-	public function run() {
-		uvLoop.run(NoWait);
+	public function run(maxBlock:Float) {
+		if (closed)
+			return;
+		if (maxBlock < 0) {
+			// Haxe events already due: do not sleep in the poller
+			stopDeadlineTimer();
+			uvLoop.run(NoWait);
+			return;
+		}
+		if (maxBlock > 0)
+			armDeadlineTimer(maxBlock);
+		else
+			stopDeadlineTimer();
+		uvLoop.run(Once);
+		stopDeadlineTimer();
+	}
+
+	public function wake() {
+		if (asyncHandle != null)
+			async_send(asyncHandle);
 	}
 
 	public function close() {
+		if (closed)
+			return;
+		closed = true;
+		stopDeadlineTimer();
+		if (asyncHandle != null) {
+			close_handle(asyncHandle, null);
+			asyncHandle = null;
+		}
+		if (timerHandle != null) {
+			close_handle(timerHandle, null);
+			timerHandle = null;
+		}
+		// Drain close callbacks so loop_close can succeed
+		uvLoop.run(NoWait);
 		final result = uvLoop.close();
 		if (result != 0)
 			Sys.println("Some async handlers have not been closed");
 	}
 
 	public function isAlive() {
-		return uvLoop.alive() > 0;
+		return !closed && uvLoop.alive() > 0;
 	}
+
+	function armDeadlineTimer(maxBlock:Float) {
+		if (timerHandle == null)
+			return;
+		var ms = Math.ceil(maxBlock * 1000);
+		if (ms < 1)
+			ms = 1;
+		if (ms > 2147483647)
+			ms = 2147483647;
+		timer_start(timerHandle, keepAliveCb, ms, 0);
+	}
+
+	function stopDeadlineTimer() {
+		if (timerHandle != null)
+			timer_stop(timerHandle);
+	}
+
+	@:hlNative("uv", "async_init_wrap")
+	static function async_init(loop:Loop, callb:Void->Void):HandleData {
+		return null;
+	}
+
+	@:hlNative("uv", "async_send_wrap")
+	static function async_send(h:HandleData):Void {}
+
+	@:hlNative("uv", "timer_init_wrap")
+	static function timer_init(loop:Loop):HandleData {
+		return null;
+	}
+
+	@:hlNative("uv", "timer_start_wrap")
+	static function timer_start(h:HandleData, callb:Void->Void, timeout:Int, repeat:Int):Bool {
+		return false;
+	}
+
+	@:hlNative("uv", "timer_stop_wrap")
+	static function timer_stop(h:HandleData):Bool {
+		return false;
+	}
+
+	@:hlNative("uv", "handle_unref_wrap")
+	static function handle_unref(h:HandleData):Void {}
+
+	@:hlNative("uv", "close_handle")
+	static function close_handle(h:HandleData, callb:Null<Void->Void>):Void {}
 }
