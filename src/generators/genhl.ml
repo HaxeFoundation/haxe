@@ -311,7 +311,7 @@ let array_class ctx t =
 		ctx.array_impl.af64
 	| HI64 ->
 		begin match ctx.array_impl.ai64 with
-		| None -> die "" __LOC__
+		| None -> ctx.array_impl.aobj
 		| Some c -> c
 		end
 	| HGUID ->
@@ -1509,7 +1509,11 @@ and get_access ctx e =
 				let i = eval_to ctx i HI32 in
 				free ctx a;
 				let t = to_type ctx t in
-				AArray (a,(t,t),i)
+				(match t with
+				| HI64 when ctx.array_impl.ai64 = None ->
+					AArray (a,(HDyn,t),i)
+				| _ ->
+					AArray (a,(t,t),i))
 			| TInst ({ cl_path = ["hl"],"Abstract" },[TInst({ cl_kind = KExpr (EConst (String("hl_carray",_)),_) },_)]) ->
 				let a = eval_expr ctx a in
 				hold ctx a;
@@ -2903,7 +2907,7 @@ and eval_expr ctx e =
 			array_bytes 2 HF32 "F32" (fun b i r -> OSetMem (b,i,r))
 		| HF64 ->
 			array_bytes 3 HF64 "F64" (fun b i r -> OSetMem (b,i,r))
-		| HI64 ->
+		| HI64 when ctx.array_impl.ai64 <> None ->
 			array_bytes 3 HI64 "I64" (fun b i r -> OSetMem (b,i,r))
 		| HGUID ->
 			array_bytes 3 HGUID "GUID" (fun b i r -> OSetMem (b,i,r))
