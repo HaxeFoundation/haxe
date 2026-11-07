@@ -29,9 +29,9 @@ class FileInput extends haxe.io.Input {
 
 	extern public function eof():Bool;
 
-	extern public function seek(p:Int, pos:FileSeek):Void;
+	extern public function seek(p:haxe.Int64, pos:FileSeek):Void;
 
-	extern public function tell():Int;
+	extern public function tell():haxe.Int64;
 
 	extern public override function readByte():Int;
 

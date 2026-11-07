@@ -77,16 +77,16 @@ class FileInput extends Input {
 		return ret;
 	}
 
-	public function seek(p:Int, pos:FileSeek):Void {
+	public function seek(p:Int64, pos:FileSeek):Void {
 		_eof = false;
 		try {
 			switch (pos) {
 				case SeekBegin:
-					f.seek(cast p);
+					f.seek(p);
 				case SeekCur:
-					f.seek(haxe.Int64.add(f.getFilePointer(), cast(p, Int64)));
+					f.seek(f.getFilePointer() + p);
 				case SeekEnd:
-					f.seek(haxe.Int64.add(f.length(), cast p));
+					f.seek(f.length() + p);
 			}
 		} catch (e:EOFException) {
 
@@ -97,9 +97,9 @@ class FileInput extends Input {
 		}
 	}
 
-	public function tell():Int {
+	public function tell():Int64 {
 		try {
-			return cast f.getFilePointer();
+			return f.getFilePointer();
 		} catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}

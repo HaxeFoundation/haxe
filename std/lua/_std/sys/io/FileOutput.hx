@@ -34,17 +34,20 @@ class FileOutput extends haxe.io.Output {
 		this.f = f;
 	}
 
-	public inline function seek(p:Int, pos:FileSeek):Void {
+	public inline function seek(p:haxe.Int64, pos:FileSeek):Void {
 		var arg = switch (pos) {
 			case SeekBegin: "set";
 			case SeekCur: "cur";
 			case SeekEnd: "end";
 		}
-		return f.seek(arg, p);
+		f.seek(arg, cast p.toFloat());
 	}
 
-	public inline function tell():Int {
-		return f.seek();
+	public inline function tell():haxe.Int64 {
+		var p:Null<Float> = f.seek();
+		if (p == null || p < 0)
+			throw haxe.io.Error.Custom("tell() failure");
+		return haxe.Int64.fromFloat(p);
 	}
 
 	override inline public function writeByte(c:Int):Void {

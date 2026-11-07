@@ -49,16 +49,16 @@ package sys.io;
 		file_close(__f);
 	}
 
-	public function seek(p:Int, pos:FileSeek):Void {
-		file_seek(__f, p, switch (pos) {
+	public function seek(p:haxe.Int64, pos:FileSeek):Void {
+		file_seek(__f, haxe.Int64.toInt(p), switch (pos) {
 			case SeekBegin: 0;
 			case SeekCur: 1;
 			case SeekEnd: 2;
 		});
 	}
 
-	public function tell():Int {
-		return file_tell(__f);
+	public function tell():haxe.Int64 {
+		return haxe.Int64.ofInt(file_tell(__f));
 	}
 
 	private static var file_close = neko.Lib.load("std", "file_close", 1);

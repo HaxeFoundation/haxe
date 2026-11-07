@@ -54,7 +54,7 @@ typedef FileStat = {
 	/** 
 		The size of the file, in bytes.
 	**/
-	var size:Int;
+	var size:haxe.Int64;
 
 	/** 
 		The device on which stat resides.

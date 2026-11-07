@@ -45,7 +45,7 @@ class FileSystem {
 			atime: @:privateAccess Date.fromI64(values[2]),
 			mtime: @:privateAccess Date.fromI64(values[3]),
 			ctime: @:privateAccess Date.fromI64(values[4]),
-			size: values[5].toInt(),
+			size: values[5],
 			dev: values[6].toInt(),
 			ino: values[7].toInt(),
 			nlink: values[8].toInt(),

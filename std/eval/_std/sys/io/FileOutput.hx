@@ -29,9 +29,9 @@ class FileOutput extends haxe.io.Output {
 
 	extern public override function flush():Void;
 
-	extern public function seek(p:Int, pos:FileSeek):Void;
+	extern public function seek(p:haxe.Int64, pos:FileSeek):Void;
 
-	extern public function tell():Int;
+	extern public function tell():haxe.Int64;
 
 	extern public override function writeByte(c:Int):Void;
 

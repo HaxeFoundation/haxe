@@ -53,20 +53,41 @@ import sys.io.File;
 		__f = null;
 	}
 
-	public function seek(p:Int, pos:FileSeek):Void {
-		if (!file_seek(__f, p, switch (pos) {
+	public function seek(p:haxe.Int64, pos:FileSeek):Void {
+		seekHandle(__f, p, pos);
+	}
+
+	public function tell():haxe.Int64 {
+		return tellHandle(__f);
+	}
+
+	static function seekHandle(f:FileHandle, p:haxe.Int64, pos:FileSeek):Void {
+		var kind = switch (pos) {
 			case SeekBegin: 0;
 			case SeekCur: 1;
 			case SeekEnd: 2;
-		}))
+		}
+		#if (hl_ver >= version("1.12.0"))
+		var ok = file_seek2(f, p.toFloat(), kind);
+		#else
+		var ok = file_seek(f, haxe.Int64.toInt(p), kind);
+		#end
+		if (!ok)
 			throw haxe.io.Error.Custom("seek() failure");
 	}
 
-	public function tell():Int {
-		var p = file_tell(__f);
+	static function tellHandle(f:FileHandle):haxe.Int64 {
+		#if (hl_ver >= version("1.12.0"))
+		var p = file_tell2(f);
+		if (p < 0)
+			throw haxe.io.Error.Custom("tell() failure");
+		return haxe.Int64.fromFloat(p);
+		#else
+		var p = file_tell(f);
 		if (p < 0)
 			throw haxe.io.Error.Custom("tell() failure");
 		return p;
+		#end
 	}
 
 	public function eof():Bool {
@@ -94,4 +115,14 @@ import sys.io.File;
 	@:hlNative("std", "file_tell") static function file_tell(f:FileHandle):Int {
 		return 0;
 	}
+
+	#if (hl_ver >= version("1.12.0"))
+	@:hlNative("std", "file_seek2") static function file_seek2(f:FileHandle, pos:Float, from:Int):Bool {
+		return true;
+	}
+
+	@:hlNative("std", "file_tell2") static function file_tell2(f:FileHandle):Float {
+		return 0;
+	}
+	#end
 }

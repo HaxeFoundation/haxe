@@ -26,7 +26,7 @@ package sys.io;
 	Use `sys.io.File.read` to create a `FileInput`.
 **/
 extern class FileInput extends haxe.io.Input {
-	function seek(p:Int, pos:FileSeek):Void;
-	function tell():Int;
+	function seek(p:haxe.Int64, pos:FileSeek):Void;
+	function tell():haxe.Int64;
 	function eof():Bool;
 }
