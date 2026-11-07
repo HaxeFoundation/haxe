@@ -448,8 +448,8 @@ let process_args (com : Common.context) =
 			)
 	in
 	List.iter process_one com.parsed_args;
-	if com.platform = Globals.Cpp && not (Define.defined com.defines DisableUnicodeStrings) && not (Define.defined com.defines HxcppSmartStings) then
-		Define.define com.defines HxcppSmartStings;
+	if com.platform = Globals.Cpp && not (Define.defined com.defines DisableUnicodeStrings) && not (Define.defined com.defines HxcppSmartStrings) then
+		Define.define com.defines HxcppSmartStrings;
 	if Define.raw_defined com.defines "gen_hx_classes" then begin
 		actx.force_typing <- true;
 		actx.pre_compilation <- (fun() ->
