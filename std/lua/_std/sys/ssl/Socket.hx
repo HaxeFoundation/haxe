@@ -48,7 +48,7 @@ import haxe.io.Error;
 
 @:coreApi(check = Off)
 class Socket extends sys.net.Socket {
-    var _sslSocket:SslTcpClient;
+    var _sslSocket:Null<SslTcpClient>;
 
     private function wrap(sock:LuaSocket):SslTcpClient {
         var res = LuaSecSsl.wrap(sock, {mode: Client, protocol: Any});
@@ -78,7 +78,8 @@ class Socket extends sys.net.Socket {
     }
 
     public override function close():Void {
-		_sslSocket.close();
+        if (_sslSocket != null)
+    		_sslSocket.close();
     }
 }
 

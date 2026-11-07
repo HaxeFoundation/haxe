@@ -47,4 +47,14 @@ class TestSocket extends utest.Test {
 		Assert.pass();
 	}
 	#end
+
+	function testImmediateClose() {
+		try {
+			final socket = new Socket();
+			socket.close();
+			Assert.pass();
+		} catch (e) {
+			Assert.fail('Closing unused socket failed: ${e}');
+		}
+	}
 }

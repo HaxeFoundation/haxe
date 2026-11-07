@@ -46,9 +46,7 @@ private class RequestSocket extends sys.net.Socket {
 	public override function close() {
 		input = originalInput;
 		output = originalOutput;
-		#if !lua
 		super.close();
-		#end
 	}
 }
 #end
