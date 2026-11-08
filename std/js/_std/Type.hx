@@ -89,6 +89,9 @@ enum ValueType {
 	#end
 
 	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
+		if (String == untyped cl) {
+			return (cast String : js.lib.Function).apply(null, args);
+		}
 		var ctor = ((cast js.lib.Function).prototype.bind : js.lib.Function).apply(cl, [null].concat(args));
 		return js.Syntax.code("new ({0})", ctor); // cannot use `js.Syntax.construct` because we need parens if `ctor` is fused in
 	}
