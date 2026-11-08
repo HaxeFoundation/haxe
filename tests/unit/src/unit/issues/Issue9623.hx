@@ -12,12 +12,10 @@ class Issue9623 extends unit.Test {
 			default: false;
 		});
 
-		#if !js
 		t(switch s {
 			case "abc": true;
 			case "def": false;
 			default: false;
 		});
-		#end
 	}
 }
