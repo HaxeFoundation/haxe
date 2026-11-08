@@ -89,7 +89,7 @@ enum ValueType {
 	#end
 
 	public static function createInstance<T>(cl:Class<T>, args:Array<Dynamic>):T {
-		if (String == untyped cl) {
+		if (String == cast cl) {
 			return (cast String : js.lib.Function).apply(null, args);
 		}
 		var ctor = ((cast js.lib.Function).prototype.bind : js.lib.Function).apply(cl, [null].concat(args));
