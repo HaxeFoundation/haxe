@@ -1,9 +1,7 @@
 package unit.issues;
 
 class Issue9623 extends unit.Test {
-	function test() {
-		final s = new String("abc");
-
+	function checkEquality(s) {
 		eq("abc", s);
 		t(s == "abc");
 
@@ -17,5 +15,13 @@ class Issue9623 extends unit.Test {
 			case "def": false;
 			default: false;
 		});
+	}
+
+	function testDirectCall() {
+		checkEquality(new String("abc"));
+	}
+
+	function testReflectiveCall() {
+		checkEquality(Type.createInstance(String, ["abc"]));
 	}
 }
