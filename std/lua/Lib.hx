@@ -52,7 +52,7 @@ class Lib {
 	public inline static function patternQuote(str:String):String {
 		return NativeStringTools.gsub(str, "[%(%)%.%%%+%-%*%?%[%]%^%$]", function(c:String) {
 			return "%" + c;
-		});
+		}).replaced;
 	}
 
 	/**

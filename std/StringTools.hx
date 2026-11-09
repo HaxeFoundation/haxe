@@ -57,11 +57,11 @@ class StringTools {
 		var b = @:privateAccess s.bytes.urlEncode(len);
 		return @:privateAccess String.__alloc__(b, len);
 		#elseif lua
-		s = lua.NativeStringTools.gsub(s, "\n", "\r\n");
+		s = lua.NativeStringTools.gsub(s, "\n", "\r\n").replaced;
 		s = lua.NativeStringTools.gsub(s, "([^%w %-%_%.%~])", function(c) {
 			return lua.NativeStringTools.format("%%%02X", lua.NativeStringTools.byte(c) + '');
-		});
-		s = lua.NativeStringTools.gsub(s, " ", "+");
+		}).replaced;
+		s = lua.NativeStringTools.gsub(s, " ", "+").replaced;
 		return s;
 		#else
 		return null;
@@ -126,11 +126,11 @@ class StringTools {
 		var b = @:privateAccess s.bytes.urlDecode(len);
 		return @:privateAccess String.__alloc__(b, len);
 		#elseif lua
-		s = lua.NativeStringTools.gsub(s, "+", " ");
+		s = lua.NativeStringTools.gsub(s, "+", " ").replaced;
 		s = lua.NativeStringTools.gsub(s, "%%(%x%x)", function(h) {
 			return lua.NativeStringTools.char(lua.Lua.tonumber(h, 16));
-		});
-		s = lua.NativeStringTools.gsub(s, "\r\n", "\n");
+		}).replaced;
+		s = lua.NativeStringTools.gsub(s, "\r\n", "\n").replaced;
 		return s;
 		#else
 		return null;
