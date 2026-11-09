@@ -2,7 +2,7 @@ package unit.issues;
 
 class Issue13170 extends unit.Test {
 	// TODO: enable on all targets once they support `finally`
-	#if (js || eval)
+	#if (js || eval || python || php)
 	var log:Array<String>;
 
 	function setup() {

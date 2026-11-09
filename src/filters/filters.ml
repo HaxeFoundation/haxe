@@ -423,7 +423,7 @@ let might_need_cf_unoptimized c cf =
 
 (* TODO: Remove this once all targets support `finally`. *)
 let check_finally_support (scom : SafeCom.t) = match scom.platform with
-	| Js | Eval | Cross | CustomTarget _ ->
+	| Js | Eval | Python | Php | Cross | CustomTarget _ ->
 		(fun e -> e)
 	| platform ->
 		let rec loop e = match e.eexpr with
