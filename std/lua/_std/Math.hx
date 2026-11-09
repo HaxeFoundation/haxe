@@ -96,7 +96,7 @@ class Math {
 	#if (lua_ver >= 5.3)
 	public static inline function atan2(y:Float, x:Float):Float
 		return lua.Math.atan(y, x);
-	#elseif (lua_ver <= 5.2 || luajit)
+	#elseif (lua_ver <= 5.2 || lua_jit)
 	public static inline function atan2(y:Float, x:Float):Float
 		return lua.Math.atan2(y, x);
 	#else
