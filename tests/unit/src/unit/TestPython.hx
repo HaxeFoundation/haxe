@@ -71,7 +71,21 @@ private enum MyEnum {
 	False;
 }
 
+// A module made by a file included before the imports (testIncludeFileTop).
+@:pythonImport("haxe_include_file_top")
+private extern class IncludedModule {
+	static var value(default, never):Int;
+
+	static function __init__():Void {
+		haxe.macro.Compiler.includeFile("unit/issues/misc/PythonIncludeFileTop.py");
+	}
+}
+
 class TestPython extends Test {
+	function testIncludeFileTop() {
+		eq(42, IncludedModule.value);
+	}
+
 	public function testDoWhileAsExpression() {
 		var x = 1;
 		var z = function() return (do {
