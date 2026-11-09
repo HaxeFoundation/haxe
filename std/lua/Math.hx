@@ -142,7 +142,7 @@ extern class Math {
 	/**
 		Returns two numbers, the integral part of x and the fractional part of x.
 	**/
-	static function modf(x:Float):Float;
+	static function modf(x:Float):MathModfResult;
 
 	/**
 		Returns the remainder of the division of x by y that rounds the quotient towards zero.
@@ -237,4 +237,9 @@ extern class Math {
 @:multiReturn extern class MathFrexpResult {
 	var m:Float;
 	var e:Int;
+}
+
+@:multiReturn extern class MathModfResult {
+	var integer:Float;
+	var fraction:Float;
 }
