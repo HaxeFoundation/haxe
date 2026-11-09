@@ -1,6 +1,7 @@
 package unit;
 
 import utest.Assert;
+import lua.Lua;
 
 class TestLua extends Test {
 	function testMultiReturnWrap(){
@@ -45,6 +46,16 @@ class TestLua extends Test {
 		var m = l + '';
 		eq(called, true);
 		untyped _hx_box_mr = old_hx_box_mr;
+	}
+
+	function testMultiReturnDestruct() {
+		eq(2, Lua.select("#", untyped MultiCall.doit())); // avoid wrapping here, pass raw multireturn for counting
+
+		eq(1, MultiCall.doit().a);
+		eq(1, Lua.select("#", MultiCall.doit().a));
+
+		eq("hi", MultiCall.doit().b);
+		eq(1, Lua.select("#", MultiCall.doit().b));
 	}
 
 	function testSwitchSubjectSideEffects() {
