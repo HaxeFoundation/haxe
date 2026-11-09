@@ -311,7 +311,7 @@ let mk_mr_select com e ecall name =
             Globals.die "" __LOC__
     in
     if i == 0 then
-        mk_lua_code com "{0}" [ecall] e.etype e.epos
+        mk_lua_code com "({0})" [ecall] e.etype e.epos
     else
         let code = Printf.sprintf "_G.select(%i, {0})" (i + 1) in
         mk_lua_code com code [ecall] e.etype e.epos
