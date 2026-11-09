@@ -74,6 +74,28 @@ private abstract ToArrayForwarded<T>(Array<T>) to Array<T> {
 		this = a;
 }
 
+// A length that is a property with a getter and no field behind it, like python.Bytearray's.
+private class GetterLength {
+	public final items:Array<Int>;
+
+	public function new(items:Array<Int>)
+		this.items = items;
+
+	public var length(get, never):Int;
+
+	function get_length()
+		return items.length;
+}
+
+@:forward(length)
+private abstract ForwardedGetterLength(GetterLength) {
+	public inline function new(items:Array<Int>)
+		this = new GetterLength(items);
+
+	@:arrayAccess inline function get(i:Int):Int
+		return this.items[i];
+}
+
 #if js
 @:native("Array")
 private extern class ArrayLike<T> implements ArrayAccess<T> {
@@ -215,6 +237,15 @@ class Issue8012 extends Test {
 			case _: "";
 		});
 		eq("xyz", [for (s in d) s].join(""));
+	}
+
+	function testForwardedGetter() {
+		var a = new ForwardedGetterLength([2, 3, 4]);
+		eq("234", [for (x in a) x].join(""));
+		eq(7, switch a {
+			case [_, y, z]: y + z;
+			case _: 0;
+		});
 	}
 
 	#if js

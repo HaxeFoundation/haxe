@@ -25,11 +25,16 @@ and array_length =
 
 let get_array_length ctx arr p =
 	let fa = try quick_field arr.etype "length" with Not_found -> Error.raise_msg (Printf.sprintf "Could not find field length on %s" (s_type_kind arr.etype)) arr.epos in
-	let t = match fa with
-		| FDynamic _ -> t_dynamic
-		| _ -> ctx.com.basic.tint
-	in
-	mk (TField (arr,fa)) t p
+	match fa with
+	| FInstance(_,_,{cf_kind = Var {v_read = AccCall}}) ->
+		(* A property with a getter, like python.Bytearray's length (get, never): read it the way `e.length` is typed. *)
+		Calls.acc_get ctx (Fields.type_field_default_cfg ctx arr "length" p MGet WithType.value)
+	| _ ->
+		let t = match fa with
+			| FDynamic _ -> t_dynamic
+			| _ -> ctx.com.basic.tint
+		in
+		mk (TField (arr,fa)) t p
 
 (* The element of e[i], for a type which isn't an abstract with @:arrayAccess functions, the way the typer finds it:
    through @:arrayAccess on an abstract to its underlying type, or by unifying with an array. *)
