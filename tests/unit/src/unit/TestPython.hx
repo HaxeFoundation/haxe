@@ -273,6 +273,17 @@ class TestPython extends Test {
 		eq("one", (o2.numbers : python.Dict<Int, String>).get(1, null));
 	}
 
+	// haxe.crypto.Base64 uses Python's base64 module here; it decodes as the generic version does.
+	function testBase64LikeGeneric() {
+		exc(() -> haxe.crypto.Base64.decode("YQ==", false)); // "=" isn't expected without complement
+		exc(() -> haxe.crypto.Base64.decode("Y Q=="));
+		exc(() -> haxe.crypto.Base64.urlDecode("YWI/")); // the other alphabet
+		exc(() -> haxe.crypto.Base64.decode("YWI_"));
+		eq("ab~", haxe.crypto.Base64.decode("YWJ+Y").toString()); // a char left over is ignored
+		eq("a", haxe.crypto.Base64.decode("YQ===").toString());
+		eq("", haxe.crypto.Base64.decode("").toString());
+	}
+
 	function testKwArgsKeywordNames() {
 		var fn:KwArgs<{from:Int, normal:Int}>->python.Dict<String, Dynamic> = Syntax.code("(lambda **kw: kw)");
 		var kw = fn({from: 1, normal: 2});
