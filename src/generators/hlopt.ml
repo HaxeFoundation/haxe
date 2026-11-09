@@ -1068,6 +1068,17 @@ let _optimize (f:fundecl) =
 	in
 	ignore(live root);
 
+	(* The only edge to a trap handler starts at the trap, but any instruction inside the trap can
+	   throw. Keep the registers which the handler needs alive throughout the trap, so that writes
+	   inside it aren't removed when a later write inside it overwrites them. *)
+	Hashtbl.iter (fun _ b ->
+		List.iter (fun p ->
+			match (try (Hashtbl.find blocks_pos p).bneed_all with Not_found -> None) with
+			| Some need -> ISet.iter (fun r -> set_live r b.bstart b.bend) need
+			| None -> ()
+		) b.btrap
+	) blocks_pos;
+
 	(* nop *)
 
 	for i = Array.length f.code - 1 downto 0 do
