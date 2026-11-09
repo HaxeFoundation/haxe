@@ -4,7 +4,7 @@ import utest.Assert;
 
 class TestLua extends Test {
 	function testMultiReturnWrap(){
-		var multi : Multi = untyped MultiCall.doit();
+		var multi = MultiCall.doit();
 		var l = lua.Lua.type(multi);
 		// test that the original multi variable was wrapped
 		eq(lua.Lua.type(untyped __lua__("multi")), "table");
@@ -12,13 +12,13 @@ class TestLua extends Test {
 	}
 
 	function testMultiReturnPlainFunctionCall(){
-		var multi : Multi = untyped MultiCall.doit();
+		var multi = MultiCall.doit();
 		// this shouldn't box the result
 		eq(untyped __lua__("multi"), null);
 	}
 
 	function testMultiReturnValue(){
-		var multi : Multi = untyped MultiCall.doit();
+		var multi = MultiCall.doit();
 		var l = lua.Lua.type(multi.b);
 		// test that the original multi wrapped variable was never created
 		eq(untyped __lua__("multi"), null);
@@ -400,9 +400,16 @@ class TestLua extends Test {
 }
 
 class MultiCall {
-	public static function doit() : Dynamic {
-		return untyped __lua__("1,'hi'");
+	static function __init__() {
+		untyped doit = doitImpl;
 	}
+
+	public static extern function doit() : Multi;
+
+	static function doitImpl() {
+		return lua.Syntax.code("{0}, {1}", 1, 'hi');
+	}
+
 	public static function acceptMr(m:Multi){
 		return lua.Lua.type(m) == "table";
 	}
