@@ -1,8 +1,6 @@
 package unit.issues;
 
 class Issue13170 extends unit.Test {
-	// TODO: enable on all targets once they support `finally`
-	#if (js || eval || python || php || jvm)
 	var log:Array<String>;
 
 	function setup() {
@@ -14,6 +12,8 @@ class Issue13170 extends unit.Test {
 			throw "error";
 	}
 
+	// TODO: these leave the try through return, break or continue, enable them everywhere
+	#if (js || eval || python || php || jvm)
 	function returnInTry():Int {
 		var x = 1;
 		try {
@@ -29,6 +29,7 @@ class Issue13170 extends unit.Test {
 		eq(1, returnInTry());
 		eq("try,finally", log.join(","));
 	}
+	#end
 
 	function testNormal() {
 		try {
@@ -99,6 +100,8 @@ class Issue13170 extends unit.Test {
 		eq("replaced", log.join(","));
 	}
 
+	// TODO: these leave the try through return, break or continue, enable them everywhere
+	#if (js || eval || python || php || jvm)
 	function testLoop() {
 		for (i in 0...4) {
 			try {
@@ -126,7 +129,10 @@ class Issue13170 extends unit.Test {
 		}
 		eq(11, x);
 	}
+	#end
 
+	// TODO: these leave the try through return, break or continue, enable them everywhere
+	#if (js || eval || python || php || jvm)
 	function nestedReturn():Int {
 		try {
 			try {
@@ -143,6 +149,7 @@ class Issue13170 extends unit.Test {
 		eq(1, nestedReturn());
 		eq("inner,outer", log.join(","));
 	}
+	#end
 
 	function testValue() {
 		var x = try {
@@ -177,5 +184,4 @@ class Issue13170 extends unit.Test {
 		}
 		eq(2, f());
 	}
-	#end
-}
+	}

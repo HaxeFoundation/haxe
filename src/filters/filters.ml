@@ -421,18 +421,69 @@ let might_need_cf_unoptimized c cf =
 	| _ ->
 		has_class_field_flag cf CfGeneric
 
-(* TODO: Remove this once all targets support `finally`. *)
-let check_finally_support (scom : SafeCom.t) = match scom.platform with
+(* Targets without native `finally` get this temporary rewrite:
+
+	try { e1 } catch(...) { ... } finally { ef }
+
+   becomes
+
+	try { try { e1 } catch(...) { ... } } catch (e:haxe.Exception) { ef; throw e; }
+	ef;
+
+   This doesn't support leaving the try or catch blocks through return, break or continue.
+   TODO: Replace with proper support per target. *)
+let lower_finally (scom : SafeCom.t) = match scom.platform with
 	| Js | Eval | Python | Php | Jvm | Cross | CustomTarget _ ->
 		(fun e -> e)
 	| platform ->
-		let rec loop e = match e.eexpr with
-			| TTry(_,_,Some _) ->
-				Error.raise_typing_error ("finally is not supported on " ^ (platform_name platform) ^ " yet") e.epos
-			| _ ->
-				Type.iter loop e
+		let check_exits e =
+			let error s p =
+				Error.raise_typing_error (Printf.sprintf "%s out of a try block with finally is not supported on %s yet" s (platform_name platform)) p
+			in
+			let rec loop in_loop e = match e.eexpr with
+				| TFunction _ -> ()
+				| TReturn _ -> error "Return" e.epos
+				| TBreak when not in_loop -> error "Break" e.epos
+				| TContinue when not in_loop -> error "Continue" e.epos
+				| TWhile(e1,e2,_) ->
+					loop in_loop e1;
+					loop true e2
+				| _ -> Type.iter (loop in_loop) e
+			in
+			loop false e
 		in
-		(fun e -> loop e; e)
+		let rec run e = match e.eexpr with
+			| TTry(e1,catches,Some ef) ->
+				let e1 = run e1 in
+				let catches = List.map (fun (v,e) -> v,run e) catches in
+				let ef = run ef in
+				check_exits e1;
+				List.iter (fun (_,e) -> check_exits e) catches;
+				let p = e.epos in
+				let t = e.etype in
+				let etry = match catches with
+					| [] -> e1
+					| _ -> mk (TTry(e1,catches,None)) t p
+				in
+				let v = alloc_var VGenerated gen_local_prefix scom.basic.texception p in
+				let ethrow = mk (TThrow (mk (TLocal v) v.v_type p)) t_dynamic p in
+				let etry = mk (TTry(etry,[v,mk (TBlock [ef;ethrow]) t p],None)) t p in
+				(* The second copy needs its own variables. *)
+				let ef = Texpr.duplicate_tvars e_identity ef in
+				if ExtType.is_void (follow t) then
+					mk (TBlock [etry;ef]) t p
+				else begin
+					let vr = alloc_var VGenerated gen_local_prefix t p in
+					mk (TBlock [
+						mk (TVar(vr,Some etry)) scom.basic.tvoid p;
+						ef;
+						mk (TLocal vr) t p
+					]) t p
+				end
+			| _ ->
+				Type.map_expr run e
+		in
+		run
 
 let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array rename_locals_config =
 	let pool_lazy = com.Common.sctx.pool in
@@ -442,12 +493,12 @@ let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array
 		"handle_abstract_casts",AbstractCast.handle_abstract_casts;
 	] in
 	let filters_before_inlining_parallel = [
-		"check_finally_support",check_finally_support;
 		"local_statics",LocalStatic.run;
 		"fix_return_dynamic_from_void_function",SafeFilters.fix_return_dynamic_from_void_function;
 		"check_local_vars_init",CheckVarInit.check_local_vars_init;
 		"check_abstract_as_value",SafeFilters.check_abstract_as_value;
 		"Tre",if Define.defined scom.defines Define.AnalyzerOptimize then Tre.run else (fun _ e -> e);
+		"lower_finally",lower_finally;
 	] in
 
 	let filters_before_analyzer = [
