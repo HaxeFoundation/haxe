@@ -18,6 +18,16 @@ type map_suspension_result =
 	| HasSuspension
 	| HasNoSuspension of texpr
 
+(* A `finally` block whose try or catch blocks can suspend. It exists once, and everything that
+   leaves the try and catch blocks goes through it: the exit stores an index in `fr_next`, and a
+   switch after the `finally` block continues accordingly. *)
+type finally_region = {
+	fr_cb : coro_block;
+	fr_next : tvar;
+	(* The exits other than completing normally (0) and throwing (1), starting at index 2. *)
+	fr_exits : (coro_block -> unit) DynArray.t;
+}
+
 (* Extract the @:coroutine outcome config from a callee expression.
    Handles all field access variants and local variables. *)
 let get_outcome_from_callee e1 =
@@ -90,6 +100,13 @@ let expr_to_coro ctx etmp_result etmp_error etmp_error_unwrapped cb_root scope d
 	in
 	let goto cb_from cb_to =
 		terminate cb_from (NextGoto cb_to) t_dynamic null_pos
+	in
+	(* The enclosing `finally` regions, innermost first. *)
+	let finally_stack = ref [] in
+	let mk_assign_int v i =
+		let basic = ctx.typer.t in
+		let ev = Texpr.Builder.make_local v v.v_pos in
+		Texpr.Builder.binop OpAssign ev (Texpr.Builder.make_int basic i v.v_pos) basic.tint v.v_pos
 	in
 	let tmp_local cb t eo p =
 		let v = alloc_var VGenerated "tmp" t p in
@@ -194,6 +211,9 @@ let expr_to_coro ctx etmp_result etmp_error etmp_error_unwrapped cb_root scope d
 					}
 				end else
 					raise Found
+			| TReturn _ when !finally_stack <> [] ->
+				(* The return has to go through the enclosing `finally` blocks. *)
+				raise Found
 			| TReturn None ->
 				deferred.make_inline_return None e.epos
 			| TReturn (Some e1) ->
@@ -258,6 +278,21 @@ let expr_to_coro ctx etmp_result etmp_error etmp_error_unwrapped cb_root scope d
 		with Found -> HasSuspension
 	in
 	let loop_stack = ref [] in
+	(* How many of the enclosing `finally` regions are outside of the innermost loop. *)
+	let loop_finally_depth = ref 0 in
+	(* Runs `perform` on a block which is reached after running the `finally` blocks of `crossed`, innermost first. *)
+	let rec leave_through_finally cb crossed perform = match crossed with
+		| [] ->
+			perform cb
+		| fr :: outer ->
+			let index = DynArray.length fr.fr_exits + 2 in
+			DynArray.add fr.fr_exits (fun cb -> leave_through_finally cb outer perform);
+			add_expr cb (mk_assign_int fr.fr_next index);
+			goto cb fr.fr_cb
+	in
+	let finally_in_loop () =
+		ExtList.List.take (List.length !finally_stack - !loop_finally_depth) !finally_stack
+	in
 	let rec loop cb ret e =
 	match e.eexpr with
 		(* special cases *)
@@ -468,7 +503,9 @@ let expr_to_coro ctx etmp_result etmp_error etmp_error_unwrapped cb_root scope d
 		| TBreak ->
 			begin match !loop_stack with
 				| hd :: _ ->
-					terminate cb (NextBreak (AtomicLazy.force (snd hd))) e.etype e.epos;
+					leave_through_finally cb (finally_in_loop ()) (fun cb ->
+						terminate cb (NextBreak (AtomicLazy.force (snd hd))) e.etype e.epos
+					)
 				| [] ->
 					(* Ignore, this failed during typing already. *)
 					()
@@ -477,14 +514,33 @@ let expr_to_coro ctx etmp_result etmp_error etmp_error_unwrapped cb_root scope d
 		| TContinue ->
 			begin match !loop_stack with
 				| hd :: _ ->
-					terminate cb (NextContinue (fst hd)) e.etype e.epos;
+					leave_through_finally cb (finally_in_loop ()) (fun cb ->
+						terminate cb (NextContinue (fst hd)) e.etype e.epos
+					)
 				| [] ->
 					(* Ignore, this failed during typing already. *)
 					()
 			end;
 			None
 		| TReturn None ->
-			terminate cb NextReturnVoid e.etype e.epos;
+			leave_through_finally cb !finally_stack (fun cb ->
+				terminate cb NextReturnVoid e.etype e.epos
+			);
+			None
+		| TReturn (Some e1) when !finally_stack <> [] ->
+			(* The value is computed before the `finally` blocks run. *)
+			let cb_ret = loop cb RValue e1 in
+			Option.may (fun (cb,e1) ->
+				if ExtType.is_void (follow e1.etype) then begin
+					add_expr cb e1;
+					leave_through_finally cb !finally_stack (fun cb -> terminate cb NextReturnVoid e.etype e.epos)
+				end else begin
+					let v = tmp_local cb e1.etype (Some e1) e1.epos in
+					leave_through_finally cb !finally_stack (fun cb ->
+						terminate cb (NextReturn (Texpr.Builder.make_local v v.v_pos)) e.etype e.epos
+					)
+				end
+			) cb_ret;
 			None
 		| TReturn (Some e1) ->
 			let cb_ret = loop_assign cb RTailReturn e1 in
@@ -578,8 +634,7 @@ let expr_to_coro ctx etmp_result etmp_error etmp_error_unwrapped cb_root scope d
 			| HasNoSuspension e1', Some catches', Some efinally' ->
 				Some (cb,{e with eexpr = TTry(e1',catches',efinally')})
 			| _ when efinally <> None ->
-				(* TODO: The state machine would have to remember how the try or catch block was left. *)
-				Error.raise_typing_error "finally is not supported yet in coroutines if the try, catch or finally blocks can suspend" e.epos
+				split_try_finally cb ret e1 catches (Option.get efinally) e.etype e.epos
 			| _ ->
 				split_try cb ret e1 catches e.etype e.epos
 			end
@@ -736,8 +791,11 @@ let expr_to_coro ctx etmp_result etmp_error etmp_error_unwrapped cb_root scope d
 		let cb_next = AtomicLazy.from_fun (fun () -> make_block None) in
 		let cb_body = block_from_e e2 in
 		loop_stack := (cb_body,cb_next) :: !loop_stack;
+		let old_loop_finally_depth = !loop_finally_depth in
+		loop_finally_depth := List.length !finally_stack;
 		let cb_body_next = loop_block cb_body RBlock e2 in
 		Option.may (fun (cb_body_next,_) -> goto cb_body_next cb_body) cb_body_next;
+		loop_finally_depth := old_loop_finally_depth;
 		loop_stack := List.tl !loop_stack;
 		let cb_next = if AtomicLazy.is_val cb_next then Some (AtomicLazy.force cb_next) else None in
 		terminate cb (NextWhile(e1,cb_body,cb_next)) etype epos;
@@ -781,5 +839,78 @@ let expr_to_coro ctx etmp_result etmp_error etmp_error_unwrapped cb_root scope d
 		let cb_next = if AtomicLazy.is_val cb_next then Some (AtomicLazy.force cb_next) else None in
 		terminate cb (NextTry(cb_try,catch,cb_next)) etype epos;
 		Option.map (fun cb_next -> (cb_next,e_value)) cb_next
+	(* `try e1 catch ... finally ef` where something suspends. The try and catch blocks are wrapped in a
+	   catch-all, and every way of leaving them goes through the single `finally` block, see `finally_region`. *)
+	and split_try_finally cb ret e1 catches ef etype epos =
+		(* The value is assigned in the try and catch blocks, so it must not be returned from there. *)
+		let ret = match ret with
+			| RTailReturn -> RValue
+			| RTailBlock -> RBlock
+			| _ -> ret
+		in
+		let e_value,ret = check_complex cb ret etype epos in
+		ctx.has_catch <- true;
+		let basic = ctx.typer.t in
+		let v_next = alloc_var VGenerated "_hx_finally_next" basic.tint epos in
+		add_expr cb (mk (TVar(v_next,None)) basic.tvoid epos);
+		(* These blocks are outside of the try and catch blocks. *)
+		let fr = {
+			fr_cb = make_block (Some(ef.etype,ef.epos));
+			fr_next = v_next;
+			fr_exits = DynArray.create ();
+		} in
+		let cb_after = make_block None in
+		let v_exc = alloc_var VGenerated "_hx_finally_exc" etmp_error.etype epos in
+		let cb_handler = make_block None in
+		add_expr cb_handler (mk (TVar(v_exc,Some etmp_error)) basic.tvoid epos);
+		add_expr cb_handler (mk_assign_int v_next 1);
+		goto cb_handler fr.fr_cb;
+		let catch = make_block None in
+		(* See split_try *)
+		add_block_flag catch CbGenerated;
+		let catch = {
+			cc_cb = catch;
+			cc_catches = [alloc_var VGenerated "_hx_finally_caught" etmp_error.etype epos,cb_handler];
+		} in
+		(* The try and catch blocks *)
+		let old_catch = ctx.current_catch in
+		ctx.current_catch <- Some catch.cc_cb;
+		finally_stack := fr :: !finally_stack;
+		let cb_try = block_from_e e1 in
+		let cb_try_next = match catches with
+			| [] -> loop_block cb_try ret e1
+			| _ -> split_try cb_try ret e1 catches etype epos
+		in
+		finally_stack := List.tl !finally_stack;
+		ctx.current_catch <- old_catch;
+		let completes = Option.is_some cb_try_next in
+		Option.may (fun (cb_try_next,_) ->
+			add_expr cb_try_next (mk_assign_int v_next 0);
+			goto cb_try_next fr.fr_cb
+		) cb_try_next;
+		terminate cb (NextTry(cb_try,catch,Some fr.fr_cb)) etype epos;
+		(* The `finally` block, followed by the dispatch on how it was entered *)
+		match loop_block fr.fr_cb RBlock ef with
+		| None ->
+			None
+		| Some (cb_fin_next,_) ->
+			let mk_case i cb = ([Texpr.Builder.make_int basic i epos],cb) in
+			let cb_rethrow = make_block None in
+			terminate cb_rethrow (NextThrow (Texpr.Builder.make_local v_exc epos)) etype epos;
+			let exits = DynArray.to_list fr.fr_exits |> List.mapi (fun i perform ->
+				let cb_exit = make_block None in
+				perform cb_exit;
+				mk_case (i + 2) cb_exit
+			) in
+			let cases = mk_case 1 cb_rethrow :: exits in
+			let cases = if completes then mk_case 0 cb_after :: cases else cases in
+			let switch = {
+				cs_subject = Texpr.Builder.make_local v_next epos;
+				cs_cases = cases;
+				cs_default = None;
+				cs_exhaustive = true;
+			} in
+			terminate cb_fin_next (NextSwitch(switch,None)) etype epos;
+			if completes then Some (cb_after,e_value) else None
 	in
 	loop_block cb_root RTailBlock e

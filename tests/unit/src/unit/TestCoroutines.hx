@@ -797,6 +797,136 @@ class TestCoroutines extends Test {
 		eq(3, cont.lastResult);
 	}
 
+	#if (js || eval || python || php) // TODO: all targets once they support `finally`
+	// Resumes the suspended coroutine until it stops suspending.
+	function resumeAll<T>(sus:Suspender<T>, value:T, ?error:Exception) {
+		while (sus.cont != null) {
+			final c = sus.cont;
+			sus.cont = null;
+			c.resume(value, error);
+			error = null;
+		}
+	}
+
+	function testFinallySuspendReturn() {
+		final sus = new Suspender<Int>();
+		final log = [];
+		@:coroutine function f():Int {
+			var x = 1;
+			try {
+				x = sus.suspend();
+				return x;
+			} finally {
+				x = 100;
+				log.push("finally " + sus.suspend());
+			}
+		}
+		var cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, f);
+		resumeAll(sus, 5);
+		eq(1, cont.resumeCount);
+		eq(5, cont.lastResult);
+		eq("finally 5", log.join(","));
+	}
+
+	function testFinallySuspendError() {
+		final sus = new Suspender<Int>();
+		final log = [];
+		@:coroutine function f():Int {
+			try {
+				sus.suspend();
+				log.push("not reached");
+			} catch (e:String) {
+				log.push("wrong catch");
+			} finally {
+				sus.suspend();
+				log.push("finally");
+			}
+			return 0;
+		}
+		var cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, f);
+		resumeAll(sus, 1, new Exception("oops"));
+		eq(1, cont.resumeCount);
+		eq("oops", cont.lastError.message);
+		eq("finally", log.join(","));
+	}
+
+	function testFinallySuspendCatch() {
+		final sus = new Suspender<Int>();
+		final log = [];
+		@:coroutine function f():Int {
+			try {
+				sus.suspend();
+			} catch (e:Exception) {
+				log.push("catch " + sus.suspend());
+				throw "rethrown";
+			} finally {
+				log.push("finally " + sus.suspend());
+			}
+			return 0;
+		}
+		var cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, f);
+		resumeAll(sus, 2, new Exception("oops"));
+		eq(1, cont.resumeCount);
+		eq("rethrown", cont.lastError.message);
+		eq("catch 2,finally 2", log.join(","));
+	}
+
+	function testFinallySuspendLoop() {
+		final sus = new Suspender<Int>();
+		final log = [];
+		@:coroutine function f():Int {
+			var i = 0;
+			while (true) {
+				try {
+					i += sus.suspend();
+					if (i == 1)
+						continue;
+					if (i == 3)
+						break;
+					log.push("body " + i);
+				} finally {
+					sus.suspend();
+					log.push("finally " + i);
+				}
+			}
+			return i;
+		}
+		var cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, f);
+		resumeAll(sus, 1);
+		eq(1, cont.resumeCount);
+		eq(3, cont.lastResult);
+		eq("finally 1,body 2,finally 2,finally 3", log.join(","));
+	}
+
+	function testFinallySuspendNested() {
+		final sus = new Suspender<Int>();
+		final log = [];
+		@:coroutine function f():Int {
+			try {
+				try {
+					return sus.suspend();
+				} finally {
+					sus.suspend();
+					log.push("inner");
+				}
+			} finally {
+				sus.suspend();
+				log.push("outer");
+			}
+		}
+		var cont = new TrackingCont<Int>();
+		invokeCoroutine(cont, f);
+		resumeAll(sus, 4);
+		eq(1, cont.resumeCount);
+		eq(4, cont.lastResult);
+		eq("inner,outer", log.join(","));
+	}
+	#end
+
 	// The error of a resumption that isn't caught completes the coroutine.
 	function testUncaughtErrorResumption() {
 		final sus = new Suspender<Int>();
