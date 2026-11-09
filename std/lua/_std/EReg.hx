@@ -175,9 +175,9 @@ class EReg {
 
 	public function replace(s:String, by:String):String {
 		var chunks = by.split("$$");
-		chunks = [for (chunk in chunks) Rex.gsub(chunk, "\\$(\\d)", "%%%1", 1)];
+		chunks = [for (chunk in chunks) Rex.gsub(chunk, "\\$(\\d)", "%%%1", 1).replaced];
 		by = chunks.join("$");
-		return Rex.gsub(s, r, by, global ? null : 1);
+		return Rex.gsub(s, r, by, global ? null : 1).replaced;
 	}
 
 	public function map(s:String, f:EReg->String):String {
