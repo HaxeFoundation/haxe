@@ -1,9 +1,10 @@
 name: Cache hxcpp objects
 description: >
   Restores the hxcpp compile cache (HXCPP_COMPILE_CACHE) from earlier runs, and saves it when
-  the job succeeds. hxcpp stores objects by a hash of the source, its declared dependencies,
-  the flags and the compiler version, so objects of generated files that didn't change since
-  an earlier run are reused.
+  the job succeeds. hxcpp stores objects by a hash of the source, its declared dependencies
+  (including the hxcpp headers), the flags and the compiler version, so objects of files that
+  didn't change since an earlier run are reused, even across hxcpp revisions. hxcpp evicts the
+  least recently used objects once the cache exceeds HXCPP_CACHE_MB (default 1000).
 inputs:
   key-prefix:
     description: 'Platform/arch-specific cache key prefix (e.g., hxcpp-linux-x86)'
@@ -11,19 +12,10 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Compute hxcpp cache key
-      id: key
-      shell: bash
-      run: |
-        # RunCi installs hxcpp from git later on. Objects depend on the hxcpp headers, so a
-        # new hxcpp revision starts a new cache instead of carrying the stale objects along.
-        rev=$(git ls-remote https://github.com/HaxeFoundation/hxcpp.git HEAD | cut -f1)
-        echo "prefix=${{ inputs.key-prefix }}-$rev-" >> "$GITHUB_OUTPUT"
-
     # Cache entries can't be overwritten, so every run saves under its own key and restores
     # the newest one with the same prefix.
     - uses: actions/cache@v6
       with:
         path: ${{ env.HXCPP_COMPILE_CACHE }}
-        key: ${{ steps.key.outputs.prefix }}${{ github.run_id }}-${{ github.run_attempt }}
-        restore-keys: ${{ steps.key.outputs.prefix }}
+        key: ${{ inputs.key-prefix }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: ${{ inputs.key-prefix }}-
