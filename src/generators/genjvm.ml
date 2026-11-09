@@ -124,6 +124,13 @@ type block_exit =
 	| ExitExecute of (unit -> unit)
 	| ExitLoop
 
+(* The code which is protected by exception handlers: a try with its catches, or a synchronized block.
+   The holes are copies of `finally` blocks (or monitor exits) emitted where control flow leaves the
+   region. They run outside of the region, so its handlers must not cover them. *)
+type try_region = {
+	mutable tr_holes : (int * int) list;
+}
+
 let need_val = function
 	| RValue _ -> true
 	| _ -> false
@@ -619,6 +626,7 @@ class texpr_to_jvm
 	val mutable continue = None
 	val mutable caught_exceptions = []
 	val mutable block_exits = []
+	val mutable try_regions = []
 	val mutable env = None
 
 	method vtype t =
@@ -1893,9 +1901,12 @@ class texpr_to_jvm
 					let _,load,save = jm#add_local "tmp" (self#vtype e1.etype) VarWillInit in
 					save();
 					jm#get_code#monitorenter;
+					let region = self#push_try_region in
 					let f_exit () =
+						let fp_from = jm#get_code#get_fp in
 						load();
 						jm#get_code#monitorexit;
+						self#add_hole region fp_from jm#get_code#get_fp
 					in
 					block_exits <- (ExitExecute f_exit) :: block_exits;
 					let fp_from = jm#get_code#get_fp in
@@ -1903,17 +1914,13 @@ class texpr_to_jvm
 					let term_try = jm#is_terminated in
 					if not jm#is_terminated then f_exit();
 					let fp_to = jm#get_code#get_fp in
+					try_regions <- List.tl try_regions;
 					let r_try = jm#maybe_make_jump in
 					let fp_target = jm#get_code#get_fp in
 					let pop_scope = jm#push_scope in
 					code#get_stack#push throwable_sig;
 					jm#add_stack_frame;
-					jm#add_exception {
-						exc_start_pc = fp_from;
-						exc_end_pc = fp_to;
-						exc_handler_pc = fp_target;
-						exc_catch_type = None;
-					};
+					self#add_exception_ranges region fp_from fp_to fp_target None;
 					begin
 						let _,load,save = jm#add_local "tmp" throwable_sig VarWillInit in
 						save();
@@ -1955,8 +1962,82 @@ class texpr_to_jvm
 
 	(* exceptions *)
 
-	method try_catch ret e1 catches =
+	method push_try_region =
+		let region = { tr_holes = [] } in
+		try_regions <- region :: try_regions;
+		region
+
+	(* Adds the code from [fp_from] to [fp_to] as a hole to [region] and the regions inside of it.
+	   Nothing happens if [region] is already closed, then the code is outside of it anyway. *)
+	method add_hole region fp_from fp_to =
+		if fp_to > fp_from && List.memq region try_regions then begin
+			let rec loop l = match l with
+				| r :: l ->
+					r.tr_holes <- (fp_from,fp_to) :: r.tr_holes;
+					if r != region then loop l
+				| [] ->
+					die "" __LOC__
+			in
+			loop try_regions
+		end
+
+	(* Adds an exception handler for the code from [fp_from] to [fp_to], except for the holes of [region]. *)
+	method add_exception_ranges region fp_from fp_to fp_handler catch_type =
+		let add fp_from fp_to =
+			if fp_to > fp_from then jm#add_exception {
+				exc_start_pc = fp_from;
+				exc_end_pc = fp_to;
+				exc_handler_pc = fp_handler;
+				exc_catch_type = catch_type;
+			}
+		in
+		let holes = List.sort compare region.tr_holes in
+		let fp = List.fold_left (fun fp (hole_from,hole_to) ->
+			if hole_to <= fp || hole_from >= fp_to then
+				fp
+			else begin
+				add fp hole_from;
+				max fp hole_to
+			end
+		) fp_from holes in
+		add fp fp_to
+
+	method try_catch ret e1 catches efinally =
+		(* In return position, the try and catch blocks would return directly and skip the `finally`
+		   block, so we return after the whole try instead. *)
+		let ret,return_after = match efinally,ret with
+			| Some _,RReturn ->
+				(match return_type with None -> RVoid | Some jsig -> RValue (Some jsig,None)),true
+			| _ ->
+				ret,false
+		in
 		let restore = jm#start_branch in
+		let region = self#push_try_region in
+		(* Emits a copy of the `finally` block where control flow leaves the try or a catch block. *)
+		let emit_finally = Option.map (fun ef () ->
+			let fp_from = code#get_fp in
+			let pop_scope = jm#push_scope in
+			self#texpr RVoid ef;
+			pop_scope();
+			self#add_hole region fp_from code#get_fp
+		) efinally in
+		Option.may (fun f -> block_exits <- (ExitExecute f) :: block_exits) emit_finally;
+		(* The value of the try or catch block is stored while the `finally` block runs, because an
+		   exception handler in it would clear the operand stack. *)
+		let complete () = match emit_finally with
+			| Some f when not jm#is_terminated ->
+				if need_val ret then begin
+					let pop_scope = jm#push_scope in
+					let _,load,save = jm#add_local "tmp" code#get_stack#top VarWillInit in
+					save();
+					f();
+					if not jm#is_terminated then load();
+					pop_scope()
+				end else
+					f()
+			| _ ->
+				()
+		in
 		let fp_from = code#get_fp in
 		let old_exceptions = caught_exceptions in
 		let excl = List.map (fun (v,e) ->
@@ -1965,6 +2046,7 @@ class texpr_to_jvm
 			exc,v,e
 		) catches in
 		self#texpr ret e1;
+		complete();
 		caught_exceptions <- old_exceptions;
 		let term_try = jm#is_terminated in
 		let r_try = jm#maybe_make_jump in
@@ -1973,12 +2055,7 @@ class texpr_to_jvm
 			restore();
 			let fp_target = code#get_fp in
 			let offset = pool#add_path path in
-			jm#add_exception {
-				exc_start_pc = fp_from;
-				exc_end_pc = fp_to;
-				exc_handler_pc = fp_target;
-				exc_catch_type = Some offset;
-			};
+			self#add_exception_ranges region fp_from fp_to fp_target (Some offset);
 			code#get_stack#push jsig;
 			jm#add_stack_frame;
 		in
@@ -1987,6 +2064,7 @@ class texpr_to_jvm
 			let _,_,store = self#add_local v VarWillInit in
 			store();
 			self#texpr ret e;
+			complete();
 			pop_scope();
 			jm#is_terminated
 		in
@@ -2004,7 +2082,31 @@ class texpr_to_jvm
 				acc
 		in
 		let rl = loop [] excl in
-		jm#close_jumps true ((term_try,r_try) :: rl)
+		try_regions <- List.tl try_regions;
+		begin match emit_finally with
+			| None ->
+				()
+			| Some _ ->
+				block_exits <- List.tl block_exits;
+				(* The catch-all handler runs the `finally` block and rethrows. *)
+				let fp_catches_to = code#get_fp in
+				restore();
+				let fp_target = code#get_fp in
+				let pop_scope = jm#push_scope in
+				code#get_stack#push throwable_sig;
+				jm#add_stack_frame;
+				self#add_exception_ranges region fp_from fp_catches_to fp_target None;
+				let _,load,save = jm#add_local "exc" throwable_sig VarWillInit in
+				save();
+				self#texpr RVoid (Option.get efinally);
+				if not jm#is_terminated then begin
+					load();
+					code#athrow
+				end;
+				pop_scope();
+		end;
+		jm#close_jumps true ((term_try,r_try) :: rl);
+		if return_after && not jm#is_terminated then jm#return
 
 	method emit_block_exits is_loop_exit =
 		let rec loop stack = match stack with
@@ -2183,8 +2285,8 @@ class texpr_to_jvm
 			| Some label ->
 				label#goto;
 			end;
-		| TTry(e1,catches,_) ->
-			self#try_catch ret e1 catches
+		| TTry(e1,catches,efinally) ->
+			self#try_catch ret e1 catches efinally
 		| TField(e1,fa) ->
 			if not (need_val ret) then self#texpr ret e1
 			else self#read (fun () -> self#cast_expect ret e.etype) e1 fa;
@@ -2218,8 +2320,19 @@ class texpr_to_jvm
 			if not (jm#is_terminated) then begin
 				let jsig = Option.get return_type in
 				jm#cast jsig;
-				self#emit_block_exits false;
-				jm#return;
+				if List.exists (function ExitExecute _ -> true | ExitLoop -> false) block_exits then begin
+					(* The block exits could contain exception handlers, which clear the operand stack. *)
+					let _,load,save = jm#add_local "tmp" jsig VarWillInit in
+					save();
+					self#emit_block_exits false;
+					if not jm#is_terminated then begin
+						load();
+						jm#return
+					end
+				end else begin
+					self#emit_block_exits false;
+					jm#return;
+				end
 			end
 		| TFunction tf ->
 			self#tfunction ret e tf
