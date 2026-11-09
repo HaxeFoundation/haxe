@@ -278,10 +278,11 @@ class Boot {
 	}
 
 	static function hasField(o:Dynamic, field:String):Bool {
+		field = handleKeywords(field);
 		if (isAnonObject(o)) {
 			return Syntax.code('{0}._hx_hasattr({1})', o, field);
 		}
-		return UBuiltins.hasattr(o, handleKeywords(field));
+		return UBuiltins.hasattr(o, field);
 	}
 
 	static function field(o:Dynamic, field:String):Dynamic {
