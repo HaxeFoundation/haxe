@@ -81,11 +81,12 @@ class Cpp {
 			runSysTest(FileSystem.fullPath("bin/cpp/Main-debug"));
 
 			changeDirectory(threadsDir);
-			runCommand("haxe", ["build.hxml", "-cpp", "export/cpp"]);
+			// Without the compiler revision in the generated files, unchanged files hit the hxcpp compile cache.
+			runCommand("haxe", ["build.hxml", "-cpp", "export/cpp", "-D", "source-header="]);
 			runCpp("export/cpp/Main");
 
 			changeDirectory(getMiscSubDir("cross", "eventLoop"));
-			runCommand("haxe", ["build-cpp.hxml", "--cpp", "cpp"]);
+			runCommand("haxe", ["build-cpp.hxml", "--cpp", "cpp", "-D", "source-header="]);
 			// TODO: check output like misc tests do
 			runCpp("cpp/Main");
 
