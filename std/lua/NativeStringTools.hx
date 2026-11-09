@@ -54,7 +54,7 @@ extern class NativeStringTools {
 		with length `end`, and `sub(str, -end)` returns a suffix of `str` with
 		length `start`.
 	**/
-	static function sub(str:String, start:Int, ?end:Int):StringSub;
+	static function sub(str:String, start:Int, ?end:Int):String;
 
 	/**
 		Looks for the first match of pattern in the string `str`.
