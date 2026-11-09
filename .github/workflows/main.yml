@@ -306,10 +306,25 @@ jobs:
           test -x "$d8"
           echo "D8=$d8" >> "$GITHUB_ENV"
 
+      - name: Restore hxcpp compile cache
+        id: hxcpp-cache
+        uses: ./.github/actions/restore-hxcpp-cache
+        if: matrix.target == 'cpp'
+        with:
+          key-prefix: hxcpp-linux-${{ matrix.arch }}
+
       - name: Test
         run: haxe --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 25
+
+      - name: Save hxcpp compile cache
+        # Objects compiled before a test failure are as valid as any other.
+        if: (success() || failure()) && steps.hxcpp-cache.outcome == 'success'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.HXCPP_COMPILE_CACHE }}
+          key: ${{ steps.hxcpp-cache.outputs.key }}
 
   test-docgen:
     needs: linux-build
@@ -570,6 +585,13 @@ jobs:
         with:
           key-prefix: lua-env-windows64
 
+      - name: Restore hxcpp compile cache
+        id: hxcpp-cache
+        uses: ./.github/actions/restore-hxcpp-cache
+        if: matrix.target == 'cpp'
+        with:
+          key-prefix: hxcpp-windows64
+
       - name: Test
         shell: pwsh
         run: haxe RunCi.hxml
@@ -577,6 +599,14 @@ jobs:
         timeout-minutes: 25
         env:
           MSYS2_LOCATION: ${{ matrix.target == 'lua' && steps.msys2.outputs.msys2-location || '' }}
+
+      - name: Save hxcpp compile cache
+        # Objects compiled before a test failure are as valid as any other.
+        if: (success() || failure()) && steps.hxcpp-cache.outcome == 'success'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.HXCPP_COMPILE_CACHE }}
+          key: ${{ steps.hxcpp-cache.outputs.key }}
 
 
   mac-build-universal:
@@ -672,6 +702,13 @@ jobs:
         with:
           key-prefix: lua-env-mac-${{ matrix.arch }}
 
+      - name: Restore hxcpp compile cache
+        id: hxcpp-cache
+        uses: ./.github/actions/restore-hxcpp-cache
+        if: matrix.target == 'cpp'
+        with:
+          key-prefix: hxcpp-mac-${{ matrix.arch }}
+
       - name: Test
         run: |
           # disable invalid Unicode filenames on APFS
@@ -679,6 +716,14 @@ jobs:
           haxe --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
         timeout-minutes: 60
+
+      - name: Save hxcpp compile cache
+        # Objects compiled before a test failure are as valid as any other.
+        if: (success() || failure()) && steps.hxcpp-cache.outcome == 'success'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.HXCPP_COMPILE_CACHE }}
+          key: ${{ steps.hxcpp-cache.outputs.key }}
 
 
   deploy:
