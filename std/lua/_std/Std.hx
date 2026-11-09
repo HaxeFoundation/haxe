@@ -23,6 +23,12 @@
 import lua.Boot;
 import lua.NativeStringTools;
 
+@:multiReturn
+private extern class ParseIntPatternResult {
+	var sign:String;
+	var numString:String;
+}
+
 @:keepInit
 @:coreApi class Std {
 	@:deprecated('Std.is is deprecated. Use Std.isOfType instead.')
@@ -58,14 +64,12 @@ import lua.NativeStringTools;
 	public static function parseInt(x:String):Null<Int> {
 		if (x == null)
 			return null;
-		untyped {
-			lua.Syntax.code("local sign, numString = {0}", NativeStringTools.match(x, "^%s*([%-+]?)0[xX]([%da-fA-F]*)"));
-			if (numString != null)
-				return switch sign {
-					case '-': -lua.Lua.tonumber(numString, 16);
-					case _: lua.Lua.tonumber(numString, 16);
-				}
-		}
+		final result:ParseIntPatternResult = (untyped NativeStringTools.match)(x, "^%s*([%-+]?)0[xX]([%da-fA-F]*)");
+		if (result.numString != null)
+			return switch result.sign {
+				case '-': -lua.Lua.tonumber(result.numString, 16);
+				case _: lua.Lua.tonumber(result.numString, 16);
+			}
 		final intMatch = NativeStringTools.match(x, "^%s*[%-+]?%d*");
 		if (intMatch == null)
 			return null;
