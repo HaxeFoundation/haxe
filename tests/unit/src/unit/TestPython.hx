@@ -277,6 +277,19 @@ class TestPython extends Test {
 		test({def: 1});
 	}
 
+	function testKwArgsQuotedNames() {
+		// Python receives the quoted names, also Python keywords ("class")
+		var fn:KwArgs<{var "default":Int; var "class":String;}>->python.Dict<String, Dynamic> = Syntax.code("(lambda **kw: kw)");
+		var kw = fn({"default": 1, "class": "x"});
+		eq(1, kw.get("default", null));
+		eq("x", kw.get("class", null));
+		eq(2, kw.length);
+
+		function test(?kw:KwArgs<{var "default":Int;}>)
+			return kw.typed()."default";
+		eq(3, test({"default": 3}));
+	}
+
 	function testOptionalVarArgs() {
 		function test(?va:VarArgs<Dynamic>, ?kw:KwArgs<Dynamic>) {
 			var a = va.toArray();
