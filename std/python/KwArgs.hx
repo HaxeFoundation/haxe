@@ -56,11 +56,12 @@ abstract KwArgs<T:{}>(Dict<String, Dynamic>) {
 	}
 
 	@:from static function fromT<T:{}>(d:T):KwArgs<T> {
-		return new KwArgs(Lib.anonAsDict(d));
+		// A copy with the field names as keys: Python stores a field like `from` under another name.
+		return new KwArgs(Lib.anonToDict(d));
 	}
 
 	public inline function typed():T {
-		return Lib.dictAsAnon(toDict());
+		return Lib.dictToAnonReusing(toDict());
 	}
 
 	public inline function get<V>(key:String, def:V):V {
