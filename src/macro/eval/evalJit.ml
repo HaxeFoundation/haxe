@@ -315,7 +315,11 @@ and jit_expr jit return e =
 				else emit_while_break exec_cond exec_body
 			| DoWhile -> emit_do_while_break_continue exec_cond exec_body
 		end
-	| TTry(e1,catches) ->
+	| TTry(e1,[],Some ef) ->
+		let exec = jit_expr jit return e1 in
+		let exec_finally = jit_expr jit false ef in
+		emit_finally exec exec_finally
+	| TTry(e1,catches,efinally) ->
 		let exec = jit_expr jit return e1 in
 		let catches = List.map (fun (var,e) ->
 			push_scope jit e.epos;
@@ -329,7 +333,11 @@ and jit_expr jit return e =
 			in
 			exec,key,f
 		) catches in
-		emit_try exec catches
+		let exec = emit_try exec catches in
+		begin match efinally with
+			| None -> exec
+			| Some ef -> emit_finally exec (jit_expr jit false ef)
+		end
 	(* control flow *)
 	| TBlock [] ->
 		emit_null

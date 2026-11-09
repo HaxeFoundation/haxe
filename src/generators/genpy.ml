@@ -269,7 +269,7 @@ module Transformer = struct
 							()
 					end;
 					declare v;
-				| TTry(e1,catches) ->
+				| TTry(e1,catches,_) ->
 					it e1;
 					List.iter (fun (v,e) ->
 						let restore = save() in
@@ -897,15 +897,15 @@ module Transformer = struct
 			let r = { a_expr with eexpr = TArray(e1.a_expr, e2.a_expr)} in
 			let blocks = List.append e1.a_blocks e2.a_blocks in
 			lift_expr ae.a_next_id ~blocks:blocks r
-		| (false, TTry(etry, catches)) ->
+		| (false, TTry(etry, catches, _)) ->
 			let etry = trans false [] etry in
 			let catches = List.map (fun(v,e) -> KeywordHandler.check_var_declaration v; v, trans false [] e) catches in
 			let blocks = List.flatten (List.map (fun (_,e) -> e.a_blocks) catches) in
 			let catches = List.map (fun(v,e) -> v, e.a_expr) catches in
-			let r = { a_expr with eexpr = TTry(etry.a_expr, catches)} in
+			let r = { a_expr with eexpr = TTry(etry.a_expr, catches, None)} in
 			let blocks = List.append etry.a_blocks blocks in
 			lift false blocks r
-		| (true, TTry(etry, catches)) ->
+		| (true, TTry(etry, catches, _)) ->
 
 			let id = ae.a_next_id () in
 			let temp_var = to_tvar id a_expr.etype a_expr.epos in
@@ -914,7 +914,7 @@ module Transformer = struct
 			let mk_temp_assign right = { a_expr with eexpr = TBinop(OpAssign, temp_local, right)} in
 			let etry = mk_temp_assign etry in
 			let catches = List.map (fun (v,e)-> KeywordHandler.check_var_declaration v; v, mk_temp_assign e) catches in
-			let new_try = { a_expr with eexpr = TTry(etry, catches)} in
+			let new_try = { a_expr with eexpr = TTry(etry, catches, None)} in
 			let block = [temp_var_def; new_try; temp_local] in
 			let new_block = { a_expr with eexpr = TBlock(block)} in
 			forward_transform new_block ae
@@ -1354,7 +1354,7 @@ module Printer = struct
 				Printf.sprintf "while %s:\n%s    %s" (print_expr pctx (remove_outer_parens econd)) indent (print_expr_indented e1)
 			| TWhile(econd,e1,DoWhile) ->
 				abort "Currently not supported" e.epos
-			| TTry(e1,catches) ->
+			| TTry(e1,catches,_) ->
 				print_try pctx e1 catches
 			| TReturn eo ->
 				Printf.sprintf "return%s" (opt eo (print_op_assign_right pctx) " ")

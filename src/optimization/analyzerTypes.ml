@@ -69,7 +69,7 @@ module BasicBlock = struct
 		| SEIfThen of t * t * pos                                (* `if` with "then" and "next" *)
 		| SEIfThenElse of t * t * t * Type.t * pos               (* `if` with "then", "else" and "next" *)
 		| SESwitch of syntax_switch                              (* `switch` with cases, "default" and "next" *)
-		| SETry of t * t * (tvar * t) list * t *  pos            (* `try` with "exc", catches and "next" *)
+		| SETry of t * t * (tvar * t) list * t option * t * pos  (* `try` with "exc", catches, "finally" and "next" *)
 		| SEWhile of t * t * pos                                 (* `while` with "body" and "next" *)
 		| SESubBlock of t * t                                    (* "sub" with "next" *)
 		| SEMerge of t                                           (* Merge to same block *)
@@ -568,11 +568,12 @@ module Graph = struct
 					List.iter (fun (_,bb_case) -> loop (next_scope scopes) bb_case) ss.ss_cases;
 					(match ss.ss_default with None -> () | Some bb -> loop (next_scope scopes) bb);
 					loop scopes ss.ss_next;
-				| SETry(bb_try,bb_exc,catches,bb_next,_) ->
+				| SETry(bb_try,bb_exc,catches,bb_finally,bb_next,_) ->
 					let scopes' = next_scope scopes in
 					loop scopes' bb_try;
 					loop scopes' bb_exc;
 					List.iter (fun (_,bb_catch) -> loop (next_scope scopes) bb_catch) catches;
+					Option.may (fun bb -> loop (next_scope scopes) bb) bb_finally;
 					loop scopes bb_next
 				| SEWhile(bb_body,bb_next,_) ->
 					let scopes' = next_scope scopes in

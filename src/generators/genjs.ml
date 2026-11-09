@@ -665,14 +665,20 @@ and gen_expr ctx e =
 		) fields;
 		spr ctx "}";
 		ctx.separator <- true
-	| TTry (etry,[(v,ecatch)]) ->
+	| TTry (etry,catches,efinally) when List.length catches <= 1 && (catches <> [] || efinally <> None) ->
 		spr ctx "try ";
 		gen_expr ctx etry;
-		check_var_declaration v;
-		print ctx " catch( %s ) " v.v_name;
-		ctx.catch_vars <- (mk (TLocal v) v.v_type v.v_pos) :: ctx.catch_vars;
-		gen_expr ctx ecatch;
-		ctx.catch_vars <- List.tl ctx.catch_vars
+		List.iter (fun (v,ecatch) ->
+			check_var_declaration v;
+			print ctx " catch( %s ) " v.v_name;
+			ctx.catch_vars <- (mk (TLocal v) v.v_type v.v_pos) :: ctx.catch_vars;
+			gen_expr ctx ecatch;
+			ctx.catch_vars <- List.tl ctx.catch_vars
+		) catches;
+		Option.may (fun e ->
+			spr ctx " finally ";
+			gen_expr ctx e
+		) efinally
 	| TTry _ ->
 		abort "Unhandled try/catch, please report" e.epos
 	| TSwitch {switch_subject = e;switch_cases = cases;switch_default = def} ->
@@ -896,11 +902,12 @@ and gen_value ctx e =
 		} in
 		gen_expr ctx (mk (TSwitch switch) e.etype e.epos);
 		v()
-	| TTry (b,catchs) ->
+	| TTry (b,catchs,efinally) ->
 		let v = value() in
 		let block e = mk (TBlock [e]) e.etype e.epos in
 		gen_expr ctx (mk (TTry (block (assign b),
-			List.map (fun (v,e) -> v, block (assign e)) catchs
+			List.map (fun (v,e) -> v, block (assign e)) catchs,
+			efinally
 		)) e.etype e.epos);
 		v());
 	clear_mapping ()

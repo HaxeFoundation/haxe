@@ -224,7 +224,7 @@ and expr_def =
 	| EIf of expr * expr * expr option
 	| EWhile of expr * expr * while_flag
 	| ESwitch of expr * (expr list * expr option * expr option * pos) list * (expr option * pos) option
-	| ETry of expr * (placed_name * type_hint option * expr * pos) list
+	| ETry of expr * (placed_name * type_hint option * expr * pos) list * expr option
 	| EReturn of expr option
 	| EBreak
 	| EContinue
@@ -808,10 +808,11 @@ let map_expr loop (e,p) =
 		) cases in
 		let def = opt (fun (eo,p) -> opt loop eo,p) def in
 		ESwitch (e, cases, def)
-	| ETry (e,catches) ->
+	| ETry (e,catches,efinally) ->
 		let e = loop e in
 		let catches = List.map (fun (n,t,e,p) -> n,Option.map type_hint t,loop e,p) catches in
-		ETry (e,catches)
+		let efinally = opt loop efinally in
+		ETry (e,catches,efinally)
 	| EReturn e -> EReturn (opt loop e)
 	| EBreak -> EBreak
 	| EContinue -> EContinue
@@ -851,9 +852,10 @@ let iter_expr loop (e,p) =
 	| EArrayDecl el | ENew(_,el) | EBlock el -> List.iter loop el
 	| ECall(e1,el) -> loop e1; exprs el;
 	| EObjectDecl fl -> List.iter (fun (_,e) -> loop e) fl;
-	| ETry(e1,catches) ->
+	| ETry(e1,catches,efinally) ->
 		loop e1;
-		List.iter (fun (_,_,e,_) -> loop e) catches
+		List.iter (fun (_,_,e,_) -> loop e) catches;
+		Option.may loop efinally
 	| ESwitch(e1,cases,def) ->
 		loop e1;
 		List.iter (fun (el,eg,e,_) ->
@@ -919,7 +921,7 @@ module Printer = struct
 		| ESwitch (e,cases,def) -> "switch " ^ s_expr_inner tabs e ^ " {\n\t" ^ tabs ^ String.concat ("\n\t" ^ tabs) (List.map (s_case tabs) cases) ^
 			(match def with None -> "" | Some (def,_) -> "\n\t" ^ tabs ^ "default:" ^
 			(match def with None -> "" | Some def -> s_expr_omit_block tabs def)) ^ "\n" ^ tabs ^ "}"
-		| ETry (e,catches) -> "try " ^ s_expr_inner tabs e ^ String.concat "" (List.map (s_catch tabs) catches)
+		| ETry (e,catches,efinally) -> "try " ^ s_expr_inner tabs e ^ String.concat "" (List.map (s_catch tabs) catches) ^ s_opt_expr tabs efinally " finally "
 		| EReturn e -> "return" ^ s_opt_expr tabs e " "
 		| EBreak -> "break"
 		| EContinue -> "continue"
@@ -1209,12 +1211,13 @@ module Expr = struct
 					Option.may (loop' (tabs ^ "      ")) eo;
 				) cases;
 				Option.may (fun (eo,_) -> Option.may (loop' (tabs ^ "      ")) eo) def
-			| ETry(e1,catches) ->
+			| ETry(e1,catches,efinally) ->
 				add "ETry";
 				loop e1;
 				List.iter (fun (_,_,e,_) ->
 					loop' (tabs ^ "    ") e
-				) catches
+				) catches;
+				Option.may (loop' (tabs ^ "    ")) efinally
 			| EReturn eo ->
 				add "EReturn";
 				Option.may loop eo;

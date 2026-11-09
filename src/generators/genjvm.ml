@@ -2183,7 +2183,7 @@ class texpr_to_jvm
 			| Some label ->
 				label#goto;
 			end;
-		| TTry(e1,catches) ->
+		| TTry(e1,catches,_) ->
 			self#try_catch ret e1 catches
 		| TField(e1,fa) ->
 			if not (need_val ret) then self#texpr ret e1

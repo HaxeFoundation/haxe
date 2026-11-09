@@ -16,12 +16,13 @@ let collect_module_symbols mname with_locals (pack,decls) =
 				add (fst v.ev_name) Variable (snd v.ev_name) false;
 				expr_opt parent v.ev_expr
 			) vl
-		| ETry(e1,catches) ->
+		| ETry(e1,catches,efinally) ->
 			expr parent e1;
 			List.iter (fun ((s,p),_,e,_) ->
 				add s Variable p false;
 				expr parent e
 			) catches;
+			Option.may (expr parent) efinally;
 		| EFunction(FKNamed ((s,_),_),f) ->
 			add s Function p false;
 			func parent f

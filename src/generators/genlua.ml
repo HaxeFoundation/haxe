@@ -1158,7 +1158,7 @@ and gen_expr ?(local=true) ctx e = begin
         concat ctx "," (fun ((f,_,_),e) -> print ctx "%s=" (anon_field f); gen_anon_value ctx e) fields;
         spr ctx "})";
         ctx.separator <- true
-    | TTry (e,catchs) ->
+    | TTry (e,catchs,_) ->
         let old_in_loop_try = ctx.loop_ctx.in_loop_try in
         if ctx.loop_ctx.in_loop then
             ctx.loop_ctx <- { ctx.loop_ctx with in_loop_try = true };
@@ -1465,11 +1465,12 @@ and gen_value ctx e =
 		} in
 		gen_expr ctx (mk (TSwitch switch) e.etype e.epos);
         v()
-    | TTry (b,catchs) ->
+    | TTry (b,catchs,_) ->
         let v = value() in
         let block e = mk (TBlock [e]) e.etype e.epos in
         gen_block_element ctx (mk (TTry (block (assign b),
-                                         List.map (fun (v,e) -> v, block (assign e)) catchs
+                                         List.map (fun (v,e) -> v, block (assign e)) catchs,
+                                         None
                                         )) e.etype e.epos);
         v();
     clear_mapping ()

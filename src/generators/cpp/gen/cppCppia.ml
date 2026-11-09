@@ -1323,7 +1323,7 @@ class script_writer ctx filename asciiOut basic =
           match optional_default with
           | None -> ()
           | Some expr -> this#gen_expression expr)
-      | TTry (e, catches) ->
+      | TTry (e, catches, _) ->
           this#writeList (this#op IaTry) (List.length catches);
           this#gen_expression e;
           List.iter

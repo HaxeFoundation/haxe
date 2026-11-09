@@ -1696,7 +1696,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 							self#write_expr_while condition expr do_while
 					)
 				| TSwitch switch -> self#write_expr_switch switch.switch_subject switch.switch_cases switch.switch_default
-				| TTry (try_expr, catches) -> self#write_expr_try_catch try_expr catches
+				| TTry (try_expr, catches, _) -> self#write_expr_try_catch try_expr catches
 				| TReturn expr -> self#write_expr_return expr
 				| TBreak -> self#write "break"
 				| TContinue -> self#write "continue"
@@ -1865,7 +1865,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					match e.eexpr with
 						| TIf (_, _, _) -> false
 						| TWhile (_, _, _) -> false
-						| TTry (_, _) -> false
+						| TTry _ -> false
 						| TFunction _ -> false
 						| TBlock _ -> false
 						| TSwitch _ -> false

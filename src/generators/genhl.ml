@@ -3070,7 +3070,7 @@ and eval_expr ctx e =
 		op ctx (OJAlways (-1)); (* loop *)
 		ctx.m.mbreaks <- (fun target -> set_op ctx pos (OJAlways (target - (pos + 1)))) :: ctx.m.mbreaks;
 		alloc_tmp ctx HVoid
-	| TTry (etry,catches) ->
+	| TTry (etry,catches,_) ->
 		let pos = current_pos ctx in
 		let rtrap = alloc_tmp ctx HDyn in
 		op ctx (OTrap (rtrap,-1)); (* loop *)
@@ -3288,7 +3288,7 @@ and build_capture_vars ctx f =
 			use_var v;
 		| TVar (v,_) ->
 			decl_var v
-		| TTry (_,catches) ->
+		| TTry (_,catches,_) ->
 			List.iter (fun (v,_) -> decl_var v) catches
 		| TFunction f ->
 			List.iter (fun (v,_) -> decl_var v) f.tf_args;

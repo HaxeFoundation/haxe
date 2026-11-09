@@ -936,9 +936,10 @@ enum TypedExprDef {
 	TSwitch(e:TypedExpr, cases:Array<{values:Array<TypedExpr>, expr:TypedExpr}>, edef:Null<TypedExpr>);
 
 	/**
-		Represents a `try`-expression with related catches.
+		Represents a `try`-expression with related catches and an optional
+		`finally` block.
 	**/
-	TTry(e:TypedExpr, catches:Array<{v:TVar, expr:TypedExpr}>);
+	TTry(e:TypedExpr, catches:Array<{v:TVar, expr:TypedExpr}>, ?efinally:TypedExpr);
 
 	/**
 		A `return` or `return e` expression.

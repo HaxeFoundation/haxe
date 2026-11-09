@@ -154,10 +154,11 @@ let sanitize_expr scom e =
 		if need_parent e2 then { e with eexpr = TField(parent e2,f) } else e
 	| TArray (e1,e2) ->
 		if need_parent e1 then { e with eexpr = TArray(parent e1,e2) } else e
-	| TTry (e1,catches) ->
+	| TTry (e1,catches,efinally) ->
 		let e1 = block e1 in
 		let catches = List.map (fun (v,e) -> v, block e) catches in
-		{ e with eexpr = TTry (e1,catches) }
+		let efinally = Option.map block efinally in
+		{ e with eexpr = TTry (e1,catches,efinally) }
 	| TSwitch switch ->
 		let e1 = parent switch.switch_subject in
 		let cases = List.map (fun case -> {case with case_expr = complex case.case_expr}) switch.switch_cases in
@@ -190,7 +191,7 @@ let reduce_expr com e =
 			| l -> { e with eexpr = TBlock (List.rev (ec :: l)) })
 	| TParenthesis ec ->
 		{ ec with epos = e.epos }
-	| TTry (e,[]) ->
+	| TTry (e,[],None) ->
 		e
 	| _ ->
 		e

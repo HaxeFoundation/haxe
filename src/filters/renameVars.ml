@@ -294,8 +294,9 @@ let rec collect_vars ?(in_block=false) rc scope e =
 		| TBlock exprs -> List.iter (collect_vars scope) exprs
 		| _ -> collect_vars scope fn.tf_expr
 		)
-	| TTry (try_expr, catches) ->
+	| TTry (try_expr, catches, efinally) ->
 		collect_vars scope try_expr;
+		Option.may (collect_vars scope) efinally;
 		List.iter (fun (v, catch_expr) ->
 			let v_expr = mk (TVar (v,None)) t_dynamic v.v_pos in
 			let e =

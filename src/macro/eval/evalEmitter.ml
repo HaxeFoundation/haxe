@@ -248,6 +248,24 @@ let emit_try exec catches env =
 	in
 	v
 
+(* Runs `exec_finally` after `exec`, however `exec` is left. Control flow and Haxe exceptions are both
+   OCaml exceptions here, so we can just catch and re-raise everything. *)
+let emit_finally exec exec_finally env =
+	let v = try
+		exec env
+	with exc ->
+		let eval = env.env_eval in
+		(* An exception leaves the environments of the functions it unwound on the stack. The handler which
+		   eventually catches it builds the call stack from them, so we keep them for after the `finally` block. *)
+		let env_exc = eval.env in
+		eval.env <- Some env;
+		ignore(exec_finally env);
+		eval.env <- env_exc;
+		raise_notrace exc
+	in
+	ignore(exec_finally env);
+	v
+
 (* Control flow *)
 
 let emit_value exec env =

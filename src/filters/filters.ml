@@ -421,6 +421,19 @@ let might_need_cf_unoptimized c cf =
 	| _ ->
 		has_class_field_flag cf CfGeneric
 
+(* TODO: Remove this once all targets support `finally`. *)
+let check_finally_support (scom : SafeCom.t) = match scom.platform with
+	| Js | Eval | Cross | CustomTarget _ ->
+		(fun e -> e)
+	| platform ->
+		let rec loop e = match e.eexpr with
+			| TTry(_,_,Some _) ->
+				Error.raise_typing_error ("finally is not supported on " ^ (platform_name platform) ^ " yet") e.epos
+			| _ ->
+				Type.iter loop e
+		in
+		(fun e -> loop e; e)
+
 let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array rename_locals_config =
 	let pool_lazy = com.Common.sctx.pool in
 	let detail_times = Timer.level_from_define scom.defines Define.FilterTimes in
@@ -429,6 +442,7 @@ let run_safe_filters ectx com (scom : SafeCom.t) all_types_array new_types_array
 		"handle_abstract_casts",AbstractCast.handle_abstract_casts;
 	] in
 	let filters_before_inlining_parallel = [
+		"check_finally_support",check_finally_support;
 		"local_statics",LocalStatic.run;
 		"fix_return_dynamic_from_void_function",SafeFilters.fix_return_dynamic_from_void_function;
 		"check_local_vars_init",CheckVarInit.check_local_vars_init;

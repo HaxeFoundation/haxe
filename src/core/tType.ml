@@ -206,7 +206,7 @@ and texpr_expr =
 	| TIf of texpr * texpr * texpr option
 	| TWhile of texpr * texpr * Ast.while_flag
 	| TSwitch of tswitch
-	| TTry of texpr * (tvar * texpr) list
+	| TTry of texpr * (tvar * texpr) list * texpr option
 	| TReturn of texpr option
 	| TBreak
 	| TContinue
