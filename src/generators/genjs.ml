@@ -665,7 +665,11 @@ and gen_expr ctx e =
 		) fields;
 		spr ctx "}";
 		ctx.separator <- true
-	| TTry (etry,catches,efinally) when List.length catches <= 1 && (catches <> [] || efinally <> None) ->
+	(* The exceptions filter merges all catches into a single one, and sanitize removes a `try`
+	   that has neither a catch nor a `finally` block. *)
+	| TTry (_,_ :: _ :: _,_) | TTry (_,[],None) ->
+		abort "Unhandled try/catch, please report" e.epos
+	| TTry (etry,catches,efinally) ->
 		spr ctx "try ";
 		gen_expr ctx etry;
 		List.iter (fun (v,ecatch) ->
@@ -679,8 +683,6 @@ and gen_expr ctx e =
 			spr ctx " finally ";
 			gen_expr ctx e
 		) efinally
-	| TTry _ ->
-		abort "Unhandled try/catch, please report" e.epos
 	| TSwitch {switch_subject = e;switch_cases = cases;switch_default = def} ->
 		spr ctx "switch";
 		gen_value ctx e;

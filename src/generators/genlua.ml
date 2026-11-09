@@ -1468,10 +1468,8 @@ and gen_value ctx e =
     | TTry (b,catchs,_) ->
         let v = value() in
         let block e = mk (TBlock [e]) e.etype e.epos in
-        gen_block_element ctx (mk (TTry (block (assign b),
-                                         List.map (fun (v,e) -> v, block (assign e)) catchs,
-                                         None
-                                        )) e.etype e.epos);
+        let catchs = List.map (fun (v,e) -> v, block (assign e)) catchs in
+        gen_block_element ctx (mk (TTry (block (assign b), catchs, None)) e.etype e.epos);
         v();
     clear_mapping ()
 
