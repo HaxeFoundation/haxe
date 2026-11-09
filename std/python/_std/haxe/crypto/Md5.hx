@@ -26,9 +26,10 @@ import haxe.io.Bytes;
 import python.Syntax;
 import python.lib.Hashlib;
 
+// On Python this is hashlib's, of the string's UTF-8 bytes (as the generic version hashes them).
+
 /**
-	Creates a MD5 of a String. On Python this is hashlib's, of the string's UTF-8 bytes (as the
-	generic version hashes them).
+	Creates a MD5 of a String.
 **/
 class Md5 {
 	public static function encode(s:String):String {

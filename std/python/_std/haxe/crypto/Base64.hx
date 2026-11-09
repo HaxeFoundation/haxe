@@ -25,11 +25,11 @@ package haxe.crypto;
 import haxe.io.Bytes;
 import python.Syntax;
 
+// On Python this uses the base64 module: the generic version, a loop over the bytes, takes
+// minutes for a megabyte. Results and errors are those of the generic version.
+
 /**
 	Allows one to encode/decode String and bytes using Base64 encoding.
-
-	On Python this uses the base64 module: the generic version, a loop over the bytes, takes
-	minutes for a megabyte. Results and errors are those of the generic version.
 **/
 class Base64 {
 	public static var CHARS(default, null) = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -56,11 +56,9 @@ class Base64 {
 		return decodeWith(str, complement, URL_CHARS, Syntax.code("b'-_'"));
 	}
 
-	/**
-		As the generic version decodes: with `complement`, trailing "=" are removed first; then every
-		char must be of `chars` ("BaseCode : invalid encoded char" otherwise), and bits that don't
-		make a whole byte (a single char left over) are ignored.
-	**/
+	// As the generic version decodes: with `complement`, trailing "=" are removed first; then every
+	// char must be of `chars` ("BaseCode : invalid encoded char" otherwise), and bits that don't
+	// make a whole byte (a single char left over) are ignored.
 	static function decodeWith(str:String, complement:Bool, chars:String, altchars:Dynamic):Bytes {
 		if (complement)
 			str = Syntax.code("{0}.rstrip('=')", str);
