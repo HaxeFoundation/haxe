@@ -103,4 +103,45 @@ class TestEvents extends ThreadTestBase {
 
 		Assert.equals("ok", threadValue);
 	}
+
+	#if hl
+	/**
+		Cross-thread EventLoop.run must wake a thread blocked in UV_RUN_ONCE
+		via nativeLoop.wake() (uv_async_send), not by spinning on NoWait.
+	**/
+	@:timeout(3000)
+	function testNativeWake(async:Async) {
+		final mainLoop = EventLoop.main;
+		final tcp = new hl.uv.Tcp(hl.uv.Loop.getFromEventLoop(mainLoop));
+		tcp.bind(new sys.net.Host("127.0.0.1"), 0);
+		tcp.listen(1, () -> {});
+
+		final mainThread = Thread.current();
+		var wokeAt:Null<Float> = null;
+		final t0 = haxe.Timer.stamp();
+
+		Thread.create(() -> {
+			Sys.sleep(0.1);
+			EventLoop.getThreadLoop(mainThread).run(() -> {
+				wokeAt = haxe.Timer.stamp();
+				tcp.close();
+				async.done();
+			});
+		});
+
+		while (wokeAt == null) {
+			final wait = @:privateAccess mainLoop.getNextTick();
+			mainLoop.loopOnce(true, wait);
+			if (haxe.Timer.stamp() - t0 > 2.0) {
+				tcp.close();
+				Assert.fail("native wake did not deliver cross-thread event within 2s");
+				async.done();
+				return;
+			}
+		}
+
+		final latency = wokeAt - t0;
+		Assert.isTrue(latency >= 0.05 && latency < 0.5, 'unexpected wake latency: ${latency}s');
+	}
+	#end
 }
