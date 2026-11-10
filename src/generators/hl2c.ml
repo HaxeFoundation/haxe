@@ -283,10 +283,18 @@ let rec define_type gctx ctx t =
 	| HEnum _ | HObj _ | HStruct _ | HVirtual _ ->
 		()
 
+let define_proto_compat ctx =
+	define ctx "#ifndef hl_vobj_proto\n#define hl_vobj_proto(t) ((t)->vobj_proto)\n#define hl_type_proto_slots(nproto) 1\n#endif"
+
 let type_value gctx ctx t =
 	let n = type_name gctx t in
-	define ctx (sprintf "extern hl_type %s;" n);
-	"&" ^ n
+	match t with
+	| HObj _ | HStruct _ ->
+		define ctx (sprintf "extern hl_type %s[];" n);
+		n
+	| _ ->
+		define ctx (sprintf "extern hl_type %s;" n);
+		"&" ^ n
 
 let enum_constr_type gctx ctx e i =
 	define_type gctx ctx (HEnum e);
@@ -635,7 +643,8 @@ let generate_function gctx ctx f =
 		| o :: args ->
 			match rtype o with
 			| HObj _ | HStruct _ ->
-				let vfun = cast_fun (sprintf "%s->$type->vobj_proto[%d]" (reg o) fid) (rtype o :: List.map rtype args) (rtype r) in
+				define_proto_compat ctx;
+				let vfun = cast_fun (sprintf "hl_vobj_proto(%s->$type)[%d]" (reg o) fid) (rtype o :: List.map rtype args) (rtype r) in
 				sexpr "%s%s(%s)" (rassign r (rtype r)) vfun (String.concat "," (List.map reg (o::args)))
 			| HVirtual vp ->
 				let rt = rtype r in
@@ -940,7 +949,8 @@ let generate_function gctx ctx f =
 			(match rtype o with
 			| HObj p ->
 				let ft = gctx.ftable.(p.pvirtuals.(m)) in
-				let s = sprintf "%s->$type->vobj_proto[%d]" (reg o) m in
+				define_proto_compat ctx;
+				let s = sprintf "hl_vobj_proto(%s->$type)[%d]" (reg o) m in
 				sexpr "%s = hl_alloc_closure_ptr(%s,%s,%s)" (reg r) (type_value ctx (HFun(ft.fe_args,ft.fe_ret))) s (reg o)
 			| _ ->
 				todo())
@@ -1653,14 +1663,17 @@ let write_c com file (code:code) gnames num_domains =
 	(
 	let ctx = open_file gctx "hl/types.c" in
 	let line = linec ctx and sexpr fmt = Printf.ksprintf (exprc ctx) fmt in
-	let type_value ctx t = "&" ^ type_name ctx t in (* no auto import *)
+	let type_value ctx t = (match t with HObj _ | HStruct _ -> "" | _ -> "&") ^ type_name ctx t in (* no auto import *)
 	define ctx "#define HLC_BOOT";
 	define ctx "#include <hlc.h>";
+	define_proto_compat ctx;
 	line "// Types values";
 	Array.iteri (fun i t ->
 		match t with
 		| HMethod _ | HFun _ | HVirtual _ ->
 			sexpr "hl_type %s = { %s } /* %s */" (type_name gctx t) (type_id t) (tstr t);
+		| HObj o | HStruct o ->
+			sexpr "hl_type %s[hl_type_proto_slots(%d)] = {{ %s }}" (type_name gctx t) (Array.length o.pvirtuals) (type_id t);
 		| _ ->
 			sexpr "hl_type %s = { %s }" (type_name gctx t) (type_id t);
 	) all_types;
@@ -1773,7 +1786,7 @@ let write_c com file (code:code) gnames num_domains =
 	sexpr "fdump(&ntypes,4)";
 	let fcount = ref 0 in
 	Array.iter (fun t ->
-		sexpr "t = &%s; fdump(&t, sizeof(void*))" (type_name gctx t);
+		sexpr "t = %s; fdump(&t, sizeof(void*))" (type_value gctx t);
 		(match t with
 		| HFun _ -> incr fcount
 		| _ -> ());
@@ -1805,7 +1818,7 @@ let write_c com file (code:code) gnames num_domains =
 			| Some g ->
 				define_global gctx ctx g;
 				sexpr "obj%s.global_value = (void**)&%s" name gnames.(g));
-			sexpr "%s.obj = &obj%s" name name
+			sexpr "%s->obj = &obj%s" name name
 		| HNull r | HRef r | HPacked r ->
 			sexpr "%s.tparam = %s" (type_name gctx t) (type_value gctx r)
 		| HEnum e ->
