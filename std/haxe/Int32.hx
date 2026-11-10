@@ -171,7 +171,7 @@ abstract Int32(Int) from Int to Int {
 
 	#if (lua || python || php)
 	@:op(~A) private static inline function complement(a:Int32):Int32
-		#if lua return lua.Boot.clampInt32(~a); #else return clamp(~a); #end
+		return clamp(~a);
 	#else
 	@:op(~A) private function complement():Int32;
 	#end
@@ -181,10 +181,10 @@ abstract Int32(Int) from Int to Int {
 	@:op(A & B) @:commutative private static function andInt(a:Int32, b:Int):Int32;
 
 	#if (lua || python || php)
-	@:op(A | B) private static #if (python || php) inline #end function or(a:Int32, b:Int32):Int32
+	@:op(A | B) private static inline function or(a:Int32, b:Int32):Int32
 		return clamp((a : Int) | (b : Int));
 
-	@:op(A | B) @:commutative private #if (python || php) inline #end static function orInt(a:Int32, b:Int):Int32
+	@:op(A | B) @:commutative private inline static function orInt(a:Int32, b:Int):Int32
 		return clamp((a : Int) | b);
 	#else
 	@:op(A | B) private static function or(a:Int32, b:Int32):Int32;
@@ -261,10 +261,7 @@ abstract Int32(Int) from Int to Int {
 	static var extraBits:Int = php.Const.PHP_INT_SIZE * 8 - 32;
 	#end
 
-	#if !lua
-	inline
-	#end
-	static function clamp(x:Int):Int {
+	inline static function clamp(x:Int):Int {
 		// force to-int conversion on platforms that require it
 		#if js
 		return x | 0;
