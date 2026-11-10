@@ -42,6 +42,6 @@ elseif _G.bit or pcall(require, 'bit') then
   _hx_bit = _hx_bit_raw
 else
   _hx_bit = setmetatable({}, {__index = function()
-    error("Failed to load bit or bit32")
+    error("Bitwise operation unsupported: none of bit, bit32, or native operators could be used")
   end})
 end
