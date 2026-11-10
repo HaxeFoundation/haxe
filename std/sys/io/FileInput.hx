@@ -26,7 +26,17 @@ package sys.io;
 	Use `sys.io.File.read` to create a `FileInput`.
 **/
 extern class FileInput extends haxe.io.Input {
-	function seek(p:haxe.Int64, pos:FileSeek):Void;
-	function tell():haxe.Int64;
+	/**
+		Moves the file position to `p`, relative to `pos`.
+
+		On cpp, neko and hl before 1.12, positions are limited to the 32-bit
+		`Int` range and larger values throw.
+	**/
+	function seek(p:sys.FilePos, pos:FileSeek):Void;
+
+	/**
+		Returns the current file position. See `seek` for the target limits.
+	**/
+	function tell():sys.FilePos;
 	function eof():Bool;
 }

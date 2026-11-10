@@ -59,7 +59,7 @@ class FileSystem {
 			ino: info['ino'],
 			nlink: info['nlink'],
 			rdev: info['rdev'],
-			size: haxe.Int64.fromFloat(info['size']),
+			size: sys.FilePos.ofInt(info['size']),
 			mode: info['mode']
 		};
 	}

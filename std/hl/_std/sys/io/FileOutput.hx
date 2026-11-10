@@ -56,11 +56,11 @@ import sys.io.File;
 		__f = null;
 	}
 
-	public function seek(p:haxe.Int64, pos:FileSeek):Void {
+	public function seek(p:sys.FilePos, pos:FileSeek):Void {
 		@:privateAccess FileInput.seekHandle(__f, p, pos);
 	}
 
-	public function tell():haxe.Int64 {
+	public function tell():sys.FilePos {
 		return @:privateAccess FileInput.tellHandle(__f);
 	}
 

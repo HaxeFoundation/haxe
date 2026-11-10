@@ -133,11 +133,7 @@ class TestFileSystem extends utest.Test {
 		var before = Date.now().getTime();
 		sys.io.File.saveContent(path, "hello");
 		var stat = FileSystem.stat(path);
-		#if js // TODO: hxnodejs still reports size as a JS number
-		Assert.equals(5, (cast stat.size : Int));
-		#else
 		Assert.isTrue(stat.size == 5);
-		#end
 		Assert.isTrue(Math.abs(stat.mtime.getTime() - before) < 10000);
 	}
 

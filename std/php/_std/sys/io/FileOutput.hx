@@ -62,7 +62,7 @@ class FileOutput extends haxe.io.Output {
 			fclose(__f);
 	}
 
-	public function seek(p:haxe.Int64, pos:FileSeek):Void {
+	public function seek(p:sys.FilePos, pos:FileSeek):Void {
 		var w;
 		switch (pos) {
 			case SeekBegin:
@@ -77,10 +77,10 @@ class FileOutput extends haxe.io.Output {
 			throw haxe.io.Error.Custom('An error occurred');
 	}
 
-	public function tell():haxe.Int64 {
+	public function tell():sys.FilePos {
 		var r = ftell(__f);
 		if (r == false)
 			throw haxe.io.Error.Custom('An error occurred');
-		return haxe.Int64.fromFloat(cast r);
+		return sys.FilePos.ofInt(cast r);
 	}
 }

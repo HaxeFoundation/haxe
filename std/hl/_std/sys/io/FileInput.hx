@@ -53,15 +53,15 @@ import sys.io.File;
 		__f = null;
 	}
 
-	public function seek(p:haxe.Int64, pos:FileSeek):Void {
+	public function seek(p:sys.FilePos, pos:FileSeek):Void {
 		seekHandle(__f, p, pos);
 	}
 
-	public function tell():haxe.Int64 {
+	public function tell():sys.FilePos {
 		return tellHandle(__f);
 	}
 
-	static function seekHandle(f:FileHandle, p:haxe.Int64, pos:FileSeek):Void {
+	static function seekHandle(f:FileHandle, p:sys.FilePos, pos:FileSeek):Void {
 		var kind = switch (pos) {
 			case SeekBegin: 0;
 			case SeekCur: 1;
@@ -70,18 +70,18 @@ import sys.io.File;
 		#if (hl_ver >= version("1.12.0"))
 		var ok = file_seek2(f, p.toFloat(), kind);
 		#else
-		var ok = file_seek(f, haxe.Int64.toInt(p), kind);
+		var ok = file_seek(f, p.toInt(), kind);
 		#end
 		if (!ok)
 			throw haxe.io.Error.Custom("seek() failure");
 	}
 
-	static function tellHandle(f:FileHandle):haxe.Int64 {
+	static function tellHandle(f:FileHandle):sys.FilePos {
 		#if (hl_ver >= version("1.12.0"))
 		var p = file_tell2(f);
 		if (p < 0)
 			throw haxe.io.Error.Custom("tell() failure");
-		return haxe.Int64.fromFloat(p);
+		return sys.FilePos.fromFloat(p);
 		#else
 		var p = file_tell(f);
 		if (p < 0)

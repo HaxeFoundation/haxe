@@ -54,7 +54,7 @@ class FileSystem {
 		s.atime = Date.fromTime(1000.0 * (untyped s.atime));
 		s.mtime = Date.fromTime(1000.0 * (untyped s.mtime));
 		s.ctime = Date.fromTime(1000.0 * (untyped s.ctime));
-		s.size = haxe.Int64.ofInt(untyped s.size);
+		s.size = sys.FilePos.ofInt(untyped s.size);
 		return s;
 	}
 

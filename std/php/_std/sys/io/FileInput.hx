@@ -65,7 +65,7 @@ class FileInput extends haxe.io.Input {
 			fclose(__f);
 	}
 
-	public function seek(p:haxe.Int64, pos:FileSeek):Void {
+	public function seek(p:sys.FilePos, pos:FileSeek):Void {
 		var w;
 		switch (pos) {
 			case SeekBegin:
@@ -80,11 +80,11 @@ class FileInput extends haxe.io.Input {
 			throw Custom('An error occurred');
 	}
 
-	public function tell():haxe.Int64 {
+	public function tell():sys.FilePos {
 		var r = ftell(__f);
 		if (r == false)
 			throw Custom('An error occurred');
-		return haxe.Int64.fromFloat(cast r);
+		return sys.FilePos.ofInt(cast r);
 	}
 
 	public function eof():Bool {

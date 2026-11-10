@@ -55,7 +55,7 @@ class FileSystem {
 				mtime: Date.fromTime(cast(attributes.get("lastModifiedTime").toMillis(), Float)),
 				nlink: attributes.get("nlink"),
 				rdev: cast(attributes.get("rdev"), Int),
-				size: (attributes.get("size") : haxe.Int64),
+				size: sys.FilePos.ofInt64(attributes.get("size")),
 				uid: attributes.get("uid"),
 			};
 		} catch (e) {
@@ -65,7 +65,7 @@ class FileSystem {
 				atime: Date.now(), // same
 				mtime: Date.fromTime(cast(f.lastModified(), Float)),
 				ctime: Date.fromTime(cast(f.lastModified(), Float)), // same
-				size: f.length(),
+				size: sys.FilePos.ofInt64(f.length()),
 				dev: 0, // FIXME: not sure what that is
 				ino: 0, // FIXME: not sure what that is
 				nlink: 0, // FIXME: not sure what that is

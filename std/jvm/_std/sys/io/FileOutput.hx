@@ -22,7 +22,6 @@
 
 package sys.io;
 
-import haxe.Int64;
 import haxe.io.Bytes;
 import haxe.io.Eof;
 import haxe.io.Output;
@@ -68,15 +67,15 @@ class FileOutput extends Output {
 		}
 	}
 
-	public function seek(p:Int64, pos:FileSeek):Void {
+	public function seek(p:sys.FilePos, pos:FileSeek):Void {
 		try {
 			switch (pos) {
 				case SeekBegin:
-					f.seek(p);
+					f.seek(p.toInt64());
 				case SeekCur:
-					f.seek(f.getFilePointer() + p);
+					f.seek(f.getFilePointer() + p.toInt64());
 				case SeekEnd:
-					f.seek(f.length() + p);
+					f.seek(f.length() + p.toInt64());
 			}
 		} catch (e:EOFException) {
 			throw new Eof();
@@ -85,9 +84,9 @@ class FileOutput extends Output {
 		}
 	}
 
-	public function tell():Int64 {
+	public function tell():sys.FilePos {
 		try {
-			return f.getFilePointer();
+			return sys.FilePos.ofInt64(f.getFilePointer());
 		} catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}
