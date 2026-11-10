@@ -391,6 +391,23 @@ class TestExceptions extends Test {
 		} catch(e:String) {}
 		eq(1, x);
 	}
+	// The same for a copied variable: HL's bytecode optimizer used to read the source of the copy in
+	// the catch, because it held at the start and at the end of the try.
+	@:analyzer(ignore)
+	function testCopyReassignedInTry() {
+		var y = 7;
+		var x = y;
+		var inCatch = -1;
+		try {
+			x = 42;
+			throwString();
+			x = y;
+		} catch(e:String) {
+			inCatch = x;
+		}
+		eq(42, inCatch);
+		eq(42, x);
+	}
 	function throwString() {
 		throw "error";
 	}
