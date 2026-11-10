@@ -262,9 +262,6 @@ let comparable_path f =
 	if Globals.is_windows then String.lowercase_ascii (String.map (fun c -> if c = '\\' then '/' else c) f)
 	else f
 
-let is_in_path path file =
-	file = path || ExtString.String.starts_with file (add_trailing_slash path)
-
 let rec remove_trailing_slash p =
 	let l = String.length p in
 	if l = 0 then

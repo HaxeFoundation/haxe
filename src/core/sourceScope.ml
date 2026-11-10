@@ -60,6 +60,9 @@ let matcher (class_paths : ClassPaths.class_paths) file =
 		| Std,Some (ClassPath.Std | ClassPath.StdTarget) -> true
 		| Lib None,Some (ClassPath.Lib _) -> true
 		| Lib (Some name),Some (ClassPath.Lib (Some name')) -> ClassPath.same_lib_name name name'
-		| Path path,_ -> Path.is_in_path (Path.comparable_path path) (Stdlib.Lazy.force comparable)
+		| Path path,_ ->
+			let path = Path.comparable_path path in
+			let file = Stdlib.Lazy.force comparable in
+			file = path || ExtString.String.starts_with file (Path.add_trailing_slash path)
 		| Pack pack',_ -> matches_package pack' (Stdlib.Lazy.force pack)
 		| _ -> false
