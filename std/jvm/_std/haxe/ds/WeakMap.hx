@@ -68,6 +68,12 @@ import java.lang.ref.ReferenceQueue;
 		cachedIndex = -1;
 		#end
 		queue = new ReferenceQueue();
+		nBuckets = 4;
+		hashes = new NativeArray(4);
+		entries = new NativeArray(4);
+		_size = 0;
+		nOccupied = 0;
+		upperBound = Std.int(4 * HASH_UPPER + .5);
 	}
 
 	@:analyzer(ignore)
@@ -418,13 +424,13 @@ import java.lang.ref.ReferenceQueue;
 	}
 
 	public function clear():Void {
-		hashes = null;
-		entries = null;
 		queue = new ReferenceQueue();
-		nBuckets = 0;
+		nBuckets = 4;
+		hashes = new NativeArray(4);
+		entries = new NativeArray(4);
 		_size = 0;
 		nOccupied = 0;
-		upperBound = 0;
+		upperBound = Std.int(4 * HASH_UPPER + .5);
 		#if !no_map_cache
 		cachedEntry = null;
 		cachedIndex = -1;
@@ -465,7 +471,7 @@ import java.lang.ref.ReferenceQueue;
 
 	// guarantee: Whatever this function is, it will never return 0 nor 1
 	extern private static inline function hash(s:Dynamic):HashType {
-		var k:Int = untyped s.hashCode();
+		var k:Int = (cast s : java.lang.Object).hashCode();
 		// k *= 357913941;
 		// k ^= k << 24;
 		// k += ~357913941;
@@ -512,7 +518,7 @@ private class Entry<K, V> extends WeakReference<K> {
 	}
 
 	final inline public function keyEquals(k:K):Bool {
-		return k != null && untyped k.equals(get());
+		return k != null && (cast k : java.lang.Object).equals(get());
 	}
 }
 
