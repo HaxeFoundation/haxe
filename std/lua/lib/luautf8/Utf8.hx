@@ -32,7 +32,7 @@ extern class Utf8 {
 		with length `end`, and `sub(str, -end)` returns a suffix of `str` with
 		length `start`.
 	**/
-	static function sub(str:String, start:Int, ?end:Int):StringSub;
+	static function sub(str:String, start:Int, ?end:Int):String;
 
 	/**
 		Looks for the first match of pattern in the string `str`.
@@ -58,9 +58,9 @@ extern class Utf8 {
 	/**
 
 	**/
-	@:overload(function(str:String, pattern:String, replace:String->Void, ?n:Int):String {})
-	@:overload(function(str:String, pattern:String, replace:String->String, ?n:Int):String {})
-	static function gsub(str:String, pattern:String, replace:String, ?n:Int):String;
+	@:overload(function(str:String, pattern:String, replace:String->Void, ?n:Int):StringGSub {})
+	@:overload(function(str:String, pattern:String, replace:String->String, ?n:Int):StringGSub {})
+	static function gsub(str:String, pattern:String, replace:String, ?n:Int):StringGSub;
 
 	/**
 		Returns an iterator function that, each time it is called, returns the next
@@ -101,8 +101,8 @@ extern class Utf8 {
 	var end:Int;
 }
 
-@:multiReturn extern class StringSub {
-	var match:String;
+@:multiReturn extern class StringGSub {
+	var replaced:String;
 	var count:Int;
 }
 

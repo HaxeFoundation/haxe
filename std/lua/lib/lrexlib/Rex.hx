@@ -82,5 +82,12 @@ extern class Rex {
 		  This function searches for all matches of the pattern `patt` in the string
 		`subj` and replaces them according to the parameters `repl` and `n`.
 	**/
-	static function gsub(subj:String, patt:EitherType<Rex, String>, repl:Dynamic, ?n:Int, ?cf:Int, ?ef:Int):String;
+	static function gsub(subj:String, patt:EitherType<Rex, String>, repl:Dynamic, ?n:Int, ?cf:Int, ?ef:Int):RexGSubResult;
+}
+
+@:multiReturn
+extern class RexGSubResult {
+	var replaced:String;
+	var matches:Int;
+	var substitutions:Int;
 }

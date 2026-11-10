@@ -72,6 +72,39 @@ package sys.thread;
 	function wait():Void;
 
 	/**
+		Like `wait`, but blocks the current thread for at most `timeout` seconds.
+
+		A `timeout` that is zero or negative does not block for any meaningful
+		amount of time. Very large timeouts may be cut short at a
+		target-specific limit. A wait cut short this way returns `true`, like a
+		spurious wakeup, so a loop that recomputes the remaining time (see
+		below) keeps waiting.
+
+		Returns `false` if the timeout expired, and `true` otherwise, that is
+		when the condition variable was signaled or a spurious wakeup occurred.
+		The internal mutex is re-acquired in all cases, including on timeout.
+
+		This function is susceptible to spurious wakeups like `wait`, so it
+		should be called in a loop that computes the remaining time on each
+		iteration:
+
+		```haxe
+		final deadline = haxe.Timer.stamp() + 5.0;
+		cond.acquire();
+		while (!ready) {
+			final remaining = deadline - haxe.Timer.stamp();
+			if (remaining <= 0 || !cond.timedWait(remaining)) {
+				break; // timed out
+			}
+		}
+		cond.release();
+		```
+
+		The internal mutex must be locked before this function is called.
+	**/
+	function timedWait(timeout:Float):Bool;
+
+	/**
 		Unblocks one of the threads that are blocked on the
 		condition variable at the time of the call. If no threads are blocked
 		on the condition variable at the time of the call, the function does nothing.

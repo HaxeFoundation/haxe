@@ -97,26 +97,13 @@ class Int64Helper {
 		var neg = noFractions < 0;
 		var rest = neg ? -noFractions : noFractions;
 
-		#if js
 		// rest < 2^53: split it directly in two 32-bit words
-		var result = Int64.make(Std.int(rest / 4294967296.), Std.int(rest % 4294967296.));
-		#else
-		var result = Int64.ofInt(0);
-		var i = 0;
-		while (rest >= 1) {
-			var curr = rest % 2;
-			rest = rest / 2;
-			if (curr >= 1) {
-				result = Int64.add(result, Int64.shl(Int64.ofInt(1), i));
-			}
-			i++;
-		}
-		#end
-
-		if (neg) {
-			result = Int64.neg(result);
-		}
-		return result;
+		var high = Math.ffloor(rest / 4294967296.);
+		var low = rest - high * 4294967296.;
+		if (low >= 2147483648.)
+			low -= 4294967296.;
+		var result = Int64.make(Std.int(high), Std.int(low));
+		return neg ? Int64.neg(result) : result;
 	}
 
 	/**

@@ -8,6 +8,12 @@ class TestMacro extends Test {
 		parseAndPrint("a[b]");
 		parseAndPrint("a + b");
 		parseAndPrint("a.b");
+		parseAndPrint('a."inline"');
+		parseAndPrint("a.macro.b");
+		parseAndPrint("a.extern");
+		parseAndPrint("a.function");
+		parseAndPrint("a.new");
+		parseAndPrint('var a:{ var "inline" : Int; var b : Int; }');
 		parseAndPrint("(a)");
 		parseAndPrint("{ a : b }");
 		parseAndPrint("{ \"a\" : b }");
@@ -110,5 +116,16 @@ class TestMacro extends Test {
 			}),
 			'static final x : Any'
 		);
+	}
+
+	function testPrinterFieldNames() {
+		var printer = new haxe.macro.Printer();
+		var a:haxe.macro.Expr = {expr: EConst(CIdent("a")), pos: null};
+		eq('a."foo-bar"', printer.printExpr({expr: EField(a, "foo-bar"), pos: null}));
+		eq("a.$b", printer.printExpr({expr: EField(a, "$b"), pos: null}));
+		eq('{ var "foo-bar" : Int; var "inline" : Int; }', printer.printComplexType(TAnonymous([
+			{name: "foo-bar", kind: FVar(macro :Int), pos: null},
+			{name: "inline", kind: FVar(macro :Int), pos: null}
+		])));
 	}
 }

@@ -419,6 +419,7 @@ let init_wait_socket ip port =
 		let stdin_ref = ref (make_closed_stdin ()) in
 		let read () =
 			let data = SocketRequest.read overflow sin bufsize in
+			close_in_noerr !stdin_ref;
 			stdin_ref := SocketRequest.setup_client_stdin_forward !overflow sin;
 			data
 		in

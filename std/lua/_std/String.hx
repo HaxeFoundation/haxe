@@ -120,11 +120,11 @@ class String {
 			}
 
 			if (newidx != null) {
-				var match = BaseString.sub(this, idx, newidx - 1).match;
+				var match = BaseString.sub(this, idx, newidx - 1);
 				ret.push(match);
 				idx = newidx + delimiter.length;
 			} else {
-				ret.push(BaseString.sub(this, idx, this.length).match);
+				ret.push(BaseString.sub(this, idx, this.length));
 				idx = null;
 			}
 		}
@@ -144,14 +144,14 @@ class String {
 			startIndex = 0;
 		if (endIndex < startIndex) {
 			// swap the index positions
-			return BaseString.sub(this, endIndex + 1, startIndex).match;
+			return BaseString.sub(this, endIndex + 1, startIndex);
 		} else {
-			return BaseString.sub(this, startIndex + 1, endIndex).match;
+			return BaseString.sub(this, startIndex + 1, endIndex);
 		}
 	}
 
 	public inline function charAt(index:Int):String {
-		return BaseString.sub(this, index + 1, index + 1).match;
+		return BaseString.sub(this, index + 1, index + 1);
 	}
 
 	public inline function charCodeAt(index:Int):Null<Int> {
@@ -167,7 +167,7 @@ class String {
 			pos = 0;
 		if (len < 0)
 			len = length + len - pos;
-		return BaseString.sub(this, pos + 1, pos + len).match;
+		return BaseString.sub(this, pos + 1, pos + len);
 	}
 
 	public inline static function fromCharCode(code:Int):String {

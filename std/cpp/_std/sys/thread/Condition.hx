@@ -9,6 +9,7 @@ private extern class ConditionVariable {
 	public function tryAcquire():Bool;
 	public function release():Void;
 	public function wait():Void;
+	public function timedWait(seconds:Float):Bool;
 	public function signal():Void;
 	public function broadcast():Void;
 }
@@ -35,6 +36,11 @@ class Condition {
 
 	public function wait():Void {
 		c.wait();
+	}
+
+	public function timedWait(timeout:Float):Bool {
+		// hxcpp caps the wait at 1e9 seconds, a capped wait counts as a spurious wakeup
+		return c.timedWait(timeout) || timeout > 1e9;
 	}
 
 	public function signal():Void {

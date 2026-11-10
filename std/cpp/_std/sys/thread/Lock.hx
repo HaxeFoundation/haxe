@@ -30,7 +30,11 @@ class Lock {
 		s = new Semaphore(0);
 	}
 
-	public function wait(?timeout:Float = -1):Bool {
+	public function wait(?timeout:Float):Bool {
+		if (timeout == null) {
+			s.acquire();
+			return true;
+		}
 		return s.tryAcquire(timeout);
 	}
 

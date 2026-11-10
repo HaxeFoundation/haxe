@@ -306,6 +306,12 @@ jobs:
           test -x "$d8"
           echo "D8=$d8" >> "$GITHUB_ENV"
 
+      - name: Cache hxcpp objects
+        uses: ./.github/actions/cache-hxcpp
+        if: matrix.target == 'cpp'
+        with:
+          key-prefix: hxcpp-linux-${{ matrix.arch }}
+
       - name: Test
         run: haxe --run RunCi ${{ matrix.target }} ${{ matrix.runci-args }}
         working-directory: ${{github.workspace}}/tests
@@ -570,6 +576,12 @@ jobs:
         with:
           key-prefix: lua-env-windows64
 
+      - name: Cache hxcpp objects
+        uses: ./.github/actions/cache-hxcpp
+        if: matrix.target == 'cpp'
+        with:
+          key-prefix: hxcpp-windows64
+
       - name: Test
         shell: pwsh
         run: haxe RunCi.hxml
@@ -671,6 +683,12 @@ jobs:
         if: matrix.target == 'lua'
         with:
           key-prefix: lua-env-mac-${{ matrix.arch }}
+
+      - name: Cache hxcpp objects
+        uses: ./.github/actions/cache-hxcpp
+        if: matrix.target == 'cpp'
+        with:
+          key-prefix: hxcpp-mac-${{ matrix.arch }}
 
       - name: Test
         run: |

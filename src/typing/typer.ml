@@ -714,7 +714,7 @@ and type_object_decl ctx fl with_type p =
 					extra_fields := (n,pn) :: !extra_fields;
 				type_expr ctx e WithType.value,None
 			in
-			if is_valid then begin
+			if is_valid || cfo <> None then begin
 				if starts_with n '$' then raise_typing_error "Field names starting with a dollar are not allowed" p;
 				let cf = mk_field n e.etype (punion pn e.epos) pn in
 				begin match cfo with

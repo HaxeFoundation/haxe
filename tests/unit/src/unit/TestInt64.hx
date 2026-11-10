@@ -542,6 +542,17 @@ class TestInt64 extends Test {
 			eq(Std.parseFloat(Std.string(fromFloat(v))), v);
 		}
 
+		// values that need both words
+		eq(fromFloat(2147483648.).toStr(), "2147483648");
+		eq(fromFloat(4294967296.).toStr(), "4294967296");
+		eq(fromFloat(-4294967297.).toStr(), "-4294967297");
+		eq(fromFloat(12325863151.).toStr(), "12325863151");
+
+		// truncation toward zero
+		eq(fromFloat(1.5).toStr(), "1");
+		eq(fromFloat(-1.5).toStr(), "-1");
+		eq(fromFloat(-0.0).toStr(), "0");
+
 		try {
 			fromFloat(9007199254740992);
 			f(true);

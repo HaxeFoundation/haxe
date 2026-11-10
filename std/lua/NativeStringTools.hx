@@ -54,7 +54,7 @@ extern class NativeStringTools {
 		with length `end`, and `sub(str, -end)` returns a suffix of `str` with
 		length `start`.
 	**/
-	static function sub(str:String, start:Int, ?end:Int):StringSub;
+	static function sub(str:String, start:Int, ?end:Int):String;
 
 	/**
 		Looks for the first match of pattern in the string `str`.
@@ -102,11 +102,14 @@ extern class NativeStringTools {
 	static function format(str:String, ?e1:Dynamic, ?e2:Dynamic, ?e3:Dynamic, ?e4:Dynamic):String;
 
 	/**
-
+		Returns a copy of s in which all (or the first n, if given) occurrences of
+		the pattern have been replaced by a replacement string specified by repl,
+		which can be a string, a table, or a function. gsub also returns, as its second
+		value, the total number of matches that occurred.
 	**/
-	@:overload(function(str:String, pattern:String, replace:String->Void, ?n:Int):String {})
-	@:overload(function(str:String, pattern:String, replace:String->String, ?n:Int):String {})
-	static function gsub(str:String, pattern:String, replace:String, ?n:Int):String;
+	@:overload(function(str:String, pattern:String, replace:String->Void, ?n:Int):StringGSub {})
+	@:overload(function(str:String, pattern:String, replace:String->String, ?n:Int):StringGSub {})
+	static function gsub(str:String, pattern:String, replace:String, ?n:Int):StringGSub;
 
 	/**
 		Returns an iterator function that, each time it is called, returns the next
@@ -164,7 +167,7 @@ extern class NativeStringTools {
 	var end:Int;
 }
 
-@:multiReturn extern class StringSub {
-	var match:String;
+@:multiReturn extern class StringGSub {
+	var replaced:String;
 	var count:Int;
 }
