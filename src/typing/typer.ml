@@ -1644,10 +1644,14 @@ and type_call_target ctx e el with_type p_inline =
 		| None ->
 			e
 		| Some tl ->
+			let with_type_args fa = match fa.fa_field.cf_kind with
+				| Method (MethNormal | MethInline | MethDynamic) -> { fa with fa_type_args = Some tl }
+				| _ -> raise_typing_error "Explicit type arguments are only supported on method calls" p
+			in
 			let rec loop e = match e with
 				| AKSafeNav sn -> AKSafeNav { sn with sn_access = loop sn.sn_access }
-				| AKField fa -> AKField { fa with fa_type_args = Some tl }
-				| AKUsingField sea -> AKUsingField { sea with se_access = { sea.se_access with fa_type_args = Some tl } }
+				| AKField fa -> AKField (with_type_args fa)
+				| AKUsingField sea -> AKUsingField { sea with se_access = with_type_args sea.se_access }
 				| _ -> raise_typing_error "Explicit type arguments are only supported on field calls" p
 			in
 			loop e

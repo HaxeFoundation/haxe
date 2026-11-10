@@ -97,6 +97,8 @@ class TestCallTypeArguments extends Test {
 		return v;
 	}
 
+	static var variable:Int->Int = x -> x;
+
 	function testInference() {
 		eq("Float", HelperMacros.typeString(id.<Float>(1)));
 		eq("3", apply.<Int, String>(x -> Std.string(x + 1), 2));
@@ -131,5 +133,7 @@ class TestCallTypeArguments extends Test {
 		t(HelperMacros.typeError(new Document().find.<String>("name")));
 		t(HelperMacros.typeError(var f = pair.<Int, Int>));
 		t(HelperMacros.typeError(structural.<{y:Int}>({y: 1})));
+		t(HelperMacros.typeError(pair.<Int, Int, Int>(1, 2)));
+		t(HelperMacros.typeError(variable.<Int>(1)));
 	}
 }
