@@ -22,14 +22,14 @@ type 'a accessor_resolution =
 	(* Accessor resolution was attempted on a non-property. *)
 	| AccessorInvalid
 
-let create e cf fh inline ?field_pos ?type_args p = {
+let create e cf fh inline ?field_pos p = {
 	fa_on     = e;
 	fa_field  = cf;
 	fa_host   = fh;
 	fa_inline = inline;
 	fa_pos    = p;
 	fa_field_pos = field_pos;
-	fa_type_args = type_args;
+	fa_type_args = None;
 }
 
 (* Creates the `tfield_access` corresponding to this field access, using the provided field. *)
@@ -142,7 +142,7 @@ let find_accessor_for_field host cf t mode = match cf.cf_kind with
 (* Resolves the accessor on the field access, using the provided `mode`. *)
 let resolve_accessor fa mode =
 	let forward cf_acc new_host =
-		create fa.fa_on cf_acc new_host fa.fa_inline fa.fa_pos ?field_pos:fa.fa_field_pos ?type_args:fa.fa_type_args
+		create fa.fa_on cf_acc new_host fa.fa_inline fa.fa_pos ?field_pos:fa.fa_field_pos
 	in
 	match find_accessor_for_field fa.fa_host fa.fa_field fa.fa_on.etype mode with
 	| AccessorFound(cf_acc,new_host) ->
