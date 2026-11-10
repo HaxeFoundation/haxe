@@ -37,12 +37,24 @@ let add_libs timer_ctx (libs,cwd) args cs has_display =
 			with Unix.Unix_error(code,msg,arg) ->
 				fail ((Printf.sprintf "%s (%s)" (Unix.error_message code) arg))
 		in
-		let lines = List.fold_left (fun acc l ->
-			let l = ExtString.String.strip l in
-			if l = "" then
-				acc
-			else if l.[0] <> '-' then
-				"-libcp" :: l :: acc
+		let lines = List.map ExtString.String.strip lines in
+		let library_name lines = match lines with
+			| l :: _ when ExtString.String.starts_with l "-D " ->
+				let define = ExtString.String.strip (String.sub l 3 (String.length l - 3)) in
+				Some (try fst (ExtString.String.split define "=") with ExtString.Invalid_string -> define)
+			| _ ->
+				None
+		in
+		let rec with_names acc lines = match lines with
+			| l :: lines -> with_names ((l,library_name lines) :: acc) lines
+			| [] -> List.rev acc
+		in
+		let lines = List.filter (fun l -> l <> "") lines in
+		let lines = List.fold_left (fun acc (l,name) ->
+			if l.[0] <> '-' then begin match name with
+				| Some name -> "-libcp-of" :: name :: l :: acc
+				| None -> "-libcp" :: l :: acc
+			end
 			else match (try ExtString.String.split l " " with _ -> l, "") with
 			| ("-L",dir) ->
 				"--neko-lib-path" :: (String.sub l 3 (String.length l - 3)) :: acc
@@ -50,7 +62,7 @@ let add_libs timer_ctx (libs,cwd) args cs has_display =
 				let acc = if value <> "" then value :: acc else acc in
 				let acc = param :: acc in
 				acc
-		) [] (List.rev lines) in
+		) [] (List.rev (with_names [] lines)) in
 		lines
 
 let create_context_from_part (sctx : ServerCompilationContext.t) (request_scope : request_scope) has_display has_next (part : Args.part_args) =
