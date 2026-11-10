@@ -30,7 +30,10 @@ abstract Thread(ThreadImpl) from ThreadImpl {
 	public var events(get,never):EventLoop;
 
 	static function __init__() {
-		NativeThread.self().events = new EventLoop();
+		// The compilation server runs this again for later compilations on the same
+		// native thread: reuse its loop instead of leaking a new libuv loop each time.
+		if (NativeThread.self().events == null)
+			NativeThread.self().events = new EventLoop();
 	}
 
 	inline function new(h:NativeThread):Void {
