@@ -25,7 +25,7 @@ if _hx_bit_native then
   _hx_bit_raw = _hx_bit_native
   _hx_bit = _hx_bit_raw
 elseif _G.bit32 or pcall(require, 'bit32') then
-  -- lua 5.2 and 5.3 have bit32 builtin, otherwise it may be an external library
+  -- lua 5.2 has bit32 builtin, otherwise it may be an external library
   _hx_bit_raw = _G.bit32 or require('bit32')
   _hx_bit = setmetatable({}, { __index = _hx_bit_raw })
   -- bit32 operations require manual clamping
