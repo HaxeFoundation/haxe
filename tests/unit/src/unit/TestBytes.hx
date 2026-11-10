@@ -158,4 +158,13 @@ class TestBytes extends Test {
 			eq(v, b.get(i));
 		}
 	}
+
+	function testGetInt32() {
+		final i = 0xFF;
+		final bytes = haxe.io.Bytes.alloc(4);
+		bytes.fill(0, 4, 0xFF);
+		eq(-1, bytes.getInt32(0));
+		final input = new haxe.io.BytesInput(bytes);
+		eq(-1, input.readInt32());
+	}
 }
