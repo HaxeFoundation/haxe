@@ -381,7 +381,7 @@ let handle_missing_field_raise ctx tthis i mode with_type pfield =
 					begin try
 						let e = type_expr ctx e WithType.value in
 						e.etype
-					with _ ->
+					with Error.Fatal_error _ | Error.Error _ | Typecore.Forbid_package _ | Typecore.WithTypeError _ | Failure _ ->
 						mk_mono()
 					end
 				| _ -> mk_mono()
@@ -393,7 +393,7 @@ let handle_missing_field_raise ctx tthis i mode with_type pfield =
 				begin try
 					let e = type_expr ctx e WithType.value in
 					e.etype
-				with _ ->
+				with Error.Fatal_error _ | Error.Error _ | Typecore.Forbid_package _ | Typecore.WithTypeError _ | Failure _ ->
 					raise Exit
 				end
 			| _ -> raise Exit
@@ -410,7 +410,7 @@ let handle_missing_field_raise ctx tthis i mode with_type pfield =
 					(name,false,e.etype)
 				) el in
 				(TFun(tl,tret),Method MethNormal)
-			with _ ->
+			with Error.Fatal_error _ | Error.Error _ | Typecore.Forbid_package _ | Typecore.WithTypeError _ | Failure _ ->
 				raise Exit
 			end
 		| MGet ->

@@ -15,7 +15,7 @@ class lib_build_task cs file ftime lib = object(self)
 				try begin match lib#build path p with
 				| Some r -> Hashtbl.add h path r
 				| None -> ()
-				end with _ ->
+				end with Error.Fatal_error _ | Error.Error _ | Failure _ | Not_found | Invalid_argument _ ->
 					()
 			end
 		) lib#list_modules;

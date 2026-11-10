@@ -90,5 +90,5 @@ let get_import_status ctx path =
 	try
 		let mt' = ctx.g.do_load_type_def ctx null_pos (mk_type_path ([],snd path)) in
 		if path <> (t_infos mt').mt_path then Shadowed else Imported
-	with _ ->
+	with Not_found | Error.Fatal_error _ | Error.Error _ | Failure _ ->
 		Unimported
