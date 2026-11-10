@@ -30,7 +30,7 @@ and parsed_arg =
 	| SetCppiaTarget of string   (** --cppia: cpp target with cppia define *)
 	(* Compilation *)
 	| AddClassPath of string
-	| AddLibClassPath of string
+	| AddLibClassPath of string * string option
 	| AddHxbLib of string
 	| SetMain of path
 	| AddLib of string

@@ -138,7 +138,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		Hashtbl.filter_map_inplace (fun _ cfile ->
 			match cfile.c_file_path.class_path#scope with
 			| ClassPath.User -> None
-			| ClassPath.Std | ClassPath.StdTarget | ClassPath.Lib -> Some cfile
+			| ClassPath.Std | ClassPath.StdTarget | ClassPath.Lib _ -> Some cfile
 		) files
 
 	(* initialization *)
