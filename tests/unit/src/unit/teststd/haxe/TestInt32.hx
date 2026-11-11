@@ -28,6 +28,12 @@ class TestInt32 extends unit.Test {
 		eq(min >> 1, 0xc0000000);
 		eq(min >>> 1, 0x40000000);
 
+		final i32:haxe.Int32 = -1;
+		final zeroI32:haxe.Int32 = 0;
+		eq(i32 >>> zeroI32, i32);
+		eq(i32 >>> 0, i32);
+		eq(-1 >>> zeroI32, i32);
+
 		#if !cpp
 		var a = [1];
 		var next = 0;
