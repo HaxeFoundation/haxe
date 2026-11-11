@@ -193,10 +193,10 @@ abstract Int32(Int) from Int to Int {
 	#end
 
 	#if (lua || python || php)
-	@:op(A ^ B) private static #if (python || php) inline #end function xor(a:Int32, b:Int32):Int32
+	@:op(A ^ B) private static inline function xor(a:Int32, b:Int32):Int32
 		return clamp((a : Int) ^ (b : Int));
 
-	@:op(A ^ B) @:commutative private static #if (python || php) inline #end function xorInt(a:Int32, b:Int):Int32
+	@:op(A ^ B) @:commutative private static inline function xorInt(a:Int32, b:Int):Int32
 		return clamp((a : Int) ^ b);
 	#else
 	@:op(A ^ B) private static function xor(a:Int32, b:Int32):Int32;
@@ -205,13 +205,13 @@ abstract Int32(Int) from Int to Int {
 	#end
 
 	#if (lua || python || php)
-	@:op(A >> B) private static #if (python || php) inline #end function shr(a:Int32, b:Int32):Int32
+	@:op(A >> B) private static inline function shr(a:Int32, b:Int32):Int32
 		return clamp((a : Int) >> (b : Int));
 
-	@:op(A >> B) private static #if (python || php) inline #end function shrInt(a:Int32, b:Int):Int32
+	@:op(A >> B) private static inline function shrInt(a:Int32, b:Int):Int32
 		return clamp((a : Int) >> b);
 
-	@:op(A >> B) private static #if (python || php) inline #end function intShr(a:Int, b:Int32):Int32
+	@:op(A >> B) private static inline function intShr(a:Int, b:Int32):Int32
 		return clamp(a >> (b : Int));
 	#else
 	@:op(A >> B) private static function shr(a:Int32, b:Int32):Int32;
