@@ -221,11 +221,22 @@ abstract Int32(Int) from Int to Int {
 	@:op(A >> B) private static function intShr(a:Int, b:Int32):Int32;
 	#end
 
+	#if (js || lua || python)
+	@:op(A >>> B) private static inline function ushr(a:Int32, b:Int32):Int32
+		return clamp((a : Int) >>> (b : Int));
+
+	@:op(A >>> B) private static inline function ushrInt(a:Int32, b:Int):Int32
+		return clamp((a : Int) >>> (b : Int));
+
+	@:op(A >>> B) private static inline function intUshr(a:Int, b:Int32):Int32
+		return clamp((a : Int) >>> (b : Int));
+	#else
 	@:op(A >>> B) private static function ushr(a:Int32, b:Int32):Int32;
 
 	@:op(A >>> B) private static function ushrInt(a:Int32, b:Int):Int32;
 
 	@:op(A >>> B) private static function intUshr(a:Int, b:Int32):Int32;
+	#end
 
 	#if (php || python || lua)
 	// PHP may be 64-bit, so shifts must be clamped
