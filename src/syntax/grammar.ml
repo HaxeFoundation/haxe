@@ -1596,7 +1596,10 @@ and expr (ctx : parser_ctx) s = match%parser s with
 			| [ ] ->
 				syntax_error ctx (Expected ["{"]) s (ESwitch(e,[],None),punion p1 (pos e))
 		end
-	| [ (Kwd Try,p1); [%let e = secure_expr ctx]; [%let cl,p2 = parse_catches ctx e [] (pos e)] ] -> (ETry (e,cl),punion p1 p2)
+	| [ (Kwd Try,p1); [%let e = secure_expr ctx]; [%let cl,p2 = parse_catches ctx e [] (pos e)] ] ->
+		let efinally = parse_finally ctx s in
+		let p2 = match efinally with None -> p2 | Some e -> pos e in
+		(ETry (e,cl,efinally),punion p1 p2)
 	| [ (IntInterval i,p1); [%let e2 = expr ctx] ] -> make_binop OpInterval (EConst (Int (i, None)),p1) e2
 	| [ (Kwd Untyped,p1); [%let e = secure_expr ctx] ] -> (EUntyped e,punion p1 (pos e))
 	| [ (Dollar v,p) ] -> expr_next ctx (EConst (Ident ("$"^v)),p) s
@@ -1729,6 +1732,22 @@ and parse_catch ctx etry = function%parser
 and parse_catches ctx etry catches pmax = function%parser
 	| [ [%let (catch,pmax) = parse_catch ctx etry]; [%s s] ] -> parse_catches ctx etry (catch :: catches) pmax s
 	| [ ] -> List.rev catches,pmax
+
+(* `finally` is not a keyword so that it remains usable as an identifier. It is only recognized
+   after `try`/`catch` and when followed by a block, which wasn't valid syntax before.
+   We peek in two steps to avoid the lexer missing tokens (#8565). *)
+and parse_finally ctx s =
+	match Stream.npeek 1 s with
+	| [(Const (Ident "finally"),_)] ->
+		begin match Stream.npeek 2 s with
+		| [(Const (Ident "finally"),_);(BrOpen,_)] ->
+			Stream.junk s;
+			Some (secure_expr ctx s)
+		| _ ->
+			None
+		end
+	| _ ->
+		None
 
 and parse_call_params ctx f p1 s =
 	if not ctx.config.in_display_file then begin

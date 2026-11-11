@@ -424,7 +424,7 @@ and generate_texpr ctx e =
 			"cases",jlist generate_case cases;
 			"def",jopt (generate_texpr ctx) edef;
 		])
-	| TTry(e1,catches) ->
+	| TTry(e1,catches,efinally) ->
 		let generate_catch (v,e) = jobject [
 			"v",generate_tvar ctx v;
 			"expr",generate_texpr ctx e;
@@ -432,6 +432,7 @@ and generate_texpr ctx e =
 		"TTry",Some (jobject [
 			"expr",generate_texpr ctx e1;
 			"catches",jlist generate_catch catches;
+			"finally",jopt (generate_texpr ctx) efinally;
 		])
 	| TReturn eo ->
 		"TReturn",Option.map (generate_texpr ctx) eo

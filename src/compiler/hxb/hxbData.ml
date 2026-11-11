@@ -126,7 +126,7 @@ let error (s : string) =
 	Printf.eprintf "[error] %s\n" s;
 	raise (HxbFailure s)
 
-let hxb_version = 1
+let hxb_version = 2
 
 let write_header ch =
 	IO.nwrite_string ch "hxb";

@@ -515,12 +515,14 @@ let filter ectx (scom:SafeCom.t) =
 			match e.eexpr with
 			| TThrow e1 ->
 				{ e with eexpr = TThrow (throw_native ctx (run e1) e.etype e.epos) }
-			| TTry(e1,catches) ->
+			| TTry(e1,catches,efinally) ->
 				let catches =
 					let catches = List.map (fun (v,e) -> (v,run e)) catches in
 					(catch_native ctx catches e.etype e.epos)
 				in
-				{ e with eexpr = TTry(run e1,catches) }
+				(* `finally` has no catch variable, so there's nothing to transform about it.
+				   Targets without native support rethrow the original value as is. *)
+				{ e with eexpr = TTry(run e1,catches,Option.map run efinally) }
 			| _ ->
 				map_expr run e
 		in

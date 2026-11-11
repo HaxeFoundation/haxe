@@ -51,9 +51,10 @@ let iter f e =
 		f switch.switch_subject;
 		List.iter (fun case -> List.iter f case.case_patterns; f case.case_expr) switch.switch_cases;
 		(match switch.switch_default with None -> () | Some e -> f e)
-	| TTry (e,catches) ->
+	| TTry (e,catches,efinally) ->
 		f e;
-		List.iter (fun (_,e) -> f e) catches
+		List.iter (fun (_,e) -> f e) catches;
+		(match efinally with None -> () | Some e -> f e)
 	| TReturn eo ->
 		(match eo with None -> () | Some e -> f e)
 
@@ -87,8 +88,8 @@ let check_expr predicate e =
 			predicate switch.switch_subject
 			|| List.exists (fun case -> List.exists predicate case.case_patterns || predicate case.case_expr) switch.switch_cases
 			|| (match switch.switch_default with None -> false | Some e -> predicate e)
-		| TTry (e,catches) ->
-			predicate e || List.exists (fun (_,e) -> predicate e) catches
+		| TTry (e,catches,efinally) ->
+			predicate e || List.exists (fun (_,e) -> predicate e) catches || (match efinally with None -> false | Some e -> predicate e)
 
 let map_expr f e =
 	match e.eexpr with
@@ -151,9 +152,11 @@ let map_expr f e =
 		}) switch.switch_cases in
 		let def = Option.map f switch.switch_default in
 		{ e with eexpr = TSwitch {switch with switch_subject = e1;switch_cases = cases;switch_default = def} }
-	| TTry (e1,catches) ->
+	| TTry (e1,catches,efinally) ->
 		let e1 = f e1 in
-		{ e with eexpr = TTry (e1, List.map (fun (v,e) -> v, f e) catches) }
+		let catches = List.map (fun (v,e) -> v, f e) catches in
+		let efinally = Option.map f efinally in
+		{ e with eexpr = TTry (e1, catches, efinally) }
 	| TReturn eo ->
 		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)) }
 	| TCast (e1,t) ->
@@ -258,9 +261,11 @@ let map_expr_type f ft fv e =
 		}) switch.switch_cases in
 		let def = Option.map f switch.switch_default in
 		{ e with eexpr = TSwitch {switch with switch_subject = e1;switch_cases = cases;switch_default = def}; etype = ft e.etype }
-	| TTry (e1,catches) ->
+	| TTry (e1,catches,efinally) ->
 		let e1 = f e1 in
-		{ e with eexpr = TTry (e1, List.map (fun (v,e) -> fv v, f e) catches); etype = ft e.etype }
+		let catches = List.map (fun (v,e) -> fv v, f e) catches in
+		let efinally = Option.map f efinally in
+		{ e with eexpr = TTry (e1, catches, efinally); etype = ft e.etype }
 	| TReturn eo ->
 		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)); etype = ft e.etype }
 	| TCast (e1,t) ->
@@ -305,7 +310,10 @@ let rec equal e1 e2 = match e1.eexpr,e2.eexpr with
 		equal switch1.switch_subject switch2.switch_subject &&
 		safe_for_all2 (fun case1 case2 -> safe_for_all2 equal case1.case_patterns case2.case_patterns && equal case1.case_expr case2.case_expr) switch1.switch_cases switch2.switch_cases &&
 		(match switch1.switch_default,switch2.switch_default with None,None -> true | Some e1,Some e2 -> equal e1 e2 | _ -> false)
-	| TTry(e1,catches1),TTry(e2,catches2) -> equal e1 e2 && safe_for_all2 (fun (v1,e1) (v2,e2) -> v1 == v2 && equal e1 e2) catches1 catches2
+	| TTry(e1,catches1,ef1),TTry(e2,catches2,ef2) ->
+		equal e1 e2 &&
+		safe_for_all2 (fun (v1,e1) (v2,e2) -> v1 == v2 && equal e1 e2) catches1 catches2 &&
+		(match ef1,ef2 with None,None -> true | Some e1,Some e2 -> equal e1 e2 | _ -> false)
 	| TReturn None,TReturn None -> true
 	| TReturn(Some e1),TReturn(Some e2) -> equal e1 e2
 	| TThrow e1,TThrow e2 -> equal e1 e2
@@ -337,12 +345,13 @@ let duplicate_tvars f_this e =
 		| TVar (v,eo) ->
 			let v2 = copy_var v in
 			{e with eexpr = TVar(v2, Option.map build_expr eo)}
-		| TTry (e1,cl) ->
+		| TTry (e1,cl,efinally) ->
+			let e1 = build_expr e1 in
 			let cl = List.map (fun (v,e) ->
 				let v2 = copy_var v in
 				v2, build_expr e
 			) cl in
-			{e with eexpr = TTry(build_expr e1, cl)}
+			{e with eexpr = TTry(e1, cl, Option.map build_expr efinally)}
 		| TFunction f ->
 			let args = List.map (fun (v,c) -> let v = copy_var v in v, Option.map build_expr c) f.tf_args in
 			let f = {
@@ -467,10 +476,11 @@ let foldmap f acc e =
 		) (acc,[]) switch.switch_cases in
 		let acc,def = foldmap_opt f acc switch.switch_default in
 		acc,{ e with eexpr = TSwitch {switch with switch_subject = e1;switch_cases = cases;switch_default = def} }
-	| TTry (e1,catches) ->
+	| TTry (e1,catches,efinally) ->
 		let acc,e1 = f acc e1 in
 		let acc,catches = foldmap_pairs f acc catches in
-		acc,{ e with eexpr = TTry (e1, catches) }
+		let acc,efinally = foldmap_opt f acc efinally in
+		acc,{ e with eexpr = TTry (e1, catches, efinally) }
 	| TReturn eo ->
 		let acc,eo = foldmap_opt f acc eo in
 		acc,{ e with eexpr = TReturn eo }
@@ -815,12 +825,13 @@ let dump_with_pos tabs e =
 				loop' (tabs ^ "      ") case.case_expr;
 			) switch.switch_cases;
 			Option.may (loop' (tabs ^ "      ")) switch.switch_default
-		| TTry(e1,catches) ->
+		| TTry(e1,catches,efinally) ->
 			add "TTry";
 			loop e1;
 			List.iter (fun (v,e) ->
 				loop' (tabs ^ "    ") e
-			) catches
+			) catches;
+			Option.may (loop' (tabs ^ "    ")) efinally
 		| TReturn eo ->
 			add "TReturn";
 			Option.may loop eo;
@@ -858,12 +869,13 @@ let collect_captured_vars e =
 		| TFunction tf ->
 			List.iter (fun (v,_) -> declare v) tf.tf_args;
 			loop tf.tf_expr
-		| TTry(e1,catches) ->
+		| TTry(e1,catches,efinally) ->
 			loop e1;
 			List.iter (fun (v,e) ->
 				declare v;
 				loop e;
-			) catches
+			) catches;
+			Option.may loop efinally
 		| _ ->
 			iter loop e
 	in
@@ -978,12 +990,17 @@ module DeadEnd = struct
 				loop e1 || is_false_expr e1 && loop e2
 			| TWhile(cond, body, flag) ->
 				loop cond || ((flag = DoWhile || is_true_expr cond) && in_loop body)
-			| TTry(e1,[]) ->
-				loop e1
-			| TTry(_,catches) ->
-				(* The try expression is irrelevant because we have to conservatively assume that
-				   anything could throw control flow into the catch expressions. *)
-				List.for_all (fun (_,e) -> loop e) catches
+			| TTry(e1,catches,efinally) ->
+				let dead_end = match catches with
+					| [] ->
+						loop e1
+					| _ ->
+						(* The try expression is irrelevant because we have to conservatively assume that
+						   anything could throw control flow into the catch expressions. *)
+						List.for_all (fun (_,e) -> loop e) catches
+				in
+				(* `finally` runs on every path, and it cannot break, continue or return. *)
+				dead_end || (match efinally with None -> false | Some e -> loop e)
 			| _ ->
 				check_expr loop e
 		in

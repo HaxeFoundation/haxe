@@ -613,8 +613,9 @@ and expr dce e =
 	| TTypeExpr mt ->
 		mark_mt dce mt;
 		mark_directly_used_mt dce mt;
-	| TTry(e, vl) ->
+	| TTry(e, vl, efinally) ->
 		expr dce e;
+		Option.may (expr dce) efinally;
 		List.iter (fun (v,e) ->
 			if v.v_type != t_dynamic then begin
 				check_feature dce "typed_catch";

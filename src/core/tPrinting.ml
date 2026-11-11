@@ -201,7 +201,7 @@ let s_expr_kind e =
 	| TIf (_,_,_) -> "If"
 	| TWhile (_,_,_) -> "While"
 	| TSwitch _ -> "Switch"
-	| TTry (_,_) -> "Try"
+	| TTry _ -> "Try"
 	| TReturn _ -> "Return"
 	| TBreak -> "Break"
 	| TContinue -> "Continue"
@@ -276,8 +276,8 @@ let rec s_expr_pretty print_var_ids tabs top_level s_type e =
 			(slist "" (fun case -> sprintf "%scase %s: %s;\n" ntabs (clist loop case.case_patterns) (s_expr_pretty print_var_ids ntabs top_level s_type case.case_expr)) switch.switch_cases)
 			(match switch.switch_default with None -> "" | Some e -> ntabs ^ "default: " ^ (s_expr_pretty print_var_ids ntabs top_level s_type e) ^ "\n") in
 		s ^ tabs ^ "}"
-	| TTry (e,cl) ->
-		sprintf "try %s%s" (loop e) (clist (fun (v,e) -> sprintf " catch (%s:%s) %s" (local v) (s_type v.v_type) (loop e)) cl)
+	| TTry (e,cl,efinally) ->
+		sprintf "try %s%s%s" (loop e) (clist (fun (v,e) -> sprintf " catch (%s:%s) %s" (local v) (s_type v.v_type) (loop e)) cl) (match efinally with None -> "" | Some e -> " finally " ^ loop e)
 	| TReturn None ->
 		"return"
 	| TReturn (Some e) ->
@@ -371,10 +371,14 @@ let rec s_expr_ast print_var_ids tabs s_type e =
 	| TReturn (Some e1) -> tag "Return" [loop e1]
 	| TWhile (e1,e2,NormalWhile) -> tag "While" [loop e1; loop e2]
 	| TWhile (e1,e2,DoWhile) -> tag "Do" [loop e1; loop e2]
-	| TTry (e1,catches) ->
+	| TTry (e1,catches,efinally) ->
 		let sl = List.map (fun (v,e) ->
 			sprintf "Catch %s%s" (local v None) (tag_args (tabs ^ "\t") [loop ~extra_tabs:"\t" e]);
 		) catches in
+		let sl = match efinally with
+			| None -> sl
+			| Some e -> sl @ [sprintf "Finally%s" (tag_args (tabs ^ "\t") [loop ~extra_tabs:"\t" e])]
+		in
 		tag "Try" ((loop e1) :: sl)
 	| TSwitch switch ->
 		let sl = List.map (fun {case_patterns = el;case_expr = e} ->

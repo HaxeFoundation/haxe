@@ -337,11 +337,11 @@ let reify in_macro =
 				to_obj [("values",to_expr_array el p);"guard",to_opt to_expr eg p;"expr",to_opt to_expr e p] p
 			in
 			expr "ESwitch" [loop e1;to_array scase cases p;to_opt (fun (e,_) -> to_opt to_expr e) def p]
-		| ETry (e1,catches) ->
+		| ETry (e1,catches,efinally) ->
 			let scatch ((n,_),t,e,_) p =
 				to_obj [("name",to_string n p);("type",to_opt to_ctype t p);("expr",loop e)] p
 			in
-			expr "ETry" [loop e1;to_array scatch catches p]
+			expr "ETry" [loop e1;to_array scatch catches p;to_opt to_expr efinally p]
 		| EReturn eo ->
 			expr "EReturn" [to_opt to_expr eo p]
 		| EBreak ->
