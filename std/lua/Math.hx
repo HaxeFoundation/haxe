@@ -64,7 +64,7 @@ extern class Math {
 	**/
 	static function asin(x:Float):Float;
 
-	#if (lua_ver <= 5.2 || luajit)
+	#if (lua_ver <= 5.2 || lua_jit)
 	/**
 		Returns the arc tangent of y/x (in radians), using the signs of both arguments to find the quadrant of the result. It also handles correctly the case of x being zero.
 

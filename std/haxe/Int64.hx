@@ -624,10 +624,7 @@ abstract Int64(__Int64) from __Int64 to __Int64 {
 	static var extraBits:Int = php.Const.PHP_INT_SIZE * 8 - 32;
 	#end
 
-	#if !lua
-	inline
-	#end
-	static function clamp(x:Int):Int {
+	inline static function clamp(x:Int):Int {
 		// force to-int conversion on platforms that require it
 		#if js
 		return x | 0;
