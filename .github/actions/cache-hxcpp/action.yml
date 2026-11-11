@@ -4,7 +4,8 @@ description: >
   the job succeeds. hxcpp stores objects by a hash of the source, its declared dependencies
   (including the hxcpp headers), the flags and the compiler version, so objects of files that
   didn't change since an earlier run are reused, even across hxcpp revisions. hxcpp evicts the
-  least recently used objects once the cache exceeds HXCPP_CACHE_MB (default 1000).
+  least recently used objects once the cache exceeds HXCPP_CACHE_MB, which this sets for the
+  rest of the job.
 inputs:
   key-prefix:
     description: 'Platform/arch-specific cache key prefix (e.g., hxcpp-linux-x86)'
@@ -12,6 +13,11 @@ inputs:
 runs:
   using: composite
   steps:
+    # hxcpp's default of 1000 MB is too small for the C++ tests, so the cache would evict
+    # objects that later builds of the same job need again.
+    - shell: bash
+      run: echo "HXCPP_CACHE_MB=4000" >> "$GITHUB_ENV"
+
     # Cache entries can't be overwritten, so every run saves under its own key and restores
     # the newest one with the same prefix.
     - uses: actions/cache@v6
