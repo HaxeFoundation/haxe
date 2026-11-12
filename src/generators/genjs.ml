@@ -1807,14 +1807,16 @@ let generate js_gen com =
 	| _ -> ""
 	in
 
+	(* Prefer `globalThis`: top-level `this` is `undefined` in ES modules (e.g. with `@:js.import`).
+	   The rest of the chain is kept for engines that predate `globalThis`. *)
 	let var_exports = (
 		"$hx_exports",
-		typeof_join (if defined_global then ["exports"; defined_global_value] else ["exports"; "window"; "self"; "this"])
+		typeof_join (if defined_global then ["exports"; defined_global_value] else ["exports"; "globalThis"; "window"; "self"; "this"])
 	) in
 
 	let var_global = (
 		"$global",
-		typeof_join (if defined_global then [defined_global_value] else ["window"; "global"; "self"; "this"])
+		typeof_join (if defined_global then [defined_global_value] else ["globalThis"; "window"; "global"; "self"; "this"])
 	) in
 
 	let closureArgs = [var_global] in
