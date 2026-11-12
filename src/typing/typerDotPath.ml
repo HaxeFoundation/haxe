@@ -77,14 +77,14 @@ let resolve_qualified ctx pack name next_path p mode with_type =
 	with Error (Module_not_found mpath,_,_) when mpath = (pack,name) ->
 		(* might be an instance of https://github.com/HaxeFoundation/haxe/issues/9150
 		   so let's also check (pack,name) of a TYPE in the current module context ¯\_(ツ)_/¯ *)
-		let t = Typeload.find_type_in_current_module_context ctx pack name in (* raises Not_found *)
+		let t = Typeload.find_type_in_current_module_context ctx pack name p in (* raises Not_found *)
 		mk_module_type_access ctx t p, next_path
 
 (** resolve the given unqualified name (and possibly next path part) or raise Not_found *)
 let resolve_unqualified ctx name next_path p mode with_type =
 	try
 		(* if there's a type with this name in current module context - try resolving against it *)
-		let t = Typeload.find_type_in_current_module_context ctx [] name in (* raises Not_found *)
+		let t = Typeload.find_type_in_current_module_context ctx [] name p in (* raises Not_found *)
 
 		begin
 			(*

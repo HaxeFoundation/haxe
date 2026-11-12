@@ -114,7 +114,7 @@ with Error((Module_not_found _ | Type_not_found _),p2,_) when p = p2 ->
 
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
-let find_type_in_current_module_context ctx pack name =
+let find_type_in_current_module_context ctx pack name p =
 	let no_pack = pack = [] in
 	let path_matches t2 =
 		let tp = t_path t2 in
@@ -128,6 +128,10 @@ let find_type_in_current_module_context ctx pack name =
 		(* Check the local imports *)
 		let t,pi = List.find (fun (t2,pi) -> path_matches t2) ctx.m.module_imports in
 		ImportHandling.mark_import_position ctx pi;
+		let infos = t_infos t in
+		(* Haxe 5 no longer looks for pack.Name in the imports (#11338). Import aliases are typedefs outside of their module's types. *)
+		if not no_pack && Common.is_next ctx.com && infos.mt_module.m_path <> infos.mt_path && List.memq t infos.mt_module.m_types then
+			warning ctx WMigration (Printf.sprintf "%s resolves to %s.%s through an import of its module, which Haxe 5 doesn't do: use that path instead" (s_type_path (pack,name)) (s_type_path infos.mt_module.m_path) name) p;
 		t
 
 let find_in_wildcard_imports ctx mname p f =
@@ -223,7 +227,7 @@ let load_type_def ctx p t =
 	try
 		(* If there's a sub-type, there's no reason to look in our module or its imports *)
 		if t.tsub <> None then raise Not_found;
-		find_type_in_current_module_context ctx t.tpackage tname
+		find_type_in_current_module_context ctx t.tpackage tname p
 	with Not_found ->
 		if t.tpackage = [] then
 			load_unqualified_type_def ctx t.tname tname p

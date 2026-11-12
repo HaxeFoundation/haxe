@@ -541,7 +541,12 @@ module Inheritance = struct
 						ImportHandling.mark_import_position ctx pi;
 						t
 					in
-					{ t with tpackage = fst (t_path lt) },p
+					let infos = t_infos lt in
+					(* Keep imported sub-types out of the partial resolution that -D haxe-next warns about *)
+					if Common.is_next ctx.com && infos.mt_module.m_path <> infos.mt_path && List.memq lt infos.mt_module.m_types then
+						{ t with tpackage = fst infos.mt_module.m_path; tname = snd infos.mt_module.m_path; tsub = Some t.tname },p
+					else
+						{ t with tpackage = fst (t_path lt) },p
 				with
 					Not_found -> t,p
 		in
