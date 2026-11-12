@@ -88,7 +88,9 @@
 		return $typeof(f) == $tfunction;
 	}
 
-	public inline static function compare<T>(a:T, b:T):Int {
+	public static function compare<T>(a:T, b:T):Int {
+		if (untyped $typeof(a) == $tobject && haxe.Int64.isInt64(a) && haxe.Int64.isInt64(b))
+			return haxe.Int64.compare(cast a, cast b);
 		return untyped $compare(a, b);
 	}
 
