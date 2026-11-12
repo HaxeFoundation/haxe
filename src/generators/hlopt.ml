@@ -870,6 +870,21 @@ let _optimize (f:fundecl) =
 	in
 *)
 
+	(* The registers written inside each trap, by handler position. The exception can happen between
+	   any of these writes, so the handler can't rely on what is known about them at the trap or at
+	   its end. *)
+	let trap_writes = Hashtbl.create 0 in
+	Hashtbl.iter (fun _ b ->
+		if b.btrap <> [] then
+			for i = b.bstart to b.bend do
+				opcode_fx (fun r read ->
+					if not read then List.iter (fun p -> Hashtbl.replace trap_writes (p,r) ()) b.btrap
+				) (op i)
+			done
+	) blocks_pos;
+	let handler_writes = Hashtbl.create 0 in
+	Hashtbl.iter (fun (p,r) () -> Hashtbl.add handler_writes p r) trap_writes;
+
 	let rec propagate b =
 		let state = if b.bloop then
 			empty_state()
@@ -911,6 +926,13 @@ let _optimize (f:fundecl) =
 			r.ralias.rbind <- List.filter (fun r2 -> r2 != r) r.ralias.rbind;
 			r.ralias <- r
 		in
+		List.iter (fun r ->
+			let s = state.(r) in
+			List.iter (fun s2 -> s2.ralias <- s2) s.rbind;
+			s.rbind <- [];
+			s.rnullcheck <- false;
+			unalias s
+		) (Hashtbl.find_all handler_writes b.bstart);
 		let rec loop i =
 			let do_read r =
 				let w = last_write.(r) in
@@ -1067,6 +1089,17 @@ let _optimize (f:fundecl) =
 			Option.get b.bneed_all
 	in
 	ignore(live root);
+
+	(* The only edge to a trap handler starts at the trap, but any instruction inside the trap can
+	   throw. Keep the registers which the handler needs alive throughout the trap, so that writes
+	   inside it aren't removed when a later write inside it overwrites them. *)
+	Hashtbl.iter (fun _ b ->
+		List.iter (fun p ->
+			match (try (Hashtbl.find blocks_pos p).bneed_all with Not_found -> None) with
+			| Some need -> ISet.iter (fun r -> set_live r b.bstart b.bend) need
+			| None -> ()
+		) b.btrap
+	) blocks_pos;
 
 	(* nop *)
 

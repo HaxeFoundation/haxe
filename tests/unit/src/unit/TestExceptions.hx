@@ -380,6 +380,38 @@ class TestExceptions extends Test {
 		}
 	}
 
+	// A write inside a try must survive if it is overwritten later in the try and an exception
+	// occurs between both writes. HL's bytecode optimizer used to remove it.
+	function testWriteBeforeThrowInTry() {
+		var x = 0;
+		try {
+			x = 1;
+			throwString();
+			x = 2;
+		} catch(e:String) {}
+		eq(1, x);
+	}
+	// The same for a copied variable: HL's bytecode optimizer used to read the source of the copy in
+	// the catch, because it held at the start and at the end of the try.
+	@:analyzer(ignore)
+	function testCopyReassignedInTry() {
+		var y = 7;
+		var x = y;
+		var inCatch = -1;
+		try {
+			x = 42;
+			throwString();
+			x = y;
+		} catch(e:String) {
+			inCatch = x;
+		}
+		eq(42, inCatch);
+		eq(42, x);
+	}
+	function throwString() {
+		throw "error";
+	}
+
 #if jvm
 	function testCatchChain() {
 		eq("caught NativeExceptionChild: msg", raise(() -> throw new NativeExceptionChild("msg")));
