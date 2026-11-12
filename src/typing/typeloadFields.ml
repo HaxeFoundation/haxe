@@ -476,10 +476,49 @@ let apply_macro ctx mode path el p =
 	) in
 	ctx.g.do_macro ctx mode cpath meth el p
 
+let check_build_macro_order ctx mt build_changes (csup,group) =
+	let runs = List.filter (fun (args,_,_) -> List.exists (fun el -> el == args) group) (List.rev build_changes) in
+	let rec find runs = match runs with
+		| (_,name,(_ :: _ as changed)) :: ((_,next,_) :: _ as rest) -> (name,changed,next) :: find rest
+		| _ :: rest -> find rest
+		| [] -> []
+	in
+	let key = (csup.cl_pos.pfile,csup.cl_pos.pmin) in
+	match find runs,mt with
+	| [],_ ->
+		()
+	| interactions,TClassDecl c when not (Hashtbl.mem ctx.g.warned_build_orders key) ->
+		Hashtbl.add ctx.g.warned_build_orders key ();
+		let s_interaction (name,changed,next) =
+			let fields = String.concat ", " (ExtList.List.take 3 changed) ^ (if List.length changed > 3 then ", ..." else "") in
+			Printf.sprintf "%s changed %s before %s ran" name fields next
+		in
+		let msg = Printf.sprintf "Haxe 5 runs the build macros inherited from %s in the reverse order:\n%s"
+			(s_type_path csup.cl_path) (String.concat "\n" (List.map s_interaction interactions)) in
+		ctx.com.warning WBuildMacroOrder (Warning.from_meta c.cl_meta) msg c.cl_name_pos
+	| _ ->
+		()
+
 let build_module_def ctx mt meta fvars context_init fbuild =
 	let is_typedef = match mt with TTypeDecl _ -> true | _ -> false in
+	(* With -D haxe-next, inherited build macros run in the Haxe 5 order (#11582) *)
+	let reordered_groups = match mt with
+		| TClassDecl c when Common.is_next ctx.com ->
+			let parents = (match c.cl_super with Some (csup,_) -> [csup] | None -> []) @ List.map fst c.cl_implements in
+			List.filter_map (fun csup ->
+				match List.filter (fun (m,_,_) -> m = Meta.AutoBuild) csup.cl_meta with
+				| _ :: _ :: _ as l -> Some (csup,List.map (fun (_,el,_) -> el) l)
+				| _ -> None
+			) parents
+		| _ ->
+			[]
+	in
+	let in_reordered_group args = List.exists (fun (_,group) -> List.exists (fun el -> el == args) group) reordered_groups in
+	let build_changes = ref [] in
+	let snapshot () = List.map (fun f -> fst f.cff_name,Ast.Printer.s_class_field "" f) (fvars()) in
 	let loop f_build = function
 		| Meta.Build,args,p when not is_typedef -> (fun () ->
+				let before = if in_reordered_group args then Some (snapshot ()) else None in
 				let epath, el = (match args with
 					| [ECall (epath,el),p] -> epath, el
 					| _ -> typing_error "Invalid build parameters" p
@@ -493,7 +532,13 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 				ctx.get_build_infos <- old;
 				(match r with
 				| None -> typing_error "Build failure" p
-				| Some e -> fbuild e)
+				| Some e -> fbuild e);
+				Option.may (fun before ->
+					let after = snapshot () in
+					let differs l1 l2 = List.filter (fun (n,s) -> try List.assoc n l2 <> s with Not_found -> true) l1 in
+					let changed = List.sort_uniq compare (List.map fst (differs after before @ differs before after)) in
+					build_changes := (args,s,changed) :: !build_changes
+				) before
 			) :: f_build
 		| Meta.Using,el,p -> (fun () ->
 			List.iter (fun e ->
@@ -540,6 +585,7 @@ let build_module_def ctx mt meta fvars context_init fbuild =
 			None
 	in
 	List.iter (fun f -> f()) (List.rev f_build);
+	List.iter (check_build_macro_order ctx mt !build_changes) reordered_groups;
 	(match f_enum with None -> () | Some f -> f())
 
 let create_class_context c context_init p =
