@@ -14,6 +14,7 @@ class TestMacro extends Test {
 		parseAndPrint("a.function");
 		parseAndPrint("a.new");
 		parseAndPrint('var a:{ var "inline" : Int; var b : Int; }');
+		parseAndPrint("a.b.<Int, Array<String>>(c)");
 		parseAndPrint("(a)");
 		parseAndPrint("{ a : b }");
 		parseAndPrint("{ \"a\" : b }");

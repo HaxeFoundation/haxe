@@ -560,7 +560,7 @@ let type_generic_function ctx fa fcc with_type p =
 		end
 	in
 	let dispatch = new CallUnification.call_dispatcher ctx (MCall []) with_type p in
-	dispatch#field_call fa el []
+	dispatch#field_call {fa with fa_type_args = None} el []
 
 ;;
 Typecore.type_generic_function_ref := type_generic_function

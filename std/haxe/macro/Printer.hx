@@ -321,6 +321,7 @@ class Printer {
 			case ECast(e1, cto) if (cto != null): 'cast(${printExpr(e1)}, ${printComplexType(cto)})';
 			case ECast(e1, _): "cast " + printExpr(e1);
 			case EIs(e1, ct): '${printExpr(e1)} is ${printComplexType(ct)}';
+			case ETypeArgs(e1, params): '${printExpr(e1)}.<${params.map(printComplexType).join(", ")}>';
 			case EDisplay(e1, _): '#DISPLAY(${printExpr(e1)})';
 			case ETernary(econd, eif, eelse): '${printExpr(econd)} ? ${printExpr(eif)} : ${printExpr(eelse)}';
 			case ECheckType(e1, ct): '(${printExpr(e1)} : ${printComplexType(ct)})';
@@ -599,6 +600,9 @@ class Printer {
 					loopI(e);
 				case EIs(e, t):
 					add("EIs");
+					loopI(e);
+				case ETypeArgs(e, _):
+					add("ETypeArgs");
 					loopI(e);
 				case EDisplay(e, displayKind):
 					add("EDisplay");

@@ -396,7 +396,14 @@ let make_binop ctx op e1 e2 is_assign_op p =
 		| KOther , _
 		| _ , KOther ->
 			let pr = print_context() in
-			raise_typing_error ("Cannot compare " ^ s_type pr e1.etype ^ " and " ^ s_type pr e2.etype) p
+			let msg = "Cannot compare " ^ s_type pr e1.etype ^ " and " ^ s_type pr e2.etype in
+			begin match op,e1.eexpr,e2.eexpr with
+			| OpLt,TField(_,(FStatic(_,cf) | FInstance(_,_,cf) | FAnon cf | FClosure(_,cf))),TTypeExpr _ when cf.cf_params <> [] ->
+				let hint = make_error (Custom (Printf.sprintf "Explicit type arguments need a dot: %s.<...>(...)" cf.cf_name)) p in
+				raise_typing_error_ext (make_error ~sub:[hint] (Custom msg) p)
+			| _ ->
+				raise_typing_error msg p
+			end
 		);
 		mk_op e1 e2 ctx.t.tbool
 	| OpBoolAnd

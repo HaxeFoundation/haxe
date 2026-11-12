@@ -346,6 +346,21 @@ let unify_field_call ctx fa el_typed el p inline =
 	in
 	let attempt_call cf in_overload =
 		let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
+		Option.may (fun tl ->
+			let rec loop monos' tl' = match monos',tl' with
+				| [],[] ->
+					()
+				| TMono m :: monos',(t,pt) :: tl' ->
+					(try Monomorph.bind m t with Unify_error l -> raise_error_msg (Call_error (Could_not_unify (Unify l))) pt);
+					loop monos' tl'
+				| [],_ | _,[] ->
+					let expected = List.length monos in
+					raise_error_msg (Call_error (Could_not_unify (Custom (Printf.sprintf "Expected %i type argument%s, got %i" expected (if expected = 1 then "" else "s") (List.length tl))))) p
+				| _ ->
+					die "" __LOC__
+			in
+			loop monos tl
+		) fa.fa_type_args;
 		let t = map (apply_params cf.cf_params monos cf.cf_type) in
 		let make args ret coro =
 			let args_typed,args = unify_typed_args tmap args el_typed p in

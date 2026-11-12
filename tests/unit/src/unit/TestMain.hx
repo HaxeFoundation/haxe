@@ -103,6 +103,7 @@ function main() {
 		new TestFieldVariance(),
 		new TestConstrainedMonomorphs(),
 		new TestDefaultTypeParameters(),
+		new TestCallTypeArguments(),
 		#if (!flash && !hl)
 		new TestCoroutines(),
 		#end
