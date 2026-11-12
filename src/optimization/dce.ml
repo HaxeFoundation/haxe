@@ -31,7 +31,7 @@ type dce = {
 	scom : SafeCom.t;
 	mscom : SafeCom.t option;
 	full : bool;
-	std_dirs : string list;
+	is_std_file : string -> bool;
 	debug : bool;
 	follow_expr : dce -> texpr -> unit;
 	curclass : tclass;
@@ -85,15 +85,12 @@ let overrides_extern_field cf c =
 	in
 	loop c cf
 
-let is_std_file dce file =
-	List.exists (fun dir -> ExtString.String.starts_with file dir) dce.std_dirs
-
 let keep_metas = [Meta.Keep;Meta.Expose]
 
 (* check if a class is kept entirely *)
 let keep_whole_class dce c =
 	Meta.has_one_of keep_metas c.cl_meta
-	|| not (dce.full || is_std_file dce (Path.UniqueKey.lazy_path c.cl_module.m_extra.m_file) || has_meta Meta.Dce c.cl_meta)
+	|| not (dce.full || dce.is_std_file (Path.UniqueKey.lazy_path c.cl_module.m_extra.m_file) || has_meta Meta.Dce c.cl_meta)
 	|| super_forces_keep c
 	|| (match c with
 		| { cl_path = ([],("Math"|"Array"))} when dce.scom.platform = Js -> false
@@ -105,7 +102,7 @@ let keep_whole_class dce c =
 
 let keep_whole_enum dce en =
 	Meta.has_one_of keep_metas en.e_meta
-	|| not (dce.full || is_std_file dce (Path.UniqueKey.lazy_path en.e_module.m_extra.m_file) || has_meta Meta.Dce en.e_meta)
+	|| not (dce.full || dce.is_std_file (Path.UniqueKey.lazy_path en.e_module.m_extra.m_file) || has_meta Meta.Dce en.e_meta)
 
 (* check if a field carries @:dce, forcing it to be DCE-eligible even if its class is kept *)
 let field_forces_dce cf = has_meta Meta.Dce cf.cf_meta
@@ -976,13 +973,13 @@ let sweep dce types =
 	in
 	loop [] (List.rev types)
 
-let run pool scom mscom main mode std_paths types =
+let run pool scom mscom main mode is_std_file types =
 	let full = mode = DceFull in
 	let dce = {
 		scom = scom;
 		mscom = mscom;
 		full = full;
-		std_dirs = if full then [] else List.map (fun path -> Path.get_full_path path#path) std_paths;
+		is_std_file = is_std_file;
 		debug = Define.defined scom.defines Define.DceDebug;
 		added_fields = DynArray.create ();
 		follow_expr = expr;

@@ -236,10 +236,10 @@ let destruction (com : Common.context) scom ectx detail_times rename_locals_conf
 				| "no" -> DceNo
 				| _ -> failwith ("Unknown DCE mode " ^ dce_mode)
 			in
-			let std_paths = com.class_paths#get_std_paths in
+			let is_std_file file = SourceScope.matcher com.class_paths file SourceScope.Std in
 			let mscom = Option.map of_com (com.get_macros()) in
 			let main = com.main.main_expr in
-			let types = Dce.run pool scom mscom main dce_mode std_paths all_types in
+			let types = Dce.run pool scom mscom main dce_mode is_std_file all_types in
 			types
 		) in
 		let all_types_array = Array.of_list all_types in
