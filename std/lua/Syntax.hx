@@ -53,4 +53,13 @@ extern class Syntax {
 		The same as `lua.Syntax.code` except this one does not provide code interpolation.
 	**/
 	static function plainCode(code:String):Dynamic;
+
+	/**
+		Generates a native modulo expression.
+
+		Modulo is defined as the remainder of a division that rounds the quotient towards minus infinity (floor division).
+	**/
+	inline static function modulo(a:Float, b:Float):Float {
+		return code("({0} % {1})", a, b);
+	}
 }
