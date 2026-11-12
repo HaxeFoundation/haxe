@@ -390,7 +390,7 @@ module TypeLevel = struct
 			DisplayEmitter.display_module_type ctx_m (match c.cl_kind with KAbstractImpl a -> TAbstractDecl a | _ -> TClassDecl c) (pos d.d_name);
 		(match c.cl_kind with
 			| KAbstractImpl _ -> ()
-			| _ -> TypeloadCheck.check_global_metadata ctx_m c.cl_meta (fun m -> c.cl_meta <- m :: c.cl_meta) c.cl_module.m_path c.cl_path None
+			| _ -> TypeloadCheck.check_module_type_metadata ctx_m (TClassDecl c)
 		);
 		let herits = d.d_flags in
 		List.iter (fun (m,_,p) ->
@@ -458,7 +458,7 @@ module TypeLevel = struct
 		if ctx_m.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx_m (TEnumDecl e) (pos d.d_name);
 		let ctx_en = TyperManager.clone_for_enum ctx_m e in
-		TypeloadCheck.check_global_metadata ctx_en e.e_meta (fun m -> e.e_meta <- m :: e.e_meta) e.e_module.m_path e.e_path None;
+		TypeloadCheck.check_module_type_metadata ctx_en (TEnumDecl e);
 		let constructs = ref d.d_data in
 		let get_constructs() =
 			List.map (fun c ->
@@ -529,7 +529,7 @@ module TypeLevel = struct
 	let init_typedef ctx_m t d p =
 		if ctx_m.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx_m (TTypeDecl t) (pos d.d_name);
-		TypeloadCheck.check_global_metadata ctx_m t.t_meta (fun m -> t.t_meta <- m :: t.t_meta) t.t_module.m_path t.t_path None;
+		TypeloadCheck.check_module_type_metadata ctx_m (TTypeDecl t);
 		let ctx_td = TyperManager.clone_for_typedef ctx_m t in
 		let tt = load_complex_type ctx_td true LoadNormal d.d_data in
 		let tt = (match fst d.d_data with
@@ -575,7 +575,7 @@ module TypeLevel = struct
 	let init_abstract ctx_m a d p =
 		if ctx_m.m.is_display_file && DisplayPosition.display_position#enclosed_in (pos d.d_name) then
 			DisplayEmitter.display_module_type ctx_m (TAbstractDecl a) (pos d.d_name);
-		TypeloadCheck.check_global_metadata ctx_m a.a_meta (fun m -> a.a_meta <- m :: a.a_meta) a.a_module.m_path a.a_path None;
+		TypeloadCheck.check_module_type_metadata ctx_m (TAbstractDecl a);
 		Option.may (fun c ->
 			List.iter (fun m -> match m with
 				| ((Meta.Using | Meta.Build | Meta.CoreApi | Meta.Allow | Meta.Access | Meta.Enum | Meta.Dce | Meta.Native | Meta.HlNative | Meta.JsRequire | Meta.PythonImport | Meta.Expose | Meta.Deprecated | Meta.PhpGlobal | Meta.PublicFields),_,_) ->

@@ -1,8 +1,8 @@
 package haxe.atomic;
 
-private typedef AtomicObjectData<T:{}> = Any;
+private typedef AtomicObjectData<T:haxe.Constraints.Object> = Any;
 
-extern abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
+extern abstract AtomicObject<T:haxe.Constraints.Object>(AtomicObjectData<T>) {
 	public function new(value:T):Void;
 
 	public function compareExchange(expected:T, replacement:T):T;

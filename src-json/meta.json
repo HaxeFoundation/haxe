@@ -962,7 +962,7 @@
 		"name": "Semantics",
 		"metadata": ":semantics",
 		"doc": "The native semantics of the type.",
-		"params": ["value | reference | variable"],
+		"params": ["value | reference | variable | object"],
 		"targets": ["TClass", "TTypedef", "TAbstract"]
 	},
 	{
