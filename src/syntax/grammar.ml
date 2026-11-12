@@ -1150,8 +1150,23 @@ and block2 ctx name ident p s =
 			let _ = semicolon ctx s in
 			e
 		in
-		let el,_ = block_with_pos' ctx [] f p s in
-		EBlock el
+		if ctx.config.in_display_file && display_position#enclosed_in p then begin
+			let e = f s in
+			match fst e with
+			| EConst _ ->
+				(* Check if the rest of the block is an object declaration *)
+				begin match block1 ctx s with
+				| EObjectDecl fl -> EObjectDecl ((name,mk_null_expr null_pos) :: fl)
+				| EBlock el -> EBlock (e :: el)
+				| _ -> die "" __LOC__
+				end
+			| _ ->
+				let el,_ = block_with_pos ctx [e] (pos e) s in
+				EBlock el
+		end else begin
+			let el,_ = block_with_pos' ctx [] f p s in
+			EBlock el
+		end
 
 and block ctx acc s =
 	fst (block_with_pos ctx acc null_pos s)
@@ -1215,21 +1230,23 @@ and parse_obj_decl ctx name e p0 s =
 	in
 	let rec loop p_end acc = match%parser s with
 		| [ (Comma,p1) ] ->
-			let next_expr key =
+			let next_expr key acc =
 				let e = secure_expr ctx s in
 				loop (pos e) ((key,e) :: acc)
 			in
-			let next key = match%parser s with
+			let rec next key acc = match%parser s with
 				| [ (DblDot,_) ] ->
-					next_expr key
+					next_expr key acc
 				| [ ] ->
-					syntax_error ctx (Expected [":"]) s (next_expr key)
-			in
-			begin match%parser s with
-				| [ [%let name, p = ident] ] -> next (name,p,NoQuotes)
-				| [ (Const (String(name,qs)),p) ] -> next (name,p,DoubleQuotes) (* STRINGTODO: use qs? *)
+					(* Don't parse the next token as value expr if colon is missing *)
+					let e = mk_null_expr null_pos in
+					syntax_error ctx (Expected [":"]) s (next_field ((key,e) :: acc))
+			and next_field acc = match%parser s with
+				| [ [%let name, p = ident] ] -> next (name,p,NoQuotes) acc
+				| [ (Const (String(name,qs)),p) ] -> next (name,p,DoubleQuotes) acc (* STRINGTODO: use qs? *)
 				| [ ] -> acc,p_end
-			end
+			in
+			next_field acc
 		| [ ] -> acc,p_end
 	in
 	let el,p_end = loop p0 [name,e] in
