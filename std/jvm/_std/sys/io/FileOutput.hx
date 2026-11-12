@@ -67,15 +67,15 @@ class FileOutput extends Output {
 		}
 	}
 
-	public function seek(p:Int, pos:FileSeek):Void {
+	public function seek(p:sys.FilePos, pos:FileSeek):Void {
 		try {
 			switch (pos) {
 				case SeekBegin:
-					f.seek(cast p);
+					f.seek(p.toInt64());
 				case SeekCur:
-					f.seek(haxe.Int64.add(f.getFilePointer(), cast(p, haxe.Int64)));
+					f.seek(f.getFilePointer() + p.toInt64());
 				case SeekEnd:
-					f.seek(haxe.Int64.add(f.length(), cast p));
+					f.seek(f.length() + p.toInt64());
 			}
 		} catch (e:EOFException) {
 			throw new Eof();
@@ -84,9 +84,9 @@ class FileOutput extends Output {
 		}
 	}
 
-	public function tell():Int {
+	public function tell():sys.FilePos {
 		try {
-			return cast f.getFilePointer();
+			return sys.FilePos.ofInt64(f.getFilePointer());
 		} catch (e:IOException) {
 			throw haxe.io.Error.Custom(e);
 		}

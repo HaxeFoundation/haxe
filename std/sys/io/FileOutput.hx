@@ -26,6 +26,16 @@ package sys.io;
 	Use `sys.io.File.write` to create a `FileOutput`.
 **/
 extern class FileOutput extends haxe.io.Output {
-	function seek(p:Int, pos:FileSeek):Void;
-	function tell():Int;
+	/**
+		Moves the file position to `p`, relative to `pos`.
+
+		On cpp, neko and hl before 1.12, positions are limited to the 32-bit
+		`Int` range and larger values throw.
+	**/
+	function seek(p:sys.FilePos, pos:FileSeek):Void;
+
+	/**
+		Returns the current file position. See `seek` for the target limits.
+	**/
+	function tell():sys.FilePos;
 }

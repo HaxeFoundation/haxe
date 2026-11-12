@@ -56,16 +56,16 @@ package sys.io;
 		file_close(__f);
 	}
 
-	public function seek(p:Int, pos:FileSeek):Void {
-		file_seek(__f, p, switch (pos) {
+	public function seek(p:sys.FilePos, pos:FileSeek):Void {
+		file_seek(__f, p.toInt(), switch (pos) {
 			case SeekBegin: 0;
 			case SeekCur: 1;
 			case SeekEnd: 2;
 		});
 	}
 
-	public function tell():Int {
-		return file_tell(__f);
+	public function tell():sys.FilePos {
+		return sys.FilePos.ofInt(file_tell(__f));
 	}
 
 	public function eof():Bool {

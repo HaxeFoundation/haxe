@@ -82,7 +82,7 @@ class FileSystem {
 			gid: l.gid,
 			uid: l.uid,
 			rdev: l.rdev,
-			size: l.size,
+			size: sys.FilePos.ofInt(l.size),
 			nlink: l.nlink,
 			mtime: Date.fromTime(l.mtime.sec * 1000 + l.mtime.nsec / 1000000),
 			mode: l.mode,

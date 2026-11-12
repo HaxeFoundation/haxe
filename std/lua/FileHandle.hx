@@ -36,5 +36,5 @@ extern class FileHandle extends UserData {
 
 	@:overload(function():Int {})
 	@:overload(function(arg:String):Int {})
-	function seek(arg:String, pos:Int):Void;
+	function seek(arg:String, pos:Int):Int;
 }

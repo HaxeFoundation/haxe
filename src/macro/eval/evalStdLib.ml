@@ -1083,14 +1083,15 @@ module StdFileInput = struct
 	let seek = vifun2 (fun vthis pos mode ->
 		let ch,r = this vthis in
 		r := false;
-		let pos = decode_int pos in
+		let pos = EvalIntegers.decode_i64 pos in
 		let mode,_ = decode_enum mode in
-		seek_in ch (match mode with 0 -> pos | 1 -> pos_in ch + pos | 2 -> in_channel_length ch + pos | _ -> die "" __LOC__);
+		let open Stdlib.LargeFile in
+		seek_in ch (match mode with 0 -> pos | 1 -> Stdlib.Int64.add (pos_in ch) pos | 2 -> Stdlib.Int64.add (in_channel_length ch) pos | _ -> die "" __LOC__);
 		vnull
 	)
 
 	let tell = vifun0 (fun vthis ->
-		vint (pos_in (fst (this vthis)))
+		vint64 (Stdlib.LargeFile.pos_in (fst (this vthis)))
 	)
 
 	let readByte = vifun0 (fun vthis ->
@@ -1135,14 +1136,15 @@ module StdFileOutput = struct
 
 	let seek = vifun2 (fun vthis pos mode ->
 		let this = this vthis in
-		let pos = decode_int pos in
+		let pos = EvalIntegers.decode_i64 pos in
 		let mode,_ = decode_enum mode in
-		seek_out this (match mode with 0 -> pos | 1 -> pos_out this + pos | 2 -> out_channel_length this + pos | _ -> die "" __LOC__);
+		let open Stdlib.LargeFile in
+		seek_out this (match mode with 0 -> pos | 1 -> Stdlib.Int64.add (pos_out this) pos | 2 -> Stdlib.Int64.add (out_channel_length this) pos | _ -> die "" __LOC__);
 		vnull
 	)
 
 	let tell = vifun0 (fun vthis ->
-		vint (pos_out (this vthis))
+		vint64 (Stdlib.LargeFile.pos_out (this vthis))
 	)
 
 	let writeByte = vifun1 (fun vthis c ->
@@ -1250,7 +1252,7 @@ module StdFileSystem = struct
 	)
 
 	let stat = vfun1 (fun path ->
-		let s = catch_unix_error Unix.stat (patch_path (decode_string path)) in
+		let s = catch_unix_error Unix.LargeFile.stat (patch_path (decode_string path)) in
 		encode_obj [
 			key_gid,vint s.st_gid;
 			key_uid,vint s.st_uid;
@@ -1261,7 +1263,7 @@ module StdFileSystem = struct
 			key_ino,vint s.st_ino;
 			key_nlink,vint s.st_nlink;
 			key_rdev,vint s.st_rdev;
-			key_size,vint s.st_size;
+			key_size,vint64 s.st_size;
 			key_mode,vint s.st_perm;
 		]
 	)

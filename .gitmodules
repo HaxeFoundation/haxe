@@ -1,4 +1,4 @@
 [submodule "extra/haxelib_src"]
 	path = extra/haxelib_src
-	url = https://github.com/HaxeFoundation/haxelib.git
+	url = https://github.com/yuxiaomao/haxelib.git
 	ignore = dirty # run.n will be recompiled during make

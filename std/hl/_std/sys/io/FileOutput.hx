@@ -56,20 +56,12 @@ import sys.io.File;
 		__f = null;
 	}
 
-	public function seek(p:Int, pos:FileSeek):Void {
-		if (@:privateAccess !FileInput.file_seek(__f, p, switch (pos) {
-			case SeekBegin: 0;
-			case SeekCur: 1;
-			case SeekEnd: 2;
-		}))
-			throw haxe.io.Error.Custom("seek() failure");
+	public function seek(p:sys.FilePos, pos:FileSeek):Void {
+		@:privateAccess FileInput.seekHandle(__f, p, pos);
 	}
 
-	public function tell():Int {
-		var p = @:privateAccess FileInput.file_tell(__f);
-		if (p < 0)
-			throw haxe.io.Error.Custom("tell() failure");
-		return p;
+	public function tell():sys.FilePos {
+		return @:privateAccess FileInput.tellHandle(__f);
 	}
 
 	@:hlNative("std", "file_flush") static function file_flush(f:FileHandle):Bool {

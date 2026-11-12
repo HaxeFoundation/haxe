@@ -133,7 +133,7 @@ class TestFileSystem extends utest.Test {
 		var before = Date.now().getTime();
 		sys.io.File.saveContent(path, "hello");
 		var stat = FileSystem.stat(path);
-		Assert.equals(5, stat.size);
+		Assert.isTrue(stat.size == 5);
 		Assert.isTrue(Math.abs(stat.mtime.getTime() - before) < 10000);
 	}
 
