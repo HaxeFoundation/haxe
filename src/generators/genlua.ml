@@ -1862,8 +1862,23 @@ let generate_class ctx c =
                  println ctx "setmetatable(%s.prototype.__properties__,{__index=%s.prototype.__properties__})" p psup;
         );
 
+        let rec has_dynamic_method c =
+            let is_dynamic_method = function
+            | { cf_kind = Method MethDynamic } -> true
+            | _ -> false
+            in
+            List.exists is_dynamic_method c.cl_ordered_fields ||
+            (match c.cl_super with
+            | None -> false
+            | Some (csup,_) ->
+                has_dynamic_method csup)
+        in
         (* Create a metatable specific for this class *)
-        println ctx "%s.__mt__ = _hx_mmt(%s.prototype)" p p;
+        print ctx "%s.__mt__ = _hx_mmt" p;
+        if has_dynamic_method c then
+            print ctx "(_hx_index_dyn(%s.prototype))" p
+        else
+            print ctx "(%s.prototype)" p;
     end
 
 let generate_enum ctx e =
