@@ -69,6 +69,20 @@
 		"parent": "WDeprecated"
 	},
 	{
+		"name": "WMigration",
+		"doc": "Code that Haxe 5 rejects or gives a different meaning. Reported with -D haxe-next"
+	},
+	{
+		"name": "WEnumConstructorShadowed",
+		"doc": "An identifier resolves to an enum constructor where Haxe 5 resolves it to a type of the same name",
+		"parent": "WMigration"
+	},
+	{
+		"name": "WBuildMacroOrder",
+		"doc": "Build macros inherited from a parent type run in a different order with Haxe 5",
+		"parent": "WMigration"
+	},
+	{
 		"name": "WVarInit",
 		"doc": "A local variable might be used before being assigned a value",
 		"parent": "WTyper"

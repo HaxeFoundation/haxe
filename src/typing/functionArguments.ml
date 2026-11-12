@@ -99,7 +99,11 @@ object(self)
 					loop ((v,None) :: acc) false syntax typed
 				| ((_,pn),opt,m,_,_) :: syntax,(name,eo,t) :: typed ->
 					delay ctx PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
-					if not is_extern then check_local_variable_name ctx name TVOArgument pn;
+					if not is_extern then begin
+						check_local_variable_name ctx name TVOArgument pn;
+						if Common.is_next ctx.com && name <> "_" && List.exists (fun (v,_) -> v.v_name = name) acc then
+							warning ctx WMigration ("Duplicate argument name \"" ^ name ^ "\" is an error in Haxe 5") pn;
+					end;
 					let eo = type_function_arg_value ctx t eo do_display in
 					let v = make_local name (VUser TVOArgument) t m pn in
 					if do_display && DisplayPosition.display_position#enclosed_in pn then
