@@ -15,7 +15,7 @@ private class NodeObj {
 
 class Issue12118 extends Test {
 
-	#if hl
+	#if (hl && hl_ver >= version("1.16.0"))
 	function testBlitStruct() {
 		var nodes = initNodeStruct(5, 10);
 		nodes.blit(NodeStruct, 1, nodes, 2, 2);
