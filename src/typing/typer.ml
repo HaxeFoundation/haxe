@@ -414,44 +414,64 @@ let rec type_ident_raise ctx i p mode with_type =
 				acc
 		in
 		(* lookup imported enums *)
+		let rec constructor_access t pt =
+			match t with
+			| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
+				begin try
+					let cf = PMap.find i c.cl_statics in
+					if not (has_class_field_flag cf CfEnum) then
+						None
+					else begin
+						let et = type_module_type ctx (TClassDecl c) None p in
+						let inline = match cf.cf_kind with
+							| Var {v_read = AccInline} -> true
+							|  _ -> false
+						in
+						let fa = FieldAccess.create et cf (FHAbstract(a,extract_param_types a.a_params,c)) inline p in
+						ImportHandling.mark_import_position ctx pt;
+						Some (AKField fa)
+					end
+				with Not_found ->
+					None
+				end
+			| TClassDecl _ | TAbstractDecl _ ->
+				None
+			| TTypeDecl t ->
+				(match follow t.t_type with
+				| TEnum (e,_) -> constructor_access (TEnumDecl e) pt
+				| TAbstract (a,_) when a.a_enum -> constructor_access (TAbstractDecl a) pt
+				| _ -> None)
+			| TEnumDecl e ->
+				try
+					let ef = PMap.find i e.e_constrs in
+					let et = type_module_type ctx t None p in
+					ImportHandling.mark_import_position ctx pt;
+					Some (wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef p) p))
+				with
+					Not_found -> None
+		in
+		(* Haxe 5 takes the first of a constructor or a type of that name in these lists (#9197) *)
+		let shadowing = ref None in
 		let rec loop l =
 			match l with
 			| [] -> raise Not_found
 			| (t,pt) :: l ->
-				match t with
-				| TAbstractDecl ({a_impl = Some c} as a) when a.a_enum ->
-					begin try
-						let cf = PMap.find i c.cl_statics in
-						if not (has_class_field_flag cf CfEnum) then
-							loop l
-						else begin
-							let et = type_module_type ctx (TClassDecl c) None p in
-							let inline = match cf.cf_kind with
-								| Var {v_read = AccInline} -> true
-								|  _ -> false
-							in
-							let fa = FieldAccess.create et cf (FHAbstract(a,extract_param_types a.a_params,c)) inline p in
-							ImportHandling.mark_import_position ctx pt;
-							AKField fa
-						end
-					with Not_found ->
-						loop l
-					end
-				| TClassDecl _ | TAbstractDecl _ ->
+				match constructor_access t pt with
+				| Some acc ->
+					begin match !shadowing with
+					| Some mt when Common.is_next ctx.com ->
+						let ctor = snd (t_path t) ^ "." ^ i in
+						(* import aliases are typedefs outside of the module types *)
+						let is_alias = (t_infos mt).mt_module == ctx.m.curmod && not (List.memq mt ctx.m.curmod.m_types) in
+						let type_name = if is_alias then i else s_type_path (t_path mt) in
+						warning ctx WEnumConstructorShadowed (Printf.sprintf "%s resolves to the enum constructor %s, Haxe 5 resolves it to the type %s: use %s to keep this meaning" i ctor type_name ctor) p
+					| _ ->
+						()
+					end;
+					acc
+				| None ->
+					if !shadowing = None && snd (t_path t) = i then shadowing := Some t;
 					loop l
-				| TTypeDecl t ->
-					(match follow t.t_type with
-					| TEnum (e,_) -> loop ((TEnumDecl e,pt) :: l)
-					| TAbstract (a,_) when a.a_enum -> loop ((TAbstractDecl a,pt) :: l)
-					| _ -> loop l)
-				| TEnumDecl e ->
-					try
-						let ef = PMap.find i e.e_constrs in
-						let et = type_module_type ctx t None p in
-						ImportHandling.mark_import_position ctx pt;
-						wrap (mk (TField (et,FEnum (e,ef))) (enum_field_type ctx e ef p) p)
-					with
-						Not_found -> loop l
 		in
 		(try loop (List.rev_map (fun t -> t,null_pos) ctx.m.curmod.m_types) with Not_found -> loop ctx.m.module_imports)
 	with Not_found ->
@@ -2105,6 +2125,7 @@ let rec create com =
 			type_hints = [];
 			load_only_cached_modules = false;
 			functional_interface_lut = new pmap_lookup;
+			warned_build_orders = Hashtbl.create 0;
 			do_inherit = MagicTypes.on_inherit;
 			do_create = create;
 			do_macro = MacroContext.type_macro;
