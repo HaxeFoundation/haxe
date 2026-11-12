@@ -1,0 +1,10 @@
+Main.hx:34: characters 7-8 : Warning : (WBuildMacroOrder) Haxe 5 runs the build macros inherited from Base in the reverse order:
+Main.hx:34: characters 7-8 : ... Macro.check changed checked before Macro.markup ran
+Main.hx:27: characters 25-37 : Warning : (WMigration) pack.SubType resolves to pack.Mod.SubType through an import of its module, which Haxe 5 doesn't do: use that path instead
+Main.hx:8: characters 9-21 : Warning : (WMigration) pack.SubType resolves to pack.Mod.SubType through an import of its module, which Haxe 5 doesn't do: use that path instead
+Main.hx:8: characters 28-40 : Warning : (WMigration) pack.SubType resolves to pack.Mod.SubType through an import of its module, which Haxe 5 doesn't do: use that path instead
+Main.hx:9: characters 9-21 : Warning : (WMigration) pack.SubType resolves to pack.Mod.SubType through an import of its module, which Haxe 5 doesn't do: use that path instead
+Shadowed.hx:6: characters 9-14 : Warning : (WEnumConstructorShadowed) Thing resolves to the enum constructor E.Thing, Haxe 5 resolves it to the type pack.Thing: use E.Thing to keep this meaning
+Shadowed.hx:7: characters 9-12 : Warning : (WEnumConstructorShadowed) Own resolves to the enum constructor OwnEnum.Own, Haxe 5 resolves it to the type Own: use OwnEnum.Own to keep this meaning
+Main.hx:18: characters 30-31 : Warning : (WMigration) Duplicate argument name "a" is an error in Haxe 5
+Main.hx:14: characters 11-24 : Warning : (WDeprecated) sys.db moved to the hx4compat library in Haxe 5
