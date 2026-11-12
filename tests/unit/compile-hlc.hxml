@@ -1,7 +1,6 @@
 compile-each.hxml
 --main unit.TestMain
--hl bin/hlc/unit.c
+-hl bin/hlc/main.c
 #-D interp
 -D hl-check
--D hlgen.makefile=ci
 -D UTEST-PRINT-TESTS
