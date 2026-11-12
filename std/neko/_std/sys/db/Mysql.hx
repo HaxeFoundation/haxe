@@ -183,6 +183,9 @@ private class MysqlConnection implements sys.db.Connection {
 	private static var __use_date = Date;
 }
 
+#if haxe_next
+@:deprecated("sys.db moved to the hx4compat library in Haxe 5")
+#end
 @:coreApi class Mysql {
 	public static function connect(params:{
 		host:String,

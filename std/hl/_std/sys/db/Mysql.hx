@@ -217,6 +217,9 @@ private class MysqlConnection implements Connection {
 	static function setConvFuns(fstring:Dynamic, fbytes:Dynamic, fdate:Dynamic, fjson:Dynamic) {};
 }
 
+#if haxe_next
+@:deprecated("sys.db moved to the hx4compat library in Haxe 5")
+#end
 class Mysql {
 	static var INIT_DONE = false;
 

@@ -22,6 +22,9 @@
 
 package sys.db;
 
+#if haxe_next
+@:deprecated("sys.db moved to the hx4compat library in Haxe 5")
+#end
 interface ResultSet {
 	var length(get, null):Int;
 	var nfields(get, null):Int;

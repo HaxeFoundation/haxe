@@ -28,6 +28,9 @@ import haxe.ds.List;
 	This class is used for accessing the local Web server and the current
 	client request and information.
 **/
+#if haxe_next
+@:deprecated("neko.Web moved to the hx4compat library in Haxe 5")
+#end
 class Web {
 	/**
 		Returns the GET and POST parameters.

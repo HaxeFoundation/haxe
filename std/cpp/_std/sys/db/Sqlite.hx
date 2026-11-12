@@ -195,6 +195,9 @@ private class SqliteResultSet implements ResultSet {
 	extern public static function result_get_float(handle:Dynamic, i:Int):Float;
 }
 
+#if haxe_next
+@:deprecated("sys.db moved to the hx4compat library in Haxe 5")
+#end
 @:buildXml('<include name="${HXCPP}/src/hx/libs/sqlite/Build.xml"/>')
 @:coreApi class Sqlite {
 	public static function open(file:String):Connection {

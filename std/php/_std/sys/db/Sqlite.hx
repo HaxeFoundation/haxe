@@ -27,6 +27,9 @@ import php.Global.*;
 import php.db.*;
 import sys.db.*;
 
+#if haxe_next
+@:deprecated("sys.db moved to the hx4compat library in Haxe 5")
+#end
 @:coreApi class Sqlite {
 	public static function open(file:String):Connection {
 		return new SQLiteConnection(file);

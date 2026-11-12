@@ -192,6 +192,9 @@ private class SqliteResultSet implements ResultSet {
 	static var result_get_float = neko.Lib.load("sqlite", "result_get_float", 2);
 }
 
+#if haxe_next
+@:deprecated("sys.db moved to the hx4compat library in Haxe 5")
+#end
 @:coreApi class Sqlite {
 	public static function open(file:String):Connection {
 		return new SqliteConnection(file);

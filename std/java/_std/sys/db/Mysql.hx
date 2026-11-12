@@ -22,6 +22,9 @@
 
 package sys.db;
 
+#if haxe_next
+@:deprecated("sys.db moved to the hx4compat library in Haxe 5")
+#end
 class Mysql {
 	static var init = false;
 
