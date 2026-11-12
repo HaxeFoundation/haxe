@@ -3,42 +3,54 @@ open Message
 open Error
 include WarningList
 
-let parse_options lctx s ps lexbuf =
-	let fail msg p =
-		raise_typing_error msg {p with pmin = ps.pmin + p.pmin; pmax = ps.pmin + p.pmax}
+let parse_scoped_options s ps =
+	let len = String.length s in
+	let fail msg pmin pmax =
+		raise_typing_error msg {ps with pmin = ps.pmin + pmin; pmax = ps.pmin + pmax}
 	in
-	let parse_string s p =
-		begin try
-			from_string s
-		with Exit ->
-			fail (Printf.sprintf "Unknown warning: %s" s) p
+	let is_space c = c = ' ' || c = '\t' || c = '\n' || c = '\r' in
+	let rec scan f i = if i < len && f s.[i] then scan f (i + 1) else i in
+	let parse_value i =
+		if i < len && s.[i] = '"' then begin match String.index_from_opt s (i + 1) '"' with
+			| Some j -> String.sub s (i + 1) (j - i - 1),j + 1
+			| None -> fail "Unterminated string" i len
+		end else begin
+			let j = scan (fun c -> not (is_space c)) i in
+			String.sub s i (j - i),j
 		end
 	in
-	let parse_warning () = match Lexer.token lctx lexbuf with
-		| Const (Ident s),p ->
-			parse_string s p
-		| (_,p) ->
-			fail "Expected identifier" p
+	let parse_scope i =
+		let j = scan SourceScope.is_ident i in
+		let value,k = if j < len && s.[j] = ':' then (let v,k = parse_value (j + 1) in Some v,k) else None,j in
+		try
+			SourceScope.make (String.sub s i (j - i)) value,k
+		with
+		| SourceScope.Invalid msg -> fail msg i k
+		| SourceScope.Unknown_kind -> fail SourceScope.expected i (max j (i + 1))
 	in
-	let add acc mode warning =
-		{ wo_warning = warning; wo_mode = mode } :: acc
-	in
-	let rec next acc = match Lexer.token lctx lexbuf with
-		| Binop OpAdd,_ ->
-			next (add acc WMEnable (parse_warning()))
-		| Binop OpSub,_ ->
-			next (add acc WMDisable (parse_warning()))
-		| Eof,_ ->
+	let rec next acc i =
+		let i = scan is_space i in
+		if i >= len then
 			List.rev acc
-		| (_,p) ->
-			fail "Expected + or -" p
+		else match s.[i] with
+			| '+' | '-' as c ->
+				let j = scan SourceScope.is_ident (i + 1) in
+				let name = String.sub s (i + 1) (j - i - 1) in
+				if name = "" then fail "Expected identifier" (i + 1) (i + 2);
+				let warning = try from_string name with Exit -> fail (Printf.sprintf "Unknown warning: %s" name) (i + 1) j in
+				let scope,k = if j < len && s.[j] = '@' then (let scope,k = parse_scope (j + 1) in Some scope,k) else None,j in
+				let mode = if c = '+' then WMEnable else WMDisable in
+				next (({ wo_warning = warning; wo_mode = mode },scope) :: acc) k
+			| _ ->
+				fail "Expected + or -" i (i + 1)
 	in
-	next []
+	next [] 0
 
 let parse_options s ps =
-	let lctx = Lexer.create_temp_ctx ps.pfile in
-	let lexbuf = Sedlexing.Utf8.from_string s in
-	parse_options lctx s ps lexbuf
+	List.map (fun (opt,scope) -> match scope with
+		| None -> opt
+		| Some _ -> raise_typing_error "Warning scopes (@) are only supported by -w" ps
+	) (parse_scoped_options s ps)
 
 let from_meta ml =
 	let parse_arg e = match fst e with
@@ -84,3 +96,14 @@ let get_mode w (l : warning_option list list) =
 				mode
 	in
 	loop l
+
+let rec matches_scoped w scoped in_scope = match scoped with
+	| [] ->
+		None
+	| (opt,scope) :: scoped ->
+		let rec matches w id =
+			id = w || match (warning_obj w).w_parent with
+				| None -> false
+				| Some w' -> matches w' id
+		in
+		if matches w opt.wo_warning && in_scope scope then Some opt.wo_mode else matches_scoped w scoped in_scope
