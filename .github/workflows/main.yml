@@ -684,10 +684,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, macos-13]
+        os: [macos-15, macos-15-intel]
     runs-on: ${{ matrix.os }}
     env:
-      PLATFORM: mac${{ matrix.os == 'macos-14' && '-arm64' || '' }}
+      PLATFORM: mac${{ matrix.os == 'macos-15' && '-arm64' || '' }}
       OPAMYES: 1
       MACOSX_DEPLOYMENT_TARGET: 10.13
       OCAML_VERSION: 5.1.1
@@ -1023,7 +1023,7 @@ jobs:
 
   mac-test:
     needs: mac-build-universal
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       PLATFORM: mac
       TEST: ${{matrix.target}}
