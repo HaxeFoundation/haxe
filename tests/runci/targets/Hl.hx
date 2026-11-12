@@ -37,8 +37,11 @@ class Hl {
 			case "Linux":
 				Linux.requireAptPackages(["libpng-dev", "libjpeg-turbo8-dev", "libturbojpeg", "zlib1g-dev", "libvorbis-dev", "libsqlite3-dev"]);
 			case "Mac":
-				runNetworkCommand("brew", ["update", '--auto-update']);
-				runNetworkCommand("brew", ["bundle", '--file=${hlSrc}/Brewfile']);
+				// Homebrew has no Intel bottles, so only install what the enabled libs need and upgrade nothing
+				Sys.putEnv("HOMEBREW_NO_AUTO_UPDATE", "1");
+				Sys.putEnv("HOMEBREW_NO_INSTALL_UPGRADE", "1");
+				Sys.putEnv("HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK", "1");
+				runNetworkCommand("brew", ["install", "libpng", "jpeg-turbo", "libogg", "libvorbis", "mbedtls"]);
 			case "Windows":
 				//pass
 		}
