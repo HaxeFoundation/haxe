@@ -357,6 +357,7 @@ type context = {
 	mutable config : platform_config;
 	mutable std_path : string list;
 	mutable class_path : string list;
+	mutable lib_class_path : string list;
 	mutable main_class : path option;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable report_mode : report_mode;
@@ -808,6 +809,7 @@ let create compilation_step cs version args =
 		run_command_args = (fun s args -> com.run_command (Printf.sprintf "%s %s" s (String.concat " " args)));
 		std_path = [];
 		class_path = [];
+		lib_class_path = [];
 		main_class = None;
 		package_rules = PMap.empty;
 		file = "";

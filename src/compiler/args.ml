@@ -289,6 +289,11 @@ let parse_args com =
 			actx.did_something <- true;
 		),"<directory>","set current working directory");
 		("Compilation",["--haxelib-global"],[], Arg.Unit (fun () -> ()),"","pass --global argument to haxelib");
+		("Compilation",[],["--libcp"],Arg.String (fun path ->
+			let path = Path.add_trailing_slash path in
+			com.class_path <- path :: com.class_path;
+			com.lib_class_path <- path :: com.lib_class_path
+		),"<path>","add the class path of a library");
 		("Compilation",["-w"],[], Arg.String (fun s ->
 			let p = { pfile = "-w " ^ s; pmin = 0; pmax = 0 } in
 			let l = Warning.parse_options s p in
