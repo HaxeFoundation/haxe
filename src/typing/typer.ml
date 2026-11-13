@@ -464,7 +464,16 @@ let rec type_ident_raise ctx i p mode with_type =
 						(* import aliases are typedefs outside of the module types *)
 						let is_alias = (t_infos mt).mt_module == ctx.m.curmod && not (List.memq mt ctx.m.curmod.m_types) in
 						let type_name = if is_alias then i else s_type_path (t_path mt) in
-						warning ctx WEnumConstructorShadowed (Printf.sprintf "%s resolves to the enum constructor %s, Haxe 5 resolves it to the type %s: use %s to keep this meaning" i ctor type_name ctor) p
+						let owner = snd (t_path t) in
+						let owner_in_scope =
+							try t_infos (Typeload.load_type_def ctx p { tpackage = []; tname = owner; tparams = []; tsub = None }) == t_infos t
+							with _ -> false
+						in
+						let fix = if owner_in_scope then ctor else
+							let infos = t_infos t in
+							(if infos.mt_module.m_path = infos.mt_path then s_type_path infos.mt_path else s_type_path infos.mt_module.m_path ^ "." ^ owner) ^ "." ^ i
+						in
+						warning_with_fix ctx WEnumConstructorShadowed (Printf.sprintf "%s resolves to the enum constructor %s, Haxe 5 resolves it to the type %s: use %s to keep this meaning" i ctor type_name fix) p p i fix
 					| _ ->
 						()
 					end;

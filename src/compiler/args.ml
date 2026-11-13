@@ -38,6 +38,14 @@ let process_args arg_spec =
 		(List.map (fun (arg) -> (arg, dep_spec arg spec, doc)) dep)
 	) arg_spec)
 
+let fix_config com = match com.fix_config with
+	| Some config ->
+		config
+	| None ->
+		let config = { fix_diff = false; fix_allow_dirty = false; fixes = [] } in
+		com.fix_config <- Some config;
+		config
+
 let parse_args com =
 	let usage = Printf.sprintf
 		"Haxe Compiler %s - (C)2005-2025 Haxe Foundation\nUsage: haxe%s <target> [options] [hxml files and dot paths...]\n"
@@ -294,6 +302,9 @@ let parse_args com =
 			com.class_path <- path :: com.class_path;
 			com.lib_class_path <- path :: com.lib_class_path
 		),"<path>","add the class path of a library");
+		("Compilation",["--fix"],[], Arg.Unit (fun () -> ignore (fix_config com)),"","apply the fixes of the Haxe 5 migration warnings (needs -D haxe-next) to the files of the -cp class paths");
+		("Compilation",["--fix-diff"],[], Arg.Unit (fun () -> (fix_config com).fix_diff <- true),"","print the fixes as a unified diff instead of applying them");
+		("Compilation",["--fix-allow-dirty"],[], Arg.Unit (fun () -> (fix_config com).fix_allow_dirty <- true),"","apply fixes to files with uncommitted changes or outside of git repositories");
 		("Compilation",["-w"],[], Arg.String (fun s ->
 			let p = { pfile = "-w " ^ s; pmin = 0; pmax = 0 } in
 			let l = Warning.parse_options s p in

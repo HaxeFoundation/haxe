@@ -1,0 +1,8 @@
+--cwd scopes
+-cp src
+--libcp lib
+--main Main
+--interp
+--no-output
+-D haxe-next
+--fix-diff

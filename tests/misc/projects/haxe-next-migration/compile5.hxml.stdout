@@ -1,0 +1,7 @@
+--- src/User.hx
++++ src/User.hx
+@@ -1,3 +1,3 @@
+ class User {
+-	public static function f(a:Int, a:Int) {}
++	public static function f(_:Int, a:Int) {}
+ }

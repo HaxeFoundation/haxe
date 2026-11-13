@@ -101,8 +101,13 @@ object(self)
 					delay ctx PTypeField (fun() -> self#check_rest (typed = []) eo opt t pn);
 					if not is_extern then begin
 						check_local_variable_name ctx name TVOArgument pn;
-						if Common.is_next ctx.com && name <> "_" && List.exists (fun (v,_) -> v.v_name = name) acc then
-							warning ctx WMigration ("Duplicate argument name \"" ^ name ^ "\" is an error in Haxe 5") pn;
+						if Common.is_next ctx.com && name <> "_" then begin match List.find_opt (fun (v,_) -> v.v_name = name) acc with
+							| Some (v,_) ->
+								(* the last argument of that name shadows the others *)
+								warning_with_fix ctx WMigration ("Duplicate argument name \"" ^ name ^ "\" is an error in Haxe 5") pn v.v_pos name "_"
+							| None ->
+								()
+						end
 					end;
 					let eo = type_function_arg_value ctx t eo do_display in
 					let v = make_local name (VUser TVOArgument) t m pn in

@@ -454,6 +454,15 @@ let compile_ctx callbacks ctx =
 			callbacks.after_arg_parsing ctx;
 			compile ctx actx;
 		);
+		begin match ctx.com.fix_config with
+		| Some config when ctx.com.display.dms_kind = DMNone ->
+			if not (Common.is_next ctx.com) then
+				ctx.com.error "--fix applies the fixes of the Haxe 5 migration warnings, which need -D haxe-next" null_pos
+			else
+				ApplyFixes.run ctx.com ctx.comm.write_out config
+		| _ ->
+			()
+		end;
 		finalize ctx;
 		callbacks.after_compilation ctx;
 	in

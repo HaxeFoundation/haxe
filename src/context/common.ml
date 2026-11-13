@@ -338,6 +338,18 @@ class ['key,'value] hashtbl_lookup = object(self)
 		Hashtbl.clear lut
 end
 
+type fix = {
+	fix_pos : pos;
+	fix_old : string;
+	fix_text : string;
+}
+
+type fix_config = {
+	mutable fix_diff : bool;
+	mutable fix_allow_dirty : bool;
+	mutable fixes : fix list;
+}
+
 type context = {
 	compilation_step : int;
 	mutable stage : compiler_stage;
@@ -358,6 +370,7 @@ type context = {
 	mutable std_path : string list;
 	mutable class_path : string list;
 	mutable lib_class_path : string list;
+	mutable fix_config : fix_config option;
 	mutable main_class : path option;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable report_mode : report_mode;
@@ -810,6 +823,7 @@ let create compilation_step cs version args =
 		std_path = [];
 		class_path = [];
 		lib_class_path = [];
+		fix_config = None;
 		main_class = None;
 		package_rules = PMap.empty;
 		file = "";
@@ -912,6 +926,12 @@ let clone com is_macro_context =
 	}
 
 let file_time file = Extc.filetime file
+
+let add_fix com p old text = match com.fix_config with
+	| Some config when p.pmin >= 0 && p.pmax > p.pmin ->
+		config.fixes <- { fix_pos = p; fix_old = old; fix_text = text } :: config.fixes
+	| _ ->
+		()
 
 let flash_versions = List.map (fun v ->
 	let maj = int_of_float v in

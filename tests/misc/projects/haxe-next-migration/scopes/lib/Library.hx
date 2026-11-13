@@ -1,0 +1,3 @@
+class Library {
+	public static function f(a:Int, a:Int) {}
+}

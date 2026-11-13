@@ -130,8 +130,10 @@ let find_type_in_current_module_context ctx pack name p =
 		ImportHandling.mark_import_position ctx pi;
 		let infos = t_infos t in
 		(* Haxe 5 no longer looks for pack.Name in the imports (#11338). Import aliases are typedefs outside of their module's types. *)
-		if not no_pack && Common.is_next ctx.com && infos.mt_module.m_path <> infos.mt_path && List.memq t infos.mt_module.m_types then
-			warning ctx WMigration (Printf.sprintf "%s resolves to %s.%s through an import of its module, which Haxe 5 doesn't do: use that path instead" (s_type_path (pack,name)) (s_type_path infos.mt_module.m_path) name) p;
+		if not no_pack && Common.is_next ctx.com && infos.mt_module.m_path <> infos.mt_path && List.memq t infos.mt_module.m_types then begin
+			let old = s_type_path (pack,name) and full = s_type_path infos.mt_module.m_path ^ "." ^ name in
+			warning_with_fix ctx WMigration (Printf.sprintf "%s resolves to %s through an import of its module, which Haxe 5 doesn't do: use that path instead" old full) p { p with pmax = p.pmin + String.length old } old full
+		end;
 		t
 
 let find_in_wildcard_imports ctx mname p f =

@@ -228,6 +228,11 @@ let warning ?(depth=0) ctx w msg p =
 	let options = (Warning.from_meta ctx.curfield.cf_meta) @ (Warning.from_meta ctx.curclass.cl_meta) in
 	ctx.com.warning ~depth w options msg p
 
+let warning_with_fix ctx w msg p fix_p old text =
+	let options = (Warning.from_meta ctx.curfield.cf_meta) @ (Warning.from_meta ctx.curclass.cl_meta) in
+	ctx.com.warning w options msg p;
+	if Warning.get_mode w (options @ ctx.com.warning_options) = WMEnable then Common.add_fix ctx.com fix_p old text
+
 let make_call ctx e el t p = (!make_call_ref) ctx e el t p
 
 let type_expr ?(mode=MGet) ctx e with_type = (!type_expr_ref) ~mode ctx e with_type

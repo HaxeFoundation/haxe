@@ -1,0 +1,44 @@
+--- Main.hx
++++ Main.hx
+@@ -5,8 +5,8 @@
+ 
+ class Main {
+ 	static function main() {
+-		var s:pack.SubType = new pack.SubType();
+-		trace(pack.SubType.x);
++		var s:pack.Mod.SubType = new pack.Mod.SubType();
++		trace(pack.Mod.SubType.x);
+ 		trace(Thing);
+ 		trace(Other);
+ 		trace(Local);
+@@ -15,7 +15,7 @@
+ 		Shadowed.test();
+ 	}
+ 
+-	static function args(a:Int, a:Int, _:Int, _:Int) {}
++	static function args(_:Int, a:Int, _:Int, _:Int) {}
+ }
+ 
+ class Local {}
+@@ -24,7 +24,7 @@
+ 	Local;
+ }
+ 
+-class Qualified extends pack.SubType {}
++class Qualified extends pack.Mod.SubType {}
+ class Imported extends SubType {}
+ 
+ class A extends Base {
+--- Shadowed.hx
++++ Shadowed.hx
+@@ -3,8 +3,8 @@
+ 
+ class Shadowed {
+ 	public static function test() {
+-		trace(Thing);
+-		trace(Own);
++		trace(E.Thing);
++		trace(OwnEnum.Own);
+ 	}
+ }
+ 
