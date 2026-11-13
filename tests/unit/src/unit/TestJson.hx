@@ -111,6 +111,29 @@ class TestJson extends Test {
 		eq('{"one":{"two":"three"}}', haxe.Json.stringify(src));
 	}
 
+	// Keys that Python stores under other names (keywords, a leading "__"): python.Lib.dictToAnon and
+	// haxe.Json.parse didn't rename them, so they read as null and were written back as null.
+	function testKeysNamedLikeKeywords() {
+		var keys = ["pass", "from", "class", "in", "async", "nonlocal", "__private", "normal"];
+		var src = "{" + [for (i => k in keys) '"$k":$i'].join(",") + "}";
+		var o:Dynamic = haxe.Json.parse(src);
+		for (i => k in keys)
+			eq(i, Reflect.field(o, k));
+		var fields = Reflect.fields(o);
+		fields.sort(Reflect.compare);
+		var sorted = keys.copy();
+		sorted.sort(Reflect.compare);
+		eq(sorted.join(","), fields.join(","));
+		var again:Dynamic = haxe.Json.parse(haxe.Json.stringify(o));
+		for (i => k in keys)
+			eq(i, Reflect.field(again, k));
+		var literal:Dynamic = {"from": 1, "pass": 2, "__private": 3};
+		var back:Dynamic = haxe.Json.parse(haxe.Json.stringify(literal));
+		eq(1, back.from);
+		eq(2, back.pass);
+		eq(3, Reflect.field(back, "__private"));
+	}
+
 	#if (!neko && (cpp && !cppia && !hxcpp_smart_strings))
 	function test8228() {
 		var strJson = haxe.Json.stringify("👽");

@@ -38,6 +38,7 @@ class Boot {
 	static var keywords:Set<String> = new Set([
 		"and", "del", "from", "not", "with", "as", "elif", "global", "or", "yield", "assert", "else", "if", "pass", "None", "break", "except", "import",
 		"raise", "True", "class", "exec", "in", "return", "False", "continue", "finally", "is", "try", "def", "for", "lambda", "while",
+		"async", "await", "nonlocal",
 	]);
 
 	inline static function arrayJoin<T>(x:Array<T>, sep:String):String {
@@ -277,10 +278,11 @@ class Boot {
 	}
 
 	static function hasField(o:Dynamic, field:String):Bool {
+		field = handleKeywords(field);
 		if (isAnonObject(o)) {
 			return Syntax.code('{0}._hx_hasattr({1})', o, field);
 		}
-		return UBuiltins.hasattr(o, handleKeywords(field));
+		return UBuiltins.hasattr(o, field);
 	}
 
 	static function field(o:Dynamic, field:String):Dynamic {
@@ -438,10 +440,11 @@ class Boot {
 
 	static var prefixLength = Internal.prefix().length;
 
+	/** The inverse of handleKeywords. **/
 	static function unhandleKeywords(name:String):String {
 		if (name.substr(0, prefixLength) == Internal.prefix()) {
 			var real = name.substr(prefixLength);
-			if (keywords.has(real))
+			if (handleKeywords(real) == name)
 				return real;
 		}
 		return name;

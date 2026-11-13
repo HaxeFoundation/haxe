@@ -71,7 +71,21 @@ private enum MyEnum {
 	False;
 }
 
+// A module made by a file included before the imports (testIncludeFileTop).
+@:pythonImport("haxe_include_file_top")
+private extern class IncludedModule {
+	static var value(default, never):Int;
+
+	static function __init__():Void {
+		haxe.macro.Compiler.includeFile("unit/issues/misc/PythonIncludeFileTop.py");
+	}
+}
+
 class TestPython extends Test {
+	function testIncludeFileTop() {
+		eq(42, IncludedModule.value);
+	}
+
 	public function testDoWhileAsExpression() {
 		var x = 1;
 		var z = function() return (do {
@@ -210,12 +224,95 @@ class TestPython extends Test {
 		test("x", "x");
 	}
 
+	function testAnonDictFieldNames() {
+		// Python stores fields named like keywords or with a leading "__" under other names; the
+		// conversions use the field names.
+		var o:Dynamic = {"from": 1, "pass": 2, "__private": 3, normal: 4};
+		Reflect.hasField(o, "normal"); // sets _hx_disable_getattr on the object, which isn't a field
+		var d = python.Lib.anonToDict(o);
+		eq(1, d.get("from", null));
+		eq(2, d.get("pass", null));
+		eq(3, d.get("__private", null));
+		eq(4, d.get("normal", null));
+		eq(4, d.length);
+		var back:Dynamic = python.Lib.dictToAnon(d);
+		eq(1, back.from);
+		eq(2, back.pass);
+		eq(3, Reflect.field(back, "__private"));
+		var n:Dynamic = {"nonlocal": 5};
+		eq(5, n.nonlocal);
+	}
+
+	static function isDict(v:Dynamic):Bool
+		return Syntax.code("isinstance({0}, dict)", v);
+
+	function testAnonDictDeep() {
+		var o:Dynamic = {a: {"from": [1, 2]}, list: ([{b: 1}, 2, [{c: 3}]] : Array<Dynamic>)};
+		var d = python.Lib.anonToDict(o, true);
+		var a:python.Dict<String, Dynamic> = d.get("a", null);
+		t(isDict(a));
+		eq(2, (a.get("from", null) : Array<Int>)[1]);
+		var list:Array<Dynamic> = d.get("list", null);
+		t(isDict(list[0]));
+		t(isDict(list[2][0]));
+		// a flat conversion keeps the nested objects
+		f(isDict(python.Lib.anonToDict(o).get("a", null)));
+
+		var back:Dynamic = python.Lib.dictToAnon(d, true);
+		eq(2, back.a.from[1]);
+		eq(1, back.list[0].b);
+		eq(3, back.list[2][0].c);
+		eq('{"a":{"from":[1,2]},"list":[{"b":1},2,[{"c":3}]]}', haxe.Json.stringify(back));
+
+		// a dictionary with other than string keys stays a dictionary
+		var numbers:python.Dict<Dynamic, Dynamic> = Syntax.code("{1: 'one'}");
+		var outer = new python.Dict<String, Dynamic>();
+		outer.set("numbers", numbers);
+		var o2:Dynamic = python.Lib.dictToAnon(outer, true);
+		t(isDict(o2.numbers));
+		eq("one", (o2.numbers : python.Dict<Int, String>).get(1, null));
+	}
+
+	// haxe.crypto.Base64 uses Python's base64 module here; it decodes as the generic version does.
+	function testBase64LikeGeneric() {
+		exc(() -> haxe.crypto.Base64.decode("YQ==", false)); // "=" isn't expected without complement
+		exc(() -> haxe.crypto.Base64.decode("Y Q=="));
+		exc(() -> haxe.crypto.Base64.urlDecode("YWI/")); // the other alphabet
+		exc(() -> haxe.crypto.Base64.decode("YWI_"));
+		eq("ab~", haxe.crypto.Base64.decode("YWJ+Y").toString()); // a char left over is ignored
+		eq("a", haxe.crypto.Base64.decode("YQ===").toString());
+		eq("", haxe.crypto.Base64.decode("").toString());
+	}
+
+	function testKwArgsKeywordNames() {
+		var fn:KwArgs<{from:Int, normal:Int}>->python.Dict<String, Dynamic> = Syntax.code("(lambda **kw: kw)");
+		var kw = fn({from: 1, normal: 2});
+		eq(1, kw.get("from", null));
+		eq(2, kw.get("normal", null));
+		function typed(?kw:KwArgs<{from:Int}>)
+			return kw.typed().from;
+		eq(3, typed({from: 3}));
+	}
+
 	function testKwArgsNativeNames() {
 		function test(?kw:KwArgs<{@:native("default") var def:Int;}>) {
 			eq(1, kw.typed().def);
 		}
 
 		test({def: 1});
+	}
+
+	function testKwArgsQuotedNames() {
+		// Python receives the quoted names, also Python keywords ("class")
+		var fn:KwArgs<{var "default":Int; var "class":String;}>->python.Dict<String, Dynamic> = Syntax.code("(lambda **kw: kw)");
+		var kw = fn({"default": 1, "class": "x"});
+		eq(1, kw.get("default", null));
+		eq("x", kw.get("class", null));
+		eq(2, kw.length);
+
+		function test(?kw:KwArgs<{var "default":Int;}>)
+			return kw.typed()."default";
+		eq(3, test({"default": 3}));
 	}
 
 	function testOptionalVarArgs() {

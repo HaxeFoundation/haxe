@@ -495,11 +495,16 @@ class Compiler {
 		];
 	}
 
-	#if (js || lua || macro)
+	#if (js || lua || python || macro)
 	/**
-		Embed a JavaScript or Lua file at compile time (can be called by `--macro` or within an `__init__` method).
+		Embed a JavaScript, Lua or Python file at compile time (can be called by `--macro` or within an `__init__` method).
+
+		On Python, only `Top` is supported: the file comes before the imports, so it can prepare what
+		they need (`gi.require_version(...)`, `sys.path`).
 	**/
 	public static #if !macro macro #end function includeFile(file:String, position:IncludePosition = Top) {
+		if (Context.defined("python") && (position : String).toLowerCase() != Top)
+			Context.error("Python only supports the Top position of includeFile", Context.currentPos());
 		return switch ((position : String).toLowerCase()) {
 			case Inline:
 				if (Context.getLocalModule() == "")

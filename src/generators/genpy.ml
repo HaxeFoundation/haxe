@@ -69,7 +69,7 @@ module KeywordHandler = struct
 		let h = Hashtbl.create 0 in
 		List.iter (fun s -> Hashtbl.add h s ()) [
 			"and"; "as"; "assert"; "async"; "await"; "break"; "class"; "continue"; "def"; "del"; "elif"; "else"; "except"; "exec"; "finally"; "for";
-			"from"; "global"; "if"; "import"; "in"; "is"; "lambda"; "not"; "or"; "pass"; "raise"; "return"; "try"; "while";
+			"from"; "global"; "if"; "import"; "in"; "is"; "lambda"; "nonlocal"; "not"; "or"; "pass"; "raise"; "return"; "try"; "while";
 			"with"; "yield"; "None"; "True"; "False";
 		];
 		h
@@ -2413,6 +2413,14 @@ module Generator = struct
 		Transformer.init com;
 		let ctx = mk_context com in
 		Gctx.map_source_header com.defines (fun s -> print ctx "# %s\n# coding: utf-8\n" s);
+		(* Files from Compiler.includeFile, before anything else: code that has to run before the imports (after the
+		   header, whose coding line must be one of the first two). *)
+		List.iter (fun (path,position) ->
+			if position = "top" then begin
+				spr ctx (Std.input_file ~bin:true path);
+				spr ctx "\n"
+			end
+		) (List.rev com.include_files);
 		if has_feature ctx "closure_Array" || has_feature ctx "closure_String" then
 			spr ctx "from functools import partial as _hx_partial\n";
 		spr ctx "import sys\n";

@@ -25,6 +25,7 @@ package python;
 import python.internal.AnonObject;
 import python.Dict;
 import python.NativeStringTools;
+import python.internal.UBuiltins;
 
 typedef PySys = python.lib.Sys;
 
@@ -62,24 +63,102 @@ class Lib {
 
 	/**
 		Returns an anonymous Object which holds the same data as the Dictionary `v`.
+
+		Every key becomes a field of that name: a key that is a Python keyword or starts with `__`,
+		like `"from"`, is stored the way Haxe code accesses such a field, so `o.from` reads it.
+
+		If `deep` is true, dictionaries in the values become anonymous objects too, also within
+		lists (which are copied).
 	**/
-	public static function dictToAnon(v:Dict<String, Dynamic>):Dynamic {
-		return new AnonObject(v.copy());
+	public static function dictToAnon(v:Dict<String, Dynamic>, deep:Bool = false):Dynamic {
+		return new AnonObject(fieldsFromDict(v, deep));
 	}
 
 	/**
-		Returns a flat copy of the underlying Dictionary of `o`.
+		Returns a copy of the fields of `o` as a Dictionary, with the field names as keys
+		(`"from"` for the field `from`, which Python stores under another name). Returns null if `o`
+		isn't an anonymous object.
+
+		If `deep` is true, anonymous objects in the values become dictionaries too, also within
+		lists and dictionaries (which are copied).
 	**/
 	@:access(python.Boot.isAnonObject)
-	public static function anonToDict(o:{}):Dict<String, Dynamic> {
+	public static function anonToDict(o:{}, deep:Bool = false):Dict<String, Dynamic> {
 		return if (Boot.isAnonObject(o)) {
-			(Syntax.field(o, "__dict__") : Dict<String, Dynamic>).copy();
+			dictFromFields(Syntax.field(o, "__dict__"), deep);
 		} else null;
+	}
+
+	/**
+		`d` as an anonymous object like `dictToAnon`, but reusing `d` itself unless a key has to be
+		renamed (the object hook of `haxe.Json.parse`, where every dictionary is new).
+	**/
+	@:noCompletion
+	@:access(python.Boot.keywords)
+	public static function dictToAnonReusing(d:Dict<String, Dynamic>):Dynamic {
+		// Checked in Python, not key by key in Haxe code: this runs for every object of a parsed
+		// JSON text, and a Haxe loop made parsing over 30 times slower; this is about 20 % slower
+		// than the plain copy it replaces. The "__" test also takes keys that don't need renaming
+		// ("__x__", or a key containing "\0__"); fieldsFromDict handles those right.
+		if (Syntax.code("not {0}.isdisjoint({1}) or '\\0__' in '\\0' + '\\0'.join({1})", Boot.keywords, d))
+			return new AnonObject(fieldsFromDict(d, false));
+		return new AnonObject(d);
+	}
+
+	@:access(python.Boot.handleKeywords)
+	static function fieldsFromDict(v:Dict<String, Dynamic>, deep:Bool):Dict<String, Dynamic> {
+		var d = new Dict<String, Dynamic>();
+		for (k in v.keys()) {
+			var x = v.get(k, null);
+			d.set(Boot.handleKeywords(k), deep ? toAnonDeep(x) : x);
+		}
+		return d;
+	}
+
+	static function toAnonDeep(v:Dynamic):Dynamic {
+		// Only dictionaries with string keys can be objects; others stay dictionaries.
+		if (UBuiltins.isinstance(v, Dict) && Syntax.code("all(isinstance(k, str) for k in {0})", v))
+			return new AnonObject(fieldsFromDict(v, true));
+		if (UBuiltins.isinstance(v, Array))
+			return [for (x in (v : Array<Dynamic>)) toAnonDeep(x)];
+		return v;
+	}
+
+	@:access(python.Boot.unhandleKeywords)
+	static function dictFromFields(fields:Dict<String, Dynamic>, deep:Bool):Dict<String, Dynamic> {
+		var d = new Dict<String, Dynamic>();
+		for (k in fields.keys()) {
+			// set on the object by _hx_hasattr, not a field
+			if (k == "_hx_disable_getattr")
+				continue;
+			var x = fields.get(k, null);
+			d.set(Boot.unhandleKeywords(k), deep ? toDictDeep(x) : x);
+		}
+		return d;
+	}
+
+	@:access(python.Boot.isAnonObject)
+	static function toDictDeep(v:Dynamic):Dynamic {
+		if (Boot.isAnonObject(v))
+			return dictFromFields(Syntax.field(v, "__dict__"), true);
+		if (UBuiltins.isinstance(v, Array))
+			return [for (x in (v : Array<Dynamic>)) toDictDeep(x)];
+		if (UBuiltins.isinstance(v, Dict)) {
+			var src:Dict<String, Dynamic> = v;
+			var d = new Dict<String, Dynamic>();
+			for (k in src.keys())
+				d.set(k, toDictDeep(src.get(k, null)));
+			return d;
+		}
+		return v;
 	}
 
 	/**
 		Returns the underlying Dictionary of the anonymous object `o`.
 		Modifications to this dictionary are reflected in the anonymous Object too.
+
+		The keys are the names Python stores the fields under: a field that is a Python keyword or
+		starts with `__` has a prefixed key (see `anonToDict` for a copy with the field names).
 	**/
 	@:access(python.Boot.isAnonObject)
 	public static function anonAsDict(o:{}):Dict<String, Dynamic> {
@@ -91,6 +170,9 @@ class Lib {
 	/**
 		Returns the Dictionary `d` as an anonymous Object.
 		Modifications to the object are reflected in the Dictionary too.
+
+		The keys are taken as the names Python stores the fields under: a key like `"from"` (a
+		Python keyword) isn't readable as the field `from` (see `dictToAnon`, which renames).
 	**/
 	public static inline function dictAsAnon(d:Dict<String, Dynamic>):Dynamic {
 		return new AnonObject(d);

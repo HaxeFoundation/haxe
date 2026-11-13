@@ -26,7 +26,7 @@ import python.Syntax;
 
 class Json {
 	public static inline function parse(text:String):Dynamic {
-		return python.lib.Json.loads(text, {object_hook: python.Lib.dictToAnon});
+		return python.lib.Json.loads(text, {object_hook: python.Lib.dictToAnonReusing});
 	}
 
 	public static inline function stringify(value:Dynamic, ?replacer:(key:Dynamic, value:Dynamic) -> Dynamic, ?space:String):String {
