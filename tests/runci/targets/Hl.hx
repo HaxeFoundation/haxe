@@ -29,7 +29,7 @@ class Hl {
 			return;
 		}
 		if (!FileSystem.exists(hlSrc))
-			runCommand("git", ["clone", "https://github.com/HaxeFoundation/hashlink.git", hlSrc]);
+			runCommand("git", ["clone", "--branch", "1.16", "--depth", "1", "https://github.com/HaxeFoundation/hashlink.git", hlSrc]);
 		else
 			infoMsg("Reusing hashlink repository");
 

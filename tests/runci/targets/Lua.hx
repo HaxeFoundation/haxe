@@ -11,8 +11,8 @@ class Lua {
 	static public function getLuaDependencies(){
 		switch (systemName){
 			case "Linux":
-				Linux.requireAptPackages(["libpcre2-dev", "libssl-dev", "libreadline-dev"]);
-				runCommand("pip", ["install", "--user", "hererocks"]);
+				Linux.requireAptPackages(["libpcre2-dev", "libssl-dev", "libreadline-dev", "pipx"]);
+				runCommand("pipx", ["install", "git+https://github.com/luarocks/hererocks.git"]);
 				final pyUserBase = commandResult("python", ["-m", "site", "--user-base"]).stdout.trim();
 				addToPATH(Path.join([pyUserBase, "bin"]));
 			case "Mac": {
@@ -22,7 +22,7 @@ class Lua {
 					runNetworkCommand("brew", ["install", "python3"]);
 
 				attemptCommand("brew", ["install", "pcre2"]);
-				runCommand("pip3", ["install", "hererocks"]);
+				runCommand("pip3", ["install", "git+https://github.com/luarocks/hererocks.git"]);
 				runCommand("brew", ["install", "openssl"]);
 			}
 		}

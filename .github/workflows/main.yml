@@ -72,6 +72,7 @@ jobs:
         shell: pwsh
         run: |
           Set-PSDebug -Trace 1
+          opam pin add pcre2 git+https://github.com/mmottl/pcre2-ocaml.git#962b7482540308ea5934f861655b5f74f901ad63 --no-action
           opam install haxe --deps-only
           opam list
 
@@ -198,6 +199,7 @@ jobs:
           Set-PSDebug -Trace 1
           opam install ocaml-env-mingw32
           opam install conf-mingw-w64-pcre2-i686
+          opam pin add pcre2 git+https://github.com/mmottl/pcre2-ocaml.git#962b7482540308ea5934f861655b5f74f901ad63 --no-action
           opam install haxe --deps-only
           opam list
 
