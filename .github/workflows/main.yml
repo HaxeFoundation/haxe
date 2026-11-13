@@ -72,6 +72,7 @@ jobs:
         shell: pwsh
         run: |
           Set-PSDebug -Trace 1
+          opam pin add pcre2 git+https://github.com/mmottl/pcre2-ocaml.git#962b7482540308ea5934f861655b5f74f901ad63 --no-action
           opam install haxe --deps-only
           opam list
 
@@ -198,6 +199,7 @@ jobs:
           Set-PSDebug -Trace 1
           opam install ocaml-env-mingw32
           opam install conf-mingw-w64-pcre2-i686
+          opam pin add pcre2 git+https://github.com/mmottl/pcre2-ocaml.git#962b7482540308ea5934f861655b5f74f901ad63 --no-action
           opam install haxe --deps-only
           opam list
 
@@ -684,10 +686,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, macos-13]
+        os: [macos-15, macos-15-intel]
     runs-on: ${{ matrix.os }}
     env:
-      PLATFORM: mac${{ matrix.os == 'macos-14' && '-arm64' || '' }}
+      PLATFORM: mac${{ matrix.os == 'macos-15' && '-arm64' || '' }}
       OPAMYES: 1
       MACOSX_DEPLOYMENT_TARGET: 10.13
       OCAML_VERSION: 5.1.1
@@ -733,8 +735,10 @@ jobs:
           set -ex
           brew update
           brew bundle --file=tests/Brewfile --no-upgrade
-          cpanm IPC::System::Simple
-          cpanm String::ShellQuote
+          # Homebrew builds opam and cpanminus from source on Intel macs
+          curl -sSL https://github.com/ocaml/opam/releases/download/2.3.0/opam-2.3.0-$(uname -m)-macos -o $RUNNER_TEMP/opam
+          sudo install $RUNNER_TEMP/opam /usr/local/bin/opam
+          curl -L https://cpanmin.us | perl - --sudo IPC::System::Simple String::ShellQuote
           curl -L https://github.com/madler/zlib/releases/download/v$ZLIB_VERSION/zlib-$ZLIB_VERSION.tar.gz | tar xz
           cd zlib-$ZLIB_VERSION
           ./configure
@@ -1023,7 +1027,7 @@ jobs:
 
   mac-test:
     needs: mac-build-universal
-    runs-on: macos-13
+    runs-on: macos-15-intel
     env:
       PLATFORM: mac
       TEST: ${{matrix.target}}

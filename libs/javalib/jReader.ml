@@ -449,7 +449,13 @@ let parse_attribute on_special consts ch =
   | "MethodParameters" ->
 	let len = IO.read_byte ch in
 	let parameters = List.init len (fun _ ->
-		let name = get_string consts ch in
+		(* name_index 0 means no name, javac 21+ emits it for mandated parameters *)
+		let name = match read_ui16 ch with
+			| 0 -> ""
+			| i -> match get_constant consts i with
+				| ConstUtf8 s -> s
+				| _ -> error()
+		in
 		let flags = read_ui16 ch in
 		(name,flags)
 	) in
