@@ -94,6 +94,8 @@ enum ValueType {
 	}
 
 	public static inline function createEmptyInstance<T>(cl:Class<T>):T {
+		if (String == cast cl)
+			return cast "";
 		return js.lib.Object.create((cast cl).prototype);
 	}
 

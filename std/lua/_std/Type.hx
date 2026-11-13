@@ -91,10 +91,11 @@ enum ValueType {
 			return __new__(cl, lua.TableTools.unpack(cast args, 0));
 		}
 
-	public static function createEmptyInstance<T>(cl:Class<T>):T
-		untyped {
-			return _hx_new(cl.prototype);
-		}
+	public static function createEmptyInstance<T>(cl:Class<T>):T {
+		if (String == cast cl)
+			return cast "";
+		return untyped _hx_new(cl.prototype);
+	}
 
 	public static function createEnum<T>(e:Enum<T>, constr:String, ?params:Array<Dynamic>):T {
 		var f:Dynamic = Reflect.field(e, constr);

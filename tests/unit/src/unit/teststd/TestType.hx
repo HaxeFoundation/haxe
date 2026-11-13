@@ -68,7 +68,7 @@ class TestType extends unit.Test {
 		//eq(t.b, "bar");
 
 		// createEmptyInstance
-		//eq(Type.createEmptyInstance(String),"foo");
+		eq(Type.createEmptyInstance(String),"");
 		//eq(Type.createEmptyInstance(null, []), null);
 		var c = Type.createEmptyInstance(ClassWithCtorDefaultValues);
 		eq(c.a, null);
