@@ -8,8 +8,10 @@
     set -ex
     brew update
     brew bundle --file=tests/Brewfile --no-upgrade
-    cpanm IPC::System::Simple
-    cpanm String::ShellQuote
+    # Homebrew builds opam and cpanminus from source on Intel macs
+    curl -sSL https://github.com/ocaml/opam/releases/download/2.3.0/opam-2.3.0-$(uname -m)-macos -o $RUNNER_TEMP/opam
+    sudo install $RUNNER_TEMP/opam /usr/local/bin/opam
+    curl -L https://cpanmin.us | perl - --sudo IPC::System::Simple String::ShellQuote
     curl -L https://github.com/madler/zlib/releases/download/v$ZLIB_VERSION/zlib-$ZLIB_VERSION.tar.gz | tar xz
     cd zlib-$ZLIB_VERSION
     ./configure
