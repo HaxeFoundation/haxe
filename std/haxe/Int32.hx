@@ -169,7 +169,7 @@ abstract Int32(Int) from Int to Int {
 
 	@:op(A >= B) private static function floatGte(a:Float, b:Int32):Bool;
 
-	#if (lua || python || php)
+	#if (python || php)
 	@:op(~A) private static inline function complement(a:Int32):Int32
 		return clamp(~a);
 	#else
@@ -180,7 +180,7 @@ abstract Int32(Int) from Int to Int {
 
 	@:op(A & B) @:commutative private static function andInt(a:Int32, b:Int):Int32;
 
-	#if (lua || python || php)
+	#if (python || php)
 	@:op(A | B) private static inline function or(a:Int32, b:Int32):Int32
 		return clamp((a : Int) | (b : Int));
 
@@ -192,7 +192,7 @@ abstract Int32(Int) from Int to Int {
 	@:op(A | B) @:commutative private static function orInt(a:Int32, b:Int):Int32;
 	#end
 
-	#if (lua || python || php)
+	#if (python || php)
 	@:op(A ^ B) private static inline function xor(a:Int32, b:Int32):Int32
 		return clamp((a : Int) ^ (b : Int));
 
@@ -204,7 +204,7 @@ abstract Int32(Int) from Int to Int {
 	@:op(A ^ B) @:commutative private static function xorInt(a:Int32, b:Int):Int32;
 	#end
 
-	#if (lua || python || php)
+	#if (python || php)
 	@:op(A >> B) private static inline function shr(a:Int32, b:Int32):Int32
 		return clamp((a : Int) >> (b : Int));
 
@@ -221,7 +221,7 @@ abstract Int32(Int) from Int to Int {
 	@:op(A >> B) private static function intShr(a:Int, b:Int32):Int32;
 	#end
 
-	#if (js || lua || python)
+	#if (js || python || (lua && !lua_jit))
 	@:op(A >>> B) private static inline function ushr(a:Int32, b:Int32):Int32
 		return clamp((a : Int) >>> (b : Int));
 
@@ -238,7 +238,7 @@ abstract Int32(Int) from Int to Int {
 	@:op(A >>> B) private static function intUshr(a:Int, b:Int32):Int32;
 	#end
 
-	#if (php || python || lua)
+	#if (python || php)
 	// PHP may be 64-bit, so shifts must be clamped
 	@:op(A << B) private static inline function shl(a:Int32, b:Int32):Int32
 		return clamp((a : Int) << (b : Int));
