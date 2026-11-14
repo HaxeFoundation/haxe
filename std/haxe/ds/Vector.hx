@@ -73,7 +73,8 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif python
 		this = python.Syntax.code("([{0}]*{1})", null, length);
 		#elseif lua
-		this = untyped __lua_table__({length: length});
+		this = lua.Table.createEmpty(length, 1);
+		untyped this.length = length;
 		#elseif eval
 		this = new eval.Vector(length);
 		#else
@@ -105,7 +106,8 @@ abstract Vector<T>(VectorData<T>) {
 		#elseif cpp
 		this = NativeArray.create(length);
 		#elseif lua
-		this = untyped __lua_table__({length: length});
+		this = lua.Table.createEmpty(length, 1);
+		untyped this.length = length;
 		#elseif eval
 		this = new eval.Vector(length);
 		#else

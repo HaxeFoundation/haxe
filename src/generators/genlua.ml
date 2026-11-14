@@ -476,7 +476,7 @@ and gen_call ctx e el =
          gen_paren_arguments ctx el;
      | TIdent "__lua_length__", [e]->
          spr ctx "#"; gen_value ctx e;
-     | TField (_, FStatic ({ cl_path = (["_G"],"table")}, { cf_name = "create" })), el
+     | TField (_, FStatic ({ cl_path = (["_G"],"table")}, { cf_name = "create_literal" })), el
      | TIdent "__lua_table__", el ->
          let count = ref 0 in
          spr ctx "({";
@@ -2148,10 +2148,11 @@ let generate com =
     println ctx "local _hx_is_array, _hx_tab_array, _hx_print_class, _hx_print_enum, _hx_tostring, _hx_field_arr";
 
     (* base table-to-array helpers and metatables *)
-    if ctx.lua_jit then
-        print_file (find_file "lua/_lua/_hx_tab_array_jit.lua")
-    else
-        print_file (find_file "lua/_lua/_hx_tab_array.lua");
+    print_file (find_file "lua/_lua/_hx_tab_array.lua");
+
+    (* table.new polyfill for LuaJit 2.0 or Lua < 5.5 *)
+    if ctx.lua_ver < 5.5 then
+        print_file (find_file "lua/_lua/_hx_table_new.lua");
 
     (* base lua "toString" functionality for haxe objects*)
     print_file (find_file "lua/_lua/_hx_tostring.lua");

@@ -63,6 +63,8 @@ abstract BytesDataAbstract(BytesDataImpl) {
 }
 
 typedef BytesData = BytesDataAbstract;
+#elseif lua
+typedef BytesData = haxe.ds.Vector<Int>;
 #else
 typedef BytesData = Array<Int>;
 #end

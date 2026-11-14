@@ -157,6 +157,10 @@ class Bytes {
 		return new Bytes(len, newarr);
 		#elseif python
 		return new Bytes(len, python.Syntax.arrayAccess(b, pos, pos + len));
+		#elseif lua
+		final data = new BytesData(len);
+		BytesData.blit(b, pos, data, 0, len);
+		return new Bytes(len, data);
 		#else
 		return new Bytes(len, b.slice(pos, pos + len));
 		#end
@@ -502,6 +506,8 @@ class Bytes {
 		return new Bytes(length, new java.NativeArray(length));
 		#elseif python
 		return new Bytes(length, new python.Bytearray(length));
+		#elseif lua
+		return new Bytes(length, new BytesData(length, 0));
 		#else
 		var a = new Array();
 		for (i in 0...length)
@@ -541,12 +547,11 @@ class Bytes {
 		var b:BytesData = new python.Bytearray(s, "UTF-8");
 		return new Bytes(b.length, b);
 		#elseif lua
-		var bytes = [
-			for (i in 0...lua.NativeStringTools.len(s)) {
-				lua.NativeStringTools.byte(s, i + 1);
-			}
-		];
-		return new Bytes(bytes.length, bytes);
+		final data = new BytesData(lua.NativeStringTools.len(s));
+		for (i in 0...data.length) {
+			data[i] = lua.NativeStringTools.byte(s, i + 1);
+		}
+		return new Bytes(data.length, data);
 		#else
 		var a = new Array();
 		// utf16-decode and utf8-encode
