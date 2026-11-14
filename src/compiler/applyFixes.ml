@@ -2,7 +2,7 @@ open Globals
 open Common
 
 let full_dir path =
-	Path.add_trailing_slash (Path.get_full_path (if path = "" then "." else path))
+	Path.add_trailing_slash (Path.get_full_path (Path.add_trailing_slash path))
 
 (* Only the files of the -cp class paths, not the ones of the libraries or the std *)
 let is_user_file com file =
