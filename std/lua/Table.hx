@@ -35,6 +35,7 @@ extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
 	/**
 		Generate an inline lua table declaration from an array literal and/or an object literal argument.
 	**/
+	@:native("create_literal")
 	@:pure static function create<A, B>(?arr:Array<B>, ?hsh:Dynamic):Table<A, B>;
 
 	/**
