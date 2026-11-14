@@ -2152,6 +2152,8 @@ let generate com =
         print_file (find_file "lua/_lua/_hx_tab_array_jit.lua")
     else
         print_file (find_file "lua/_lua/_hx_tab_array.lua");
+    if ctx.lua_ver < 5.5 then
+        print_file (find_file "lua/_lua/_hx_table_new.lua");
 
     (* base lua "toString" functionality for haxe objects*)
     print_file (find_file "lua/_lua/_hx_tostring.lua");

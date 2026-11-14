@@ -38,6 +38,23 @@ extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
 	@:native("create_literal")
 	@:pure static function create<A, B>(?arr:Array<B>, ?hsh:Dynamic):Table<A, B>;
 
+	/*
+		Creates a new empty table, preallocating memory. This preallocation may help performance and save memory
+		when you know in advance how many elements the table will have.
+
+		Parameter nseq is a hint for how many elements the table will have as a sequence. The parameter nrec
+		is a hint for how many other elements the table will have. On Lua 5.5+, nrec is optional and defaults to 0.
+
+		This uses table.create on Lua 5.5, or table.new on LuaJit 2.1. On other versions, it simply creates an empty
+		table without preallocation.
+	*/
+	#if (lua_ver >= 5.5)
+	@:native("create")
+	#else
+	@:native("new")
+	#end
+	@:pure static function createEmpty<A, B>(nseq:Int, #if (lua_ver >= 5.5) ? #end nrec:Int):Table<A, B>;
+
 	/**
 		Convert the array `arr` into a lua table with lua-style indexing.
 	**/
