@@ -22,6 +22,7 @@
 @:coreApi extern class String {
 	var length(default, null):Int;
 
+	@:selfCall
 	@:pure function new(string:String):Void;
 	@:pure function toUpperCase():String;
 	@:pure function toLowerCase():String;
