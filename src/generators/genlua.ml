@@ -2148,10 +2148,9 @@ let generate com =
     println ctx "local _hx_is_array, _hx_tab_array, _hx_print_class, _hx_print_enum, _hx_tostring, _hx_field_arr";
 
     (* base table-to-array helpers and metatables *)
-    if ctx.lua_jit then
-        print_file (find_file "lua/_lua/_hx_tab_array_jit.lua")
-    else
-        print_file (find_file "lua/_lua/_hx_tab_array.lua");
+    print_file (find_file "lua/_lua/_hx_tab_array.lua");
+
+    (* table.new polyfill for LuaJit 2.0 or Lua < 5.5 *)
     if ctx.lua_ver < 5.5 then
         print_file (find_file "lua/_lua/_hx_table_new.lua");
 
