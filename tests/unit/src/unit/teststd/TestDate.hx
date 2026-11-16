@@ -58,11 +58,12 @@ class TestDate extends unit.Test {
 		t(date.getTime() < referenceDate.getTime());
 
 		// < 1970 (negative timestamp)
-		#if !(neko || (hl && hl_ver < version("2.0.0")))
-		// hl, cpp, eval and lua use the C mktime/localtime, which reject dates before 1970 on Windows
-		#if (hl || cpp || eval || lua)
-		if (Sys.systemName() != "Windows") {
+		#if !(hl && hl_ver < version("2.0.0"))
+		// neko, hl, cpp, eval and lua use the C mktime/localtime, which reject dates before 1970 on Windows
+		#if (neko || hl || cpp || eval || lua)
+		if (Sys.systemName() != "Windows")
 		#end
+		{
 		var date = new Date(1904, 11, 12, 1, 4, 1);
 		eq(date.getHours(), 1);
 		eq(date.getMinutes(), 4);
@@ -72,11 +73,11 @@ class TestDate extends unit.Test {
 		eq(date.getDate(), 12);
 		eq(date.getDay(), 1);
 		t(date.getTime() < referenceDate.getTime());
-		#if (hl || cpp || eval || lua)
 		}
 		#end
 
 		// < 1902 (negative timestamp, outside of signed 32-bit integer range)
+		#if !(neko || (hl && hl_ver < version("2.0.0")))
 		// the C mktime/localtime also reject dates before 1901 on Mac
 		#if (hl || cpp || eval || lua)
 		if (#if (cpp && HXCPP_M32) false #else Sys.systemName() == "Linux" #end)
