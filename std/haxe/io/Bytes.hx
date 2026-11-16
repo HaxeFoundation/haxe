@@ -203,6 +203,9 @@ class Bytes {
 		b1.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		b2.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		return length - other.length;
+		#elseif python
+		if (b == other.b) return 0;
+		return b.__lt__(other.b) ? -1 : 1;
 		#else
 		var b1 = b;
 		var b2 = other.b;

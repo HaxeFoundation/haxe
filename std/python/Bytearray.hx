@@ -50,6 +50,7 @@ extern class Bytearray implements ArrayAccess<Int> {
 	}
 
 	function __setitem__(i:Int, v:Int):Void;
+	function __lt__(other:Bytearray):Bool;
 
 	function decode(encoding:String = "utf-8", errors:String = "strict"):String;
 }
