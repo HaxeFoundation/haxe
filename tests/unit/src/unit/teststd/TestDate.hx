@@ -79,8 +79,9 @@ class TestDate extends unit.Test {
 		// < 1902 (negative timestamp, outside of signed 32-bit integer range)
 		// the C mktime/localtime also reject dates before 1901 on Mac
 		#if (hl || cpp || eval || lua)
-		if (Sys.systemName() == "Linux") {
+		if (#if (cpp && HXCPP_M32) false #else Sys.systemName() == "Linux" #end)
 		#end
+		{
 		var date = new Date(1888, 0, 1, 15, 4, 2);
 		eq(date.getHours(), 15);
 		eq(date.getMinutes(), 4);
@@ -90,13 +91,15 @@ class TestDate extends unit.Test {
 		eq(date.getDate(), 1);
 		eq(date.getDay(), 0);
 		t(date.getTime() < referenceDate.getTime());
-		#if (hl || cpp || eval || lua)
 		}
-		#end
 		#end
 
 		// Y2038 (outside of signed 32-bit integer range)
 		#if !neko
+		#if (cpp && HXCPP_M32)
+		if (Sys.systemName() != "Linux")
+		#end
+		{
 		var date = new Date(2039, 0, 1, 1, 59, 59);
 		eq(date.getHours(), 1);
 		eq(date.getMinutes(), 59);
@@ -106,10 +109,15 @@ class TestDate extends unit.Test {
 		eq(date.getDate(), 1);
 		eq(date.getDay(), 6);
 		t(date.getTime() > referenceDate.getTime());
+		}
 		#end
 
 		// Y2112 (outside of unsigned 32-bit integer range)
 		#if !(neko || (hl && hl_ver < version("2.0.0")))
+		#if (cpp && HXCPP_M32)
+		if (Sys.systemName() != "Linux")
+		#end
+		{
 		var date = new Date(2112, 0, 1, 1, 59, 59);
 		eq(date.getHours(), 1);
 		eq(date.getMinutes(), 59);
@@ -119,6 +127,7 @@ class TestDate extends unit.Test {
 		eq(date.getDate(), 1);
 		eq(date.getDay(), 5);
 		t(date.getTime() > referenceDate.getTime());
+		}
 		#end
 
 		/*
