@@ -1,0 +1,34 @@
+# A @:structInit class gains a field.
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		var p:Point = {x: 1};
+		trace(p.x);
+	}
+}
+--- Point.hx
+@:structInit
+class Point {
+	public var x:Int;
+}
+
+=== field added with a default value
+@expect-output 1
+--- Point.hx
+@:structInit
+class Point {
+	public var x:Int;
+	public var y:Int = 0;
+}
+
+=== field added without default
+@expect-error z
+--- Point.hx
+@:structInit
+class Point {
+	public var x:Int;
+	public var y:Int = 0;
+	public var z:Int;
+}

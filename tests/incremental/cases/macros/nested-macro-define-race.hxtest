@@ -1,0 +1,65 @@
+# Two expansions define the same helper type if it does not exist, one of them
+# being a build macro nested in an expression macro (run by its getType). The
+# nested build fails to find the type, waits (without accessing what the
+# macros share) while the other expansion defines it, then defines it: it is
+# run again alone, and finds the type, instead of defining it a second time
+# (docs/macros.md, §2.6). The waits make the race likely with several domains.
+=== initial
+@expect-output p p
+--- Main.hx
+class Main {
+	static function main() {
+		trace(A.f() + " " + B.g());
+	}
+}
+--- A.hx
+class A {
+	public static function f():String return Macro.useHolder();
+}
+--- B.hx
+class B {
+	public static function g():String return Macro.defineP(0.2);
+}
+--- Holder.hx
+@:build(Macro.buildHolder())
+class Holder {}
+--- Macro.hx
+import haxe.macro.Context;
+import haxe.macro.Expr;
+
+class Macro {
+	#if macro
+	// waits without accessing what the macros share
+	static function wait(delay:Float) {
+		var t = Sys.time();
+		while (Sys.time() - t < delay) {}
+	}
+
+	static function ensureP(delay:Float) {
+		try {
+			Context.getType("P");
+		} catch (e:Dynamic) {
+			wait(delay);
+			Context.defineType(macro class P {
+				public static function value() return "p";
+			});
+		}
+	}
+
+	public static function buildHolder():Array<Field> {
+		ensureP(0.5);
+		return null;
+	}
+	#end
+
+	public static macro function useHolder() {
+		Context.getType("Holder");
+		return macro P.value();
+	}
+
+	public static macro function defineP(delay:Float) {
+		wait(delay);
+		ensureP(0);
+		return macro P.value();
+	}
+}

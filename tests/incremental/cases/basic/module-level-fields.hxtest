@@ -1,0 +1,18 @@
+# Module-level functions and variables (Haxe 5).
+=== initial
+@expect-output 5
+--- Main.hx
+import Util;
+
+class Main {
+	static function main() {
+		trace(Util.twice(2) + 1);
+	}
+}
+--- Util.hx
+function twice(x:Int) return x * 2;
+
+=== change module-level function
+@expect-output 7
+--- Util.hx
+function twice(x:Int) return x * 3;

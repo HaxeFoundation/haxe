@@ -1,0 +1,30 @@
+# The target of an import alias changes.
+=== initial
+@expect-output first
+--- Main.hx
+import First as Impl;
+
+class Main {
+	static function main() {
+		trace(Impl.name());
+	}
+}
+--- First.hx
+class First {
+	public static function name() return "first";
+}
+--- Second.hx
+class Second {
+	public static function name() return "second";
+}
+
+=== alias another type
+@expect-output second
+--- Main.hx
+import Second as Impl;
+
+class Main {
+	static function main() {
+		trace(Impl.name());
+	}
+}

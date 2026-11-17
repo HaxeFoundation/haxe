@@ -1,0 +1,38 @@
+# A syntax error in a module read by others, then undone: the failed
+# compilation found its readers invalid, the next one checks them again and
+# types nothing (they read the same declarations as before the error).
+=== initial
+@expect-output 3
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Reader.read());
+	}
+}
+--- Reader.hx
+class Reader {
+	public static function read() return Dep.value() + Other.value();
+}
+--- Other.hx
+class Other {
+	public static function value() return Dep.value() * 2;
+}
+--- Dep.hx
+class Dep {
+	public static function value() return 1;
+}
+
+=== a syntax error
+@expect-error
+--- Dep.hx
+class Dep {
+	public static function value() return 1 +;
+}
+
+=== the error is undone
+@expect-output 3
+@expect-retyped
+--- Dep.hx
+class Dep {
+	public static function value() return 1;
+}

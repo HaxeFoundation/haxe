@@ -1,0 +1,41 @@
+# A new instance of a @:generic class is requested by a newly added module.
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(new Box<Int>(1).get());
+	}
+}
+--- Box.hx
+@:generic
+class Box<T> {
+	var v:T;
+	public function new(v:T) this.v = v;
+	public function get() return v;
+}
+
+=== another module uses Box<String>
+@expect-output s
+--- Other.hx
+class Other {
+	public static function make() return new Box<String>("s").get();
+}
+--- Main.hx
+class Main {
+	static function main() {
+		trace(new Box<Int>(1).get());
+		trace(Other.make());
+	}
+}
+
+=== the module is removed
+@expect-output 1
+@expect-no-output s
+--- delete Other.hx
+--- Main.hx
+class Main {
+	static function main() {
+		trace(new Box<Int>(1).get());
+	}
+}

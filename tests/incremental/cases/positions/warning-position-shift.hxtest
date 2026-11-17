@@ -1,0 +1,31 @@
+# Warning positions in a field that did not change but moved.
+=== initial
+@expect-warning Dep.hx:3
+--- Main.hx
+class Main {
+	static function main() {
+		Dep.run();
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function run() {
+		Dep.old();
+	}
+	@:deprecated("use something else")
+	public static function old() {}
+}
+
+=== lines added above
+@expect-warning Dep.hx:6
+--- Dep.hx
+class Dep {
+
+	// moved
+
+	public static function run() {
+		Dep.old();
+	}
+	@:deprecated("use something else")
+	public static function old() {}
+}

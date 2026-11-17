@@ -1,0 +1,44 @@
+# A module file is renamed (with its type), and users are updated.
+=== initial
+@expect-output old
+--- Main.hx
+class Main {
+	static function main() {
+		trace(OldName.get());
+	}
+}
+--- OldName.hx
+class OldName {
+	public static function get() return "old";
+}
+
+=== renamed without updating the user
+@expect-error OldName
+--- delete OldName.hx
+--- NewName.hx
+class NewName {
+	public static function get() return "old";
+}
+
+=== user updated
+@expect-output old
+--- Main.hx
+class Main {
+	static function main() {
+		trace(NewName.get());
+	}
+}
+
+=== renamed back
+@expect-output old
+--- delete NewName.hx
+--- OldName.hx
+class OldName {
+	public static function get() return "old";
+}
+--- Main.hx
+class Main {
+	static function main() {
+		trace(OldName.get());
+	}
+}

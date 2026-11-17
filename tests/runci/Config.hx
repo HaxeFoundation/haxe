@@ -15,6 +15,7 @@ class Config {
 	static public final sysDir = Path.join([cwd, "sys"]);
 	static public final optDir = cwd + "optimization/";
 	static public final serverDir = Path.join([cwd, "server"]);
+	static public final incrementalDir = Path.join([cwd, "incremental"]);
 	static public final sourcemapsDir = Path.join([cwd, "sourcemaps"]);
 	static public final nullSafetyDir = Path.join([cwd, "nullsafety"]);
 	static public final threadsDir = Path.join([cwd, "threads"]);

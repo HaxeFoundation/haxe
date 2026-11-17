@@ -1,0 +1,26 @@
+# A macro embeds the content of a data file and registers it as a dependency.
+=== initial
+@expect-output data v1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.load());
+	}
+}
+--- Macro.hx
+import haxe.macro.Context;
+
+class Macro {
+	public static macro function load() {
+		var file = "data.txt";
+		Context.registerModuleDependency(Context.getLocalModule(), file);
+		return macro $v{StringTools.trim(sys.io.File.getContent(file))};
+	}
+}
+--- data.txt
+data v1
+
+=== data file changes
+@expect-output data v2
+--- data.txt
+data v2

@@ -1,0 +1,32 @@
+# A chain of inferred return types across three modules.
+=== initial
+@expect-output 2
+--- Main.hx
+class Main {
+	static function main() {
+		var v:Int = B.get();
+		trace(v);
+	}
+}
+--- B.hx
+class B {
+	public static function get() return C.get() + 1;
+}
+--- C.hx
+class C {
+	public static function get() return 1;
+}
+
+=== the end of the chain changes type
+@expect-error Float should be Int
+--- C.hx
+class C {
+	public static function get() return 1.5;
+}
+
+=== fixed
+@expect-output 3
+--- C.hx
+class C {
+	public static function get() return 2;
+}

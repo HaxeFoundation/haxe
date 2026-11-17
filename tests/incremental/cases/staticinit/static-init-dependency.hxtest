@@ -1,0 +1,35 @@
+# A static initializer depends on a static of another class; the dependency changes.
+=== initial
+@expect-output 2
+--- Main.hx
+class Main {
+	static function main() {
+		trace(B.value);
+	}
+}
+--- A.hx
+class A {
+	public static var base = 1;
+}
+--- B.hx
+class B {
+	public static var value = A.base + 1;
+}
+
+=== dependency value changes
+@expect-output 11
+--- A.hx
+class A {
+	public static var base = 10;
+}
+
+=== dependency reversed
+@expect-output 5
+--- A.hx
+class A {
+	public static var base = C.start;
+}
+--- C.hx
+class C {
+	public static var start = 4;
+}

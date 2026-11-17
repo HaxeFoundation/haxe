@@ -1,0 +1,27 @@
+# An abstract forwarding the fields of its underlying type.
+@targets interp
+
+=== initial
+@expect-output 5
+--- Main.hx
+class Main {
+	static function main() {
+		var w:Wrapper = new Inner();
+		trace(w.size());
+	}
+}
+--- Wrapper.hx
+@:forward abstract Wrapper(Inner) from Inner {}
+--- Inner.hx
+class Inner {
+	public function new() {}
+	public function size():Int return 5;
+}
+
+=== forwarded field changed
+@expect-output 5.5
+--- Inner.hx
+class Inner {
+	public function new() {}
+	public function size():Float return 5.5;
+}

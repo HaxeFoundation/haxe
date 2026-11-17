@@ -1,0 +1,45 @@
+# Inline functions that move, in another file and in the same file: the code
+# inlined in `main` keeps the positions of its declaration, and moves with it.
+@targets interp
+
+=== initial
+@expect-output 5
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Lib.get() + twice(1));
+	}
+
+	static inline function twice(x:Int) {
+		return x * 2;
+	}
+}
+--- Lib.hx
+class Lib {
+	public static inline function get() {
+		return 3;
+	}
+}
+
+=== inline functions moved
+@expect-output 5
+@expect-fingerprint-same body Main.main (static)
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Lib.get() + twice(1));
+	}
+
+	// moved
+
+	static inline function twice(x:Int) {
+		return x * 2;
+	}
+}
+--- Lib.hx
+class Lib {
+	// moved
+	public static inline function get() {
+		return 3;
+	}
+}

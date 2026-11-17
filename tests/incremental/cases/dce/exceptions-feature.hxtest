@@ -1,0 +1,37 @@
+# Exception handling is added and removed in another module.
+@targets js interp
+=== initial
+@expect-output ok
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.run());
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function run() return "ok";
+}
+
+=== try/catch with a custom exception
+@expect-output caught boom
+--- Dep.hx
+class Dep {
+	public static function run() {
+		try {
+			throw new MyError("boom");
+		} catch (e:MyError) {
+			return "caught " + e.message;
+		}
+	}
+}
+--- MyError.hx
+class MyError extends haxe.Exception {}
+
+=== removed again
+@expect-output ok
+--- Dep.hx
+class Dep {
+	public static function run() return "ok";
+}
+--- delete MyError.hx

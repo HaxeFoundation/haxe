@@ -1,0 +1,36 @@
+# A build macro adds metadata (@:native) to another type, then stops doing so.
+@targets js
+@known-failure metadata added to another type by a macro stays on the cached type
+=== initial
+@expect-output renamed
+@expect-file out/main.js Renamed
+--- Main.hx
+class Main {
+	static var trigger:Trigger;
+	static function main() {
+		trace(Target.name());
+	}
+}
+--- Target.hx
+class Target {
+	public static function name() return "renamed";
+}
+--- Trigger.hx
+@:build(Macro.build())
+class Trigger {}
+--- Macro.hx
+class Macro {
+	public static function build() {
+		haxe.macro.Compiler.addMetadata("@:native('Renamed')", "Target");
+		return null;
+	}
+}
+=== macro no longer adds the metadata
+@expect-output renamed
+@expect-no-file-content out/main.js Renamed
+--- Macro.hx
+class Macro {
+	public static function build() {
+		return null;
+	}
+}

@@ -1,0 +1,26 @@
+# A module that was loaded once but is no longer referenced is deleted.
+=== initial
+@expect-output old
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Old.get());
+	}
+}
+--- Old.hx
+class Old {
+	public static function get() return "old";
+}
+
+=== stop referencing it
+@expect-output new
+--- Main.hx
+class Main {
+	static function main() {
+		trace("new");
+	}
+}
+
+=== delete it
+@expect-output new
+--- delete Old.hx

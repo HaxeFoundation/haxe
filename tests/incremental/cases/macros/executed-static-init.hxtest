@@ -1,0 +1,27 @@
+# A macro reads a static variable of another class: its initial value is
+# part of what the macro executed.
+=== initial
+@expect-output value 1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.value());
+	}
+}
+--- Macro.hx
+class Macro {
+	public static macro function value() {
+		return macro $v{"value " + Config.VALUE};
+	}
+}
+--- Config.hx
+class Config {
+	public static var VALUE = 1;
+}
+
+=== the initial value changes
+@expect-output value 2
+--- Config.hx
+class Config {
+	public static var VALUE = 2;
+}

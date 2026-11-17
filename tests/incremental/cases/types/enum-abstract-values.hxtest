@@ -1,0 +1,23 @@
+# Enum abstract values are inlined into users and change.
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		var k:Kind = A;
+		trace((k : Int));
+	}
+}
+--- Kind.hx
+enum abstract Kind(Int) to Int {
+	var A = 1;
+	var B = 2;
+}
+
+=== values changed
+@expect-output 10
+--- Kind.hx
+enum abstract Kind(Int) to Int {
+	var A = 10;
+	var B = 20;
+}

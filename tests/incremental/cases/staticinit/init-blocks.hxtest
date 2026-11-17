@@ -1,0 +1,33 @@
+# __init__ blocks of several classes; one is added.
+=== initial
+@expect-output init A
+--- Main.hx
+class Main {
+	static function main() {
+		A.touch();
+	}
+}
+--- A.hx
+class A {
+	static function __init__() {
+		trace("init A");
+	}
+	public static function touch() {}
+}
+
+=== class with __init__ added
+@expect-output init B
+--- B.hx
+class B {
+	static function __init__() {
+		trace("init B");
+	}
+	public static function touch() {}
+}
+--- Main.hx
+class Main {
+	static function main() {
+		A.touch();
+		B.touch();
+	}
+}

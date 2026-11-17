@@ -1,0 +1,49 @@
+# Two modules call a macro that defines a shared helper type on first use.
+# Only one of them is edited afterwards.
+=== initial
+@expect-output shared shared
+--- Main.hx
+class Main {
+	static function main() {
+		trace(A.get() + " " + B.get());
+	}
+}
+--- A.hx
+class A {
+	public static function get() return Macro.helper();
+}
+--- B.hx
+class B {
+	public static function get() return Macro.helper();
+}
+--- Macro.hx
+import haxe.macro.Context;
+
+class Macro {
+	public static macro function helper() {
+		try {
+			Context.getType("SharedHelper");
+		} catch (_:Dynamic) {
+			Context.defineType(macro class SharedHelper {
+				public static function value() return "shared";
+			});
+		}
+		return macro SharedHelper.value();
+	}
+}
+
+=== edit A only
+@expect-output shared shared
+--- A.hx
+class A {
+	// edited
+	public static function get() return Macro.helper();
+}
+
+=== edit B only
+@expect-output shared shared
+--- B.hx
+class B {
+	// edited
+	public static function get() return Macro.helper();
+}

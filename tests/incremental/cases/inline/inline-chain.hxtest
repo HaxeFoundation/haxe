@@ -1,0 +1,24 @@
+# Inline function calling another inline function in a third module.
+=== initial
+@expect-output 4
+--- Main.hx
+class Main {
+	static function main() {
+		trace(B.f(1));
+	}
+}
+--- B.hx
+class B {
+	public static inline function f(x:Int) return C.g(x) * 2;
+}
+--- C.hx
+class C {
+	public static inline function g(x:Int) return x + 1;
+}
+
+=== innermost inline function changes
+@expect-output 6
+--- C.hx
+class C {
+	public static inline function g(x:Int) return x + 2;
+}

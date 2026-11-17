@@ -1,0 +1,26 @@
+# The parent class of a class changes.
+=== initial
+@expect-output A
+--- Main.hx
+class Main {
+	static function main() {
+		trace(new Child().who());
+	}
+}
+--- A.hx
+class A {
+	public function new() {}
+	public function who() return "A";
+}
+--- B.hx
+class B {
+	public function new() {}
+	public function who() return "B";
+}
+--- Child.hx
+class Child extends A {}
+
+=== extends B instead
+@expect-output B
+--- Child.hx
+class Child extends B {}

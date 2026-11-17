@@ -1,0 +1,20 @@
+# A static inline var constant changes.
+=== initial
+@expect-output size 10
+--- Main.hx
+class Main {
+	static function main() {
+		trace("size " + Config.SIZE);
+	}
+}
+--- Config.hx
+class Config {
+	public static inline var SIZE = 10;
+}
+
+=== constant changes
+@expect-output size 20
+--- Config.hx
+class Config {
+	public static inline var SIZE = 20;
+}

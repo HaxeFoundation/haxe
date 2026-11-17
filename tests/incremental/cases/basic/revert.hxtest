@@ -1,0 +1,27 @@
+# A change followed by its exact revert.
+=== initial
+@expect-output A
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.name());
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function name() return "A";
+}
+
+=== change
+@expect-output B
+--- Dep.hx
+class Dep {
+	public static function name() return "B";
+}
+
+=== revert
+@expect-output A
+--- Dep.hx
+class Dep {
+	public static function name() return "A";
+}
