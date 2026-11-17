@@ -77,10 +77,10 @@ class TestDate extends unit.Test {
 		#end
 
 		// < 1902 (negative timestamp, outside of signed 32-bit integer range)
-		#if !(neko || (hl && hl_ver < version("2.0.0")))
+		#if !(neko || (hl && hl_ver < version("2.0.0")) || (cpp && HXCPP_M32))
 		// the C mktime/localtime also reject dates before 1901 on Mac
 		#if (hl || cpp || eval || lua)
-		if (#if (cpp && HXCPP_M32) false #else Sys.systemName() == "Linux" #end)
+		if (Sys.systemName() == "Linux")
 		#end
 		{
 		var date = new Date(1888, 0, 1, 15, 4, 2);
