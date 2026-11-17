@@ -144,4 +144,12 @@ class TestBytes extends Test {
 			eq(b.toHex(),bhx.toHex());
 		}
 	}
+
+	function testFill() {
+		var b = haxe.io.Bytes.alloc(10);
+		b.fill(2, 6, 0x42);
+		for (i => v in [0, 0, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0, 0]) {
+			eq(v, b.get(i));
+		}
+	}
 }
