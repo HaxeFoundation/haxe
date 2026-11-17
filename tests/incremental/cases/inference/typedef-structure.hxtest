@@ -1,0 +1,30 @@
+# A typedef used for structural typing gains a required field.
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		var p:Point = {x: 1};
+		trace(p.x);
+	}
+}
+--- Point.hx
+typedef Point = {
+	var x:Int;
+}
+
+=== required field added
+@expect-error y
+--- Point.hx
+typedef Point = {
+	var x:Int;
+	var y:Int;
+}
+
+=== made optional
+@expect-output 1
+--- Point.hx
+typedef Point = {
+	var x:Int;
+	var ?y:Int;
+}

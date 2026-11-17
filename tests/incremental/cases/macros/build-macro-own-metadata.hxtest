@@ -1,0 +1,35 @@
+# A build macro reads the metadata of the class it builds.
+=== initial
+@expect-output v1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Target.version());
+	}
+}
+--- Target.hx
+@:build(Builder.build())
+@:version("v1")
+class Target {}
+--- Builder.hx
+import haxe.macro.Context;
+import haxe.macro.Expr;
+
+class Builder {
+	public static function build():Array<Field> {
+		var fields = Context.getBuildFields();
+		var m = Context.getLocalClass().get().meta.extract(":version");
+		var v = haxe.macro.ExprTools.getValue(m[0].params[0]);
+		fields.push((macro class X {
+			public static function version() return $v{v};
+		}).fields[0]);
+		return fields;
+	}
+}
+
+=== metadata changes
+@expect-output v2
+--- Target.hx
+@:build(Builder.build())
+@:version("v2")
+class Target {}

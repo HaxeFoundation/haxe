@@ -1,0 +1,55 @@
+# A build macro adds a field; the macro implementation changes.
+=== initial
+@expect-output generated 1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Target.generated());
+	}
+}
+--- Target.hx
+@:build(Builder.build())
+class Target {}
+--- Builder.hx
+import haxe.macro.Context;
+import haxe.macro.Expr;
+
+class Builder {
+	public static function build():Array<Field> {
+		var fields = Context.getBuildFields();
+		fields.push((macro class X {
+			public static function generated() return "generated 1";
+		}).fields[0]);
+		return fields;
+	}
+}
+
+=== macro implementation changes
+@expect-output generated 2
+--- Builder.hx
+import haxe.macro.Context;
+import haxe.macro.Expr;
+
+class Builder {
+	public static function build():Array<Field> {
+		var fields = Context.getBuildFields();
+		fields.push((macro class X {
+			public static function generated() return "generated 2";
+		}).fields[0]);
+		return fields;
+	}
+}
+
+=== built class edited
+@expect-output generated 2 / own
+--- Target.hx
+@:build(Builder.build())
+class Target {
+	public static function own() return "own";
+}
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Target.generated() + " / " + Target.own());
+	}
+}

@@ -1,0 +1,28 @@
+# Source maps after lines are inserted above an unchanged function.
+@targets js
+@args -D source-map
+=== initial
+@expect-success
+--- Main.hx
+class Main {
+	static function main() {
+		Dep.run();
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function run() {
+		trace("in dep");
+	}
+}
+
+=== insert lines above
+@expect-success
+--- Dep.hx
+class Dep {
+	static var a = 1;
+
+	public static function run() {
+		trace("in dep");
+	}
+}

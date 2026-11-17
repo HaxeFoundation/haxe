@@ -1,0 +1,36 @@
+# A method is added to an interface: implementers in other modules must fail.
+=== initial
+@expect-output a
+--- Main.hx
+class Main {
+	static function main() {
+		var s:Shape = new Square();
+		trace(s.name());
+	}
+}
+--- Shape.hx
+interface Shape {
+	function name():String;
+}
+--- Square.hx
+class Square implements Shape {
+	public function new() {}
+	public function name() return "a";
+}
+
+=== interface gains a method
+@expect-error area
+--- Shape.hx
+interface Shape {
+	function name():String;
+	function area():Float;
+}
+
+=== implementer updated
+@expect-output a
+--- Square.hx
+class Square implements Shape {
+	public function new() {}
+	public function name() return "a";
+	public function area() return 1.0;
+}

@@ -1,0 +1,28 @@
+# A method overriding one whose signature changes.
+@targets interp
+
+=== initial
+@expect-output 2
+--- Main.hx
+class Main {
+	static function main() {
+		trace(new Child().get(1));
+	}
+}
+--- Base.hx
+class Base {
+	public function new() {}
+	public function get(x:Int):Int return x;
+}
+--- Child.hx
+class Child extends Base {
+	override public function get(x:Int):Int return x * 2;
+}
+
+=== parent signature changed
+@expect-error get
+--- Base.hx
+class Base {
+	public function new() {}
+	public function get(x:Float):Int return Std.int(x);
+}

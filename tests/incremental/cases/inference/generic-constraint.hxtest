@@ -1,0 +1,27 @@
+# A type parameter constraint changes in another module.
+=== initial
+@expect-output hello
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.show("hello"));
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function show<T:String>(v:T) return v;
+}
+
+=== constraint no longer satisfied
+@expect-error Int
+--- Dep.hx
+class Dep {
+	public static function show<T:Int>(v:T) return v;
+}
+
+=== constraint removed
+@expect-output hello
+--- Dep.hx
+class Dep {
+	public static function show<T>(v:T) return v;
+}

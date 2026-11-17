@@ -1,0 +1,42 @@
+# The signature of an overridden method changes in the parent class.
+=== initial
+@expect-output child
+--- Main.hx
+class Main {
+	static function main() {
+		var b:Base = new Child();
+		trace(b.name(1));
+	}
+}
+--- Base.hx
+class Base {
+	public function new() {}
+	public function name(x:Int) return "base";
+}
+--- Child.hx
+class Child extends Base {
+	override public function name(x:Int) return "child";
+}
+
+=== parent signature changes
+@expect-error name
+--- Base.hx
+class Base {
+	public function new() {}
+	public function name(x:String) return "base";
+}
+
+=== parent method removed
+@expect-error name
+--- Base.hx
+class Base {
+	public function new() {}
+}
+
+=== restored
+@expect-output child
+--- Base.hx
+class Base {
+	public function new() {}
+	public function name(x:Int) return "base";
+}

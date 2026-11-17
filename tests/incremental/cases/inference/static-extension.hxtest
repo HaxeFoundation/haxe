@@ -1,0 +1,33 @@
+# A static extension method is added to the `using` class, then a real field
+# with the same name is added to the extended class (it takes precedence).
+=== initial
+@expect-error has no field describe
+--- Main.hx
+using Ext;
+
+class Main {
+	static function main() {
+		trace(new Thing().describe());
+	}
+}
+--- Thing.hx
+class Thing {
+	public function new() {}
+}
+--- Ext.hx
+class Ext {}
+
+=== extension added
+@expect-output from extension
+--- Ext.hx
+class Ext {
+	public static function describe(t:Thing) return "from extension";
+}
+
+=== field added to the class
+@expect-output from field
+--- Thing.hx
+class Thing {
+	public function new() {}
+	public function describe() return "from field";
+}

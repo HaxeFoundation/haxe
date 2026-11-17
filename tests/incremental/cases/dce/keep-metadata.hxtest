@@ -1,0 +1,28 @@
+# @:keep is added to and removed from an unused class that is part of the compilation.
+@targets js
+@args -dce full Kept
+=== initial
+@expect-no-file-content out/main.js Kept
+--- Main.hx
+class Main {
+	static function main() {}
+}
+--- Kept.hx
+class Kept {
+	public static function f() {}
+}
+
+=== @:keep added
+@expect-file out/main.js Kept
+--- Kept.hx
+@:keep
+class Kept {
+	public static function f() {}
+}
+
+=== @:keep removed
+@expect-no-file-content out/main.js Kept
+--- Kept.hx
+class Kept {
+	public static function f() {}
+}

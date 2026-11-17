@@ -1,0 +1,30 @@
+# A field becomes private, then is accessed through @:access.
+=== initial
+@expect-output secret
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.secret());
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function secret() return "secret";
+}
+
+=== field made private
+@expect-error Cannot access private field secret
+--- Dep.hx
+class Dep {
+	static function secret() return "secret";
+}
+
+=== caller uses @:access
+@expect-output secret
+--- Main.hx
+@:access(Dep)
+class Main {
+	static function main() {
+		trace(Dep.secret());
+	}
+}

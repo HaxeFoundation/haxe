@@ -1,0 +1,38 @@
+# An error in one module, then a change in another module while the error remains.
+=== initial
+@expect-success
+--- Main.hx
+class Main {
+	static function main() {
+		trace(A.a() + B.b());
+	}
+}
+--- A.hx
+class A {
+	public static function a() return 1;
+}
+--- B.hx
+class B {
+	public static function b() return 2;
+}
+
+=== error in A
+@expect-error String should be Int
+--- A.hx
+class A {
+	public static function a():Int return "x";
+}
+
+=== change B while A is still broken
+@expect-error String should be Int
+--- B.hx
+class B {
+	public static function b() return 3;
+}
+
+=== fix A
+@expect-output 4
+--- A.hx
+class A {
+	public static function a() return 1;
+}

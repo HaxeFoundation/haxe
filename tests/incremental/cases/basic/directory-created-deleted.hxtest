@@ -1,0 +1,37 @@
+# A new package directory is created with a module, used, then deleted.
+=== initial
+@expect-output base
+--- Main.hx
+class Main {
+	static function main() {
+		trace("base");
+	}
+}
+
+=== new package directory
+@expect-output from tools
+--- tools/sub/Helper.hx
+package tools.sub;
+
+class Helper {
+	public static function name() return "from tools";
+}
+--- Main.hx
+class Main {
+	static function main() {
+		trace(tools.sub.Helper.name());
+	}
+}
+
+=== directory removed
+@expect-error Helper
+--- delete tools/sub/Helper.hx
+
+=== no longer used
+@expect-output base
+--- Main.hx
+class Main {
+	static function main() {
+		trace("base");
+	}
+}

@@ -1,0 +1,29 @@
+# An initialization macro writes a module file that the program then uses. The
+# write goes through the virtual file system, so the new file is visible in the
+# same compilation and when it changes.
+@args --macro Gen.run()
+=== initial
+@expect-output generated v1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Generated.value());
+	}
+}
+--- Gen.hx
+class Gen {
+	public static function run() {
+		var content = "class Generated { public static function value() return \"generated v1\"; }";
+		sys.io.File.saveContent("Generated.hx", content);
+	}
+}
+
+=== generator changes
+@expect-output generated v2
+--- Gen.hx
+class Gen {
+	public static function run() {
+		var content = "class Generated { public static function value() return \"generated v2\"; }";
+		sys.io.File.saveContent("Generated.hx", content);
+	}
+}

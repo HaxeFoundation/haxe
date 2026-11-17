@@ -1,0 +1,26 @@
+# An expression macro calls a helper in another macro-context module, which changes.
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.value());
+	}
+}
+--- Macro.hx
+class Macro {
+	public static macro function value() {
+		return macro $v{Helper.compute()};
+	}
+}
+--- Helper.hx
+class Helper {
+	public static function compute() return 1;
+}
+
+=== helper changes
+@expect-output 2
+--- Helper.hx
+class Helper {
+	public static function compute() return 2;
+}

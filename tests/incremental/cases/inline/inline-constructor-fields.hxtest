@@ -1,0 +1,77 @@
+# The instance variables of a class with an inline constructor, and their
+# initial values, are inlined where the constructor is: directly, or from the
+# body of an inline method of another class.
+=== initial
+@expect-output 3
+@expect-output 3
+--- Main.hx
+class Main {
+	static function main() {
+		var p = new Point(1, 2);
+		trace(p.x + p.y);
+		var q = Maker.make();
+		trace(q.x + q.y);
+	}
+}
+--- Maker.hx
+class Maker {
+	public static inline function make() {
+		return new Point(1, 2);
+	}
+}
+--- Base.hx
+class Base {
+	public var y:Int;
+}
+--- Point.hx
+class Point extends Base {
+	public var x:Int;
+	public inline function new(x:Int, y:Int) {
+		this.x = x;
+		this.y = y;
+	}
+}
+
+=== a variable with an initial value is added
+@expect-output 103
+@expect-output 103
+--- Main.hx
+class Main {
+	static function main() {
+		var p = new Point(1, 2);
+		trace(p.x + p.y + p.z);
+		var q = Maker.make();
+		trace(q.x + q.y + q.z);
+	}
+}
+--- Point.hx
+class Point extends Base {
+	public var x:Int;
+	public var z:Int = 100;
+	public inline function new(x:Int, y:Int) {
+		this.x = x;
+		this.y = y;
+	}
+}
+
+=== its initial value changes
+@expect-output 203
+@expect-output 203
+--- Point.hx
+class Point extends Base {
+	public var x:Int;
+	public var z:Int = 200;
+	public inline function new(x:Int, y:Int) {
+		this.x = x;
+		this.y = y;
+	}
+}
+
+=== a variable is added to the parent class
+@expect-output 203
+@expect-output 203
+--- Base.hx
+class Base {
+	public var w:Int;
+	public var y:Int;
+}

@@ -1,0 +1,21 @@
+# Adding an overload changes which function is called.
+=== initial
+@expect-output any
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.f(1));
+	}
+}
+--- Dep.hx
+class Dep {
+	public static overload extern inline function f(v:Dynamic) return "any";
+}
+
+=== add a more specific overload
+@expect-output int
+--- Dep.hx
+class Dep {
+	public static overload extern inline function f(v:Dynamic) return "any";
+	public static overload extern inline function f(v:Int) return "int";
+}

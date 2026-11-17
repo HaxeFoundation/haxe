@@ -1,0 +1,27 @@
+# A class unified with a structure: its fields are read through the structure.
+@targets interp
+
+=== initial
+@expect-output 1
+--- Main.hx
+typedef HasX = {var x(default, null):Int;}
+
+class Main {
+	static function main() {
+		var s:HasX = new Point();
+		trace(s.x);
+	}
+}
+--- Point.hx
+class Point {
+	public var x:Int = 1;
+	public function new() {}
+}
+
+=== field type changed
+@expect-error HasX
+--- Point.hx
+class Point {
+	public var x:String = "1";
+	public function new() {}
+}

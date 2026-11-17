@@ -1,0 +1,20 @@
+# A static final constant changes.
+=== initial
+@expect-output 10
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Config.SIZE);
+	}
+}
+--- Config.hx
+class Config {
+	public static final SIZE = 10;
+}
+
+=== constant changes
+@expect-output 30
+--- Config.hx
+class Config {
+	public static final SIZE = 30;
+}

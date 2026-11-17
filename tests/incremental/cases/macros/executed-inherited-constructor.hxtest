@@ -1,0 +1,36 @@
+# A macro instantiates a class without a constructor of its own: the
+# constructor of its parent runs.
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.value());
+	}
+}
+--- Macro.hx
+class Macro {
+	public static macro function value() {
+		return macro $v{new Child().v};
+	}
+}
+--- Parent.hx
+class Parent {
+	public var v:Int;
+	public function new() {
+		v = 1;
+	}
+}
+--- Child.hx
+class Child extends Parent {
+}
+
+=== the constructor of the parent changes
+@expect-output 2
+--- Parent.hx
+class Parent {
+	public var v:Int;
+	public function new() {
+		v = 2;
+	}
+}

@@ -1,0 +1,22 @@
+# A macro function defined in the class that uses it.
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static macro function value() return macro 1;
+
+	static function main() {
+		trace(value());
+	}
+}
+
+=== macro body changes
+@expect-output 2
+--- Main.hx
+class Main {
+	static macro function value() return macro 2;
+
+	static function main() {
+		trace(value());
+	}
+}

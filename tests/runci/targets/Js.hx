@@ -135,6 +135,13 @@ class Js {
 		runCommand("haxe", ["build.hxml", "-D", "disable-hxb-cache"]);
 		runCommand("node", ["test.js"]);
 
+		// The runner sets modification times with GNU touch.
+		if (systemName == "Linux") {
+			infoMsg("Test incremental recompilation:");
+			changeDirectory(incrementalDir);
+			runCommand("haxe", ["run.hxml"]);
+		}
+
 		changeDirectory(sysDir);
 		installNpmPackages(["deasync"]);
 		runCommand("haxe", args.concat(["compile-js.hxml"]));

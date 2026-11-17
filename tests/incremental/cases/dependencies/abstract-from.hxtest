@@ -1,0 +1,27 @@
+# An implicit cast of an abstract is added.
+@targets interp
+
+=== initial
+@expect-output 2
+--- Main.hx
+class Main {
+	static function main() {
+		var t:Twice = Twice.of(1);
+		trace(t.get());
+	}
+}
+--- Twice.hx
+abstract Twice(Int) {
+	inline function new(v:Int) this = v * 2;
+	public static inline function of(v:Int) return new Twice(v);
+	public inline function get() return this;
+}
+
+=== from cast added and used through of
+@expect-output 2
+--- Twice.hx
+abstract Twice(Int) {
+	inline function new(v:Int) this = v * 2;
+	@:from public static inline function of(v:Int) return new Twice(v);
+	public inline function get() return this;
+}

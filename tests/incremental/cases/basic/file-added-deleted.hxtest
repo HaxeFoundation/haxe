@@ -1,0 +1,35 @@
+# A module is added, used, then deleted.
+=== initial
+@expect-output none
+--- Main.hx
+class Main {
+	static function main() {
+		trace("none");
+	}
+}
+
+=== add module and use it
+@expect-output from New
+--- New.hx
+class New {
+	public static function hello() return "from New";
+}
+--- Main.hx
+class Main {
+	static function main() {
+		trace(New.hello());
+	}
+}
+
+=== delete the module
+@expect-error New
+--- delete New.hx
+
+=== stop using it
+@expect-output none
+--- Main.hx
+class Main {
+	static function main() {
+		trace("none");
+	}
+}

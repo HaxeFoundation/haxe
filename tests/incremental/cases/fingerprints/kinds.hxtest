@@ -1,0 +1,73 @@
+# Fingerprints of typedefs, enums, abstracts, metadata and access.
+@targets interp
+
+=== initial
+@expect-output 1
+--- Main.hx
+import Types;
+
+class Main {
+	static function main() {
+		var p:Point = {x: 1};
+		var c:Color = Red;
+		var m:Meters = 1;
+		trace(p.x + Dep.value() + (c == Red ? 0 : 1) + (m : Int) - 1);
+	}
+}
+--- Types.hx
+typedef Point = {x:Int}
+enum Color { Red; Green; }
+abstract Meters(Int) from Int to Int {}
+--- Dep.hx
+class Dep {
+	public static function value() return 0;
+}
+
+=== typedef target changed
+@expect-output 1
+@expect-fingerprint-changed header Point
+@expect-fingerprint-same members Color
+@expect-fingerprint-same header Meters
+--- Types.hx
+typedef Point = {x:Int, ?y:Int}
+enum Color { Red; Green; }
+abstract Meters(Int) from Int to Int {}
+
+=== enum constructor added
+@expect-output 1
+@expect-fingerprint-changed members Color
+@expect-fingerprint-same header Color
+@expect-fingerprint-same header Point
+--- Types.hx
+typedef Point = {x:Int, ?y:Int}
+enum Color { Red; Green; Blue; }
+abstract Meters(Int) from Int to Int {}
+
+=== abstract conversion removed
+@expect-output 1
+@expect-fingerprint-changed members Meters
+@expect-fingerprint-same header Meters
+--- Types.hx
+typedef Point = {x:Int, ?y:Int}
+enum Color { Red; Green; Blue; }
+abstract Meters(Int) from Int {
+	@:to function toInt():Int return this;
+}
+
+=== metadata added to a field
+@expect-output 1
+@expect-fingerprint-changed sig Dep.value (static)
+@expect-fingerprint-same body Dep.value (static)
+--- Dep.hx
+class Dep {
+	@:keep public static function value() return 0;
+}
+
+=== access changed
+@expect-output 1
+@expect-fingerprint-changed sig Dep.value (static)
+@expect-fingerprint-same members Main
+--- Dep.hx
+class Dep {
+	@:keep @:allow(Main) static function value() return 0;
+}

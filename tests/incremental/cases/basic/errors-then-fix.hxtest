@@ -1,0 +1,34 @@
+# Syntax error, then type error, then fix, in a dependency.
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.get());
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function get() return 1;
+}
+
+=== syntax error
+@expect-error Dep.hx
+--- Dep.hx
+class Dep {
+	public static function get() return 1 +;
+}
+
+=== type error
+@expect-error String should be Int
+--- Dep.hx
+class Dep {
+	public static function get():Int return "1";
+}
+
+=== fixed
+@expect-output 2
+--- Dep.hx
+class Dep {
+	public static function get() return 2;
+}

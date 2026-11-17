@@ -1,0 +1,36 @@
+# Changes in comments and whitespace inside a field do not change the result.
+=== initial
+@expect-output 42
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.get());
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function get() {
+		return 42;
+	}
+}
+
+=== comment added inside the body
+@expect-output 42
+--- Dep.hx
+class Dep {
+	public static function get() {
+		// a comment that does not change anything
+		return   42;
+	}
+}
+
+=== doc comment added on the field
+@expect-output 42
+--- Dep.hx
+class Dep {
+	/** Documented now. **/
+	public static function get() {
+		// a comment that does not change anything
+		return   42;
+	}
+}

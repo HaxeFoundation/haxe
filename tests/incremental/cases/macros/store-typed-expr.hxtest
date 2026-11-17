@@ -1,0 +1,41 @@
+# A macro returns a stored typed expression; unrelated modules are edited.
+=== initial
+@expect-output 3
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.typed(1 + 2));
+		Other.run();
+	}
+}
+--- Other.hx
+class Other {
+	public static function run() {}
+}
+--- Macro.hx
+import haxe.macro.Context;
+import haxe.macro.Expr;
+
+class Macro {
+	public static macro function typed(e:Expr) {
+		return Context.storeTypedExpr(Context.typeExpr(e));
+	}
+}
+
+=== unrelated module edited
+@expect-output 3
+--- Other.hx
+class Other {
+	// edited
+	public static function run() {}
+}
+
+=== caller edited
+@expect-output 7
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.typed(3 + 4));
+		Other.run();
+	}
+}

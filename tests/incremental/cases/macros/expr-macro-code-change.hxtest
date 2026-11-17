@@ -1,0 +1,34 @@
+# The implementation of an expression macro changes: every call is re-expanded.
+=== initial
+@expect-output hello
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.greet());
+	}
+}
+--- Macro.hx
+class Macro {
+	public static macro function greet() {
+		return macro "hello";
+	}
+}
+
+=== macro implementation changes
+@expect-output bonjour
+--- Macro.hx
+class Macro {
+	public static macro function greet() {
+		return macro "bonjour";
+	}
+}
+
+=== macro module edited without changing the output
+@expect-output bonjour
+--- Macro.hx
+class Macro {
+	// only a comment
+	public static macro function greet() {
+		return macro "bonjour";
+	}
+}

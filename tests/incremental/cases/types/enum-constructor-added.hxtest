@@ -1,0 +1,45 @@
+# A constructor is added to an enum matched exhaustively in another module.
+=== initial
+@expect-output red
+--- Main.hx
+class Main {
+	static function main() {
+		trace(name(Red));
+	}
+	static function name(c:Color) {
+		return switch c {
+			case Red: "red";
+			case Green: "green";
+		}
+	}
+}
+--- Color.hx
+enum Color {
+	Red;
+	Green;
+}
+
+=== constructor added
+@expect-error Blue
+--- Color.hx
+enum Color {
+	Red;
+	Green;
+	Blue;
+}
+
+=== match updated
+@expect-output red
+--- Main.hx
+class Main {
+	static function main() {
+		trace(name(Red));
+	}
+	static function name(c:Color) {
+		return switch c {
+			case Red: "red";
+			case Green: "green";
+			case Blue: "blue";
+		}
+	}
+}

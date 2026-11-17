@@ -1,0 +1,51 @@
+# An expression macro defines a type on first use (try getType / defineType).
+=== initial
+@expect-output generated
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.make());
+	}
+}
+--- Macro.hx
+import haxe.macro.Context;
+
+class Macro {
+	public static macro function make() {
+		try {
+			Context.getType("Generated");
+		} catch (_:Dynamic) {
+			Context.defineType(macro class Generated {
+				public static function name() return "generated";
+			});
+		}
+		return macro Generated.name();
+	}
+}
+
+=== caller edited
+@expect-output generated!
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Macro.make() + "!");
+	}
+}
+
+=== macro defines a different body
+@expect-output generated v2!
+--- Macro.hx
+import haxe.macro.Context;
+
+class Macro {
+	public static macro function make() {
+		try {
+			Context.getType("Generated");
+		} catch (_:Dynamic) {
+			Context.defineType(macro class Generated {
+				public static function name() return "generated v2";
+			});
+		}
+		return macro Generated.name();
+	}
+}
