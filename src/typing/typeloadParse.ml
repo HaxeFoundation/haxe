@@ -61,6 +61,23 @@ let parse_file_from_lexbuf com file p lexbuf =
 let parse_file_from_string com file p string =
 	parse_file_from_lexbuf com file p (Lexer.lexbuf_from_utf8_string string)
 
+(* The digests of the last few contents read of each file, with the time of the
+   file then. *)
+let file_digests : (Path.UniqueKey.t,(float * Digest.t) list) Hashtbl.t = Hashtbl.create 0
+let file_digests_mutex = Mutex.create ()
+
+let add_file_digest key time digest =
+	Mutex.protect file_digests_mutex (fun () ->
+		let l = try Hashtbl.find file_digests key with Not_found -> [] in
+		let l = (time,digest) :: List.filter (fun (t,_) -> t <> time) l in
+		Hashtbl.replace file_digests key (List.filteri (fun i _ -> i < 4) l)
+	)
+
+let find_file_digest key time =
+	Mutex.protect file_digests_mutex (fun () ->
+		try List.assoc_opt time (Hashtbl.find file_digests key) with Not_found -> None
+	)
+
 let parse_file com rfile p =
 	let file_key = com.part_scope.file_keys#get rfile.ClassPaths.file in
 	let contents = match com.file_contents with
@@ -81,8 +98,10 @@ let parse_file com rfile p =
 		match rfile.class_path#file_kind with
 		| FFile ->
 			let file = rfile.file in
+			let time = (try Common.file_time file with _ -> 0.) in
 			let ch = try open_in_bin file with _ -> raise_typing_error ("Could not open " ^ file) p in
 			let s = Std.finally (fun() -> close_in ch) (fun ch -> really_input_string ch (in_channel_length ch)) ch in
+			add_file_digest file_key time (Digest.string s);
 			parse_file_from_string com file p s
 
 let parse_hook = ref parse_file
