@@ -151,5 +151,11 @@ class TestBytes extends Test {
 		for (i => v in [0, 0, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0, 0]) {
 			eq(v, b.get(i));
 		}
+
+		// value bigger than 0xFF should use least significant byte
+		b.fill(2, 6, 0xe9f08c64);
+		for (i => v in [0, 0, 0x64, 0x64, 0x64, 0x64, 0x64, 0x64, 0, 0]) {
+			eq(v, b.get(i));
+		}
 	}
 }

@@ -136,7 +136,7 @@ class Bytes {
 			final sliceSize = python.lib.Builtins.min(batchSize, len - i * batchSize);
 			python.Syntax.assign(
 				python.Syntax.arrayAccess(b, sliceStart, sliceStart + sliceSize),
-				python.Syntax.binop(new python.Bytes(python.Syntax.tuple(value)), "*", sliceSize)
+				python.Syntax.binop(new python.Bytes(python.Syntax.tuple(value & 0xFF)), "*", sliceSize)
 			);
 		}
 		#else
