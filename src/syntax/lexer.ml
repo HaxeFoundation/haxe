@@ -55,10 +55,10 @@ let lexbuf_from_utf8_string s =
 type lexer_file = {
 	lfile : string;
 	mutable lline : int;
-	mutable lmaxline : int;
 	mutable llines : (int * int) list;
-	mutable lalines : (int * int) array;
-	mutable llast : int;
+	(* the line table built from [llines], with the [lline] it was built for *)
+	lcache : (int * (int * int) array) Atomic.t;
+	(* the index of the line of the last lookup, a hint *)
 	mutable llastindex : int;
 }
 
@@ -97,10 +97,8 @@ let make_file file =
 	{
 		lfile = file;
 		lline = 1;
-		lmaxline = 1;
 		llines = [0,1];
-		lalines = [|0,1|];
-		llast = max_int;
+		lcache = Atomic.make (1,[|0,1|]);
 		llastindex = 0;
 	}
 
@@ -127,17 +125,16 @@ let newline ctx lexbuf =
 let copy_file source = {
 	lfile = source.lfile;
 	lline = source.lline;
-	lmaxline = source.lmaxline;
 	llines = source.llines;
-	lalines = source.lalines;
-	llast = source.llast;
+	lcache = Atomic.make (Atomic.get source.lcache);
 	llastindex = source.llastindex;
 }
 
 let print_file file =
 	let sllines = String.concat ";" (List.map (fun (i1,i2) -> Printf.sprintf "(%i,%i)" i1 i2) file.llines) in
-	let slalines = String.concat ";" (Array.to_list (Array.map (fun (i1,i2) -> Printf.sprintf "(%i,%i)" i1 i2) file.lalines)) in
-	Printf.sprintf "lfile: %s\nlline: %i\nlmaxline: %i\nllines: [%s]\nlalines: [%s]\nllast: %i\nllastindex: %i" file.lfile file.lline file.lmaxline sllines slalines file.llast file.llastindex
+	let maxline,alines = Atomic.get file.lcache in
+	let slalines = String.concat ";" (Array.to_list (Array.map (fun (i1,i2) -> Printf.sprintf "(%i,%i)" i1 i2) alines)) in
+	Printf.sprintf "lfile: %s\nlline: %i\nlmaxline: %i\nllines: [%s]\nlalines: [%s]\nllastindex: %i" file.lfile file.lline maxline sllines slalines file.llastindex
 
 let error ctx e pos =
 	raise (Error (e,{ pmin = pos; pmax = pos; pfile = ctx.file.lfile }))
@@ -204,19 +201,22 @@ let split_float_suffix s =
 	let (literal,suffix) = split_suffix s false in
 	Const (Float (literal,suffix))
 
+(* The line of offset [p] in [f], and the column. *)
 let find_line p f =
-	(* rebuild cache if we have a new line *)
-	if f.lmaxline <> f.lline then begin
-		f.lmaxline <- f.lline;
-		f.lalines <- Array.of_list (List.rev f.llines);
-		f.llast <- max_int;
-		f.llastindex <- 0;
-	end;
+	let lines =
+		let maxline,lines = Atomic.get f.lcache in
+		if maxline = f.lline then lines else begin
+			(* new lines since the table was built *)
+			let lines = Array.of_list (List.rev f.llines) in
+			Atomic.set f.lcache (f.lline,lines);
+			lines
+		end
+	in
+	let n = Array.length lines in
 	let rec loop min max =
 		let med = (min + max) lsr 1 in
-		let lp, line = Array.unsafe_get f.lalines med in
+		let lp, line = Array.unsafe_get lines med in
 		if med = min then begin
-			f.llast <- p;
 			f.llastindex <- med;
 			line, p - lp
 		end else if lp > p then
@@ -224,12 +224,13 @@ let find_line p f =
 		else
 			loop med max
 	in
-	if p >= f.llast then begin
-		let lp, line = Array.unsafe_get f.lalines f.llastindex in
-		let lp2 = if f.llastindex = Array.length f.lalines - 1 then max_int else fst(Array.unsafe_get f.lalines (f.llastindex + 1)) in
-		if p >= lp && p < lp2 then line, p - lp else loop 0 (Array.length f.lalines)
+	let hint = f.llastindex in
+	if hint < n then begin
+		let lp, line = Array.unsafe_get lines hint in
+		let lp2 = if hint = n - 1 then max_int else fst (Array.unsafe_get lines (hint + 1)) in
+		if p >= lp && p < lp2 then line, p - lp else loop 0 n
 	end else
-		loop 0 (Array.length f.lalines)
+		loop 0 n
 
 (* resolve a position within a non-haxe file by counting newlines *)
 let resolve_pos f next skip =
