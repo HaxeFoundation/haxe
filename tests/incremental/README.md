@@ -92,8 +92,9 @@ class Dep {
 - Header directives: `@targets`, `@args` (extra compiler arguments), `@main`
   (`none` for no `-main`), `@known-failure [targets] <reason>`, `@real-mtime`.
 - Each `=== name` section is a step: directives first (`@args` replaces the
-  extra arguments from that step on), then file blocks `--- path` (content up
-  to the next `--- ` or `=== ` line) and `--- delete path`.
+  extra arguments from that step on, `@same-second`), then file blocks
+  `--- path` (content up to the next `--- ` or `=== ` line) and
+  `--- delete path`.
 - Expectations: `@expect-success`, `@expect-error <text>`,
   `@expect-warning <text>`, `@expect-no-warning`, `@expect-output <text>`,
   `@expect-no-output <text>`, `@expect-compiler-output <text>`,
@@ -101,11 +102,11 @@ class Dep {
 
 ## Modification times
 
-The server compares file modification times with a precision of one second, so
-edits made within the same second as the previous compilation are not detected
-(`cases/basic/same-second-edit.hxtest`). Unless a case uses `@real-mtime`, the
-runner gives every step its own modification time, two seconds after the
-previous one, on changed files and their directories.
+Unless a case uses `@real-mtime`, the runner gives every step its own
+modification time, two seconds after the previous one, on changed files and
+their directories, so that cases do not depend on how fast the machine
+compiles. A step with `@same-second` gets a time a fraction of a second after
+the previous step instead (`cases/basic/same-second-edit.hxtest`).
 
 ## Macro file dependencies
 

@@ -1,7 +1,7 @@
-# Two edits of the same file within one second. The server compares
-# modification times with a one second precision (`sys_filetime`,
-# libs/extc/extc_stubs.c); fixed by the virtual file system.
-@real-mtime
+# Two edits of the same file within one second: the second edit gets a
+# modification time a fraction of a second after the first one. The server
+# must see it (modification times have a full precision, `sys_filetime` in
+# libs/extc/extc_stubs.c).
 === initial
 @expect-output value 1
 --- Main.hx
@@ -15,14 +15,15 @@ class Dep {
 	public static function get() return 1;
 }
 
-=== edit right after the previous compilation
+=== edit
 @expect-output value 2
 --- Dep.hx
 class Dep {
 	public static function get() return 2;
 }
 
-=== and again
+=== edit again within the same second
+@same-second
 @expect-output value 3
 --- Dep.hx
 class Dep {
