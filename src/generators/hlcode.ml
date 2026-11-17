@@ -494,6 +494,9 @@ let lookup_type types t =
 (* --------------------------------------------------------------------------------------------------------------------- *)
 (* DUMP *)
 
+(* the initial value of the debug arrays, a block of the major heap *)
+let null_debug = (0,0,Globals.null_pos)
+
 let rec tstr ?(stack=[]) ?(detailed=false) t =
 	match t with
 	| HVoid -> "void"
