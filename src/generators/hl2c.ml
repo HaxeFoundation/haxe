@@ -266,9 +266,12 @@ let define ctx s =
 
 let rec define_type gctx ctx t =
 	match t with
-	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray _ | HType | HDynObj | HNull _ | HRef _ | HGUID -> ()
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HArray _ | HType | HDynObj | HNull _ | HGUID -> ()
 	| HAbstract _ ->
 		define ctx "#include <hl/natives.h>";
+	| HRef t ->
+		(* a pointer to the C type of [t] (hl.Ref<String> is String* ) *)
+		define_type gctx ctx t
 	| HFun (args,ret) | HMethod (args,ret) ->
 		List.iter (define_type gctx ctx) args;
 		define_type gctx ctx ret
