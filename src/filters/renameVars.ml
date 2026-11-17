@@ -362,7 +362,7 @@ end
 let trailing_numbers = Str.regexp "[0-9]+$"
 let maybe_rename_var rc vars reserved (v,overlaps) =
 	let commit name =
-		v.v_meta <- (Meta.RealPath,[EConst (String(v.v_name,SDoubleQuotes)),null_pos],null_pos) :: v.v_meta;
+		v.v_meta <- (Meta.RealPath,[EConst (String(v.v_name,SDoubleQuotes)),null_pos],null_pos) :: List.filter (fun (m,_,_) -> m <> Meta.RealPath) v.v_meta;
 		(* removes v under its old name *)
 		VarsByName.remove vars v;
 		v.v_name <- name;
