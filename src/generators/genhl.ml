@@ -4066,10 +4066,14 @@ let write_index_gen b i =
 		b (i land 0xFF);
 	end
 
-let write_code ch code debug =
+(* Where the domain writing a part of the functions writes (see [write_code]). *)
+let parallel_byte : (int -> unit) option Domain.DLS.key = Domain.DLS.new_key (fun () -> None)
+
+let write_code ?pool ch code debug =
 
 	let all_types, htypes = gather_types code in
-	let byte = IO.write_byte ch in
+	let byte_ch = IO.write_byte ch in
+	let byte b = match Domain.DLS.get parallel_byte with Some f -> f b | None -> byte_ch b in
 	let write_index = write_index_gen byte in
 
 	let write_type t =
@@ -4329,7 +4333,7 @@ let write_code ch code debug =
 		write_type ttype;
 		write_index findex;
 	) code.natives;
-	Array.iter (fun f ->
+	let write_function f =
 		write_type f.ftype;
 		write_index f.findex;
 		write_index (Array.length f.regs);
@@ -4346,7 +4350,22 @@ let write_code ch code debug =
 				if code.version >= 6 then write_index (scope_end + 1);
 			) f.assigns;
 		end;
-	) code.functions;
+	in
+	(match pool with
+	| Some pool when Array.length code.functions > 1024 ->
+		let n = Array.length code.functions and chunk = 256 in
+		let parts = Array.make ((n + chunk - 1) / chunk) "" in
+		Domainslib.Task.parallel_for pool ~chunk_size:1 ~start:0 ~finish:(Array.length parts - 1) ~body:(fun k ->
+			let o = IO.output_string () in
+			Domain.DLS.set parallel_byte (Some (IO.write_byte o));
+			Std.finally (fun () -> Domain.DLS.set parallel_byte None) (fun () ->
+				for i = k * chunk to min n ((k + 1) * chunk) - 1 do write_function code.functions.(i) done
+			) ();
+			parts.(k) <- IO.close_out o
+		);
+		Array.iter (IO.nwrite_string ch) parts
+	| _ ->
+		Array.iter write_function code.functions);
 	Array.iter (fun (g,fields) ->
 		write_index g;
 		write_index (Array.length fields);
@@ -4635,7 +4654,7 @@ let generate com =
 		t();
 	end else begin
 		let ch = IO.output_string() in
-		write_code ch code (not (Gctx.raw_defined com "hl_no_debug"));
+		Parallel.run_with_pool com.pool (fun pool -> write_code ?pool ch code (not (Gctx.raw_defined com "hl_no_debug")));
 		let str = add_header code (IO.close_out ch) in
 		ignore (Common.write_file_if_changed com.file str);
 		prev_sign := sign;
