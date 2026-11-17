@@ -1055,7 +1055,7 @@ and generate_package_create_now ctx p =
    first type of each creates them, as when they are generated in order. *)
 let generate_types_parallel ctx generate_type types =
 	let types = Array.of_list types in
-	let subs = Array.map (fun _ -> {
+	let subs = LargeArray.map (fun _ -> {
 		ctx with
 		buf = Buffer.create 1024;
 		statics = [];
