@@ -4637,9 +4637,7 @@ let generate com =
 		let ch = IO.output_string() in
 		write_code ch code (not (Gctx.raw_defined com "hl_no_debug"));
 		let str = add_header code (IO.close_out ch) in
-		let ch = open_out_bin com.file in
-		output_string ch str;
-		close_out ch;
+		ignore (Common.write_file_if_changed com.file str);
 		prev_sign := sign;
 		prev_data := str;
 	end;
