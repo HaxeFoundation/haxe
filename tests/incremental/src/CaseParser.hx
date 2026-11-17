@@ -28,6 +28,9 @@ enum Expectation {
 typedef Step = {
 	name:String,
 	args:Array<String>,
+	/** The changes of the step get a modification time in the same second as
+	    the previous step (`@same-second`). **/
+	sameSecond:Bool,
 	ops:Array<FileOp>,
 	expectations:Array<Expectation>
 }
@@ -59,6 +62,9 @@ typedef Step = {
 	--- Main.hx
 	...
 	```
+
+	Step directive `@same-second`: the changes of the step get a modification
+	time in the same second as the previous step, a fraction of a second later.
 
 	Step expectations: `@expect-success`, `@expect-error <text>`,
 	`@expect-warning <text>`, `@expect-no-warning`, `@expect-no-fs-calls`, `@expect-output <text>`,
@@ -117,6 +123,7 @@ class CaseParser {
 			var step:Step = {
 				name: lines[i].substr(4).trim(),
 				args: currentArgs,
+				sameSecond: false,
 				ops: [],
 				expectations: []
 			};
@@ -130,6 +137,8 @@ class CaseParser {
 						case "args":
 							currentArgs = splitArgs(d.rest);
 							step.args = currentArgs;
+						case "same-second":
+							step.sameSecond = true;
 						case "expect-success":
 							step.expectations.push(Success);
 						case "expect-error":

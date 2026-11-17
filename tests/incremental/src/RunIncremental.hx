@@ -63,6 +63,8 @@ class RunIncremental {
 	static var root:String;
 	/** Fake clock for modification times, see `touchStep`. **/
 	static var clock:Float = Math.ffloor(Date.now().getTime() / 1000) + 10;
+	/** Tenths of a second after `clock` (see `@same-second`). **/
+	static var clockTenths = 0;
 	static var workRoot:String;
 
 	static function main() {
@@ -322,7 +324,15 @@ class RunIncremental {
 				var step = tc.steps[stepIndex];
 				var label = 'step $stepIndex "${step.name}"';
 				var changed = [];
-				clock += 2;
+				// a new second, or a fraction of a second later in the same one
+				if (step.sameSecond) {
+					if (clockTenths >= 9)
+						throw new haxe.Exception("too many @same-second steps in a row");
+					clockTenths += 3;
+				} else {
+					clock += 2;
+					clockTenths = 0;
+				}
 				for (dir in [warmDir, coldDir]) {
 					changed = applyOps(dir, step, tc, target, dir == warmDir ? port : null, warmDir);
 					if (!tc.realMtime && !realMtime)
@@ -469,8 +479,9 @@ class RunIncremental {
 		one second, so edits made within the same second as the previous
 		compilation are not detected (see the `real-mtime` cases). Unless a case
 		asks for real modification times, every step gets its own modification
-		time, two seconds after the previous step, on the changed files and their
-		parent directories (directory times are used to detect new files).
+		time, two seconds after the previous step (a fraction of a second after it
+		for a `@same-second` step), on the changed files and their parent
+		directories (directory times are used to detect new files).
 	**/
 	static function touchStep(dir:String, changed:Array<String>) {
 		var targets = [Path.join([dir, "build.hxml"])];
@@ -487,7 +498,7 @@ class RunIncremental {
 				parent = Path.directory(parent);
 			}
 		}
-		var p = new Process("touch", ["-m", "-d", "@" + Std.string(Std.int(clock))].concat(targets));
+		var p = new Process("touch", ["-m", "-d", "@" + Std.string(Std.int(clock)) + "." + clockTenths].concat(targets));
 		p.exitCode();
 		p.close();
 	}
