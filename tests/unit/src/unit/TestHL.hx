@@ -152,6 +152,51 @@ class TestHL extends Test {
 		t(v == num.ui16);
 	}
 
+	// both conditional jumps target the same merge block, so the JIT selects one incoming value with a CMOV
+	static function cmovUI8( a : hl.UI8, b : hl.UI8, c : hl.UI8, x : Int, y : Int ) {
+		if( a < b ) {
+			x += y;
+			if( b < c ) x = 0;
+		}
+		return x;
+	}
+
+	static function cmovUI16( a : hl.UI16, b : hl.UI16, c : hl.UI16, x : Int, y : Int ) {
+		if( a < b ) {
+			x += y;
+			if( b < c ) x = 0;
+		}
+		return x;
+	}
+
+	public function testNumberCompareUnsigned() {
+		var a = new Numbers();
+		var b = new Numbers();
+
+		// high bit set vs clear: ui8 0x80/0x7F, ui16 0x8080/0x7F7F
+		a.loadInt(0x8080);
+		b.loadInt(0x7F7F);
+		t(a.ui8 > b.ui8);
+		t(a.ui8 >= b.ui8);
+		f(a.ui8 < b.ui8);
+		f(a.ui8 <= b.ui8);
+		t(a.ui16 > b.ui16);
+		t(a.ui16 >= b.ui16);
+		f(a.ui16 < b.ui16);
+		f(a.ui16 <= b.ui16);
+
+		// max vs 0
+		a.loadInt(0xFFFF);
+		b.loadInt(0);
+		t(a.ui8 > b.ui8);
+		t(b.ui16 < a.ui16);
+
+		t(cmovUI8(0x7F, 0x80, 0xFF, 1, 2) == 0);
+		t(cmovUI8(0, 0xFF, 0x80, 1, 2) == 3);
+		t(cmovUI16(0x7FFF, 0x8000, 0xFFFF, 1, 2) == 0);
+		t(cmovUI16(0, 0xFFFF, 0x8000, 1, 2) == 3);
+	}
+
 	public function testGuid() {
 		var num = new Numbers(); // prevent @:analyzer(ignore)
 		var v : hl.GUID = haxe.Int64.make(0xF, 1);
