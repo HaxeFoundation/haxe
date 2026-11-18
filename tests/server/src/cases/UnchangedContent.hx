@@ -115,10 +115,10 @@ class UnchangedContent extends TestCase {
 		Assert.isFalse(messages.exists(m -> m.contains("skipping Macro")));
 	}
 
-	function testShadowedByEarlierClassPath() {
+	function testShadowedByPriorClassPath() {
 		vfs.putContent("a/Other.hx", "class Other {}");
 		vfs.putContent("b/Main.hx", main("D"));
-		var args = compileArgs(["a", "b"]);
+		var args = compileArgs(["b", "a"]);
 		compileTwice(args);
 		assertHasPrint("D");
 		vfs.putContent("a/Main.hx", main("E"));
@@ -126,6 +126,7 @@ class UnchangedContent extends TestCase {
 		vfs.touch("a");
 		runHaxe(args);
 		Assert.isTrue(hasSkipping("Main", "Shadowed"));
+		assertHasPrint("E");
 	}
 
 	function testOwnFileInChangedDirectory() {
