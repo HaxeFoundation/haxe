@@ -153,13 +153,24 @@ let check_module sctx com m_path m_extra p =
 		with Not_found ->
 			true
 	in
+	(* A file written again with the same content is not a change. *)
+	let unchanged_content m_path m_extra file time =
+		match m_extra.m_digest with
+		| Some digest when (try Digest.file file = digest with Sys_error _ -> false) ->
+			ServerMessage.unchanged_content com "" file;
+			m_extra.m_time <- time;
+			true
+		| _ ->
+			false
+	in
 	let check_module_shadowing paths m_path m_extra =
 		let own_file = Path.UniqueKey.lazy_key m_extra.m_file in
 		List.iter (fun dir ->
 			let file = (dir.c_path ^ (snd m_path)) ^ ".hx" in
-			if Sys.file_exists file && com.part_scope.file_keys#get file <> own_file then begin
+			if Sys.file_exists file then begin
 				let time = file_time file in
-				if time > m_extra.m_time then begin
+				(* The file of the module does not shadow it, unless its content changed. *)
+				if time > m_extra.m_time && not (com.part_scope.file_keys#get file = own_file && unchanged_content m_path m_extra file time) then begin
 					ServerMessage.module_path_changed com "" (m_path,m_extra,time,file);
 					raise (Dirty (Shadowed file))
 				end
@@ -210,15 +221,8 @@ let check_module sctx com m_path m_extra p =
 		let check_file () =
 			let file = Path.UniqueKey.lazy_path m_extra.m_file in
 			let time = file_time file in
-			if time <> m_extra.m_time then begin
-				let same_digest = match m_extra.m_digest with
-					| Some digest -> (try Digest.file file = digest with Sys_error _ -> false)
-					| None -> false
-				in
-				if same_digest then begin
-					ServerMessage.unchanged_content com "" file;
-					m_extra.m_time <- time
-				end else if has_policy CheckFileContentModification && not (content_changed m_path file) then begin
+			if time <> m_extra.m_time && not (unchanged_content m_path m_extra file time) then begin
+				if has_policy CheckFileContentModification && not (content_changed m_path file) then begin
 					ServerMessage.unchanged_content com "" file;
 				end else begin
 					ServerMessage.not_cached com "" m_path;
