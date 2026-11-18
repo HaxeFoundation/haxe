@@ -22,6 +22,9 @@
 
 package python.lib;
 
+import python.NativeIterator;
+import python.internal.UBuiltins;
+
 @:pythonImport("weakref")
 extern class Weakref {
 	static function ref<T:{}>(object:T):WeakrefCallable<T>;
@@ -35,4 +38,20 @@ extern class WeakrefCallable<T:{}> {
 extern class PythonFinalizer {
 	function new(obj:{}, func:Dynamic, held:Dynamic);
 	function detach():Bool;
+}
+
+@:pythonImport("weakref", "WeakKeyDictionary")
+extern class WeakKeyDictionary<K:{}, V> {
+	function new():Void;
+
+	@:native("__setitem__") function setItem(key:K, value:V):Void;
+	@:native("__getitem__") function getItem(key:K):V;
+	@:native("__delitem__") function delItem(key:K):Void;
+	@:native("__contains__") function contains(key:K):Bool;
+	@:native("__len__") function len():Int;
+
+	function keys():NativeIterator<K>;
+	function values():NativeIterator<V>;
+
+	function clear():Void;
 }
