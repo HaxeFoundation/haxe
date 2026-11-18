@@ -34,4 +34,28 @@ class TestLock extends ThreadTestBase {
 		isTrue(lock.wait());
 		async.done();
 	}
+
+	function testTimeoutNonPositive(async:Async) {
+		final l = new Lock();
+		isFalse(l.wait(0));
+		isFalse(l.wait(-1));
+		isFalse(l.wait(Math.NaN));
+		async.done();
+	}
+
+	function testTimeoutHuge(async:Async) {
+		final l = new Lock();
+		final ready = new Lock();
+
+		Thread.create(() -> {
+			ready.release();
+			// try to give time for the acquire to happen before we release, to detect an immediate timeout
+			Sys.sleep(0.01);
+			l.release();
+		});
+		ready.wait();
+		// must neither overflow into an immediate timeout nor into a negative wait
+		isTrue(l.wait(1e12));
+		async.done();
+	}
 }
