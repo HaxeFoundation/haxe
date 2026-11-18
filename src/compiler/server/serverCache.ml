@@ -153,10 +153,12 @@ let check_module sctx com m_path m_extra p =
 		with Not_found ->
 			true
 	in
-	(* A file written again with the same content is not a change. *)
+	(* A file written again with the same content is not a change. Contents sent with the request
+	   take precedence over the file, so they are never compared. *)
 	let unchanged_content m_path m_extra file time =
 		match m_extra.m_digest with
-		| Some digest when (try Digest.file file = digest with Sys_error _ -> false) ->
+		| Some digest when not (List.mem_assoc (Path.UniqueKey.lazy_key m_extra.m_file) com.file_contents)
+			&& (try Digest.file file = digest with Sys_error _ -> false) ->
 			ServerMessage.unchanged_content com "" file;
 			m_extra.m_time <- time;
 			true
