@@ -65,6 +65,7 @@ class UnchangedContent extends TestCase {
 		vfs.putContent("src/Main.hx", main("D"));
 		vfs.touch("src/Main.hx");
 		runHaxe(args);
+		Assert.isFalse(hasMessage("reusing Main"));
 		assertHasPrint("D");
 	}
 
@@ -97,6 +98,21 @@ class UnchangedContent extends TestCase {
 		var skipped = hasSkipping("Main", "DependencyDirty Dep - Shadowed");
 		runHaxeJson(args, ServerMethods.Configure, {noModuleChecks: false});
 		Assert.isTrue(skipped);
+	}
+
+	function testMacroSameContent() {
+		var macroSource = "class Macro { public static macro function get() return macro 1; }";
+		vfs.putContent("src/Macro.hx", macroSource);
+		vfs.putContent("src/Main.hx", "class Main { static function main() Sys.println(Macro.get()); }");
+		var args = compileArgs(["src"]);
+		compileTwice(args);
+		vfs.putContent("src/Other.hx", "class Other {}");
+		vfs.putContent("src/Macro.hx", macroSource);
+		vfs.touch("src/Macro.hx");
+		vfs.touch("src");
+		runHaxe(args);
+		assertReuse("Macro");
+		Assert.isFalse(messages.exists(m -> m.contains("skipping Macro")));
 	}
 
 	function testShadowedByEarlierClassPath() {
