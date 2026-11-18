@@ -160,6 +160,11 @@ let check_module sctx com m_path m_extra p =
 		| Some digest when not (List.mem_assoc (Path.UniqueKey.lazy_key m_extra.m_file) com.file_contents)
 			&& (try Digest.file file = digest with Sys_error _ -> false) ->
 			ServerMessage.unchanged_content com "" file;
+			(* [m_extra] may be the copy of a binary module made for this request, which is not kept. *)
+			begin match Hashtbl.find_opt (com.cs#get_context m_extra.m_sign)#get_hxb m_path with
+				| Some mc when mc.mc_extra.m_time = m_extra.m_time -> mc.mc_extra.m_time <- time
+				| _ -> ()
+			end;
 			m_extra.m_time <- time;
 			true
 		| _ ->
