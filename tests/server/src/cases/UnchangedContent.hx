@@ -68,6 +68,32 @@ class UnchangedContent extends TestCase {
 		assertHasPrint("D");
 	}
 
+	function testShadowedByEarlierClassPath() {
+		vfs.putContent("a/Other.hx", "class Other {}");
+		vfs.putContent("b/Main.hx", main("D"));
+		var args = compileArgs(["a", "b"]);
+		compileTwice(args);
+		assertHasPrint("D");
+		vfs.putContent("a/Main.hx", main("E"));
+		vfs.touch("a/Main.hx");
+		vfs.touch("a");
+		runHaxe(args);
+		Assert.isTrue(hasSkipping("Main", "Shadowed"));
+	}
+
+	function testOwnFileInChangedDirectory() {
+		vfs.putContent("src/Main.hx", main("D"));
+		var args = compileArgs(["src"]);
+		compileTwice(args);
+		vfs.putContent("src/Other.hx", "class Other {}");
+		vfs.putContent("src/Main.hx", main("D"));
+		vfs.touch("src/Main.hx");
+		vfs.touch("src");
+		runHaxe(args);
+		assertReuse("Main");
+		assertHasPrint("D");
+	}
+
 	function testImportHxSameContent() {
 		vfs.putContent("src/import.hx", "import haxe.ds.StringMap;");
 		vfs.putContent("src/Main.hx", main("D"));
