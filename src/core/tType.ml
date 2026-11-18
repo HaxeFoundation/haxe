@@ -433,6 +433,7 @@ and module_def_extra = {
 	m_display : module_def_display;
 	mutable m_check_policy : module_check_policy list;
 	mutable m_time : float;
+	mutable m_digest : Digest.t option;
 	mutable m_cache_state : module_cache_state;
 	mutable m_added : int;
 	mutable m_checked : int;

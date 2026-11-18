@@ -8,6 +8,11 @@ open TypeloadCacheHook
 exception Dirty of module_skip_reason
 exception ServerError of string
 
+let parse_string com file p s =
+	match TypeloadParse.parse_file_from_string com file p s with
+	| ParseSuccess(data,pdi) -> Parser.ParseSuccess(data,{pdi with pd_digest = Some (Digest.string s)})
+	| result -> result
+
 let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 	let cc = CommonCache.get_cache com in
 	let file = rfile.file in
@@ -16,7 +21,7 @@ let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 	let is_display_file = DisplayPosition.display_position#is_in_file (com.part_scope.file_keys#get ffile) in
 	match is_display_file, sctx.ServerCompilationContext.current_stdin with
 	| true, Some stdin when (com.file_contents <> [] || Common.defined com Define.DisplayStdin) ->
-		TypeloadParse.parse_file_from_string com file p stdin
+		parse_string com file p stdin
 	| _ ->
 		let ftime = file_time ffile in
 		let data = Std.finally (Timer.start_timer com.timer_ctx ["server";"parser cache"]) (fun () ->
@@ -25,7 +30,7 @@ let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 				if cfile.c_time <> ftime then raise Not_found;
 				Parser.ParseSuccess((cfile.c_package,cfile.c_decls),cfile.c_pdi)
 			with Not_found ->
-				let parse_result = TypeloadParse.parse_file com rfile p in
+				let parse_result = parse_string com file p (TypeloadParse.read_file com rfile p) in
 				let info,is_unusual = match parse_result with
 					| ParseError(_,_,_) -> "not cached, has parse error",true
 					| ParseSuccess(data,pdi) ->
@@ -143,7 +148,7 @@ let check_module sctx com m_path m_extra p =
 			let cfile = cc#find_file fkey in
 			(* We must use the module path here because the file path is absolute and would cause
 				positions in the parsed declarations to differ. *)
-			let _,decls,_ = TypeloadParse.parse_module com m_path p in
+			let _,decls,_,_ = TypeloadParse.parse_module com m_path p in
 			cfile.c_decls <> decls
 		with Not_found ->
 			true
@@ -203,8 +208,16 @@ let check_module sctx com m_path m_extra p =
 		in
 		let check_file () =
 			let file = Path.UniqueKey.lazy_path m_extra.m_file in
-			if file_time file <> m_extra.m_time then begin
-				if has_policy CheckFileContentModification && not (content_changed m_path file) then begin
+			let time = file_time file in
+			if time <> m_extra.m_time then begin
+				let same_digest = match m_extra.m_digest with
+					| Some digest -> (try Digest.file file = digest with Sys_error _ -> false)
+					| None -> false
+				in
+				if same_digest then begin
+					ServerMessage.unchanged_content com "" file;
+					m_extra.m_time <- time
+				end else if has_policy CheckFileContentModification && not (content_changed m_path file) then begin
 					ServerMessage.unchanged_content com "" file;
 				end else begin
 					ServerMessage.not_cached com "" m_path;
