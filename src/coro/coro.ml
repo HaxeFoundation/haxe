@@ -576,7 +576,7 @@ let fun_to_coro ctx =
 					(* Placeholder values for ClassFunction-only parameters. *)
 					b#string "" coro_class.name_pos;
 					b#string "" coro_class.name_pos;
-					b#int v.v_id coro_class.name_pos;
+					b#int v.v_pos.pmin coro_class.name_pos;
 				]
 		in
 		let eaccess = continuation_field field field.cf_type in
