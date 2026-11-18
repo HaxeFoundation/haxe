@@ -18,12 +18,41 @@
  *)
 
 let reverse_map = Hashtbl.create 0
+let reverse_mutex = Mutex.create ()
+(* the hashes are already well spread: no polymorphic hash of them *)
+module HashSet = Hashtbl.Make(struct
+	type t = int
+	let equal = Int.equal
+	let hash i = i
+end)
+
+(* the hashes the domain registered, with a direct-mapped cache of the
+   recent ones in front of them *)
+type registered = {
+	known : unit HashSet.t;
+	recent : int array;
+}
+
+let recent_size = 4096
+
+let registered : registered Domain.DLS.key = Domain.DLS.new_key (fun () -> {
+	known = HashSet.create 0;
+	recent = Array.make recent_size (-1);
+})
 
 let rev_hash i = Hashtbl.find reverse_map i
 
 let hash f =
 	let i = Hashtbl.hash f in
-	Hashtbl.replace reverse_map i f;
+	let r = Domain.DLS.get registered in
+	let k = i land (recent_size - 1) in
+	if Array.unsafe_get r.recent k <> i then begin
+		if not (HashSet.mem r.known i) then begin
+			Mutex.protect reverse_mutex (fun () -> Hashtbl.replace reverse_map i f);
+			HashSet.replace r.known i ()
+		end;
+		Array.unsafe_set r.recent k i
+	end;
 	i
 
 let path_hash path = hash (Globals.s_type_path path)
