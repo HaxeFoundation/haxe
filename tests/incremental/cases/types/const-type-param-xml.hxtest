@@ -1,0 +1,26 @@
+# A constant used as a type parameter is a class named after it (`Sabc`):
+# a module reused from the cache must give it the same name in the xml output.
+@targets js
+@args -xml out/types.xml
+=== initial
+@expect-success
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.w);
+	}
+}
+--- Dep.hx
+class Dep {
+	public static var w:Wrap<"abc"> = null;
+}
+--- Wrap.hx
+class Wrap<@:const T> {}
+
+=== change main
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.w, 1);
+	}
+}

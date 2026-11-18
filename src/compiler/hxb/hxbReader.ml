@@ -767,7 +767,7 @@ class hxb_reader
 			(* ) *)
 		| 13 ->
 			let e = self#read_expr in
-			let c = {null_class with cl_kind = KExpr e; cl_module = current_module } in
+			let c = {null_class with cl_path = ([],expr_type_param_name e); cl_kind = KExpr e; cl_module = current_module } in
 			TInst(c, [])
 		| 20 ->
 			TFun([],api#basic_types.tvoid)

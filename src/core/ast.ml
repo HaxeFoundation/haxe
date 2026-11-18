@@ -505,6 +505,14 @@ let s_constant = function
 	| Ident s -> s
 	| Regexp (r,o) -> "~/" ^ r ^ "/"
 
+(* The name of the class standing for an expression used as a type parameter. *)
+let expr_type_param_name e =
+	match fst e with
+	| EConst (String(s,_)) -> "S" ^ s
+	| EConst (Int (_,_) as c) -> "I" ^ s_constant c
+	| EConst (Float (_,_) as c) -> "F" ^ s_constant c
+	| _ -> "Expr"
+
 let s_access = function
 	| APublic -> "public"
 	| APrivate -> "private"

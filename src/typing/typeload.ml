@@ -308,15 +308,10 @@ let rec load_params ctx info params p =
 	let load_param t ttp =
 		match t with
 		| TPExpr e ->
-			let name = (match fst e with
-				| EConst (String(s,_)) -> "S" ^ s
-				| EConst (Int (_,_) as c) -> "I" ^ s_constant c
-				| EConst (Float (_,_) as c) -> "F" ^ s_constant c
-				| EDisplay _ ->
-					ignore(type_expr ctx e WithType.value);
-					"Expr"
-				| _ -> "Expr"
-			) in
+			(match fst e with
+				| EDisplay _ -> ignore(type_expr ctx e WithType.value)
+				| _ -> ());
+			let name = expr_type_param_name e in
 			let c = mk_class ctx.m.curmod ([],name) p (pos e) in
 			c.cl_kind <- KExpr e;
 			TInst (c,[]),pos e
