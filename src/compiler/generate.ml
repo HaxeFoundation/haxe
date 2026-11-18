@@ -141,8 +141,9 @@ let maybe_generate_dump_dependencies ctx tctx =
 
 let generate com tctx ext actx =
 	(* check file extension. In case of wrong commandline, we don't want
-		to accidentaly delete a source file. *)
-	if Path.file_extension com.file = ext then delete_file com.file;
+		to accidentaly delete a source file. HL leaves its bytecode alone when it
+		has not changed (see Genhl.generate), so it needs the previous file. *)
+	if Path.file_extension com.file = ext && com.platform <> Hl then delete_file com.file;
 	if com.platform = Flash || com.platform = Cpp || com.platform = Hl then List.iter (FixOverrides.fix_overrides com) com.types;
 	begin match com.platform with
 		| Neko | Hl | Eval when actx.interp -> ()
