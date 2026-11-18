@@ -829,6 +829,7 @@ let collect_entry_points dce types =
 				Hashtbl.add dce.features s (ref [cf_ref])
 		) meta;
 	in
+	List.iter (fun t -> Hashtbl.reset (t_infos t).mt_module.m_extra.m_features) types;
 	List.iter (fun t ->
 		match t with
 		| TClassDecl c ->

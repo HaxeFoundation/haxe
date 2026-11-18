@@ -3,7 +3,6 @@
 # features of the previous compilation: here `has_enum` (which makes the JS
 # generator emit `$estr` and `$hxEnums`) is only used by a function that the
 # second step no longer calls.
-@known-failure [js] a cached module keeps the features of earlier compilations (m_features not reset by DCE)
 @targets js
 @args -dce full
 
