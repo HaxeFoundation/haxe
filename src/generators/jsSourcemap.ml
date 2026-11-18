@@ -148,6 +148,12 @@ let create () = {
 	last_file = None;
 }
 
+(* The state a fragment starts from: no position of a source can be the same,
+   so that its first mapping is always encoded. *)
+let fragment_start = { file = -1; line = 0; col = 0 }
+
+let create_fragment () = { (create ()) with source_last_pos = fragment_start }
+
 (* The mappings of a fragment, encoded from an empty state with its own sources. *)
 type encoded_fragment = {
 	ef_mappings : string;
@@ -195,7 +201,7 @@ let first_mapping m =
 	let i2,dfile = decode_vlq m i1 in
 	let i3,_ = decode_vlq m i2 in
 	let i4,_ = decode_vlq m i3 in
-	i4,dfile
+	i4,fragment_start.file + dfile
 
 (* Whether the sources of a fragment keep their order once global: the
    deltas of the mappings are then the same. *)
@@ -294,8 +300,9 @@ let splice_fragment smap ef col0 last_col0 comma0 =
 		let i2,dfile = decode_vlq m i1 in
 		let i3,dline = decode_vlq m i2 in
 		let i4,dscol = decode_vlq m i3 in
+		let local = fragment_start.file + dfile in
 		let index name = try Some (Hashtbl.find smap.sources_hash name) with Not_found -> None in
-		let first_file = match index ef.ef_sources.(dfile) with Some i -> i | None -> DynArray.length smap.sources in
+		let first_file = match index ef.ef_sources.(local) with Some i -> i | None -> DynArray.length smap.sources in
 		let last = smap.source_last_pos in
 		if last.file = first_file && last.line = dline && last.col = dscol then false
 		else begin
@@ -315,7 +322,7 @@ let splice_fragment smap ef col0 last_col0 comma0 =
 			smap.output_last_col <- (if newlines = 0 then last_col0 else 0);
 			smap.print_comma <- (if newlines = 0 then comma0 else false);
 			smap.output_current_col <- col;
-			encode_mapping smap { file = globals.(dfile); line = dline; col = dscol };
+			encode_mapping smap { file = globals.(local); line = dline; col = dscol };
 			(* the others: the same deltas, but the one of their source *)
 			if shifted globals then Buffer.add_substring smap.mappings m i4 (len - i4) else
 				Buffer.add_string smap.mappings (spliced_tail ef globals);

@@ -1,0 +1,5 @@
+--main Main
+--macro Gen.init()
+--debug
+-D disable-parallelism
+-js bin/sequential.js
