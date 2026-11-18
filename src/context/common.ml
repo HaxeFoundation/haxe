@@ -973,8 +973,7 @@ let clone com is_macro_context =
 
 let file_time file = Extc.filetime file
 
-(* Writes [content] to [file] unless the file already has exactly this content.
-   Returns whether the file was written. *)
+(* Writes [content] to [file] unless the file already has exactly this content. *)
 let write_file_if_changed file content =
 	let same =
 		try
@@ -982,13 +981,12 @@ let write_file_if_changed file content =
 			Std.finally (fun () -> close_in ch) (fun () ->
 				in_channel_length ch = String.length content && really_input_string ch (String.length content) = content
 			) ()
-		with Sys_error _ -> false
+		with Sys_error _ | End_of_file -> false
 	in
 	if not same then begin
 		let ch = open_out_bin file in
 		Std.finally (fun () -> close_out ch) (fun () -> output_string ch content) ()
-	end;
-	not same
+	end
 
 let flash_versions = List.map (fun v ->
 	let maj = int_of_float v in

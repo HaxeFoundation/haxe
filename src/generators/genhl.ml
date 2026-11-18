@@ -4574,7 +4574,7 @@ let generate com =
 	let sign = make_context_sign com in
 	if sign = !prev_sign && not dump && not hl_check then begin
 		(* reuse previously generated data *)
-		ignore (Common.write_file_if_changed com.file !prev_data)
+		Common.write_file_if_changed com.file !prev_data
 	end else
 
 	let ctx = create_context com in
@@ -4654,7 +4654,7 @@ let generate com =
 		let ch = IO.output_string() in
 		Parallel.run_with_pool com.pool (fun pool -> write_code ?pool ch code (not (Gctx.raw_defined com "hl_no_debug")));
 		let str = add_header code (IO.close_out ch) in
-		ignore (Common.write_file_if_changed com.file str);
+		Common.write_file_if_changed com.file str;
 		prev_sign := sign;
 		prev_data := str;
 	end;
