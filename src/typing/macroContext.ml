@@ -678,8 +678,22 @@ and flush_macro_context mint mctx =
 	let timer_level = Timer.level_from_define mctx.com.defines Define.MacroTimes in
 	macro_timer mctx.com.timer_ctx timer_level ["flush"] None f ()
 
+(* The positions of the errors reported in the macro context of the current
+   compilation. *)
+let macro_errors : pos list ref = ref []
+let macro_errors_mutex = Mutex.create ()
+
+(* Whether an error was reported in the typing of [cf] (a macro function,
+   typed before it is called, whatever the order of typing). *)
+let macro_field_failed cf =
+	let p = cf.cf_pos in
+	Mutex.protect macro_errors_mutex (fun () ->
+		List.exists (fun ep -> ep.pfile = p.pfile && ep.pmin >= p.pmin && ep.pmax <= p.pmax) !macro_errors
+	)
+
 let create_macro_interp api mctx =
 	let com2 = mctx.com in
+	Mutex.protect macro_errors_mutex (fun () -> macro_errors := []);
 	let mint, init = (match !macro_interp_cache with
 		| None ->
 			let mint = Interp.create com2 api true (Args.to_raw_args com2.parsed_args) in
@@ -691,7 +705,7 @@ let create_macro_interp api mctx =
 	) in
 	let on_error = CompilerMessage.default_error_handler com2 in
 	com2.error_ext <- (fun err ->
-		Interp.set_error (Interp.get_ctx()) true;
+		Mutex.protect macro_errors_mutex (fun () -> macro_errors := err.err_pos :: !macro_errors);
 		macro_interp_cache := None;
 		on_error err
 	);
@@ -822,10 +836,12 @@ let do_call_macro com api cpath name args p =
 
 let load_macro ctx com mctx api display cpath f p =
 	let meth,mloaded = load_macro'' com mctx display cpath f p in
-	let _,_,{cl_path = cpath},_ = meth in
+	let _,_,{cl_path = cpath},mfield = meth in
 	let call args =
 		add_dependency ctx.m.curmod mloaded MDepFromMacro;
-		do_call_macro ctx.com api cpath f args p
+		(* a macro whose function failed to type fails (Build failure...) *)
+		if macro_field_failed mfield then None
+		else do_call_macro ctx.com api cpath f args p
 	in
 	mctx, meth, call
 
