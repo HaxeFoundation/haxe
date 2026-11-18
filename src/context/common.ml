@@ -116,12 +116,9 @@ class file_keys = object(self)
 			Hashtbl.add cache file key;
 			key
 
-	val virtual_counter = ref 0
-
 	method generate_virtual mpath step =
-		incr virtual_counter;
 		let base = match fst mpath with | [] -> "." | pack -> ExtLib.String.join "/" pack in
-		Printf.sprintf "%s/%s_%i_%i" base (snd mpath) step !virtual_counter
+		Printf.sprintf "%s/%s_%i" base (snd mpath) step
 
 end
 
@@ -379,7 +376,12 @@ let to_gctx com = {
 	modules = com.modules;
 	main = com.main;
 	types = com.types;
-	resources = com.resources;
+	resources = (
+		let l = List.sort compare (Hashtbl.fold (fun k v acc -> (k,v) :: acc) com.resources []) in
+		let h = Hashtbl.create (List.length l) in
+		List.iter (fun (k,v) -> Hashtbl.add h k v) l;
+		h
+	);
 	native_libs = (match com.platform with
 		| Jvm -> (com.native_libs.java_libs :> NativeLibraries.native_library_base list)
 		| Flash -> (com.native_libs.swf_libs  :> NativeLibraries.native_library_base list)
