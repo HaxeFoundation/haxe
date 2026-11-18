@@ -28,14 +28,21 @@ elseif _G.bit32 or pcall(require, 'bit32') then
   -- lua 5.2 has bit32 builtin, otherwise it may be an external library
   _hx_bit_raw = _G.bit32 or require('bit32')
   _hx_bit = setmetatable({}, { __index = _hx_bit_raw })
-  -- bit32 operations require manual clamping
-  _hx_bit.bnot = function(...) return _hx_bit_clamp(_hx_bit_raw.bnot(...)) end
-  _hx_bit.bxor = function(...) return _hx_bit_clamp(_hx_bit_raw.bxor(...)) end
-  -- see https://github.com/HaxeFoundation/haxe/issues/8849
-  _hx_bit.bor = function(...) return _hx_bit_clamp(_hx_bit_raw.bor(...)) end
-  _hx_bit.band = function(...) return _hx_bit_clamp(_hx_bit_raw.band(...)) end
-  _hx_bit.arshift = function(...) return _hx_bit_clamp(_hx_bit_raw.arshift(...)) end
-  _hx_bit.lshift = function(...) return _hx_bit_clamp(_hx_bit_raw.lshift(...)) end
+  -- bit32 produces uint32 outputs. convert to signed
+  local function wrap(f)
+    return function(...)
+      local v = f(...)
+      if v >= 0x80000000 then v = v - 0x100000000 end
+      return v
+    end
+  end
+  -- leave _hx_bit.rshift unwrapped because Haxe specifies it as unsigned anyway
+  _hx_bit.bnot = wrap(_hx_bit_raw.bnot)
+  _hx_bit.bxor = wrap(_hx_bit_raw.bxor)
+  _hx_bit.bor = wrap(_hx_bit_raw.bor)
+  _hx_bit.band = wrap(_hx_bit_raw.band)
+  _hx_bit.arshift = wrap(_hx_bit_raw.arshift)
+  _hx_bit.lshift = wrap(_hx_bit_raw.lshift)
 elseif _G.bit or pcall(require, 'bit') then
   -- if we do not have bit32, fallback to bit, default on luajit
   _hx_bit_raw = _G.bit or require('bit')
