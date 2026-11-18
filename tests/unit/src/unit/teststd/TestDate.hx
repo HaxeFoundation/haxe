@@ -58,11 +58,12 @@ class TestDate extends unit.Test {
 		t(date.getTime() < referenceDate.getTime());
 
 		// < 1970 (negative timestamp)
-		#if !(neko || (hl && hl_ver < version("2.0.0")))
-		// hl, cpp, eval and lua use the C mktime/localtime, which reject dates before 1970 on Windows
-		#if (hl || cpp || eval || lua)
-		if (Sys.systemName() != "Windows") {
+		#if !(hl && hl_ver < version("2.0.0"))
+		// neko, hl, cpp, eval and lua use the C mktime/localtime, which reject dates before 1970 on Windows
+		#if (neko || hl || cpp || eval || lua)
+		if (Sys.systemName() != "Windows")
 		#end
+		{
 		var date = new Date(1904, 11, 12, 1, 4, 1);
 		eq(date.getHours(), 1);
 		eq(date.getMinutes(), 4);
@@ -72,15 +73,16 @@ class TestDate extends unit.Test {
 		eq(date.getDate(), 12);
 		eq(date.getDay(), 1);
 		t(date.getTime() < referenceDate.getTime());
-		#if (hl || cpp || eval || lua)
 		}
 		#end
 
 		// < 1902 (negative timestamp, outside of signed 32-bit integer range)
+		#if !(neko || (hl && hl_ver < version("2.0.0")) || (cpp && HXCPP_M32))
 		// the C mktime/localtime also reject dates before 1901 on Mac
 		#if (hl || cpp || eval || lua)
-		if (Sys.systemName() == "Linux") {
+		if (Sys.systemName() == "Linux")
 		#end
+		{
 		var date = new Date(1888, 0, 1, 15, 4, 2);
 		eq(date.getHours(), 15);
 		eq(date.getMinutes(), 4);
@@ -90,13 +92,15 @@ class TestDate extends unit.Test {
 		eq(date.getDate(), 1);
 		eq(date.getDay(), 0);
 		t(date.getTime() < referenceDate.getTime());
-		#if (hl || cpp || eval || lua)
 		}
-		#end
 		#end
 
 		// Y2038 (outside of signed 32-bit integer range)
 		#if !neko
+		#if (cpp && HXCPP_M32)
+		if (Sys.systemName() != "Linux")
+		#end
+		{
 		var date = new Date(2039, 0, 1, 1, 59, 59);
 		eq(date.getHours(), 1);
 		eq(date.getMinutes(), 59);
@@ -106,10 +110,15 @@ class TestDate extends unit.Test {
 		eq(date.getDate(), 1);
 		eq(date.getDay(), 6);
 		t(date.getTime() > referenceDate.getTime());
+		}
 		#end
 
 		// Y2112 (outside of unsigned 32-bit integer range)
 		#if !(neko || (hl && hl_ver < version("2.0.0")))
+		#if (cpp && HXCPP_M32)
+		if (Sys.systemName() != "Linux")
+		#end
+		{
 		var date = new Date(2112, 0, 1, 1, 59, 59);
 		eq(date.getHours(), 1);
 		eq(date.getMinutes(), 59);
@@ -119,6 +128,7 @@ class TestDate extends unit.Test {
 		eq(date.getDate(), 1);
 		eq(date.getDay(), 5);
 		t(date.getTime() > referenceDate.getTime());
+		}
 		#end
 
 		/*
