@@ -780,7 +780,21 @@ let rec unify (uctx : unification_context) a b =
 	| _ , TLazy f -> unify uctx a (lazy_type f)
 	| TMono t , _ ->
 		(match t.tm_type with
-		| None -> if uctx.equality_kind = EqStricter || not (link uctx t a b) then error [cannot_unify a b]
+		| None ->
+			if uctx.equality_kind = EqStricter then error [cannot_unify a b];
+			begin try
+				if not (link uctx t a b) then error [cannot_unify a b]
+			with Unify_error _ as err ->
+				begin match follow_without_null b with
+					| TAbstract(bb,tl) ->
+						(try unify_from uctx a b bb tl with Unify_error _ -> raise err);
+						(match t.tm_type with
+							| Some t -> unify uctx t b
+							| None -> ())
+					| _ ->
+						raise err
+				end
+			end
 		| Some t -> unify uctx t b)
 	| _ , TMono t ->
 		(match t.tm_type with
