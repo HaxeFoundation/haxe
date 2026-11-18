@@ -136,16 +136,68 @@ let vfun7 f = vstatic_function (fun vl -> match vl with
 
 (* Objects *)
 
+(* The prototype of the objects whose fields are given in a certain order (the
+   macro API encodes many objects with the same fields), with the slot of each
+   field: a direct-mapped cache per domain in front of [get_object_prototype],
+   which sorts the fields and takes a lock. *)
+type encoded_object = {
+	eo_ctx : int;
+	eo_names : int array;
+	eo_slots : int array;
+	eo_proto : vprototype;
+}
+
+let encoded_objects_size = 1024
+
+let encoded_objects : encoded_object option array Domain.DLS.key =
+	Domain.DLS.new_key (fun () -> Array.make encoded_objects_size None)
+
+let rec names_key h l = match l with
+	| [] -> h land (encoded_objects_size - 1)
+	| (name,_) :: l -> names_key (h * 31 + name) l
+
+let rec same_names names k l = match l with
+	| [] -> k = Array.length names
+	| (name,_) :: l -> k < Array.length names && Array.unsafe_get names k = name && same_names names (k + 1) l
+
+let rec set_fields a slots k l = match l with
+	| [] -> ()
+	| (_,v) :: l ->
+		a.(Array.unsafe_get slots k) <- v;
+		set_fields a slots (k + 1) l
+
 let encode_obj l =
 	let ctx = get_ctx() in
-	let proto,sorted = ctx.get_object_prototype ctx l in
-	vobject {
-		ofields = Array.of_list (List.map snd sorted);
-		oproto = OProto proto;
-	}
+	let cache = Domain.DLS.get encoded_objects in
+	let key = names_key 0 l in
+	match Array.unsafe_get cache key with
+	| Some e when e.eo_ctx = ctx.ctx_id && same_names e.eo_names 0 l ->
+		let a = make_null_array (Array.length e.eo_slots) in
+		set_fields a e.eo_slots 0 l;
+		vobject {
+			ofields = a;
+			oproto = OProto e.eo_proto;
+		}
+	| _ ->
+		let proto,sorted = ctx.get_object_prototype ctx l in
+		let fields = Array.of_list (List.map snd sorted) in
+		(* only fields given once, at the slot their position in [sorted] gives *)
+		let names = Array.of_list (List.map fst l) in
+		let slots = Array.map (fun name -> try IntMap.find name proto.pinstance_names with Not_found -> -1) names in
+		let sorted_names = Array.of_list (List.map fst sorted) in
+		let consistent =
+			Array.length sorted_names = IntMap.cardinal proto.pinstance_names &&
+			Array.for_all (fun i -> i >= 0 && i < Array.length sorted_names) slots &&
+			(let ok = ref true in Array.iteri (fun k name -> if sorted_names.(slots.(k)) <> name then ok := false) names; !ok)
+		in
+		if consistent then cache.(key) <- Some {eo_ctx = ctx.ctx_id; eo_names = names; eo_slots = slots; eo_proto = proto};
+		vobject {
+			ofields = fields;
+			oproto = OProto proto;
+		}
 
 let encode_obj_s l =
-	encode_obj (List.map (fun (s,v) -> (hash s),v) l)
+	encode_obj (List.map (fun (s,v) -> (hash_literal s),v) l)
 
 (* Enum values *)
 
