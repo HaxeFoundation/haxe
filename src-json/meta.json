@@ -456,6 +456,13 @@
 		"targets": ["TClass", "TClassField"]
 	},
 	{
+		"name": "HotReload",
+		"metadata": ":hotReload",
+		"doc": "The initializer of this static variable runs again after every hot reload (HL 2.0), so that its value follows the code.",
+		"platforms": ["hl"],
+		"targets": ["TClassField"]
+	},
+	{
 		"name": "HxbId",
 		"metadata": ":hxb.id",
 		"doc": "Internally used by hxb",

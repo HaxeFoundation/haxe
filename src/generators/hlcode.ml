@@ -71,6 +71,7 @@ and enum_proto = {
 	eid : int;
 	mutable eglobal : int option;
 	mutable efields : (string * string index * ttype array) array;
+	mutable eparams : string index array array;
 }
 
 and field_proto = {
@@ -222,6 +223,7 @@ type fundecl = {
 	debug : (int * int * Globals.pos) array;
 	assigns : (string index * int * int) array;
 	need_opt : bool;
+	flocal : string index;
 }
 
 type code = {

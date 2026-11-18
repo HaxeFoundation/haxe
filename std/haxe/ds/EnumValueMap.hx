@@ -111,4 +111,46 @@ class EnumValueMap<K:EnumValue, V> extends haxe.ds.BalancedTree<K, V> implements
 		copied.root = root;
 		return copied;
 	}
+
+	#if (hl && hl_ver >= version("2.0.0"))
+	override public function set(key:K, value:V) {
+		var r = null, n = null;
+		do {
+			r = root;
+			n = setLoop(key, value, r);
+		} while (r != root);
+		root = n;
+	}
+
+	override public function remove(key:K):Bool {
+		var r = null, n = null;
+		do {
+			r = root;
+			try {
+				n = removeLoop(key, r);
+			} catch (e:String) {
+				if (r == root)
+					return false;
+				continue;
+			}
+		} while (r != root);
+		root = n;
+		return true;
+	}
+
+	@:ifFeature("haxe.ds.EnumValueMap.*") function onHotReload() {
+		var nodes = [];
+		function collect(n:haxe.ds.BalancedTree.TreeNode<K, V>) {
+			if (n == null)
+				return;
+			collect(n.left);
+			nodes.push(n);
+			collect(n.right);
+		}
+		collect(root);
+		root = null;
+		for (n in nodes)
+			set(n.key, n.value);
+	}
+	#end
 }
