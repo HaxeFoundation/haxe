@@ -30,6 +30,8 @@ type sourcemap = {
 	mutable output_last_col : int;
 	mutable output_current_col : int;
 	mutable current_expr : sourcemap_pos option;
+	(* the file of the last mapping, its index in [sources] and its lines *)
+	mutable last_file : (string * int * Lexer.lexer_file) option;
 }
 
 and sourcemap_pos = {
@@ -38,97 +40,113 @@ and sourcemap_pos = {
 	col : int;
 }
 
+let base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+(* Adds [number] to [b] as a base64 VLQ. *)
+let rec add_vlq_digits b vlq =
+	let digit = vlq land 31 and next = vlq asr 5 in
+	Buffer.add_char b (String.unsafe_get base64_chars (if next > 0 then digit lor 32 else digit));
+	if next > 0 then add_vlq_digits b next
+
+let add_base64_vlq b number =
+	add_vlq_digits b (if number < 0 then ((-number) lsl 1) + 1 else number lsl 1)
+
 let encode_mapping smap pos =
 	if smap.print_comma then
 		Buffer.add_char smap.mappings ','
 	else
 		smap.print_comma <- true;
-
-	let base64_vlq number =
-		let encode_digit digit =
-			let chars = [|
-				'A';'B';'C';'D';'E';'F';'G';'H';'I';'J';'K';'L';'M';'N';'O';'P';
-				'Q';'R';'S';'T';'U';'V';'W';'X';'Y';'Z';'a';'b';'c';'d';'e';'f';
-				'g';'h';'i';'j';'k';'l';'m';'n';'o';'p';'q';'r';'s';'t';'u';'v';
-				'w';'x';'y';'z';'0';'1';'2';'3';'4';'5';'6';'7';'8';'9';'+';'/'
-			|] in
-			Array.unsafe_get chars digit
-		in
-		let to_vlq number =
-			if number < 0 then
-				((-number) lsl 1) + 1
-			else
-				number lsl 1
-		in
-		let rec loop vlq =
-			let shift = 5 in
-			let base = 1 lsl shift in
-			let mask = base - 1 in
-			let continuation_bit = base in
-			let digit = vlq land mask in
-			let next = vlq asr shift in
-			Buffer.add_char smap.mappings (encode_digit (
-				if next > 0 then digit lor continuation_bit else digit));
-			if next > 0 then loop next else ()
-		in
-		loop (to_vlq number)
-	in
-
-	base64_vlq (smap.output_current_col - smap.output_last_col);
-	base64_vlq (pos.file - smap.source_last_pos.file);
-	base64_vlq (pos.line - smap.source_last_pos.line);
-	base64_vlq (pos.col - smap.source_last_pos.col);
-
+	let b = smap.mappings and last = smap.source_last_pos in
+	add_base64_vlq b (smap.output_current_col - smap.output_last_col);
+	add_base64_vlq b (pos.file - last.file);
+	add_base64_vlq b (pos.line - last.line);
+	add_base64_vlq b (pos.col - last.col);
 	smap.source_last_pos <- pos;
 	smap.output_last_col <- smap.output_current_col
 
 let noop () = ()
 
-let add_mapping smap pos =
-	if pos.pmin < 0 then noop else
+(* The index of [file_name] in the sources (in their order of first use), and its lines. *)
+let source_file smap file_name =
+	match smap.last_file with
+	| Some (name,file,lexer_file) when name == file_name -> file,lexer_file
+	| _ ->
+		let file = try
+			Hashtbl.find smap.sources_hash file_name
+		with Not_found ->
+			let length = DynArray.length smap.sources in
+			Hashtbl.replace smap.sources_hash file_name length;
+			DynArray.add smap.sources file_name;
+			length
+		in
+		let lexer_file = Lexer.find_file file_name in
+		smap.last_file <- Some (file_name,file,lexer_file);
+		file,lexer_file
 
-	let file = try
-		Hashtbl.find smap.sources_hash pos.pfile
-	with Not_found ->
-		let length = DynArray.length smap.sources in
-		Hashtbl.replace smap.sources_hash pos.pfile length;
-		DynArray.add smap.sources pos.pfile;
-		length
-	in
+(* What [add_mapping] gives when the mapping did not change: nothing to put
+   back. *)
+let unchanged = Some { file = -2; line = 0; col = 0 }
 
-	let pos =
-		let line, col = Lexer.find_pos pos in
-		let line = line - 1 in
-		{ file = file; line = line; col = col }
-	in
-
-	if smap.source_last_pos <> pos then begin
+(* Maps the output that follows to [pos]: gives the mapping to put back with
+   [clear_mapping] once the expression is output (no closure, no option is
+   allocated for it). *)
+let add_source_mapping smap pos =
+	let last = smap.source_last_pos in
+	if last.file <> pos.file || last.line <> pos.line || last.col <> pos.col then begin
 		let old_current_expr = smap.current_expr in
 		smap.current_expr <- Some pos;
 		encode_mapping smap pos;
-		(fun () -> smap.current_expr <- old_current_expr)
+		old_current_expr
 	end else
-		noop
+		unchanged
+
+let add_mapping smap pos =
+	if pos.pmin < 0 then unchanged else begin
+		let file,lexer_file = source_file smap pos.pfile in
+		let line, col = Lexer.find_line pos.pmin lexer_file in
+		add_source_mapping smap { file = file; line = line - 1; col = col }
+	end
 
 let add_mapping smap e =
-	Option.map_default (fun smap -> add_mapping smap e.epos) noop smap
+	match smap with
+	| Some smap -> add_mapping smap e.epos
+	| None -> unchanged
+
+let clear_mapping smap old =
+	if old != unchanged then match smap with
+		| Some smap -> smap.current_expr <- old
+		| None -> ()
+
+(* The text [str] from [from] to [upto] is output. *)
+let handle_newlines_sub smap str from upto =
+	let rec loop from =
+		match String.index_from_opt str from '\n' with
+		| Some i when i < upto ->
+			Buffer.add_char smap.mappings ';';
+			smap.output_last_col <- 0;
+			smap.output_current_col <- 0;
+			smap.print_comma <- false;
+			Option.may (encode_mapping smap) smap.current_expr;
+			loop (i + 1)
+		| _ ->
+			smap.output_current_col <- smap.output_current_col + (upto - from);
+	in
+	loop from
 
 let handle_newlines smap str =
-	Option.may (fun smap ->
-		let rec loop from =
-			try begin
-				let next = String.index_from str from '\n' + 1 in
-				Buffer.add_char smap.mappings ';';
-				smap.output_last_col <- 0;
-				smap.output_current_col <- 0;
-				smap.print_comma <- false;
-				Option.may (encode_mapping smap) smap.current_expr;
-				loop next
-			end with Not_found ->
-				smap.output_current_col <- smap.output_current_col + (String.length str - from);
-		in
-		loop 0
-	) smap
+	Option.may (fun smap -> handle_newlines_sub smap str 0 (String.length str)) smap
+
+let create () = {
+	source_last_pos = { file = 0; line = 0; col = 0};
+	print_comma = false;
+	output_last_col = 0;
+	output_current_col = 0;
+	sources = DynArray.create();
+	sources_hash = Hashtbl.create 0;
+	mappings = Buffer.create 16;
+	current_expr = None;
+	last_file = None;
+}
 
 (* The source map as JSON text. *)
 let mappings_json (com : Gctx.t) smap source_path_prefix =
