@@ -154,9 +154,10 @@ let check_module sctx com m_path m_extra p =
 			true
 	in
 	let check_module_shadowing paths m_path m_extra =
+		let own_file = Path.UniqueKey.lazy_key m_extra.m_file in
 		List.iter (fun dir ->
 			let file = (dir.c_path ^ (snd m_path)) ^ ".hx" in
-			if Sys.file_exists file then begin
+			if Sys.file_exists file && com.part_scope.file_keys#get file <> own_file then begin
 				let time = file_time file in
 				if time > m_extra.m_time then begin
 					ServerMessage.module_path_changed com "" (m_path,m_extra,time,file);
