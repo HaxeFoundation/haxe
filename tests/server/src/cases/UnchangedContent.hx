@@ -68,6 +68,19 @@ class UnchangedContent extends TestCase {
 		assertHasPrint("D");
 	}
 
+	/* contents sent with the request win over a file that was only written again */
+	function testEditorContentsOverSameFile() {
+		vfs.putContent("src/Main.hx", main("D"));
+		var args = compileArgs(["src"]);
+		compileTwice(args);
+		vfs.putContent("src/Main.hx", main("D"));
+		vfs.touch("src/Main.hx");
+		runHaxeJson(args, DisplayMethods.Diagnostics, {
+			fileContents: [{file: new FsPath("src/Main.hx"), contents: main("E")}]
+		});
+		Assert.isFalse(hasMessage("reusing Main"));
+	}
+
 	/* without module checks, the changed directory is what tells that the file changed */
 	function testChangedContentWithoutModuleChecks() {
 		var main = "class Main { static function main() Sys.println(Dep.value); }";
