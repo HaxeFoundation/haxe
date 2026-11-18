@@ -532,15 +532,17 @@ type flag_tclass_field =
 	| CfNoLookup (* Field cannot be accessed by-name. *)
 	| CfAbstractConstructor
 	| CfNoExpr (* Marker for abstract fields which have no expression *)
+	| CfStructurallyUsed (* Set by the typer when the field unifies with a structure *)
 
 (* Order has to match declaration for printing*)
 let flag_tclass_field_names = [
-	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed";"CfNoLookup";"CfAbstractConstructor";"CfNoExpr"
+	"CfPublic";"CfStatic";"CfExtern";"CfFinal";"CfModifiesThis";"CfOverride";"CfAbstract";"CfOverload";"CfImpl";"CfEnum";"CfGeneric";"CfDefault";"CfPostProcessed";"CfUsed";"CfMaybeUsed";"CfNoLookup";"CfAbstractConstructor";"CfNoExpr";"CfStructurallyUsed"
 ]
 
 type flag_tenum =
 	| EnExtern
 	| EnExcluded (* Marker for exclude macro, turned into EnExtern during filters *)
+	| EnUsed (* Marker for DCE *)
 
 type flag_tvar =
 	| VCaptured
