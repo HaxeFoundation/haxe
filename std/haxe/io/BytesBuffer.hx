@@ -205,6 +205,9 @@ class BytesBuffer {
 			var bytes = new Bytes(b.length, b);
 			#elseif js
 			var bytes = new Bytes(new js.lib.Uint8Array(b).buffer);
+			#elseif lua
+			lua.Lua.setmetatable(b, null); // remove array metatable, to turn it into a vector
+			var bytes = new Bytes(b.length, BytesData.fromData(cast b));
 			#else
 			var bytes = new Bytes(b.length, b);
 			#end

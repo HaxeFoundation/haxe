@@ -59,7 +59,7 @@ class SocketOutput extends haxe.io.Output {
 	override public function writeBytes(s:Bytes, pos:Int, len:Int):Int {
 		if (pos < 0 || len < 0 || pos + len > s.length)
 			throw Error.OutsideBounds;
-		var b = s.getData().slice(pos, pos +len).map(function(byte){
+		var b = s.getData().toArray().slice(pos, pos +len).map(function(byte){
 			return lua.NativeStringTools.char(byte);
 		});
 		var encoded = Table.concat(cast b, 0);
