@@ -1057,7 +1057,7 @@ let generate_types_parallel ctx generate_type types =
 	let subs = LargeArray.map (fun _ -> {
 		ctx with
 		buf = Buffer.create 1024;
-		smap = Option.map (fun _ -> JsSourcemap.create ()) ctx.smap;
+		smap = Option.map (fun _ -> JsSourcemap.create_fragment ()) ctx.smap;
 		statics = [];
 		inits = [];
 		separator = false;
