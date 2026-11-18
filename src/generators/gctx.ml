@@ -88,6 +88,8 @@ let rec has_feature gctx f =
 							has_class_flag c CUsed;
 						| TAbstractDecl a ->
 							Meta.has Meta.ValueUsed a.a_meta
+						| TEnumDecl e ->
+							has_enum_flag e EnUsed
 						| _ -> Meta.has Meta.Used (t_infos t).mt_meta
 					end;
 				| TClassDecl c when (has_class_flag c CExtern) && (gctx.platform <> Js || cl <> "Array" && cl <> "Math") ->

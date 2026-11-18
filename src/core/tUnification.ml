@@ -933,14 +933,14 @@ let rec unify (uctx : unification_context) a b =
 					then error [Missing_overload (f1, f2o.cf_type)]
 				) f2.cf_overloads;
 				(* we mark the field as :?used because it might be used through the structure *)
-				if not (has_class_field_flag f1 CfMaybeUsed) then begin
-					add_class_field_flag f1 CfMaybeUsed;
+				if not (has_class_field_flag f1 CfStructurallyUsed) then begin
+					add_class_field_flag f1 CfStructurallyUsed;
 					match f2.cf_kind with
 					| Var vk ->
 						let check name =
 							try
 								let _,_,cf = raw_class_field make_type c tl name in
-								add_class_field_flag cf CfMaybeUsed
+								add_class_field_flag cf CfStructurallyUsed
 							with Not_found ->
 								()
 						in
@@ -1095,7 +1095,7 @@ and unify_anons uctx a b a1 a2 =
 			)
 		| ClassStatics c1,_ ->
 			unify_fields c1.cl_statics (fun f1 ->
-				add_class_field_flag f1 CfMaybeUsed
+				add_class_field_flag f1 CfStructurallyUsed
 			) (fun _ -> false)
 		| _ ->
 			unify_fields a1.a_fields (fun _ -> ()) (fun _ -> false)
