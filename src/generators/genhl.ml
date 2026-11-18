@@ -57,7 +57,7 @@ type lassign = {
 let make_assigns ?(sorted=false) l =
 	let l = List.rev l in
 	let l = if sorted then List.sort (fun a b -> a.la_pos - b.la_pos) l else l in
-	Array.of_list (List.map (fun a -> (a.la_name, a.la_pos, a.la_scope_end)) l)
+	LargeArray.of_list (List.map (fun a -> (a.la_name, a.la_pos, a.la_scope_end)) l)
 
 type method_context = {
 	mid : int;
@@ -115,7 +115,7 @@ type context = {
 	w_null_compare : bool;
 	overrides : (string * path, bool) Hashtbl.t;
 	defined_funs : (int,unit) Hashtbl.t;
-	mutable cached_types : (string list, ttype) PMap.t;
+	cached_types : (string list, ttype) Hashtbl.t;
 	mutable m : method_context;
 	mutable anons_cache : (tanon, ttype) PMap.t;
 	mutable method_wrappers : ((ttype * ttype), int) PMap.t;
@@ -365,7 +365,7 @@ let make_debug ctx arr =
 	let cur_file = ref 0 in
 	let cur_line = ref 0 in
 	let cur = ref Globals.null_pos in
-	let out = Array.make (DynArray.length arr) !pos in
+	let out = Array.make (DynArray.length arr) null_debug in
 	for i = 0 to DynArray.length arr - 1 do
 		let p = DynArray.unsafe_get arr i in
 		if p != !cur then begin
@@ -600,14 +600,14 @@ and class_type ?(tref=None) ctx c pl statics =
 	let c = if (has_class_flag c CExtern) then resolve_class ctx c pl statics else c in
 	let key_path = (if statics then "$" ^ snd c.cl_path else snd c.cl_path) :: fst c.cl_path in
 	try
-		PMap.find key_path ctx.cached_types
+		Hashtbl.find ctx.cached_types key_path
 	with Not_found when (has_class_flag c CInterface) && not statics ->
 		let vp = {
 			vfields = [||];
 			vindex = PMap.empty;
 		} in
 		let t = HVirtual vp in
-		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
+		Hashtbl.replace ctx.cached_types key_path t;
 		let rec loop c =
 			let rec concat_uniq fields pfields =
 				match pfields with
@@ -644,7 +644,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		| None -> ()
 		| Some r -> r := Some t);
 		ctx.ct_depth <- ctx.ct_depth + 1;
-		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
+		Hashtbl.replace ctx.cached_types key_path t;
 		if c.cl_path = ([],"Array") then die "" __LOC__;
 		if c == ctx.base_class then begin
 			if statics then die "" __LOC__;
@@ -762,7 +762,7 @@ and class_type ?(tref=None) ctx c pl statics =
 and enum_type ?(tref=None) ctx e =
 	let key_path = snd e.e_path :: fst e.e_path in
 	try
-		PMap.find key_path ctx.cached_types
+		Hashtbl.find ctx.cached_types key_path
 	with Not_found ->
 		let ename = s_type_path e.e_path in
 		let et = {
@@ -775,7 +775,7 @@ and enum_type ?(tref=None) ctx e =
 		(match tref with
 		| None -> ()
 		| Some r -> r := Some t);
-		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
+		Hashtbl.replace ctx.cached_types key_path t;
 		et.efields <- Array.of_list (List.map (fun f ->
 			let f = PMap.find f e.e_constrs in
 			let args = (match f.ef_type with
@@ -791,7 +791,7 @@ and enum_type ?(tref=None) ctx e =
 and enum_class ctx e =
 	let key_path = ("$" ^ snd e.e_path) :: fst e.e_path in
 	try
-		PMap.find key_path ctx.cached_types
+		Hashtbl.find ctx.cached_types key_path
 	with Not_found ->
 		let pname = s_type_path (List.tl key_path, List.hd key_path) in
 		let p = {
@@ -809,7 +809,7 @@ and enum_class ctx e =
 			pbindings = [];
 		} in
 		let t = HObj p in
-		ctx.cached_types <- PMap.add key_path t ctx.cached_types;
+		Hashtbl.replace ctx.cached_types key_path t;
 		let psuper = (match class_type ctx ctx.base_enum [] false with HObj o -> o | _ -> die "" __LOC__) in
 		let start_field = psuper.pnfields in
 		let fa = DynArray.create() in
@@ -840,8 +840,8 @@ and enum_class ctx e =
 						fpath = "", "";
 						findex = eid;
 						ftype = HFun (fargs, tret);
-						regs = DynArray.to_array ctx.m.mregs.arr;
-						code = DynArray.to_array ctx.m.mops;
+						regs = LargeArray.of_dynarray ctx.m.mregs.arr;
+						code = LargeArray.of_dynarray ctx.m.mops;
 						debug = make_debug ctx ctx.m.mdebug;
 						assigns = make_assigns ctx.m.massign;
 						need_opt = false;
@@ -885,7 +885,7 @@ and resolve_class_global ctx cpath =
 	lookup ctx.cglobals ("$" ^ cpath) (fun() -> die "" __LOC__)
 
 and resolve_type ctx path =
-	PMap.find path ctx.cached_types
+	Hashtbl.find ctx.cached_types path
 
 and alloc_std ctx name args ret =
 	let lib = "std" in
@@ -3345,8 +3345,8 @@ and gen_method_wrapper ctx rt t p =
 			fpath = "","";
 			findex = fid;
 			ftype = HFun (rt :: targs, tret);
-			regs = DynArray.to_array ctx.m.mregs.arr;
-			code = DynArray.to_array ctx.m.mops;
+			regs = LargeArray.of_dynarray ctx.m.mregs.arr;
+			code = LargeArray.of_dynarray ctx.m.mops;
 			debug = make_debug ctx ctx.m.mdebug;
 			assigns = make_assigns ctx.m.massign;
 			need_opt = false;
@@ -3513,8 +3513,8 @@ and make_fun ?gen_content ctx name fidx f cthis cparent =
 		fpath = name;
 		findex = fidx;
 		ftype = HFun (fargs, tret);
-		regs = DynArray.to_array ctx.m.mregs.arr;
-		code = DynArray.to_array ctx.m.mops;
+		regs = LargeArray.of_dynarray ctx.m.mregs.arr;
+		code = LargeArray.of_dynarray ctx.m.mops;
 		debug = make_debug ctx ctx.m.mdebug;
 		assigns = make_assigns ~sorted:true ctx.m.massign;
 		need_opt = (gen_content = None || name <> ("",""));
@@ -3924,10 +3924,14 @@ let write_index_gen b i =
 		b (i land 0xFF);
 	end
 
-let write_code ch code debug =
+(* Where the domain writing a part of the functions writes (see [write_code]). *)
+let parallel_byte : (int -> unit) option Domain.DLS.key = Domain.DLS.new_key (fun () -> None)
+
+let write_code ?pool ch code debug =
 
 	let all_types, htypes = gather_types code in
-	let byte = IO.write_byte ch in
+	let byte_ch = IO.write_byte ch in
+	let byte b = match Domain.DLS.get parallel_byte with Some f -> f b | None -> byte_ch b in
 	let write_index = write_index_gen byte in
 
 	let write_type t =
@@ -4183,7 +4187,7 @@ let write_code ch code debug =
 		write_type ttype;
 		write_index findex;
 	) code.natives;
-	Array.iter (fun f ->
+	let write_function f =
 		write_type f.ftype;
 		write_index f.findex;
 		write_index (Array.length f.regs);
@@ -4199,7 +4203,22 @@ let write_code ch code debug =
 				if code.version >= 6 then write_index (scope_end + 1);
 			) f.assigns;
 		end;
-	) code.functions;
+	in
+	(match pool with
+	| Some pool when Array.length code.functions > 1024 ->
+		let n = Array.length code.functions and chunk = 256 in
+		let parts = Array.make ((n + chunk - 1) / chunk) "" in
+		Domainslib.Task.parallel_for pool ~chunk_size:1 ~start:0 ~finish:(Array.length parts - 1) ~body:(fun k ->
+			let o = IO.output_string () in
+			Domain.DLS.set parallel_byte (Some (IO.write_byte o));
+			Std.finally (fun () -> Domain.DLS.set parallel_byte None) (fun () ->
+				for i = k * chunk to min n ((k + 1) * chunk) - 1 do write_function code.functions.(i) done
+			) ();
+			parts.(k) <- IO.close_out o
+		);
+		Array.iter (IO.nwrite_string ch) parts
+	| _ ->
+		Array.iter write_function code.functions);
 	Array.iter (fun (g,fields) ->
 		write_index g;
 		write_index (Array.length fields);
@@ -4246,7 +4265,7 @@ let create_context com =
 		cconstants = new_lookup();
 		cfunctions = DynArray.create();
 		overrides = Hashtbl.create 0;
-		cached_types = PMap.empty;
+		cached_types = Hashtbl.create 0;
 		cached_tuples = PMap.empty;
 		cfids = new_lookup();
 		defined_funs = Hashtbl.create 0;
@@ -4351,7 +4370,9 @@ let add_types ctx types =
 			) c.cl_meta;
  		| _ -> ()
 	) types;
-	List.iter (generate_type ctx) types
+	let t = Timer.start_timer ctx.com.timer_ctx ["generate";"hl";"functions"] in
+	List.iter (generate_type ctx) types;
+	t()
 
 let build_code ctx types main =
 	let ep = generate_static_init ctx types main in
@@ -4402,20 +4423,31 @@ let generate com =
 	let ctx = create_context com in
 	add_types ctx com.types;
 
+	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"init"] in
 	let code = build_code ctx com.types com.main.main_expr in
+	t();
 	Array.sort (fun (lib1,_,_,_) (lib2,_,_,_) -> lib1 - lib2) code.natives;
 
 	if ctx.optimize then begin
 		let t = Timer.start_timer com.timer_ctx ["generate";"hl";"opt"] in
 		let dump_out = if dump then Some (IO.output_channel (open_out_bin "dump/hlopt.txt")) else None in
-		Parallel.run_parallel_for ctx.num_domains ~chunk_size:16 (DynArray.length ctx.cfunctions) (fun idx ->
+		let opt idx =
 			let f = DynArray.get ctx.cfunctions idx in
 			if f.need_opt then begin
 				let f, dumpstr = Hlopt.optimize dump (Array.get code.strings) f "todosign" in
 				(match dump_out with None -> () | Some ch -> IO.nwrite_string ch dumpstr);
 				code.functions.(idx) <- f;
-			end;
-		);
+			end
+		in
+		let n = DynArray.length ctx.cfunctions in
+		if dump_out <> None then
+			for idx = 0 to n - 1 do opt idx done
+		else
+			Parallel.run_with_pool com.pool (fun pool ->
+				match pool with
+				| None -> for idx = 0 to n - 1 do opt idx done
+				| Some pool -> Domainslib.Task.parallel_for pool ~chunk_size:16 ~start:0 ~finish:(n - 1) ~body:opt
+			);
 		(match dump_out with None -> () | Some ch -> IO.close_out ch);
 		t();
 	end;
@@ -4463,11 +4495,9 @@ let generate com =
 		t();
 	end else begin
 		let ch = IO.output_string() in
-		write_code ch code (not (Gctx.raw_defined com "hl_no_debug"));
+		Parallel.run_with_pool com.pool (fun pool -> write_code ?pool ch code (not (Gctx.raw_defined com "hl_no_debug")));
 		let str = IO.close_out ch in
-		let ch = open_out_bin com.file in
-		output_string ch str;
-		close_out ch;
+		ignore (Common.write_file_if_changed com.file str);
 		prev_sign := sign;
 		prev_data := str;
 	end;

@@ -40,7 +40,11 @@ let create_version () =
 	}
 
 let create verbose is_server =
-	let pool = Parallel.ManagedPool.create (fun () -> Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count() - 1) ()) in
+	let pool = Parallel.ManagedPool.create (fun () ->
+		let pool = Domainslib.Task.setup_pool ~num_domains:(Domain.recommended_domain_count() - 1) () in
+		Parallel.set_worker_minor_heap pool;
+		pool
+	) in
 	{
 		is_server;
 		version = create_version ();

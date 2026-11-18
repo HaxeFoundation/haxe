@@ -1,5 +1,7 @@
 let enable = ref true
 
+let is_enabled () = !enable
+
 let run_parallel_for num_domains ?(chunk_size=0) length f =
 	if not !enable then begin
 		for i = 0 to length - 1 do
@@ -37,6 +39,33 @@ module ParallelSeq = struct
 	let iter pool f seq =
 		ParallelArray.iter pool f (Array.of_seq seq)
 end
+
+(* The minor heap of the worker domains of a pool, in MB (HAXE_WORKER_MINOR_MB,
+   0 keeps the default). Each worker sets its own: a new domain gets the
+   default size. *)
+let worker_minor_heap_mb () =
+	match Sys.getenv_opt "HAXE_WORKER_MINOR_MB" with
+	| None | Some "" -> 16
+	| Some s -> (try int_of_string s with _ -> 16)
+
+let set_worker_minor_heap pool =
+	let mb = worker_minor_heap_mb () in
+	if mb > 0 then begin
+		let words = mb * 1024 * 1024 / (Sys.word_size / 8) in
+		let n = Domainslib.Task.get_num_domains pool in
+		let arrived = Atomic.make 0 in
+		(* every domain of the pool takes one of the [n] tasks: each waits for the
+		   others (for a while) so that no domain takes two *)
+		Domainslib.Task.run pool (fun () ->
+			Domainslib.Task.parallel_for pool ~chunk_size:1 ~start:0 ~finish:(n - 1) ~body:(fun _ ->
+				if (Gc.get ()).Gc.minor_heap_size < words then
+					Gc.set { (Gc.get ()) with Gc.minor_heap_size = words };
+				Atomic.incr arrived;
+				let t = Unix.gettimeofday () in
+				while Atomic.get arrived < n && Unix.gettimeofday () -. t < 0.5 do Domain.cpu_relax () done
+			)
+		)
+	end
 
 (* A pool that can be acquired on demand and released when idle.
    Unlike AtomicLazy, supports teardown and re-creation so that

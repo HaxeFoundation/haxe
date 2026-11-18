@@ -46,6 +46,12 @@ type ctx = {
 	mutable separator : bool;
 	mutable found_expose : bool;
 	mutable catch_vars : texpr list;
+	(* while types are generated in parallel: where the packages of the type
+	   are created in [buf], decided once the types are put in order *)
+	package_marks : (int * string list) list ref option;
+	(* the features read while generating a type in parallel: they do not
+	   change then (those added are read once all types are generated) *)
+	feature_cache : (string,bool) Hashtbl.t option;
 }
 
 type object_store = {
@@ -136,12 +142,24 @@ let module_field_expose_path mpath f =
 	with Not_found ->
 		(dot_path mpath) ^ "." ^ f.cf_name
 
-let has_feature ctx = Gctx.has_feature ctx.com
-let add_feature ctx = Gctx.add_feature ctx.com
+(* the features are read and added from several domains while types are
+   generated in parallel *)
+let features_mutex = Mutex.create ()
+
+let has_feature ctx f = match ctx.feature_cache with
+	| Some h ->
+		(try Hashtbl.find h f with Not_found ->
+			let r = Mutex.protect features_mutex (fun () -> Gctx.has_feature ctx.com f) in
+			Hashtbl.add h f r;
+			r)
+	| None ->
+		Mutex.protect features_mutex (fun () -> Gctx.has_feature ctx.com f)
+
+let add_feature ctx f = Mutex.protect features_mutex (fun () -> Gctx.add_feature ctx.com f)
 
 let unsupported p = abort "This expression cannot be compiled to Javascript" p
 
-let flush ctx =
+let flush ctx = if ctx.package_marks = None then begin
 	let chan =
 		match ctx.chan with
 		| Some chan -> chan
@@ -152,6 +170,7 @@ let flush ctx =
 	in
 	Buffer.output_buffer chan ctx.buf;
 	Buffer.clear ctx.buf
+end
 
 let spr ctx s =
 	ctx.separator <- false;
@@ -446,7 +465,7 @@ and add_objectdecl_parens e =
 	loop e
 
 and gen_expr ctx e =
-	let clear_mapping = add_mapping ctx.smap e in
+	let mapping = add_mapping ctx.smap e in
 	(match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal v -> spr ctx (ident v.v_name)
@@ -720,7 +739,7 @@ and gen_expr ctx e =
 	| TIdent s ->
 		spr ctx s
 	);
-	clear_mapping ()
+	clear_mapping ctx.smap mapping
 
 and gen_function ?(keyword="function") ctx f pos =
 	let old = ctx.in_value, ctx.in_loop in
@@ -787,7 +806,7 @@ and gen_block_element ?(newline_after=false) ?(keep_blocks=false) ctx e =
 		if newline_after then newline ctx
 
 and gen_value ctx e =
-	let clear_mapping = add_mapping ctx.smap e in
+	let mapping = add_mapping ctx.smap e in
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
 			mk (TLocal (match ctx.in_value with None -> die "" __LOC__ | Some v -> v)) t_dynamic e.epos,
@@ -903,7 +922,7 @@ and gen_value ctx e =
 			List.map (fun (v,e) -> v, block (assign e)) catchs
 		)) e.etype e.epos);
 		v());
-	clear_mapping ()
+	clear_mapping ctx.smap mapping
 
 and gen_syntax ctx meth args pos =
 	match meth, args with
@@ -997,7 +1016,14 @@ and gen_syntax ctx meth args pos =
 	| _ ->
 		abort (Printf.sprintf "Unknown js.Syntax method `%s` with %d arguments" meth (List.length args)) pos
 
-let generate_package_create ctx (p,_) =
+let rec generate_package_create ctx (p,_) =
+	match ctx.package_marks with
+	| Some marks when p <> [] ->
+		marks := (Buffer.length ctx.buf,p) :: !marks
+	| _ ->
+		generate_package_create_now ctx p
+
+and generate_package_create_now ctx p =
 	let rec loop acc = function
 		| [] -> ()
 		| p :: l when Hashtbl.mem ctx.packages (p :: acc) -> loop (p :: acc) l
@@ -1023,6 +1049,89 @@ let generate_package_create ctx (p,_) =
 	match p with
 	| [] -> print ctx "var "
 	| _ -> loop [] p
+
+(* Generates [types] with [generate_type] on several domains, each on its own
+   buffer and source map, then puts their code and source maps in order. *)
+let generate_types_parallel ctx generate_type types =
+	let types = Array.of_list types in
+	let subs = LargeArray.map (fun _ -> {
+		ctx with
+		buf = Buffer.create 1024;
+		smap = Option.map (fun _ -> JsSourcemap.create ()) ctx.smap;
+		statics = [];
+		inits = [];
+		separator = false;
+		found_expose = false;
+		catch_vars = [];
+		package_marks = Some (ref []);
+		feature_cache = Some (Hashtbl.create 16);
+	}) types in
+	let encoded = Array.make (Array.length types) None in
+	Parallel.run_with_pool ctx.com.pool (fun pool ->
+		Parallel.ParallelArray.iter pool (fun i ->
+			generate_type subs.(i) types.(i);
+			encoded.(i) <- Option.map encoded_fragment subs.(i).smap
+		) (Array.init (Array.length types) (fun i -> i))
+	);
+	(* the mappings transcoded in parallel for the global indices their sources
+	   will get, then spliced in order *)
+	(match ctx.smap with
+	| Some sm ->
+		let globals = JsSourcemap.predict_globals sm encoded in
+		Parallel.run_with_pool ctx.com.pool (fun pool ->
+			Parallel.ParallelArray.iter pool (fun i -> match encoded.(i),globals.(i) with
+				| Some ef,Some g when not (JsSourcemap.shifted g) -> ignore (JsSourcemap.spliced_tail ef g)
+				| _ -> ()
+			) (Array.init (Array.length types) (fun i -> i))
+		)
+	| None ->
+		());
+	Array.iteri (fun i mt ->
+		let sub = subs.(i) in
+		let marks = match sub.package_marks with Some r -> List.rev !r | None -> [] in
+		let code = Buffer.contents sub.buf in
+		let output () =
+			ctx.statics <- sub.statics @ ctx.statics;
+			ctx.inits <- sub.inits @ ctx.inits;
+			if sub.found_expose then ctx.found_expose <- true
+		in
+		match ctx.smap,encoded.(i) with
+		| Some sm,Some ef when List.for_all (fun (offset,_) -> offset = 0) marks ->
+			(* the packages first, then the text and its mappings *)
+			List.iter (fun (_,p) -> generate_package_create_now ctx p) marks;
+			let col0 = sm.output_current_col and last_col0 = sm.output_last_col and comma0 = sm.print_comma in
+			if splice_fragment sm ef col0 last_col0 comma0 then begin
+				Buffer.add_string ctx.buf code;
+				if code <> "" then ctx.separator <- sub.separator;
+				output ()
+			end else
+				generate_type ctx mt
+		| Some _,_ ->
+			(* a package created in the middle of the type *)
+			generate_type ctx mt
+		| None,_ ->
+			let marks = ref marks in
+			let pos = ref 0 in
+			let append upto =
+				if upto > !pos then begin
+					Buffer.add_substring ctx.buf code !pos (upto - !pos);
+					pos := upto;
+					true
+				end else
+					false
+			in
+			let package () = match !marks with
+				| (offset,p) :: l ->
+					marks := l;
+					ignore (append offset);
+					generate_package_create_now ctx p
+				| [] ->
+					die "" __LOC__
+			in
+			while !marks <> [] do package () done;
+			if append (String.length code) then ctx.separator <- sub.separator;
+			output ()
+	) types
 
 let check_field_name c f =
 	match f.cf_name with
@@ -1604,6 +1713,7 @@ let alloc_ctx com es_version =
 				sources_hash = Hashtbl.create 0;
 				mappings = Buffer.create 16;
 				current_expr = None;
+				last_file = None;
 			}
 		else
 			None
@@ -1630,6 +1740,8 @@ let alloc_ctx com es_version =
 		separator = false;
 		found_expose = false;
 		catch_vars = [];
+		package_marks = None;
+		feature_cache = None;
 	} in
 
 	ctx.type_accessor <- (fun t ->
@@ -1894,7 +2006,10 @@ let generate js_gen com =
 		in
 		spr ctx extend_code
 	end;
-	List.iter (generate_type ctx) com.types;
+	if Parallel.is_enabled () then
+		generate_types_parallel ctx generate_type com.types
+	else
+		List.iter (generate_type ctx) com.types;
 	let rec chk_features e =
 		if is_dynamic_iterator ctx e then add_feature ctx "use.$iterator";
 		match e.eexpr with

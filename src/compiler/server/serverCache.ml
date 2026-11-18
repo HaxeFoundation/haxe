@@ -137,6 +137,13 @@ let get_typing_mode com m_extra =
    [Some m'] where [m'] is the module responsible for [m] not being reusable. *)
 let check_module sctx com m_path m_extra p =
 	let cc = CommonCache.get_cache com in
+	(* whether [file] has the content a module was typed from, at [m_time] *)
+	let same_digest m_time file =
+		let fkey = com.part_scope.file_keys#get file in
+		match TypeloadParse.find_file_digest fkey m_time with
+		| Some digest -> (try Digest.file file = digest with Sys_error _ -> false)
+		| None -> false
+	in
 	let content_changed m_path file =
 		let fkey = com.part_scope.file_keys#get file in
 		try
@@ -149,9 +156,10 @@ let check_module sctx com m_path m_extra p =
 			true
 	in
 	let check_module_shadowing paths m_path m_extra =
+		let own_file = Path.UniqueKey.lazy_key m_extra.m_file in
 		List.iter (fun dir ->
 			let file = (dir.c_path ^ (snd m_path)) ^ ".hx" in
-			if Sys.file_exists file then begin
+			if Sys.file_exists file && Path.UniqueKey.create file <> own_file then begin
 				let time = file_time file in
 				if time > m_extra.m_time then begin
 					ServerMessage.module_path_changed com "" (m_path,m_extra,time,file);
@@ -203,9 +211,17 @@ let check_module sctx com m_path m_extra p =
 		in
 		let check_file () =
 			let file = Path.UniqueKey.lazy_path m_extra.m_file in
-			if file_time file <> m_extra.m_time then begin
-				if has_policy CheckFileContentModification && not (content_changed m_path file) then begin
+			let time = file_time file in
+			if time <> m_extra.m_time then begin
+				if (match m_extra.m_kind with MCode | MMacro | MImport -> same_digest m_extra.m_time file | _ -> false)
+					|| (has_policy CheckFileContentModification && not (content_changed m_path file)) then begin
 					ServerMessage.unchanged_content com "" file;
+					(* the module is the one of the content at this time *)
+					let fkey = com.part_scope.file_keys#get file in
+					(match TypeloadParse.find_file_digest fkey m_extra.m_time with
+					| Some digest -> TypeloadParse.add_file_digest fkey time digest
+					| None -> ());
+					m_extra.m_time <- time
 				end else begin
 					ServerMessage.not_cached com "" m_path;
 					if m_extra.m_kind = MFake then (com.cs#get_context m_extra.m_sign)#remove_fake_module (Path.UniqueKey.lazy_key m_extra.m_file);
