@@ -1,6 +1,5 @@
 # The output order stays the same over many warm compilations editing
 # different modules (no change of the dependency structure).
-@known-failure [js] the output order of types depends on the cache (types sorted before the filters)
 @targets js
 === initial
 @expect-output A:1 B:2 red 3
