@@ -1050,14 +1050,14 @@ and generate_package_create_now ctx p =
 	| [] -> print ctx "var "
 	| _ -> loop [] p
 
-(* Generates [types] with [generate_type], each on its own buffer and on several
-   domains, then puts their code in order, creating the packages where the
-   first type of each creates them, as when they are generated in order. *)
+(* Generates [types] with [generate_type] on several domains, each on its own
+   buffer and source map, then puts their code and source maps in order. *)
 let generate_types_parallel ctx generate_type types =
 	let types = Array.of_list types in
 	let subs = LargeArray.map (fun _ -> {
 		ctx with
 		buf = Buffer.create 1024;
+		smap = Option.map (fun _ -> JsSourcemap.create ()) ctx.smap;
 		statics = [];
 		inits = [];
 		separator = false;
@@ -1066,35 +1066,72 @@ let generate_types_parallel ctx generate_type types =
 		package_marks = Some (ref []);
 		feature_cache = Some (Hashtbl.create 16);
 	}) types in
+	let encoded = Array.make (Array.length types) None in
 	Parallel.run_with_pool ctx.com.pool (fun pool ->
-		Parallel.ParallelArray.iter pool (fun i -> generate_type subs.(i) types.(i)) (Array.init (Array.length types) (fun i -> i))
+		Parallel.ParallelArray.iter pool (fun i ->
+			generate_type subs.(i) types.(i);
+			encoded.(i) <- Option.map encoded_fragment subs.(i).smap
+		) (Array.init (Array.length types) (fun i -> i))
 	);
-	Array.iter (fun sub ->
-		let marks = ref (match sub.package_marks with Some r -> List.rev !r | None -> []) in
+	(* the mappings transcoded in parallel for the global indices their sources
+	   will get, then spliced in order *)
+	(match ctx.smap with
+	| Some sm ->
+		let globals = JsSourcemap.predict_globals sm encoded in
+		Parallel.run_with_pool ctx.com.pool (fun pool ->
+			Parallel.ParallelArray.iter pool (fun i -> match encoded.(i),globals.(i) with
+				| Some ef,Some g when not (JsSourcemap.shifted g) -> ignore (JsSourcemap.spliced_tail ef g)
+				| _ -> ()
+			) (Array.init (Array.length types) (fun i -> i))
+		)
+	| None ->
+		());
+	Array.iteri (fun i mt ->
+		let sub = subs.(i) in
+		let marks = match sub.package_marks with Some r -> List.rev !r | None -> [] in
 		let code = Buffer.contents sub.buf in
-		let pos = ref 0 in
-		let append upto =
-			if upto > !pos then begin
-				Buffer.add_substring ctx.buf code !pos (upto - !pos);
-				pos := upto;
-				true
+		let output () =
+			ctx.statics <- sub.statics @ ctx.statics;
+			ctx.inits <- sub.inits @ ctx.inits;
+			if sub.found_expose then ctx.found_expose <- true
+		in
+		match ctx.smap,encoded.(i) with
+		| Some sm,Some ef when List.for_all (fun (offset,_) -> offset = 0) marks ->
+			(* the packages first, then the text and its mappings *)
+			List.iter (fun (_,p) -> generate_package_create_now ctx p) marks;
+			let col0 = sm.output_current_col and last_col0 = sm.output_last_col and comma0 = sm.print_comma in
+			if splice_fragment sm ef col0 last_col0 comma0 then begin
+				Buffer.add_string ctx.buf code;
+				if code <> "" then ctx.separator <- sub.separator;
+				output ()
 			end else
-				false
-		in
-		let package () = match !marks with
-			| (offset,p) :: l ->
-				marks := l;
-				ignore (append offset);
-				generate_package_create_now ctx p
-			| [] ->
-				die "" __LOC__
-		in
-		while !marks <> [] do package () done;
-		if append (String.length code) then ctx.separator <- sub.separator;
-		ctx.statics <- sub.statics @ ctx.statics;
-		ctx.inits <- sub.inits @ ctx.inits;
-		if sub.found_expose then ctx.found_expose <- true
-	) subs
+				generate_type ctx mt
+		| Some _,_ ->
+			(* a package created in the middle of the type *)
+			generate_type ctx mt
+		| None,_ ->
+			let marks = ref marks in
+			let pos = ref 0 in
+			let append upto =
+				if upto > !pos then begin
+					Buffer.add_substring ctx.buf code !pos (upto - !pos);
+					pos := upto;
+					true
+				end else
+					false
+			in
+			let package () = match !marks with
+				| (offset,p) :: l ->
+					marks := l;
+					ignore (append offset);
+					generate_package_create_now ctx p
+				| [] ->
+					die "" __LOC__
+			in
+			while !marks <> [] do package () done;
+			if append (String.length code) then ctx.separator <- sub.separator;
+			output ()
+	) types
 
 let check_field_name c f =
 	match f.cf_name with
@@ -1969,8 +2006,7 @@ let generate js_gen com =
 		in
 		spr ctx extend_code
 	end;
-	(* not with a source map, whose positions follow the output *)
-	if ctx.smap = None && Parallel.is_enabled () then
+	if Parallel.is_enabled () then
 		generate_types_parallel ctx generate_type com.types
 	else
 		List.iter (generate_type ctx) com.types;
