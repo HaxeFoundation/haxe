@@ -433,6 +433,24 @@ class StringTools {
 		#end
 		return s;
 	}
+	
+	/**
+		Encodes `n` into a binary representation.
+
+		If `digits` is specified, the resulting String is padded with "0" until
+		its `length` equals `digits`.
+	**/
+	public static function binary(n:Int, ?digits:Int):String {
+		var s = "";
+		do {
+			s = ((n & 1) == 1 ? "1" : "0") + s;
+			n >>>= 1;
+		} while (n > 0);
+		if (digits != null)
+			while (s.length < digits)
+				s = "0" + s;
+		return s;
+	}
 
 	/**
 		Returns the character code at position `index` of String `s`, or an
