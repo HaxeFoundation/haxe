@@ -181,6 +181,7 @@ let module_extra file sign time kind added policy =
 		m_added = added;
 		m_checked = 0;
 		m_time = time;
+		m_digest = None;
 		m_processed = 0;
 		m_deps = PMap.empty;
 		m_display_deps = None;

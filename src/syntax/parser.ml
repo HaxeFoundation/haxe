@@ -130,6 +130,7 @@ type parser_display_information = {
 	pd_was_display_file : bool;
 	pd_had_resume : bool;
 	pd_delayed_syntax_completion : syntax_completion_on option;
+	pd_digest : Digest.t option;
 }
 
 type 'a parse_result =

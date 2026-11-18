@@ -61,7 +61,7 @@ let parse_file_from_lexbuf com file p lexbuf =
 let parse_file_from_string com file p string =
 	parse_file_from_lexbuf com file p (Lexer.lexbuf_from_utf8_string string)
 
-let parse_file com rfile p =
+let read_file com rfile p =
 	let file_key = com.part_scope.file_keys#get rfile.ClassPaths.file in
 	let contents = match com.file_contents with
 		| [] when (Common.defined com Define.DisplayStdin) && DisplayPosition.display_position#is_in_file file_key ->
@@ -76,14 +76,16 @@ let parse_file com rfile p =
 
 	match contents with
 	| Some s ->
-		parse_file_from_string com rfile.file p s
+		s
 	| _ ->
 		match rfile.class_path#file_kind with
 		| FFile ->
 			let file = rfile.file in
 			let ch = try open_in_bin file with _ -> raise_typing_error ("Could not open " ^ file) p in
-			let s = Std.finally (fun() -> close_in ch) (fun ch -> really_input_string ch (in_channel_length ch)) ch in
-			parse_file_from_string com file p s
+			Std.finally (fun() -> close_in ch) (fun ch -> really_input_string ch (in_channel_length ch)) ch
+
+let parse_file com rfile p =
+	parse_file_from_string com rfile.ClassPaths.file p (read_file com rfile p)
 
 let parse_hook = ref parse_file
 
@@ -282,10 +284,10 @@ let handle_parser_result com p result =
 				end;
 				PdiHandler.handle_pdi com pdi;
 			end;
-			data,pdi.pd_warnings
+			data,pdi.pd_warnings,pdi.pd_digest
 		| ParseError(data,(msg,p),_) ->
 			handle_parser_error msg p;
-			data,[]
+			data,[],None
 
 let parse_module_file com file p =
 	handle_parser_result com p ((!parse_hook) com file p)
@@ -293,11 +295,11 @@ let parse_module_file com file p =
 let parse_module' com m p =
 	let remap = ref (fst m) in
 	let rfile = resolve_module_file com m remap p in
-	let (pack,decls),warnings = parse_module_file com rfile p in
-	rfile,remap,pack,decls,warnings
+	let (pack,decls),warnings,digest = parse_module_file com rfile p in
+	rfile,remap,pack,decls,warnings,digest
 
 let parse_module com m p =
-	let rfile,remap,pack,decls,warnings = parse_module' com m p in
+	let rfile,remap,pack,decls,warnings,digest = parse_module' com m p in
 	if pack <> !remap then begin
 		let spack m = if m = [] then "`package;`" else "`package " ^ (String.concat "." m) ^ ";`" in
 		if p == null_pos then
@@ -341,4 +343,4 @@ let parse_module com m p =
 			| EImport _ | EUsing _ -> acc
 		) [(EImport (List.map (fun s -> s,null_pos) (!remap @ [snd m]),INormal),null_pos)] decls)
 	else
-		decls), warnings
+		decls), warnings, digest

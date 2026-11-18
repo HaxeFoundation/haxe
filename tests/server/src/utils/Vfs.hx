@@ -31,6 +31,12 @@ class Vfs {
 		Fs.writeFileSync(path.toString(), content);
 	}
 
+	public function touch(path:String, seconds = 10) {
+		var path = getPhysicalPath(path).toString();
+		var time = Date.fromTime(Fs.statSync(path).mtime.getTime() + seconds * 1000);
+		Fs.utimesSync(path, time, time);
+	}
+
 	public function getContent(path:String):String {
 		var path = getPhysicalPath(path);
 		FileSystem.createDirectory(path.dir);
