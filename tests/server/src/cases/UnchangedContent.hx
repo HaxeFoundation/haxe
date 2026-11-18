@@ -68,6 +68,24 @@ class UnchangedContent extends TestCase {
 		assertHasPrint("D");
 	}
 
+	/* without module checks, the changed directory is what tells that the file changed */
+	function testChangedContentWithoutModuleChecks() {
+		var main = "class Main { static function main() Sys.println(Dep.value); }";
+		vfs.putContent("src/Dep.hx", "class Dep { public static var value = 1; }");
+		vfs.putContent("src/Main.hx", main);
+		var args = compileArgs(["src"]);
+		compileTwice(args);
+		runHaxeJson(args, ServerMethods.Configure, {noModuleChecks: true});
+		vfs.putContent("src/Other.hx", "class Other {}");
+		vfs.putContent("src/Dep.hx", "class Dep { public static var value = 2; }");
+		vfs.touch("src/Dep.hx");
+		vfs.touch("src");
+		runHaxeJson(args, DisplayMethods.Hover, {file: new FsPath("src/Main.hx"), offset: main.indexOf("value")});
+		var skipped = hasSkipping("Main", "DependencyDirty Dep - Shadowed");
+		runHaxeJson(args, ServerMethods.Configure, {noModuleChecks: false});
+		Assert.isTrue(skipped);
+	}
+
 	function testShadowedByEarlierClassPath() {
 		vfs.putContent("a/Other.hx", "class Other {}");
 		vfs.putContent("b/Main.hx", main("D"));
