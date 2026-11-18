@@ -1,0 +1,36 @@
+# The typer marks a class field as used when its class unifies with a
+# structure (`CfStructurallyUsed`). The marker is on the field of the class,
+# not on the module doing the unification: once that module no longer unifies
+# the class with a structure, a class reused from the cache keeps the marker
+# and DCE keeps the field, unlike a cold compilation.
+@known-failure [js] a field marked as used through a structure stays marked on the cached class (CfStructurallyUsed is never cleared)
+@targets js
+@args -dce full
+
+=== initial
+@expect-output 1
+@expect-file out/main.js foo
+--- Main.hx
+class Main {
+	static function main() {
+		var s:{function foo():Int;} = new C();
+		js.Syntax.code("console.log({0})", C.one());
+	}
+}
+--- C.hx
+class C {
+	public function new() {}
+	public function foo():Int return 42;
+	public static function one() return 1;
+}
+
+=== the structure is no longer used
+@expect-output 1
+@expect-no-file-content out/main.js foo
+--- Main.hx
+class Main {
+	static function main() {
+		var s = new C();
+		js.Syntax.code("console.log({0})", C.one());
+	}
+}
