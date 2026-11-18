@@ -452,19 +452,15 @@ let push_environment ctx info =
 	else
 		no_debug
 	in
-	let locals = if info.num_locals = 0 then
-		empty_array
-	else
-		Array.make info.num_locals vnull
-	in
+	let locals = make_null_array info.num_locals in
 	let captures = if info.num_captures = 0 then
 		empty_array
 	else
 		Array.make info.num_captures vnull
 	in
-	let stack_depth = match eval.env with
-		| None -> 1;
-		| Some env -> env.env_stack_depth + 1
+	let stack_depth = match info.kind, eval.env with
+		| EKMacro _, _ | _, None -> 1
+		| _, Some env -> env.env_stack_depth + 1
 	in
 	let env = {
 		env_info = info;
@@ -474,7 +470,7 @@ let push_environment ctx info =
 		env_locals = locals;
 		env_captures = captures;
 		env_extra_locals = IntMap.empty;
-		env_parent = if info.kind = EKEntrypoint then None else eval.env;
+		env_parent = (match info.kind with EKEntrypoint -> None | _ -> eval.env);
 		env_eval = eval;
 		env_stack_depth = stack_depth;
 	} in
@@ -547,7 +543,7 @@ let is v path =
 	if path = key_Dynamic then
 		v <> vnull
 	else match v with
-	| VInt32 _ -> path = key_Int || path = key_Float
+	| VInt _ -> path = key_Int || path = key_Float
 	| VInt64 _ -> path = key_eval_integers_Int64
 	| VFloat f -> path = key_Float || (path = key_Int && f = (float_of_int (int_of_float f)) && f <= 2147483647. && f >= -2147483648.)
 	| VTrue | VFalse -> path = key_Bool

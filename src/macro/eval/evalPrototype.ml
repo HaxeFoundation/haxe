@@ -208,7 +208,7 @@ let create_static_prototype ctx mt =
 		if not (has_class_flag c CExtern) then List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
 			| Method _,Some {eexpr = TFunction tf; epos = pos} ->
 				let name = hash cf.cf_name in
-				PrototypeBuilder.add_proto_field pctx name (AtomicLazy.from_fun (fun () -> vstatic_function (jit_tfunction ctx key name tf true pos)));
+				PrototypeBuilder.add_proto_field pctx name (AtomicLazy.from_fun (fun () -> vstatic_function (jit_tfunction_lazy ctx key name tf true pos)));
 			| Var _,Some e ->
 				let name = hash cf.cf_name in
 				PrototypeBuilder.add_proto_field pctx name (AtomicLazy.from_val vnull);
@@ -283,7 +283,7 @@ let create_instance_prototype ctx c =
 	else List.iter (fun cf -> match cf.cf_kind,cf.cf_expr with
 		| Method meth,Some {eexpr = TFunction tf; epos = pos} ->
 			let name = hash cf.cf_name in
-			let v = AtomicLazy.from_fun (fun () -> vfunction (jit_tfunction ctx key name tf false pos)) in
+			let v = AtomicLazy.from_fun (fun () -> vfunction (jit_tfunction_lazy ctx key name tf false pos)) in
 			(* an overriding dynamic method only changes the initial value of the parent's field *)
 			if meth = MethDynamic then
 				if has_class_field_flag cf CfOverride then PrototypeBuilder.override_instance_field pctx name v
@@ -326,6 +326,9 @@ let get_object_prototype ctx l =
 	proto,l
 
 let add_types ctx types ready =
+	let added = ref [] in
+	let forget () = List.iter (fun key -> ctx.type_cache <- IntMap.remove key ctx.type_cache) !added in
+	let fl_static_init = try
 	let new_types = List.filter (fun mt ->
 		let inf = Type.t_infos mt in
 		let key = path_hash inf.mt_path in
@@ -339,6 +342,7 @@ let add_types ctx types ready =
 			ctx.constructors <- IntMap.remove key ctx.constructors;
 			ready mt;
 			ctx.type_cache <- IntMap.add key mt ctx.type_cache;
+			added := key :: !added;
 			if ctx.debug.support_debugger then begin
 				let file_key = hash (Path.UniqueKey.lazy_path inf.mt_module.m_extra.m_file) in
 				if not (IntHashtbl.mem ctx.debug.breakpoints file_key) then begin
@@ -391,6 +395,11 @@ let add_types ctx types ready =
 			let non_persistent_delays = ExtList.List.filter_map (fun (persistent,f) -> if not persistent then Some f else None) delays in
 			ctx.static_prototypes#add_init proto non_persistent_delays;
 	) fl_static;
+	fl_static_init
+	with e ->
+		forget ();
+		raise e
+	in
 	(* 4. Initialize static fields. *)
 	DynArray.iter (fun (proto,delays) -> List.iter (fun (_,f) -> f proto) delays) fl_static_init
 
