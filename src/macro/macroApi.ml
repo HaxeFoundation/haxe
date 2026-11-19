@@ -2271,6 +2271,9 @@ let macro_api ccom get_api =
 			let cp = decode_string cp in
 			let path = Path.add_trailing_slash cp in
 			let cp = new ClassPath.directory_class_path path User in
+			(* Files are looked up from the working directory of the compiler, which
+			   is not the one of macros. *)
+			ignore cp#absolute_path;
 			com.class_paths#add cp;
 			(match com.get_macros() with
 			| Some(mcom) ->

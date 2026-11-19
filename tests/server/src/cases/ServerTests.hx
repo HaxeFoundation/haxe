@@ -32,6 +32,97 @@ class ServerTests extends TestCase {
 		assertReuse("HelloWorld");
 	}
 
+	function testShadowingRelativeClassPath() {
+		vfs.putContent("a/Other.hx", "class Other {}");
+		vfs.putContent("b/Main.hx", 'class Main { static function main() Sys.println("D"); }');
+		var args = ["-cp", "b", "-cp", "a", "-main", "Main", "--interp"];
+		runHaxe(args);
+		runHaxe(args);
+		vfs.putContent("a/Main.hx", 'class Main { static function main() Sys.println("E"); }');
+		vfs.touch("a/Main.hx");
+		vfs.touch("a");
+		runHaxe(args);
+		Assert.isTrue(messages.exists(m -> m.contains("skipping Main (Shadowed")));
+		assertHasPrint("E");
+	}
+
+	function testShadowingAfterFirstCompilation() {
+		vfs.putContent("a/Other.hx", "class Other {}");
+		vfs.putContent("b/Main.hx", 'class Main { static function main() Sys.println("D"); }');
+		var args = ["-cp", "b", "-cp", "a", "-main", "Main", "--interp"];
+		runHaxe(args);
+		vfs.putContent("a/Main.hx", 'class Main { static function main() Sys.println("E"); }');
+		vfs.touch("a/Main.hx");
+		vfs.touch("a");
+		runHaxe(args);
+		Assert.isTrue(messages.exists(m -> m.contains("skipping Main (Shadowed")));
+		assertHasPrint("E");
+	}
+
+	function testShadowingInPackage() {
+		vfs.putContent("a/Other.hx", "class Other {}");
+		vfs.putContent("b/pack/Thing.hx", 'package pack; class Thing { public static function name() return "D"; }');
+		vfs.putContent("b/Main.hx", "class Main { static function main() Sys.println(pack.Thing.name()); }");
+		var args = ["-cp", "b", "-cp", "a", "-main", "Main", "--interp"];
+		runHaxe(args);
+		vfs.putContent("a/pack/Thing.hx", 'package pack; class Thing { public static function name() return "E"; }');
+		vfs.touch("a/pack/Thing.hx");
+		vfs.touch("a/pack");
+		runHaxe(args);
+		Assert.isTrue(messages.exists(m -> m.contains("skipping pack.Thing (Shadowed")));
+		assertHasPrint("E");
+	}
+
+	function testShadowingWithCwd() {
+		vfs.putContent("sub/a/Other.hx", "class Other {}");
+		vfs.putContent("sub/b/Main.hx", 'class Main { static function main() Sys.println("D"); }');
+		var args = ["--cwd", "sub", "-cp", "b", "-cp", "a", "-main", "Main", "--interp"];
+		runHaxe(args);
+		vfs.putContent("sub/a/Main.hx", 'class Main { static function main() Sys.println("E"); }');
+		vfs.touch("sub/a/Main.hx");
+		vfs.touch("sub/a");
+		runHaxe(args);
+		Assert.isTrue(messages.exists(m -> m.contains("skipping Main (Shadowed")));
+		assertHasPrint("E");
+	}
+
+	function testShadowingWithCmdCd() {
+		vfs.putContent("a/Other.hx", "class Other {}");
+		vfs.putContent("b/Main.hx", 'class Main { static function main() trace("D"); }');
+		var args = ["-cp", "b", "-cp", "a", "-main", "Main", "-js", "main.js", "--cmd", "cd b"];
+		runHaxe(args);
+		vfs.putContent("a/Main.hx", 'class Main { static function main() trace("E"); }');
+		vfs.touch("a/Main.hx");
+		vfs.touch("a");
+		runHaxe(args);
+		Assert.isTrue(messages.exists(m -> m.contains("skipping Main (Shadowed")));
+		Assert.isTrue(vfs.getContent("main.js").contains('"E"'));
+	}
+
+	function testShadowingInWorkingDirectory() {
+		vfs.putContent("Main.hx", "class Main { static function main() Sys.println(haxe.ds.Option.None); }");
+		var args = ["-main", "Main", "--interp"];
+		runHaxe(args);
+		vfs.putContent("haxe/ds/Option.hx", "package haxe.ds; enum Option { None; }");
+		vfs.touch("haxe/ds/Option.hx");
+		vfs.touch("haxe/ds");
+		vfs.touch("haxe");
+		runHaxe(args);
+		Assert.isTrue(messages.exists(m -> m.contains("skipping haxe.ds.Option (Shadowed")));
+	}
+
+	function testShadowingMacroClassPath() {
+		vfs.putContent("a/Other.hx", "class Other {}");
+		vfs.putContent("b/Main.hx", 'class Main { static function main() Sys.println("D"); }');
+		var args = ["-cp", "b", "--macro", "addClassPath('a')", "-main", "Main", "--interp"];
+		runHaxe(args);
+		vfs.putContent("a/Main.hx", 'class Main { static function main() Sys.println("E"); }');
+		vfs.touch("a/Main.hx");
+		vfs.touch("a");
+		runHaxe(args);
+		assertHasPrint("E");
+	}
+
 	function testModification() {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["-main", "HelloWorld.hx", "--no-output", "-js", "no.js"];

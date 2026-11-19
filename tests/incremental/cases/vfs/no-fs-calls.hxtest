@@ -1,7 +1,6 @@
 # Once the watches of the virtual file system are active, a compilation without
 # changes makes no file system call, including after edits, new files, new
 # directories and deletions.
-@known-failure [legacy] a new file shadowing a library type is not seen by the server (needs a virtual file system)
 @args -cp lib -cp src
 @main Main
 === initial

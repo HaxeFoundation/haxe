@@ -19,6 +19,7 @@ class virtual class_path (path : string) (scope : class_path_scope) (file_kind :
 	method virtual clone : class_path
 	method virtual clear_cache : unit
 	method virtual get_directory_path : string option
+	method virtual absolute_path : string
 	method virtual get_uncached_dir_listing : string -> (string * string array) option
 	method virtual dump : unit
 
@@ -34,10 +35,20 @@ class virtual class_path (path : string) (scope : class_path_scope) (file_kind :
 		| User -> "User"
 end
 
-class directory_class_path (path : string) (scope : class_path_scope) = object(self)
+class directory_class_path ?absolute_path (path : string) (scope : class_path_scope) = object(self)
 	inherit class_path path scope FFile
 
 	val readdir_cache = new Lookup.hashtbl_lookup
+
+	(* Resolved when first needed, once the working directory of the compilation is known. *)
+	val absolute_path = match absolute_path with
+		| Some p -> p
+		| None -> AtomicLazy.from_fun (fun () ->
+			let path = if path = "" then "." else path in
+			Path.add_trailing_slash (try Path.get_full_path path with Unix.Unix_error _ -> path))
+
+	method absolute_path =
+		AtomicLazy.force absolute_path
 
 	method clear_cache =
 		readdir_cache#clear
@@ -46,7 +57,7 @@ class directory_class_path (path : string) (scope : class_path_scope) = object(s
 		Some path
 
 	method clone =
-		new directory_class_path path scope
+		new directory_class_path ~absolute_path path scope
 
 	method get_uncached_dir_listing (f : string) =
 		let file = path ^ f in
