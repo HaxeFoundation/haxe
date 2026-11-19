@@ -176,8 +176,14 @@ let process sctx request_scope request_args =
 	let curdir = Unix.getcwd () in
 	ServerMessage.arguments (Args.string_of_request_args request_args);
 	ServerCompilationContext.reset sctx;
-	Option.may (fun dir -> try Unix.chdir dir with _ -> ()) sctx.persistent_cwd;
-	ignore (Std.finally (fun () -> Unix.chdir curdir) (HighLevel.entry sctx request_scope) request_args);
+	Vfs.begin_compilation ();
+	Std.finally (fun () ->
+		Unix.chdir curdir;
+		Vfs.end_compilation ()
+	) (fun () ->
+		Option.may (fun dir -> try Unix.chdir dir with _ -> ()) sctx.persistent_cwd;
+		ignore (HighLevel.entry sctx request_scope request_args)
+	) ();
 	ServerCompilationContext.run_delays sctx;
 	ServerMessage.stats request_scope.stats (Extc.time() -. t0)
 
@@ -355,6 +361,7 @@ let setup_server_context verbose is_server =
 (* The server main loop. Waits for the [accept] call to then process the sent compilation
    parameters through [process_params]. *)
 let wait_loop verbose accept =
+	if Sys.getenv_opt "HAXE_VFS" = Some "watch" then Vfs.mode := Vfs.Watched;
 	let sctx = setup_server_context verbose true in
 	let rq = RequestQueue.create () in
 	let worker = WorkerDomain.create sctx rq in

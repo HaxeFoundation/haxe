@@ -992,6 +992,7 @@ end
 module StdFile = struct
 	let create_out path binary flags =
 		let path = decode_string path in
+		Vfs.invalidate path;
 		let binary = match binary with
 			| VTrue | VNull -> true
 			| _ -> false
@@ -1010,6 +1011,7 @@ module StdFile = struct
 			let ch = open_out_bin path in
 			output_string ch content;
 			close_out ch;
+			Vfs.invalidate path;
 			vnull
 		with Sys_error s ->
 			exc_string s
@@ -1206,16 +1208,19 @@ module StdFileSystem = struct
 
 	let createDirectory = vfun1 (fun path ->
 		catch_unix_error Path.mkdir_from_path_unix_err (Path.add_trailing_slash (decode_string path));
+		Vfs.invalidate (decode_string path);
 		vnull
 	)
 
 	let deleteDirectory = vfun1 (fun path ->
 		catch_unix_error Unix.rmdir (decode_string path);
+		Vfs.invalidate (decode_string path);
 		vnull
 	)
 
 	let deleteFile = vfun1 (fun path ->
 		(try Sys.remove (decode_string path) with Sys_error s -> exc_string s);
+		Vfs.invalidate (decode_string path);
 		vnull
 	)
 
@@ -1246,6 +1251,8 @@ module StdFileSystem = struct
 
 	let rename = vfun2 (fun path newPath ->
 		(try Sys.rename (decode_string path) (decode_string newPath) with Sys_error s -> exc_string s);
+		Vfs.invalidate (decode_string path);
+		Vfs.invalidate (decode_string newPath);
 		vnull
 	)
 

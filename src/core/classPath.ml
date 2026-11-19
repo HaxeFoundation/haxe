@@ -54,10 +54,7 @@ class directory_class_path (path : string) (scope : class_path_scope) = object(s
 		if readdir_cache#mem dir then
 			None
 		else begin
-			let dir_listing =
-				try Some (dir,Sys.readdir dir);
-				with Sys_error _ -> None
-			in
+			let dir_listing = Option.map (fun listing -> (dir,listing)) (Vfs.readdir dir) in
 			readdir_cache#add dir dir_listing;
 			dir_listing
 		end

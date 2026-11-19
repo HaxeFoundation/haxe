@@ -81,8 +81,7 @@ let read_file com rfile p =
 		match rfile.class_path#file_kind with
 		| FFile ->
 			let file = rfile.file in
-			let ch = try open_in_bin file with _ -> raise_typing_error ("Could not open " ^ file) p in
-			Std.finally (fun() -> close_in ch) (fun ch -> really_input_string ch (in_channel_length ch)) ch
+			try Vfs.read_file file with Sys_error _ -> raise_typing_error ("Could not open " ^ file) p
 
 let parse_file com rfile p =
 	parse_file_from_string com rfile.ClassPaths.file p (read_file com rfile p)
