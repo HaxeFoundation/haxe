@@ -429,8 +429,10 @@ let vfunction f = VFunction(f,false)
 let vstatic_function f = VFunction(f,true)
 let vfield_closure v f = VFieldClosure(v,f)
 let vobject o = VObject o
-(* [i] wrapped to a signed 32-bit value, as an Int holds it *)
+(* [i] wrapped to a signed 32-bit value, as an Int holds it. This needs an OCaml [int] of
+   at least 32 bits, so 32-bit builds (31-bit [int]) are not supported. *)
 let int32_shift = Sys.int_size - 32
+let () = assert (int32_shift >= 0)
 let wrap32 i = (i lsl int32_shift) asr int32_shift [@@inline]
 
 let vint i = VInt (wrap32 i) [@@inline]

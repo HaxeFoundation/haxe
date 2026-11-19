@@ -32,7 +32,7 @@ let s_value_kind = function
 	| VNull -> "VNull"
 	| VTrue -> "VTrue"
 	| VFalse -> "VFalse"
-	| VInt _ -> "VInt32"
+	| VInt _ -> "VInt"
 	| VInt64 _ -> "VInt64"
 	| VUInt64 _ -> "VUInt64"
 	| VFloat _ -> "VFloat"
