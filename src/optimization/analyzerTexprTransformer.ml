@@ -225,8 +225,8 @@ let rec func ctx bb tf t p =
 			| FEnum _ -> true
 			| FDynamic ("cca" | "__Index" | "__s") -> true (* This is quite retarded, but we have to deal with this somehow... *)
 			| _ -> match follow e.etype,follow e1.etype with
-				| TFun _,TInst _ -> false
-				| TFun _,_ -> true (* We don't know what's going on here, don't create a temp var (see #5082). *)
+				| (TFun _ | TAbstract({a_path = ["haxe"],"Function"},[])),TInst _ -> false
+				| (TFun _ | TAbstract({a_path = ["haxe"],"Function"},[])),_ -> true (* We don't know what's going on here, don't create a temp var (see #5082). *)
 				| _ -> false
 		in
 		let rec loop fl e = match e.eexpr with
