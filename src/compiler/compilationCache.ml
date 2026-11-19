@@ -201,6 +201,7 @@ class cache = object(self)
 	val mutable context_list = []
 	val haxelib : (string list * string option, string list) Hashtbl.t = Hashtbl.create 0
 	val directories : (string, cached_directory list) Hashtbl.t = Hashtbl.create 0
+	val package_directories : (string * string, float) Hashtbl.t = Hashtbl.create 0
 	val native_libs : (string,cached_native_lib) Hashtbl.t = Hashtbl.create 0
 	val mutable tasks : (server_task PriorityQueue.t) = PriorityQueue.Empty
 
@@ -209,6 +210,7 @@ class cache = object(self)
 		context_list <- [];
 		Hashtbl.clear haxelib;
 		Hashtbl.clear directories;
+		Hashtbl.clear package_directories;
 		Hashtbl.clear native_libs;
 		tasks <- PriorityQueue.Empty
 
@@ -353,6 +355,20 @@ class cache = object(self)
 
 	method clear_directories key =
 		Hashtbl.remove directories key
+
+	(* package directories of the working directory, with their last seen modification time *)
+
+	method find_package_directory key dir =
+		Hashtbl.find package_directories (key,dir)
+
+	method add_package_directory key dir mtime =
+		Hashtbl.replace package_directories (key,dir) mtime
+
+	method remove_package_directory key dir =
+		Hashtbl.remove package_directories (key,dir)
+
+	method clear_package_directories key =
+		Hashtbl.filter_map_inplace (fun (key',_) mtime -> if key' = key then None else Some mtime) package_directories
 
 	(* native lib *)
 

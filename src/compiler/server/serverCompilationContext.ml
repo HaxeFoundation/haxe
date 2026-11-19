@@ -9,6 +9,8 @@ type t = {
 	verbose : bool;
 	(* The list of changed directories per-signature *)
 	changed_directories : (Digest.t,cached_directory list) Hashtbl.t;
+	(* Whether a package directory of the working directory changed, per signature and directory *)
+	package_directories : (Digest.t * string,bool) Hashtbl.t;
 	(* A reference to the compilation server instance *)
 	cs : CompilationCache.t;
 	(* A list of class paths per-signature *)
@@ -48,6 +50,7 @@ let create verbose is_server =
 		cs = new CompilationCache.cache;
 		class_paths = Hashtbl.create 0;
 		changed_directories = Hashtbl.create 0;
+		package_directories = Hashtbl.create 0;
 		compilation_step = 0;
 		delays = [];
 		was_compilation = false;
@@ -71,5 +74,6 @@ let run_delays sctx =
 (* Resets the state for a new compilation *)
 let reset sctx =
 	Hashtbl.clear sctx.changed_directories;
+	Hashtbl.clear sctx.package_directories;
 	sctx.was_compilation <- false;
 	Parser.reset_state()

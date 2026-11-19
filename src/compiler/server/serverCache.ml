@@ -63,6 +63,14 @@ open ServerCompilationContext
 let stat dir =
 	(Unix.stat (Path.remove_trailing_slash dir)).Unix.st_mtime
 
+let absolute_class_paths (com : Common.context) =
+	List.map (fun cp -> cp#absolute_path) com.class_paths#as_list
+
+(* The empty class path is the working directory, which usually holds much more
+   than modules: its directories are watched by package, see [package_directory_changed]. *)
+let watched_class_paths (com : Common.context) =
+	List.filter_map (fun cp -> if cp#path = "" then None else Some cp#absolute_path) com.class_paths#as_list
+
 (* Gets a list of changed directories for the current compilation. *)
 let get_changed_directories sctx com =
 	let cs = sctx.cs in
@@ -74,19 +82,27 @@ let get_changed_directories sctx com =
 		let dirs = try
 			(* Next, get all directories from the cache and filter the ones that haven't changed. *)
 			let all_dirs = cs#find_directories sign in
+			let sub_dirs dir =
+				List.map Path.add_trailing_slash (Path.find_directories (platform_name com.platform) false [dir.c_path])
+			in
+			let rec add_new acc dir =
+				if not (cs#has_directory sign dir) then begin try
+					let time = stat dir in
+					ServerMessage.added_directory com "" dir;
+					let cdir = CompilationCache.create_directory dir time in
+					cs#add_directory sign cdir;
+					List.fold_left add_new (cdir :: acc) (sub_dirs cdir)
+				with Unix.Unix_error _ ->
+					acc
+				end else
+					acc
+			in
 			let dirs = List.fold_left (fun acc dir ->
 				try
 					let time' = stat dir.c_path in
 					if dir.c_mtime < time' then begin
 						dir.c_mtime <- time';
-						let sub_dirs = Path.find_directories (platform_name com.platform) false [dir.c_path] in
-						List.iter (fun dir ->
-							if not (cs#has_directory sign dir) then begin
-								let time = stat dir in
-								ServerMessage.added_directory com "" dir;
-								cs#add_directory sign (CompilationCache.create_directory dir time)
-							end;
-						) sub_dirs;
+						let acc = List.fold_left add_new acc (sub_dirs dir) in
 						(CompilationCache.create_directory dir.c_path time') :: acc
 					end else
 						acc
@@ -95,6 +111,8 @@ let get_changed_directories sctx com =
 					ServerMessage.removed_directory com "" dir.c_path;
 					acc
 			) [] all_dirs in
+			(* A class path directory created since is added like a new subdirectory. *)
+			let dirs = List.fold_left add_new dirs (watched_class_paths com) in
 			ServerMessage.changed_directories com "" dirs;
 			dirs
 		with Not_found ->
@@ -111,9 +129,9 @@ let get_changed_directories sctx com =
 					with Unix.Unix_error _ ->
 						()
 				in
-				let class_path_strings = com.class_paths#as_string_list in
+				let class_path_strings = watched_class_paths com in
 				List.iter add_dir class_path_strings;
-				List.iter add_dir (Path.find_directories (platform_name com.platform) true class_path_strings);
+				List.iter add_dir (List.map Path.add_trailing_slash (Path.find_directories (platform_name com.platform) true class_path_strings));
 				ServerMessage.found_directories com "" !dirs;
 				cs#add_directories sign !dirs
 			) :: sctx.delays;
@@ -128,6 +146,31 @@ let get_changed_directories sctx com =
 
 let get_changed_directories sctx com =
 	Timer.time com.Common.timer_ctx ["server";"module cache";"changed dirs"] (get_changed_directories sctx) com
+
+(* A directory of the working directory is watched from the first time a module
+   of its package is checked, and counts as changed then. *)
+let package_directory_changed sctx com dir =
+	let sign = Define.get_signature com.defines in
+	try
+		Hashtbl.find sctx.package_directories (sign,dir)
+	with Not_found ->
+		let cs = sctx.cs in
+		let changed = try
+			let time = stat dir in
+			let changed = try
+				cs#find_package_directory sign dir < time
+			with Not_found ->
+				ServerMessage.added_directory com "" dir;
+				true
+			in
+			cs#add_package_directory sign dir time;
+			changed
+		with Unix.Unix_error _ ->
+			cs#remove_package_directory sign dir;
+			false
+		in
+		Hashtbl.add sctx.package_directories (sign,dir) changed;
+		changed
 
 let get_typing_mode com m_extra =
 	let full_typing = com.is_macro_context
@@ -170,10 +213,10 @@ let check_module sctx com m_path m_extra p =
 		| _ ->
 			false
 	in
-	let check_module_shadowing paths m_path m_extra =
+	let check_module_shadowing com m_path m_extra =
 		let own_file = Path.UniqueKey.lazy_key m_extra.m_file in
-		List.iter (fun dir ->
-			let file = (dir.c_path ^ (snd m_path)) ^ ".hx" in
+		let check dir =
+			let file = (dir ^ (snd m_path)) ^ ".hx" in
 			if Sys.file_exists file then begin
 				let time = file_time file in
 				(* The file of the module does not shadow it, unless its content changed. *)
@@ -182,7 +225,15 @@ let check_module sctx com m_path m_extra p =
 					raise (Dirty (Shadowed file))
 				end
 			end
-		) paths
+		in
+		List.iter (fun cdir -> check cdir.c_path) (get_changed_directories sctx com);
+		let pack_dir = String.concat "" (List.map (fun s -> s ^ "/") (fst m_path)) in
+		com.class_paths#iter (fun cp ->
+			if cp#path = "" then begin
+				let dir = cp#absolute_path ^ pack_dir in
+				if package_directory_changed sctx com dir then check dir
+			end
+		)
 	in
 	let has_policy m_extra policy = List.mem policy m_extra.m_check_policy || match policy with
 		| NoFileSystemCheck when !ServerConfig.do_not_check_modules && com.display.dms_kind <> DMNone -> true
@@ -211,7 +262,7 @@ let check_module sctx com m_path m_extra p =
 		if !Vfs.mode = Vfs.Watched then
 			check_module_resolution com m_path m_extra
 		else
-			check_module_shadowing (get_changed_directories sctx com) m_path m_extra
+			check_module_shadowing com m_path m_extra
 	in
 	let start_mark = sctx.compilation_step in
 	let unknown_state_modules = ref [] in
@@ -631,17 +682,33 @@ let after_target_init sctx com =
 	ServerMessage.defines com "";
 	ServerMessage.signature com "" sign;
 	ServerMessage.display_position com "" (DisplayPosition.display_position#get);
-	let class_path_strings = com.class_paths#as_string_list in
-	try
+	let class_path_strings = absolute_class_paths com in
+	(try
 		if (Hashtbl.find sctx.class_paths sign) <> class_path_strings then begin
 			ServerMessage.class_paths_changed com "";
 			Hashtbl.replace sctx.class_paths sign class_path_strings;
 			cs#clear_directories sign;
+			cs#clear_package_directories sign;
 			(cs#get_context sign)#set_initialized false;
 		end;
 	with Not_found ->
-		Hashtbl.add sctx.class_paths sign class_path_strings;
-		()
+		Hashtbl.add sctx.class_paths sign class_path_strings);
+	(* The watched view resolves the modules again instead. *)
+	if !Vfs.mode <> Vfs.Watched then begin try
+		ignore (cs#find_directories sign)
+	with Not_found ->
+		ignore (get_changed_directories sctx com)
+	end
+
+(* The directories of the class paths are listed once the server is back in
+   its own working directory: the absolute paths of the class paths added after
+   [after_target_init], like the one of a standalone display file, are resolved
+   before, also before a --cmd "cd dir" changes the working directory. *)
+let resolve_class_paths sctx com =
+	if sctx.is_server then begin
+		ignore (absolute_class_paths com);
+		Option.may (fun mcom -> ignore (absolute_class_paths mcom)) (com.get_macros())
+	end
 
 let after_save sctx com =
 	if sctx.is_server && not (Common.has_error_to_report com) then
