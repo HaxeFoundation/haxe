@@ -973,7 +973,7 @@ let clone com is_macro_context =
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 	}
 
-let file_time file = Extc.filetime file
+let file_time file = Vfs.mtime file
 
 (* Writes [content] to [file] unless the file already has exactly this content. *)
 let write_file_if_changed file content =
@@ -987,7 +987,8 @@ let write_file_if_changed file content =
 	in
 	if not same then begin
 		let ch = open_out_bin file in
-		Std.finally (fun () -> close_out ch) (fun () -> output_string ch content) ()
+		Std.finally (fun () -> close_out ch) (fun () -> output_string ch content) ();
+		Vfs.invalidate file
 	end
 
 let flash_versions = List.map (fun v ->

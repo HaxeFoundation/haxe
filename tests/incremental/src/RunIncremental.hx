@@ -252,11 +252,7 @@ class RunIncremental {
 		while (Platform.portInUse(port))
 			port++;
 		var server = new Proc(haxeCmd, ["--wait", Std.string(port)]);
-		for (_ in 0...50) {
-			if (Platform.portInUse(port))
-				break;
-			delay(100);
-		}
+		waitForServer(port);
 		for (method in methods) {
 			var request = haxe.Json.stringify({jsonrpc: "2.0", id: 1, method: method, params: {}});
 			var p = Proc.run(haxeCmd, ["--connect", Std.string(port), "--display", request]);
@@ -286,6 +282,16 @@ class RunIncremental {
 			var probe = Proc.run(haxeCmd, ["--connect", Std.string(port), "--version"]);
 			probe.exitCode() == 0 && (probe.stdout() + probe.stderr()).trim() == version;
 		}) catch (_:hxcoro.TimeoutException) false;
+	}
+
+	/** Waits for the server on [port] to answer with the version of the compiler. **/
+	@:coroutine static function waitForServer(port:Int):Bool {
+		for (_ in 0...50) {
+			if (serverAnswers(port))
+				return true;
+			delay(100);
+		}
+		return false;
 	}
 
 	/**
@@ -319,14 +325,7 @@ class RunIncremental {
 			if (Platform.portInUse(port))
 				continue;
 			server = new Proc(haxeCmd, ["--wait", Std.string(port)]);
-			// Give the server time to listen.
-			for (_ in 0...50) {
-				if (serverAnswers(port)) {
-					connected = true;
-					break;
-				}
-				delay(100);
-			}
+			connected = waitForServer(port);
 			if (connected)
 				break;
 			server.kill();

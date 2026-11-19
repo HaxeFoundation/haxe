@@ -324,13 +324,17 @@ let module_name_of_file file =
 	| [] ->
 		Globals.die "" __LOC__
 
+(* Called after the compiler creates a directory. *)
+let on_directory_created : (string -> unit) ref = ref (fun _ -> ())
+
 (**
 	Creates directory `path` unless it already exists.
 	Doesn't check for existence first, because another thread or process could create the directory in between.
 *)
 let mkdir_if_missing path =
 	try
-		Unix.mkdir path 0o755
+		Unix.mkdir path 0o755;
+		!on_directory_created path
 	with Unix.Unix_error _ as exc ->
 		(* The error for an existing directory depends on the OS, so check what is there instead. *)
 		if not (try Sys.is_directory (remove_trailing_slash path) with Sys_error _ -> false) then raise exc
