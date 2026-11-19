@@ -49,12 +49,12 @@ abstract Tls<T>(hl.Abstract<"hl_tls">) {
 		return v;
 	}
 
-	static function tls_alloc(gcValue:Bool)
+	static function tls_alloc(gcValue:Bool):hl.Abstract<"hl_tls">
 		return null;
 
-	static function tls_get(t):Dynamic
+	static function tls_get(t:hl.Abstract<"hl_tls">):Dynamic
 		return null;
 
-	static function tls_set(t, v:Dynamic) {}
+	static function tls_set(t:hl.Abstract<"hl_tls">, v:Dynamic) {}
 }
 #end
