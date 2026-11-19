@@ -54,6 +54,7 @@ class FileSystem {
 		s.atime = Date.fromTime(1000.0 * (untyped s.atime));
 		s.mtime = Date.fromTime(1000.0 * (untyped s.mtime));
 		s.ctime = Date.fromTime(1000.0 * (untyped s.ctime));
+		s.size = sys.FilePos.ofInt(untyped s.size);
 		return s;
 	}
 

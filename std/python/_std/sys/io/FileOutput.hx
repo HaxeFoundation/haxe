@@ -36,12 +36,12 @@ class FileOutput extends Output {
 		this.impl = impl;
 	}
 
-	public function seek(p:Int, pos:FileSeek):Void {
-		return impl.seek(p, pos);
+	public function seek(p:sys.FilePos, pos:FileSeek):Void {
+		return impl.seek(Std.int(p.toFloat()), pos);
 	}
 
-	public function tell():Int {
-		return impl.tell();
+	public function tell():sys.FilePos {
+		return sys.FilePos.ofInt(impl.tell());
 	}
 
 	override public function set_bigEndian(b:Bool) {

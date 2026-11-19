@@ -53,11 +53,11 @@ class FileOutput extends haxe.io.Output {
 		NativeFile.file_close(__f);
 	}
 
-	public function seek(p:Int, pos:FileSeek):Void {
-		NativeFile.file_seek(__f, p, pos == SeekBegin ? 0 : pos == SeekCur ? 1 : 2);
+	public function seek(p:sys.FilePos, pos:FileSeek):Void {
+		NativeFile.file_seek(__f, p.toInt(), pos == SeekBegin ? 0 : pos == SeekCur ? 1 : 2);
 	}
 
-	public function tell():Int {
+	public function tell():sys.FilePos {
 		return NativeFile.file_tell(__f);
 	}
 }

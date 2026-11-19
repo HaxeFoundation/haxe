@@ -39,7 +39,7 @@ class FileSystem {
 			atime: Date.fromTime(1000 * s.st_atime),
 			mtime: Date.fromTime(1000 * s.st_mtime),
 			ctime: Date.fromTime(1000 * s.st_ctime),
-			size: s.st_size,
+			size: sys.FilePos.ofInt(s.st_size),
 			dev: s.st_dev,
 			ino: s.st_ino,
 			nlink: s.st_nlink,

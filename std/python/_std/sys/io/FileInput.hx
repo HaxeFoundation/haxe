@@ -39,12 +39,12 @@ class FileInput extends Input {
 		return impl.bigEndian = b;
 	}
 
-	public function seek(p:Int, pos:FileSeek):Void {
-		return impl.seek(p, pos);
+	public function seek(p:sys.FilePos, pos:FileSeek):Void {
+		return impl.seek(Std.int(p.toFloat()), pos);
 	}
 
-	public function tell():Int {
-		return impl.tell();
+	public function tell():sys.FilePos {
+		return sys.FilePos.ofInt(impl.tell());
 	}
 
 	public function eof():Bool {
