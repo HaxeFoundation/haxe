@@ -961,7 +961,7 @@ private class HxDynamicStr extends HxClosure {
 	}
 
 	@:phpMagic
-	function __get(name:String) {
+	function __get(name:String):Dynamic {
 		return null;
 	}
 

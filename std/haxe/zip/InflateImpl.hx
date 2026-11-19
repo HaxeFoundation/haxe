@@ -125,7 +125,7 @@ class InflateImpl {
 	var lengths:Vector<Int>;
 	var window:Window;
 
-	static var FIXED_HUFFMAN = null;
+	static var FIXED_HUFFMAN:Null<Huffman> = null;
 
 	public function new(i, header = true, crc = true) {
 		isFinal = false;

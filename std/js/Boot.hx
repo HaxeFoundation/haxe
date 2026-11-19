@@ -243,7 +243,7 @@ class Boot {
 	}
 
 	// resolve native JS class in the global scope:
-	static function __resolveNativeClass(name:String) {
+	static function __resolveNativeClass(name:String):Dynamic {
 		return js.Lib.global[cast name];
 	}
 }

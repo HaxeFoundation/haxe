@@ -102,7 +102,7 @@ class HxOverrides {
 	}
 
 	@:ifFeature("dynamic_read.map", "anon_optional_read.map", "anon_read.map")
-	static public function map(x:Dynamic, f:Dynamic) {
+	static public function map(x:Dynamic, f:Dynamic):Dynamic {
 		if (Boot.isArray(x)) {
 			return (x : Array<Dynamic>).map(f);
 		}
@@ -190,7 +190,7 @@ class HxOverrides {
 	}
 
 	@:ifFeature("dynamic_array_write")
-	static public function arraySet(a:Dynamic, i:Int, v:Dynamic) {
+	static public function arraySet(a:Dynamic, i:Int, v:Dynamic):Dynamic {
 		if (Boot.isArray(a)) {
 			return ArrayImpl._set(a, i, v);
 		} else {

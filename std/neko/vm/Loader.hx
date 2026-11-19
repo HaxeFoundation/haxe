@@ -111,7 +111,7 @@ class Loader {
 		return old;
 	}
 
-	function __compare(other:Loader) {
+	function __compare(other:Loader):Int {
 		return untyped __dollar__compare(this.l, other.l);
 	}
 

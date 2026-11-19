@@ -127,7 +127,7 @@ class AsyncSocket {
 		Start a server on given host/port and callback `onClient` everytime a client connects.
 		Will also call `onClient(null)` in the rare case where the server connection is lost.
 	**/
-	public static function startServer( host, port, ?ssl, onClient ) {
+	public static function startServer( host, port, ?ssl, onClient : Null<AsyncSocket> -> Void ) {
 		var s = new AsyncSocket();
 		s.onDisconnect = function() {
 			onClient(null);

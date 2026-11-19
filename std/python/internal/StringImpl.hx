@@ -27,7 +27,7 @@ import python.internal.Internal;
 @:native("HxString")
 class StringImpl {
 	@:ifFeature("dynamic_read.split", "anon_optional_read.split", "python.internal.StringImpl.split")
-	public static inline function split(s:String, d:String) {
+	public static inline function split(s:String, d:String):Array<String> {
 		return if (d == "") UBuiltins.list(s) else Syntax.callField(s, "split", d);
 	}
 

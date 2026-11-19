@@ -35,7 +35,7 @@ class Enum<T:EnumValue> extends java.lang.Enum<T> {
 		return super.equals(other);
 	}
 
-	@:jvm.synthetic public function _hx_getParameters() {
+	@:jvm.synthetic public function _hx_getParameters():java.NativeArray<Dynamic> {
 		return new java.NativeArray(0);
 	}
 
