@@ -219,11 +219,7 @@ class RunIncremental {
 		while (portInUse(port))
 			port++;
 		var server = new Process(haxeCmd, ["--wait", Std.string(port)]);
-		for (_ in 0...50) {
-			if (portInUse(port))
-				break;
-			Sys.sleep(0.1);
-		}
+		waitForServer(port);
 		for (method in methods) {
 			var request = haxe.Json.stringify({jsonrpc: "2.0", id: 1, method: method, params: {}});
 			var p = new Process(haxeCmd, ["--connect", Std.string(port), "--display", request]);
@@ -245,6 +241,20 @@ class RunIncremental {
 		if (!unsupported.contains(feature))
 			unsupported.push(feature);
 		skippedExpectations++;
+		return false;
+	}
+
+	/** Waits for the server on [port] to answer with the version of the compiler. **/
+	static function waitForServer(port:Int):Bool {
+		for (_ in 0...50) {
+			var probe = new Process(haxeCmd, ["--connect", Std.string(port), "--version"]);
+			var out = probe.stdout.readAll().toString() + probe.stderr.readAll().toString();
+			var code = probe.exitCode();
+			probe.close();
+			if (code == 0 && out.trim() == compilerVersion())
+				return true;
+			Sys.sleep(0.1);
+		}
 		return false;
 	}
 
@@ -292,18 +302,7 @@ class RunIncremental {
 			// during a compilation gives the client an empty output and exit code 0)
 			serverOut = readInBackground(server.stdout);
 			serverErr = readInBackground(server.stderr);
-			// Give the server time to listen.
-			for (_ in 0...50) {
-				var probe = new Process(haxeCmd, ["--connect", Std.string(port), "--version"]);
-				var out = probe.stdout.readAll().toString() + probe.stderr.readAll().toString();
-				var code = probe.exitCode();
-				probe.close();
-				if (code == 0 && out.trim() == compilerVersion()) {
-					connected = true;
-					break;
-				}
-				Sys.sleep(0.1);
-			}
+			connected = waitForServer(port);
 			if (connected)
 				break;
 			server.kill();

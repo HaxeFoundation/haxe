@@ -326,6 +326,9 @@ let module_name_of_file file =
 
 let mkdir_mutex = Mutex.create ()
 
+(* Called after the compiler creates a directory. *)
+let on_directory_created : (string -> unit) ref = ref (fun _ -> ())
+
 let rec create_file bin ext acc = function
 	| [] -> Globals.die "" __LOC__
 	| d :: [] ->
@@ -336,7 +339,7 @@ let rec create_file bin ext acc = function
 		ch
 	| d :: l ->
 		let dir = String.concat "/" (List.rev (d :: acc)) in
-		Mutex.protect mkdir_mutex (fun () -> if not (Sys.file_exists (remove_trailing_slash dir)) then Unix.mkdir dir 0o755);
+		Mutex.protect mkdir_mutex (fun () -> if not (Sys.file_exists (remove_trailing_slash dir)) then begin Unix.mkdir dir 0o755; !on_directory_created dir end);
 		create_file bin ext (d :: acc) l
 
 let rec mkdir_recursive base dir_list =
@@ -356,8 +359,10 @@ let rec mkdir_recursive base dir_list =
 				path
 		in
 		if not ( (path = "") || ( (path_len = 2) && ((String.sub path 1 1) = ":") ) ) then
-			if not (Sys.file_exists path) then
+			if not (Sys.file_exists path) then begin
 				Unix.mkdir path 0o755;
+				!on_directory_created path
+			end;
 		mkdir_recursive (if (path = "") then "/" else path) remaining
 
 (**
