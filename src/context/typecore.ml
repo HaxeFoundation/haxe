@@ -104,6 +104,8 @@ type call_arg_context = {
 type typer_globals = {
 	mutable delayed : typer_pass_tasks Array.t;
 	mutable delayed_min_index : int;
+	(* -D typer-shuffle=<seed> *)
+	typer_shuffle : Random.State.t option;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * (string * string list) * typer) list) list;
 	retain_meta : bool;
 	mutable core_api : typer option;
@@ -531,6 +533,12 @@ let rec flush_pass g (p : typer_pass) where =
 		else begin
 			let tasks = g.delayed.(i) in
 			begin match tasks.tasks with
+			| _ :: _ :: _ as l when g.typer_shuffle <> None ->
+				let n = Random.State.int (Option.get g.typer_shuffle) (List.length l) in
+				let f = List.nth l n in
+				tasks.tasks <- List.filteri (fun i _ -> i <> n) l;
+				f();
+				flush_pass g p where
 			| f :: l ->
 				tasks.tasks <- l;
 				f();

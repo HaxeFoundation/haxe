@@ -854,6 +854,12 @@
 		"reserved": true
 	},
 	{
+		"name": "TyperShuffle",
+		"define": "typer-shuffle",
+		"doc": "Run the delayed typing tasks of each pass in a random order, from the given seed, to check that typing does not depend on that order.",
+		"params": ["seed"]
+	},
+	{
 		"name": "UseNekoc",
 		"define": "use-nekoc",
 		"doc": "Use `nekoc` compiler instead of the internal one.",
