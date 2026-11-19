@@ -39,7 +39,7 @@ let run_or_diagnose com f =
 	else
 		f ()
 
-let run_command com cmd =
+let run_command com ?cwd cmd =
 	let io = com.request_scope.io in
 	(* TODO: this is a hack *)
 	let cmd = if com.sctx.is_server then begin
@@ -52,22 +52,22 @@ let run_command com cmd =
 	in
 	let len = String.length cmd in
 	let result =
-		if len > 3 && String.sub cmd 0 3 = "cd " then begin
+		if cwd = None && len > 3 && String.sub cmd 0 3 = "cd " then begin
 			Sys.chdir (String.sub cmd 3 (len - 3));
 			0
 		end else if not com.sctx.is_server then
 			(* In non-server mode, inherit stdin/stdout/stderr so that interactive commands work *)
-			Sys.command cmd
+			Process.command ?cwd cmd
 		else begin
 			(* In server mode, capture stdout/stderr through the output target and
 			   forward the client's stdin from request_scope. *)
-			PipeThings.run_command io cmd
+			PipeThings.run_command ?cwd io cmd
 		end
 	in
 	result
 
-let run_command com cmd =
-	Timer.time com.timer_ctx ["command";cmd] (run_command com) cmd
+let run_command com ?cwd cmd =
+	Timer.time com.timer_ctx ["command";cmd] (run_command com ?cwd) cmd
 
 module Setup = struct
 	let initialize_target com actx =

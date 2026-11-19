@@ -319,7 +319,8 @@ and context = {
 	mutable scoped_warning_options : (warning_option * SourceScope.t) list;
 	mutable get_messages : unit -> Message.t list;
 	mutable filter_messages : (Message.t -> bool) -> unit;
-	mutable run_command : string -> int;
+	(* [cwd]: the directory to run the command in, if not the current one *)
+	mutable run_command : ?cwd:string -> string -> int;
 	mutable run_command_args : string -> string list -> int;
 	(* typing setup *)
 	mutable load_extern_type : (string * (path -> pos -> Ast.package option)) list; (* allow finding types which are not in sources *)
@@ -364,7 +365,7 @@ let to_gctx com = {
 	defines = com.defines;
 	basic = com.basic;
 	class_paths = com.class_paths;
-	run_command = com.run_command;
+	run_command = (fun cmd -> com.run_command cmd);
 	run_command_args = com.run_command_args;
 	warning = com.warning;
 	error = com.error;
@@ -757,7 +758,7 @@ let create sctx request_scope part_scope display_mode =
 		platform = Cross;
 		config = default_config;
 		custom_ext = None;
-		run_command = Sys.command;
+		run_command = (fun ?cwd cmd -> Process.command ?cwd cmd);
 		run_command_args = (fun s args -> com.run_command (Printf.sprintf "%s %s" s (String.concat " " args)));
 		empty_class_path = new ClassPath.directory_class_path "" User;
 		class_paths = new ClassPaths.class_paths;

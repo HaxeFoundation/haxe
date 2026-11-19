@@ -125,6 +125,29 @@ let invalidate path =
 
 let () = Path.on_directory_created := invalidate
 
+(* The working directory seen by macros (Sys.setCwd, Sys.getCwd, their file
+   accesses and processes): the compiler keeps the one of the compilation. *)
+let macro_cwd : string option Atomic.t = Atomic.make None
+
+let getcwd () =
+	match Atomic.get macro_cwd with
+	| Some dir -> dir
+	| None -> Unix.getcwd ()
+
+(* [path] for the file accesses of macros. *)
+let resolve path =
+	match Atomic.get macro_cwd with
+	| Some dir when Filename.is_relative path -> Filename.concat dir path
+	| _ -> path
+
+let setcwd dir =
+	let dir = resolve dir in
+	if not (Sys.file_exists dir && Sys.is_directory dir) then raise (Unix.Unix_error (Unix.ENOENT,"chdir",dir));
+	Atomic.set macro_cwd (Some (full_path dir))
+
+let reset_cwd () =
+	Atomic.set macro_cwd None
+
 (* libuv is not thread-safe: watches are started and events processed at the
    beginning of a compilation only, the directories to watch are queued
    meanwhile. *)

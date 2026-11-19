@@ -2404,8 +2404,9 @@ let macro_api ccom get_api =
 		"include_file", vfun2 (fun file position ->
 			let file = decode_string file in
 			let position = decode_string position in
-			let file = if Sys.file_exists file then
-				file
+			let resolved = Vfs.resolve file in
+			let file = if Sys.file_exists resolved then
+				resolved
 			else try Common.find_file (ccom()) file with
 				| Not_found ->
 					failwith ("unable to find file for inclusion: " ^ file)
