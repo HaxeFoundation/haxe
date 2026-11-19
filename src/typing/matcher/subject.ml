@@ -114,8 +114,7 @@ let make_scrutinee ctx (subject : subject) e_switch cons =
 			SKValue,RunTimeFinite
 		| TAbstract({a_impl = Some c} as a,pl) when a.a_enum ->
 			if not deep then List.iter (fun cf ->
-				ignore(follow cf.cf_type);
-				if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then match cf.cf_expr with
+				if has_class_field_flag cf CfImpl && has_class_field_flag cf CfEnum then match ignore(follow cf.cf_type); cf.cf_expr with
 					| Some e ->
 						begin match extract_ctor e with
 						| Some (ConConst TNull) -> ()
