@@ -316,7 +316,8 @@ let finalize_typing com tctx =
 	com.main.main_expr <- main_expr;
 	com.main.main_file <- main_file;
 	com.types <- types;
-	com.modules <- modules
+	com.modules <- modules;
+	RefCheck.check com
 
 let finalize_typing com tctx =
 	Timer.time com.timer_ctx ["finalize"] (finalize_typing com) tctx
