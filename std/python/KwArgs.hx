@@ -34,6 +34,14 @@ import python.Dict;
 	function f(kwargs:KwArgs<{a:Int}>) {}
 	f({a: 10});
 	```
+
+	An argument whose name is a Haxe keyword is declared and passed with a quoted field name;
+	Python receives it under that name, also when it is a Python keyword:
+
+	```haxe
+	function f(kwargs:KwArgs<{var "default":Int; var "class":String;}>) {}
+	f({"default": 1, "class": "x"});
+	```
 **/
 abstract KwArgs<T:{}>(Dict<String, Dynamic>) {
 	inline function new(d:Dict<String, Dynamic>) {
@@ -56,11 +64,12 @@ abstract KwArgs<T:{}>(Dict<String, Dynamic>) {
 	}
 
 	@:from static function fromT<T:{}>(d:T):KwArgs<T> {
-		return new KwArgs(Lib.anonAsDict(d));
+		// A copy with the field names as keys: Python stores a field like `from` under another name.
+		return new KwArgs(Lib.anonToDict(d));
 	}
 
 	public inline function typed():T {
-		return Lib.dictAsAnon(toDict());
+		return Lib.dictToAnonReusing(toDict());
 	}
 
 	public inline function get<V>(key:String, def:V):V {

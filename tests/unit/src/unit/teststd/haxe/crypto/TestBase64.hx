@@ -48,5 +48,18 @@ class TestBase64 extends unit.Test {
 		eq(haxe.crypto.Base64.urlDecode("YWI_", false).toString(), "ab?");
 		eq(haxe.crypto.Base64.urlDecode("YWJ-Yw", false).toString(), "ab~c");
 
+		// every byte value, both alphabets, with and without padding
+		var all = haxe.io.Bytes.alloc(256 * 3 + 1);
+		for (i in 0...all.length)
+			all.set(i, i & 255);
+		var encoded = haxe.crypto.Base64.encode(all);
+		eq(encoded.length, 1028);
+		eq(encoded.substr(0, 24), "AAECAwQFBgcICQoLDA0ODxAR");
+		eq(encoded.substr(-8), "/f7/AA==");
+		eq(haxe.crypto.Base64.decode(encoded).compare(all), 0);
+		eq(haxe.crypto.Base64.decode(haxe.crypto.Base64.encode(all, false), false).compare(all), 0);
+		var urlEncoded = haxe.crypto.Base64.urlEncode(all);
+		eq(urlEncoded, StringTools.replace(StringTools.replace(haxe.crypto.Base64.encode(all, false), "+", "-"), "/", "_"));
+		eq(haxe.crypto.Base64.urlDecode(urlEncoded).compare(all), 0);
 	}
 }
