@@ -400,6 +400,7 @@ let compile com actx sctx =
 	Sys.catch_break false;
 	com.callbacks#run com.error_ext com.callbacks#get_after_generation;
 	if not actx.no_output then begin
+		if actx.cmds <> [] then ServerCache.resolve_class_paths sctx com;
 		List.iter (fun c ->
 			let r = run_command_or_chdir com c in
 			if r <> 0 then failwith ("Command failed with error " ^ string_of_int r)
@@ -518,7 +519,7 @@ let compile_ctx sctx com =
 	let run com =
 		ServerCache.before_anything sctx com;
 		Setup.setup_common_context com;
-		compile_safe com (fun () ->
+		Std.finally (fun () -> ServerCache.resolve_class_paths sctx com) (compile_safe com) (fun () ->
 			let actx = Args.process_args com in
 			process_actx com actx;
 			compile com actx sctx;
