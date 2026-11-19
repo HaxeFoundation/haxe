@@ -666,6 +666,120 @@ let check_field_display ctx fctx c cf =
 
 module TypeBinding = struct
 
+	(* Number of reported errors when the typing of each field being typed started. *)
+	let errors_at_start : int list ref = ref []
+
+	let with_error_count f =
+		errors_at_start := !Common.reported_errors :: !errors_at_start;
+		Std.finally (fun () -> errors_at_start := List.tl !errors_at_start) f ()
+
+	(* The unbound return types of the callbacks of a method that appear nowhere else in its
+	   type: Haxe 6 types them as Void. *)
+	let void_callback_returns cf =
+		let rec count r visited t = match t with
+			| TMono r' ->
+				if r' == r then 1 else (match r'.tm_type with Some t -> count r visited t | None -> 0)
+			| TInst(_,tl) | TEnum(_,tl) | TType(_,tl) | TAbstract(_,tl) ->
+				List.fold_left (fun acc t -> acc + count r visited t) 0 tl
+			| TFun(args,ret) ->
+				List.fold_left (fun acc (_,_,t) -> acc + count r visited t) (count r visited ret) args
+			| TAnon an ->
+				if List.memq an !visited then 0 else begin
+					visited := an :: !visited;
+					PMap.fold (fun cf acc -> acc + count r visited cf.cf_type) an.a_fields 0
+				end
+			| TDynamic (Some t) ->
+				count r visited t
+			| TDynamic None | TLazy _ ->
+				0
+		in
+		let rec unbound t = match t with
+			| TMono ({ tm_type = None } as r) -> Some r
+			| TMono { tm_type = Some t } -> unbound t
+			| _ -> None
+		in
+		let rec callback_ret t = match t with
+			| TMono { tm_type = Some t } -> callback_ret t
+			| TAbstract ({ a_path = [],"Null" },[t]) -> callback_ret t
+			| TFun (_,ret) -> unbound ret
+			| _ -> None
+		in
+		match cf.cf_kind,cf.cf_type with
+		| Method _,TFun (args,_) ->
+			List.filter_map (fun (_,_,t) -> match callback_ret t with
+				| Some r when count r (ref []) cf.cf_type = 1 -> Some r
+				| _ -> None
+			) args
+		| _ ->
+			[]
+
+	(* The indexes of the arguments of a method that Haxe 6 types from the field it overrides or
+	   implements: the same argument there has a declared type. Only for a field of the same
+	   arity without type parameters, whose type is known without typing its body. *)
+	let inherited_args c cf =
+		let is_abstract_impl = match c.cl_kind with KAbstractImpl _ -> true | _ -> false in
+		if has_class_field_flag cf CfStatic || cf.cf_name = "new" || cf.cf_params <> [] || is_abstract_impl then
+			[]
+		else match cf.cf_type with
+		| TFun (args,_) ->
+			let nargs = List.length args in
+			let parents c = (match c.cl_super with Some (cs,_) -> [cs] | None -> []) @ List.map fst c.cl_implements in
+			let rec find = function
+				| [] -> []
+				| c2 :: l ->
+					match (try Some (PMap.find cf.cf_name c2.cl_fields) with Not_found -> None) with
+					| Some cf2 when cf2.cf_params = [] ->
+						begin match cf2.cf_type with
+						| TFun (args2,_) when List.length args2 = nargs ->
+							List.concat (List.mapi (fun i (_,_,t) -> if is_fully_determined t then [i] else []) args2)
+						| _ ->
+							find l
+						end
+					| _ ->
+						find (parents c2 @ l)
+			in
+			find (parents c)
+		| _ ->
+			[]
+
+	let check_resolved_field_type ctx cf =
+		let void_returns = void_callback_returns cf in
+		let inherited = inherited_args ctx.c.curclass cf in
+		let rec has_mono visited t = match t with
+			| TMono r ->
+				begin match r.tm_type with
+				| None -> not (List.memq r void_returns)
+				| Some t -> has_mono visited t
+				end
+			| TInst(_,tl) | TEnum(_,tl) | TType(_,tl) | TAbstract(_,tl) ->
+				List.exists (has_mono visited) tl
+			| TFun(args,ret) ->
+				has_mono visited ret || List.exists (fun (_,_,t) -> has_mono visited t) args
+			| TAnon an ->
+				if List.memq an !visited then
+					false
+				else begin
+					visited := an :: !visited;
+					PMap.fold (fun cf acc -> acc || has_mono visited cf.cf_type) an.a_fields false
+				end
+			| TDynamic (Some t) ->
+				has_mono visited t
+			| TDynamic None | TLazy _ ->
+				false
+		in
+		let failed = match !errors_at_start with
+			| n :: _ -> !Common.reported_errors > n
+			| [] -> false
+		in
+		let unresolved = match cf.cf_type with
+			| TFun (args,ret) when inherited <> [] ->
+				has_mono (ref []) ret || List.exists Fun.id (List.mapi (fun i (_,_,t) -> not (List.mem i inherited) && has_mono (ref []) t) args)
+			| t ->
+				has_mono (ref []) t
+		in
+		if not failed && unresolved then
+			warning ctx WUnresolvedFieldType (Printf.sprintf "The type of %s is not fully inferred (%s), add a type annotation" cf.cf_name (s_type (print_context()) cf.cf_type)) cf.cf_name_pos
+
 	let bind_type ctx cctx fctx cf r p =
 		let c = cctx.tclass in
 		let rec is_full_type t =
@@ -792,7 +906,7 @@ module TypeBinding = struct
 					mk_cast e cf.cf_type e.epos
 			end
 		in
-		let r = make_unforced_lazy t (fun () ->
+		let r = make_unforced_lazy t (fun () -> with_error_count (fun () ->
 			(* type constant init fields (issue #1956) *)
 			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				enter_field_typing_pass ctx.g ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
@@ -852,10 +966,11 @@ module TypeBinding = struct
 				let e = check_cast e in
 				cf.cf_expr <- Some e;
 				cf.cf_type <- t;
+				check_resolved_field_type ctx cf;
 				check_field_display ctx fctx c cf;
 			end;
 			t
-		) "bind_var" in
+		)) "bind_var" in
 		if not fctx.is_static then cctx.force_constructor <- true;
 		bind_type ctx cctx fctx cf r (snd e)
 
@@ -918,13 +1033,14 @@ module TypeBinding = struct
 					in
 					cf.cf_expr <- Some e;
 					cf.cf_type <- t;
+					check_resolved_field_type ctx cf;
 					check_field_display ctx fctx c cf;
 			end;
 		in
-		let maybe_bind () =
+		let maybe_bind () = with_error_count (fun () ->
 			if not ctx.g.return_partial_type then bind ();
 			t
-		in
+		) in
 		let r = make_unforced_lazy t maybe_bind "type_fun" in
 		bind_type ctx cctx fctx cf r p
 end
