@@ -1329,7 +1329,7 @@ let process_fields = [
 							| _ -> unexpected_value v2 "eval.luv.Process.Redirection"
 						) (decode_array v)
 					)
-				and working_directory = get key_workingDirectory decode_native_string
+				and working_directory = (match get key_workingDirectory decode_native_string with None -> Atomic.get Vfs.macro_cwd | Some dir -> Some (Vfs.resolve dir))
 				and uid = get key_uid decode_int
 				and gid = get key_gid decode_int
 				and windows_verbatim_arguments = get key_windowsVerbatimArguments decode_bool
@@ -1505,7 +1505,7 @@ module F = struct
 		fn ?loop ?request
 
 	let path ~vpath fn =
-		fn (decode_native_string vpath)
+		fn (Vfs.resolve (decode_native_string vpath))
 
 	let file ~vfile fn =
 		fn (decode_file vfile)
@@ -1514,7 +1514,7 @@ module F = struct
 		fn (decode_dir vdir)
 
 	let to_ ~vto fn =
-		let to_ = decode_native_string vto in
+		let to_ = Vfs.resolve (decode_native_string vto) in
 		fn ~to_
 
 	let mode ~vmode fn =
@@ -1576,7 +1576,7 @@ module F = struct
 		fn ~atime ~mtime
 
 	let link ~vlink fn =
-		let link = decode_native_string vlink in
+		let link = Vfs.resolve (decode_native_string vlink) in
 		fn ~link
 
 	let symlink ~vflags fn =
@@ -1935,7 +1935,7 @@ let fs_event_fields = [
 	);
 	"start", vfun4 (fun v1 v2 v3 v4 ->
 		let event = decode_fs_event v1
-		and path = decode_native_string v2
+		and path = Vfs.resolve (decode_native_string v2)
 		and callback =
 			encode_callback (fun (file,events) ->
 				let vevents =
@@ -2210,10 +2210,10 @@ let path_fields = [
 		encode_result vnative_string (Path.exepath())
 	);
 	"cwd", vfun0 (fun() ->
-		encode_result vnative_string (Path.cwd())
+		encode_result vnative_string (try Ok (Vfs.getcwd ()) with _ -> Path.cwd ())
 	);
 	"chdir", vfun1 (fun v ->
-		encode_unit_result (Path.chdir (decode_native_string v))
+		encode_unit_result (try Ok (Vfs.setcwd (decode_native_string v)) with _ -> Error `ENOENT)
 	);
 	"homedir", vfun0 (fun() ->
 		encode_result vnative_string (Path.homedir())
