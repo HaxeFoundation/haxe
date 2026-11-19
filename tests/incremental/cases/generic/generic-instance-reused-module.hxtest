@@ -1,0 +1,24 @@
+# The module creating an instance of a @:generic class is reused from the cache:
+# the instance class, built in a module of its own, must come back with it,
+# complete with its constructor.
+@targets interp js hl
+
+=== initial
+@expect-output box 1
+--- Main.hx
+class Main {
+	static function main() {
+		var b = new Box<Int>();
+		b.v = 1;
+		trace("box " + b.v);
+	}
+}
+
+@:generic
+class Box<T> {
+	public var v:T;
+	public function new() {}
+}
+
+=== nothing changes
+@expect-output box 1

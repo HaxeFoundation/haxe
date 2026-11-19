@@ -323,7 +323,7 @@ let build_generic_class ctx c p tl =
 		mg.m_types <- [TClassDecl cg];
 		ctx.com.module_lut#add mg.m_path mg;
 		add_dependency mg m MDepFromTyping;
-		add_dependency ctx.m.curmod mg MDepFromTyping;
+		add_dependency gctx.ctx.m.curmod mg MDepFromTyping;
 		set_type_parameter_dependencies mg tl;
 		let build_field cf_old =
 			let params = List.map (fun ttp ->
