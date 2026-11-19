@@ -4,7 +4,7 @@ package haxe.atomic;
 
 import sys.thread.Mutex;
 
-private class AtomicObjectValue<T:{}> {
+private class AtomicObjectValue<T:haxe.Constraints.Object> {
 	public final mutex:Mutex;
 	public var value:T;
 
@@ -14,12 +14,12 @@ private class AtomicObjectValue<T:{}> {
 	}
 }
 
-private typedef AtomicObjectData<T:{}> = AtomicObjectValue<T>;
+private typedef AtomicObjectData<T:haxe.Constraints.Object> = AtomicObjectValue<T>;
 
 /**
 	Atomic object. Use with care, this does not magically make it thread-safe to mutate objects.
 **/
-abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
+abstract AtomicObject<T:haxe.Constraints.Object>(AtomicObjectData<T>) {
 	public function new(value:T):Void {
 		this = new AtomicObjectData(value);
 	}
@@ -30,6 +30,11 @@ abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
 
 		Note that comparison is done by reference, and not by value.
 		While this is expected for most objects, this might give unexpected behaviour for strings.
+
+		Enum constructors without arguments compare as the same value on all targets, including
+		values obtained through `Type.createEnum`, `Type.createEnumIndex` and `Type.allEnums`.
+		For constructors with arguments, only the identical instance is guaranteed to match;
+		whether an equal but distinct value matches depends on the target.
 	**/
 	public function compareExchange(expected:T, replacement:T):T {
 		this.mutex.acquire();
@@ -74,7 +79,7 @@ abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
 
 #else
 
-private class AtomicObjectValue<T:{}> {
+private class AtomicObjectValue<T:haxe.Constraints.Object> {
 	public var value:T;
 
 	public function new(value:T) {
@@ -82,13 +87,13 @@ private class AtomicObjectValue<T:{}> {
 	}
 }
 
-private typedef AtomicObjectData<T:{}> = AtomicObjectValue<T>;
+private typedef AtomicObjectData<T:haxe.Constraints.Object> = AtomicObjectValue<T>;
 
 /**
 	Atomic object. Use with care, this does not magically make it thread-safe to mutate objects.
 	Not supported on JavaScript.
 **/
-abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
+abstract AtomicObject<T:haxe.Constraints.Object>(AtomicObjectData<T>) {
 	public function new(value:T):Void {
 		this = new AtomicObjectData(value);
 	}
@@ -99,6 +104,11 @@ abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
 
 		Note that comparison is done by reference, and not by value.
 		While this is expected for most objects, this might give unexpected behaviour for strings.
+
+		Enum constructors without arguments compare as the same value on all targets, including
+		values obtained through `Type.createEnum`, `Type.createEnumIndex` and `Type.allEnums`.
+		For constructors with arguments, only the identical instance is guaranteed to match;
+		whether an equal but distinct value matches depends on the target.
 	**/
 	public function compareExchange(expected:T, replacement:T):T {
 		final value = this.value;

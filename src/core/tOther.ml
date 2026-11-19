@@ -226,11 +226,15 @@ module ExtType = struct
 		| VariableSemantics
 		| ReferenceSemantics
 		| ValueSemantics
+		| ObjectSemantics
 
 	let semantics_name = function
 		| VariableSemantics -> "variable"
 		| ReferenceSemantics -> "reference"
 		| ValueSemantics -> "value"
+		| ObjectSemantics -> "object"
+
+	let all_semantics = [ValueSemantics;ReferenceSemantics;VariableSemantics;ObjectSemantics]
 
 	let has_semantics t sem =
 		let name = semantics_name sem in
@@ -255,6 +259,7 @@ module ExtType = struct
 	let has_variable_semantics t = has_semantics t VariableSemantics
 	let has_reference_semantics t = has_semantics t ReferenceSemantics
 	let has_value_semantics t = has_semantics t ValueSemantics
+	let has_object_semantics t = has_semantics t ObjectSemantics
 end
 
 let no_meta = []
