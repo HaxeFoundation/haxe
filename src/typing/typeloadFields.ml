@@ -425,16 +425,6 @@ let build_module_def ctx mt meta fvars fbuild =
 				let e = build_enum_abstract ctx c a (fvars()) a.a_name_pos in
 				fbuild e;
 			)
-		| TClassDecl { cl_super = csup; cl_implements = interfaces; cl_kind = kind } ->
-			(* Go for @:using in parents and interfaces *)
-			let inherit_using (c,_) =
-				ti.mt_using <- ti.mt_using @ (t_infos (TClassDecl c)).mt_using
-			in
-			delay_late ctx.g PConnectField (fun () ->
-				Option.may inherit_using csup;
-				List.iter inherit_using interfaces;
-			);
-			None
 		| _ ->
 			None
 	in
