@@ -4,8 +4,6 @@ open CoroTypes
 open CoroFunctions
 open ContTypes
 
-let next_closure_id = Hashtbl.create 0;
-
 type coro_cls = {
 	params : typed_type_param list;
 	param_types : Type.t list;
@@ -45,18 +43,13 @@ module ContinuationClassBuilder = struct
 				Printf.sprintf "%s_%s" managled_class_name field.cf_name,
 				tf.tf_type
 			| LocalFunc(f,v) ->
-				let next_id =
-					match Hashtbl.find_opt next_closure_id managled_class_name with
-					| Some id ->
-						Hashtbl.replace next_closure_id managled_class_name (id + 1);
-						id
-					| _ ->
-						Hashtbl.replace next_closure_id managled_class_name 1;
-						0
-					in
-				let n = Printf.sprintf "%s_AnonFunc%i" managled_class_name next_id in
-
-				n, f.tf_type
+				let prefix = Printf.sprintf "%s_%s_AnonFunc" managled_class_name ctx.typer.f.curfield.cf_name in
+				let exists n = List.exists (fun mt -> snd (t_infos mt).mt_path = n) ctx.typer.m.curmod.m_types in
+				let rec make i =
+					let n = prefix ^ string_of_int i in
+					if exists n then make (i + 1) else n
+				in
+				make 0, f.tf_type
 			in
 
 		let name_pos = ctx.class_name_pos in

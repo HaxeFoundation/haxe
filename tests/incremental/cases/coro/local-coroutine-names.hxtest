@@ -1,0 +1,47 @@
+# The classes generated for local coroutines get the same names when their
+# module is typed again by the server.
+@targets js
+
+=== initial
+@expect-output done
+--- Main.hx
+class Main {
+	static function first() {
+		@:coroutine function a() {}
+		@:coroutine function b() {}
+		return [a, b];
+	}
+
+	static function second() {
+		@:coroutine function c() {}
+		return c;
+	}
+
+	static function main() {
+		first();
+		second();
+		trace("done");
+	}
+}
+
+=== retyped
+@expect-output done again
+--- Main.hx
+class Main {
+	static function first() {
+		@:coroutine function a() {}
+		@:coroutine function b() {}
+		return [a, b];
+	}
+
+	static function second() {
+		@:coroutine function c() {}
+		return c;
+	}
+
+	static function main() {
+		first();
+		second();
+		trace("done again");
+	}
+}
