@@ -4591,7 +4591,7 @@ let generate com =
 		let opt idx =
 			let f = DynArray.get ctx.cfunctions idx in
 			if f.need_opt then begin
-				let f, dumpstr = Hlopt.optimize dump (Array.get code.strings) f "todosign" in
+				let f, dumpstr = Hlopt.optimize dump (Array.get code.strings) f in
 				(match dump_out with None -> () | Some ch -> IO.nwrite_string ch dumpstr);
 				code.functions.(idx) <- f;
 			end
