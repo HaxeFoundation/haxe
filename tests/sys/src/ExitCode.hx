@@ -13,7 +13,7 @@ class ExitCode {
 		"bin/neko/ExitCode.n";
 	#elseif hl
 		#if hlc
-			"bin/hlc/exitCode/ExitCode.exe";
+			"bin/hlc/exitCode/ExitCode";
 		#else
 			"bin/hl/ExitCode.hl";
 		#end
