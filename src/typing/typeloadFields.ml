@@ -666,6 +666,43 @@ let check_field_display ctx fctx c cf =
 
 module TypeBinding = struct
 
+	(* Number of reported errors when the typing of each field being typed started. *)
+	let errors_at_start : int list ref = ref []
+
+	let with_error_count f =
+		errors_at_start := !Common.reported_errors :: !errors_at_start;
+		Std.finally (fun () -> errors_at_start := List.tl !errors_at_start) f ()
+
+	let check_resolved_field_type ctx cf =
+		let rec has_mono visited t = match t with
+			| TMono r ->
+				begin match r.tm_type with
+				| None -> true
+				| Some t -> has_mono visited t
+				end
+			| TInst(_,tl) | TEnum(_,tl) | TType(_,tl) | TAbstract(_,tl) ->
+				List.exists (has_mono visited) tl
+			| TFun(args,ret) ->
+				has_mono visited ret || List.exists (fun (_,_,t) -> has_mono visited t) args
+			| TAnon an ->
+				if List.memq an !visited then
+					false
+				else begin
+					visited := an :: !visited;
+					PMap.fold (fun cf acc -> acc || has_mono visited cf.cf_type) an.a_fields false
+				end
+			| TDynamic (Some t) ->
+				has_mono visited t
+			| TDynamic None | TLazy _ ->
+				false
+		in
+		let failed = match !errors_at_start with
+			| n :: _ -> !Common.reported_errors > n
+			| [] -> false
+		in
+		if not failed && has_mono (ref []) cf.cf_type then
+			warning ctx WUnresolvedFieldType (Printf.sprintf "The type of %s is not fully inferred (%s), add a type annotation" cf.cf_name (s_type (print_context()) cf.cf_type)) cf.cf_name_pos
+
 	let bind_type ctx cctx fctx cf r p =
 		let c = cctx.tclass in
 		let rec is_full_type t =
@@ -792,7 +829,7 @@ module TypeBinding = struct
 					mk_cast e cf.cf_type e.epos
 			end
 		in
-		let r = make_unforced_lazy t (fun () ->
+		let r = make_unforced_lazy t (fun () -> with_error_count (fun () ->
 			(* type constant init fields (issue #1956) *)
 			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				enter_field_typing_pass ctx.g ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
@@ -852,10 +889,11 @@ module TypeBinding = struct
 				let e = check_cast e in
 				cf.cf_expr <- Some e;
 				cf.cf_type <- t;
+				check_resolved_field_type ctx cf;
 				check_field_display ctx fctx c cf;
 			end;
 			t
-		) "bind_var" in
+		)) "bind_var" in
 		if not fctx.is_static then cctx.force_constructor <- true;
 		bind_type ctx cctx fctx cf r (snd e)
 
@@ -918,13 +956,14 @@ module TypeBinding = struct
 					in
 					cf.cf_expr <- Some e;
 					cf.cf_type <- t;
+					check_resolved_field_type ctx cf;
 					check_field_display ctx fctx c cf;
 			end;
 		in
-		let maybe_bind () =
+		let maybe_bind () = with_error_count (fun () ->
 			if not ctx.g.return_partial_type then bind ();
 			t
-		in
+		) in
 		let r = make_unforced_lazy t maybe_bind "type_fun" in
 		bind_type ctx cctx fctx cf r p
 end

@@ -1148,7 +1148,11 @@ let add_diagnostics_message ?(depth = 0) ?(diagnostics_kind = MessageKind.DKComp
 		if message_kind_severity message_kind = MessageSeverity.Error then com.part_scope.has_error <- true;
 		com.part_scope.messages <- cm :: com.part_scope.messages
 
+(* Number of errors reported so far, to tell whether a step reported one. *)
+let reported_errors = ref 0
+
 let display_error_ext com err =
+	incr reported_errors;
 	if is_diagnostics com then begin
 		Error.recurse_error (fun depth err ->
 			add_diagnostics_message ~depth com (Error.error_msg err.err_message) err.err_pos MKError;
