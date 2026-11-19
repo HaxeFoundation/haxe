@@ -1,8 +1,6 @@
 package haxe.atomic;
 
-#if (hl_ver < version("1.13.0") && !doc_gen)
-#error "Atomic operations require HL 1.13+"
-#end
+#if (hl_ver >= version("1.13.0"))
 import hl.Atomics;
 
 // use hl.NativeArray<Dynamic> instead of hl.NativeArray<T>
@@ -31,3 +29,56 @@ abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
 		return Atomics.storePtr(this.getRef(), value);
 	}
 }
+#else
+// HL < 1.13 has no native atomics: fall back to a mutex
+import sys.thread.Mutex;
+
+private class AtomicObjectValue<T:{}> {
+	public final mutex:Mutex;
+	public var value:T;
+
+	public function new(value:T) {
+		this.value = value;
+		mutex = new Mutex();
+	}
+}
+
+private typedef AtomicObjectData<T:{}> = AtomicObjectValue<T>;
+
+abstract AtomicObject<T:{}>(AtomicObjectData<T>) {
+	public function new(value:T):Void {
+		this = new AtomicObjectData(value);
+	}
+
+	public function compareExchange(expected:T, replacement:T):T {
+		this.mutex.acquire();
+		final value = this.value;
+		if (value == expected)
+			this.value = replacement;
+		this.mutex.release();
+		return value;
+	}
+
+	public function exchange(value:T):T {
+		this.mutex.acquire();
+		final current = this.value;
+		this.value = value;
+		this.mutex.release();
+		return current;
+	}
+
+	public function load():T {
+		this.mutex.acquire();
+		final value = this.value;
+		this.mutex.release();
+		return value;
+	}
+
+	public function store(value:T):T {
+		this.mutex.acquire();
+		this.value = value;
+		this.mutex.release();
+		return value;
+	}
+}
+#end
