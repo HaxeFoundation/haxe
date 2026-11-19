@@ -1477,9 +1477,20 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 					cf
 				in
 				if (has_class_flag c CInterface) then begin
-					let cf = generate_field () in
-					c.cl_fields <- PMap.add cf.cf_name cf c.cl_fields;
-					c.cl_ordered_fields <- cf :: c.cl_ordered_fields;
+					let cf_accessor = generate_field () in
+					c.cl_fields <- PMap.add cf_accessor.cf_name cf_accessor c.cl_fields;
+					(* right after the property, the getter before the setter *)
+					let rec insert = function
+						| f1 :: f2 :: l when f1 == cf && not is_getter && f2.cf_name = "get_" ^ cf.cf_name ->
+							f1 :: f2 :: cf_accessor :: l
+						| f1 :: l when f1 == cf ->
+							f1 :: cf_accessor :: l
+						| f1 :: l ->
+							f1 :: insert l
+						| [] ->
+							[cf_accessor]
+					in
+					c.cl_ordered_fields <- insert c.cl_ordered_fields;
 				end else if Diagnostics.error_in_diagnostics_run ctx.com f.cff_pos then begin
 					let cf_accessor = generate_field() in
 					remove_class_field_flag cf_accessor CfPublic;
