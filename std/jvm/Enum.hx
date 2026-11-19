@@ -36,7 +36,7 @@ class Enum<T:EnumValue> extends java.lang.Enum<T> {
 	}
 
 	@:jvm.synthetic public function _hx_getParameters() {
-		return new java.NativeArray(0);
+		return new java.NativeArray<Dynamic>(0);
 	}
 
 	@:overload

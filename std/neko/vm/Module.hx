@@ -203,7 +203,7 @@ class Module {
 		return a;
 	}
 
-	function __compare(other:Module) {
+	function __compare(other:Module):Int {
 		return untyped __dollar__compare(this.m, other.m);
 	}
 

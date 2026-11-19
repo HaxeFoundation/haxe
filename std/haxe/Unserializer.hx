@@ -69,7 +69,7 @@ class Unserializer {
 	static var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
 
 	#if !neko
-	static var CODES = null;
+	static var CODES:Null<#if flash flash.utils.ByteArray #else Array<Int> #end> = null;
 
 	static function initCodes() {
 		var codes = #if flash new flash.utils.ByteArray(); #else new Array(); #end

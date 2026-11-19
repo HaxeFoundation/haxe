@@ -34,7 +34,7 @@ abstract ThreadImpl(NativeThread) {
 		return cast new NativeThread(job);
 	}
 
-	public static function getName( t : ThreadImpl ) {
+	public static function getName( t : ThreadImpl ) : Null<String> {
 		return null;
 	}
 

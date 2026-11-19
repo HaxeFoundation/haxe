@@ -197,7 +197,7 @@ class Boot {
 	/**
 		A 32 bit clamp function for numbers
 	**/
-	public inline static function clampInt32(x:Float) {
+	public inline static function clampInt32(x:Float):Int {
         return untyped _hx_bit_clamp(x);
 	}
 

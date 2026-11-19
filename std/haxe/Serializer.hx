@@ -76,7 +76,7 @@ class Serializer {
 	public static var USE_ENUM_INDEX = false;
 
 	static var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
-	static var BASE64_CODES = null;
+	static var BASE64_CODES:Null<haxe.ds.Vector<Int>> = null;
 
 	var buf:StringBuf;
 	var cache:Array<Dynamic>;

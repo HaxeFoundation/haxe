@@ -120,7 +120,7 @@ class Printer {
 			case TPExpr(e): printExpr(e);
 		}
 
-	public function printTypePath(tp:TypePath)
+	public function printTypePath(tp:TypePath):String
 		return (tp.pack.length > 0 ? tp.pack.join(".") + "." : "")
 			+ tp.name
 			+ (tp.sub != null ? '.${tp.sub}' : "")
@@ -268,7 +268,7 @@ class Printer {
 		return '${printObjectFieldKey(of)} : ${printExpr(of.expr)}';
 	}
 
-	public function printExpr(e:Expr)
+	public function printExpr(e:Expr):String
 		return e == null ? "#NULL" : switch (e.expr) {
 			case EConst(c): printConstant(c);
 			case EArray(e1, e2): '${printExpr(e1)}[${printExpr(e2)}]';
