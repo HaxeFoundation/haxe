@@ -6,7 +6,7 @@ applyTo: "src/**/*.{ml,mli}"
 # Haxe OCaml Compiler Conventions
 
 ## Scope And Structure
-- Keep changes narrow and localized to the relevant compiler subsystem (`typing/`, `generators/`, `macro/`, `syntax/`, `optimization/`, `filters/`, `context/`).
+- Keep changes narrow and localized to the relevant compiler subsystem (`typing/`, `generators/`, `macro/`, `syntax/`, `optimization/`, `filters/`, `context/`); `extra/agents/layout.md` says what each directory holds.
 - Prefer extending existing module boundaries instead of introducing cross-cutting utility code.
 - When possible, use top-level helper functions for larger logic blocks instead of deep closures.
 
@@ -27,6 +27,6 @@ applyTo: "src/**/*.{ml,mli}"
 - The `Define.*`, `Meta.*` and `W*` constructors are generated at build time from `src-json/define.json`, `meta.json` and `warning.json` (the `name` field is the constructor name), so new ones are added there, not in OCaml code.
 
 ## Build And Verification
-- Build compiler changes with `make haxe` (or `opam exec -- make ADD_REVISION=1 -f Makefile.win -s -j haxe` on Windows setups using OPAM/Cygwin).
+- Build compiler changes with `make haxe`, never a plain `dune build` (or `opam exec -- make ADD_REVISION=1 -f Makefile.win -s -j haxe` on Windows setups using OPAM/Cygwin).
 - If debugging typed/generator input, use `-D dump=pretty` and inspect the `dump/` output.
 - Add or update a regression test when fixing a bug.
