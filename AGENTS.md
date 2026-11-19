@@ -6,8 +6,8 @@ This file only holds what applies to every task. Details live in the documents b
 
 | When you... | Read |
 | --- | --- |
-| edit compiler sources (`src/**`) | `.github/instructions/ocaml-compiler.instructions.md` |
-| add, change or run tests (`tests/**`) | `.github/instructions/tests.instructions.md` |
+| edit compiler sources (`src/**`) | `extra/agents/compiler.md` |
+| add, change or run tests (`tests/**`) | `extra/agents/tests.md` |
 | need to find your way around `src/`, `std/` or `tests/` | `extra/agents/layout.md` |
 | find the toolchain, `./haxe` or a haxelib library missing, or use haxelib or hxcpp | `extra/agents/setup.md` |
 | investigate a CI failure | `extra/agents/ci.md` |
@@ -34,7 +34,7 @@ The global PATH can point to a `haxe` binary from a different checkout or worktr
 
 - Make minimal, focused changes and avoid code duplication.
 - Use tabs for indentation, in OCaml and in Haxe, and follow the style of the surrounding code.
-- When fixing a bug, add a regression test. Where it goes depends on what it tests (unit, misc, threads, sys, server, ...): see `.github/instructions/tests.instructions.md`.
+- When fixing a bug, add a regression test. Where it goes depends on what it tests (unit, misc, threads, sys, server, ...): see `extra/agents/tests.md`.
 - Even if everything works, check some output to ensure it looks good. Most targets produce readable code, and `-D dump=pretty` dumps the typed AST to `dump/`.
 - Changes must consider all targets (JavaScript, C++, JVM, Lua, PHP, Python, HashLink, Neko, Flash and the interpreter). Target-specific code uses conditional compilation (`#if target`).
 - The compiler and standard library must stay backwards compatible; breaking changes need a deprecation process.

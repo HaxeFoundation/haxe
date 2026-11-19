@@ -1,8 +1,3 @@
----
-description: "Use when adding or modifying tests in tests/**, especially regression tests, target-specific tests, or expected-failure coverage."
-name: "Haxe Test Conventions"
-applyTo: "tests/**"
----
 # Haxe Test Conventions
 
 ## Test Placement

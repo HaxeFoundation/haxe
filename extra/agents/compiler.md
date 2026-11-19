@@ -1,8 +1,3 @@
----
-description: "Use when editing OCaml compiler sources under src/** (.ml/.mli), including typing, generators, macro, syntax, and optimization changes."
-name: "Haxe OCaml Compiler Conventions"
-applyTo: "src/**/*.{ml,mli}"
----
 # Haxe OCaml Compiler Conventions
 
 ## Scope And Structure
