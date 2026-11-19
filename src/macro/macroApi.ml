@@ -253,6 +253,9 @@ let haxe_float f p =
 	else
 		(Ast.EConst (Ast.Float (Numeric.float_repres f, None)), p)
 
+(* Called when a macro reads a class whose build is not finished (see WTypingOrder). *)
+let partially_built_class_read_hook : (tclass -> unit) ref = ref (fun _ -> ())
+
 (* ------------------------------------------------------------------------------------------------------------- *)
 (* Our macro api functor *)
 
@@ -1233,7 +1236,10 @@ and encode_class_kind k =
 	encode_enum IClassKind tag pl
 
 and encode_tclass c =
-	protect_typing (fun () -> ignore(c.cl_build()));
+	begin match protect_typing c.cl_build with
+	| Built -> ()
+	| _ -> !partially_built_class_read_hook c
+	end;
 	encode_mtype (TClassDecl c) [
 		"kind", encode_class_kind c.cl_kind;
 		"isExtern", vbool (has_class_flag c CExtern);
