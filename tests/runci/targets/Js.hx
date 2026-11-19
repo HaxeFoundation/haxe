@@ -140,6 +140,8 @@ class Js {
 			infoMsg("Test incremental recompilation:");
 			changeDirectory(incrementalDir);
 			runCommand("haxe", ["run.hxml"]);
+			// again with a server that watches the file system
+			runCommand("haxe", ["run.hxml", "--vfs", "watch"]);
 		}
 
 		changeDirectory(sysDir);

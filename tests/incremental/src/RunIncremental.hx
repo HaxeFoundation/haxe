@@ -37,6 +37,7 @@ using StringTools;
 	  --check-deps          check that the dependencies recorded by the compiler are
 	                        complete (needs `-D dump-fingerprints`)
 	  --args "<args>"        extra compiler arguments for every compilation
+	  --vfs <mode>          file system mode of the server (`HAXE_VFS`), e.g. `watch`
 **/
 class RunIncremental {
 	public static var haxeCmd = "haxe";
@@ -55,6 +56,8 @@ class RunIncremental {
 	static var realMtime = false;
 	static var checkDeps = false;
 	static var extraArgs:Array<String> = [];
+	/** The file system mode of the server: `legacy`, or `watch` (see `--vfs`). **/
+	static var vfsMode = "legacy";
 	/** Compiler features some expectations need, detected by `detectFeatures`. **/
 	static var features:Map<String, Bool> = [];
 	/** The features some expectations needed and the compiler does not have. **/
@@ -94,6 +97,9 @@ class RunIncremental {
 					realMtime = true;
 				case "--check-deps":
 					checkDeps = true;
+				case "--vfs":
+					// inherited by the servers the runner starts
+					Sys.putEnv("HAXE_VFS", args[++i]);
 				case "--args":
 					extraArgs = extraArgs.concat(args[++i].split(" ").filter(s -> s != ""));
 				case other:
@@ -108,6 +114,14 @@ class RunIncremental {
 		FileSystem.createDirectory(workRoot);
 
 		detectFeatures();
+		// only a server watching the file system answers `server/vfs`
+		if (features["server/vfs"])
+			vfsMode = "watch";
+		if (Sys.getEnv("HAXE_VFS") == "watch" && vfsMode != "watch") {
+			Sys.println("HAXE_VFS=watch is not supported by this compiler");
+			Sys.exit(2);
+		}
+		Sys.println('File system mode of the server: $vfsMode');
 		if (checkDeps && !features["dump-fingerprints"]) {
 			Sys.println("--check-deps needs a compiler supporting -D dump-fingerprints");
 			Sys.exit(2);
@@ -228,6 +242,9 @@ class RunIncremental {
 			p.close();
 			// -32601: method not found
 			features[method] = out.indexOf("-32601") < 0 && out.indexOf("jsonrpc") >= 0;
+			// a server that does not watch the file system answers with another error
+			if (method == "server/vfs")
+				features[method] = out.indexOf("fileSystemCalls") >= 0;
 		}
 		server.kill();
 		server.exitCode();
@@ -333,9 +350,10 @@ class RunIncremental {
 					clockTenths = 0;
 				}
 				for (dir in [warmDir, coldDir]) {
-					changed = applyOps(dir, step, tc, target, dir == warmDir ? port : null, warmDir);
+					var structural = [];
+					changed = applyOps(dir, step, tc, target, dir == warmDir ? port : null, warmDir, structural);
 					if (!tc.realMtime && !realMtime)
-						touchStep(dir, changed);
+						touchStep(dir, changed, structural);
 				}
 				if (invalidate) {
 					for (file in changed)
@@ -417,7 +435,7 @@ class RunIncremental {
 		}
 		server.close();
 
-		return switch [errors.length, tc.knownFailureFor(target)] {
+		return switch [errors.length, tc.knownFailureFor(target, vfsMode)] {
 			case [0, null]: Passed;
 			case [0, _]: UnexpectedPass;
 			case [_, null]: Failed(errors);
@@ -429,31 +447,53 @@ class RunIncremental {
 		Applies the file operations of a step to [dir]. Overlays are sent to the
 		server for the warm directory ([port] given), and written to disk for the
 		cold one; removing an overlay restores the cold file from the warm
-		directory's disk content.
+		directory's disk content. Returns the changed paths; the ones that were
+		created or deleted are added to [structural].
 	**/
-	static function applyOps(dir:String, step:CaseParser.Step, tc:CaseParser.TestCase, target:String, port:Null<Int>, warmDir:String):Array<String> {
+	static function applyOps(dir:String, step:CaseParser.Step, tc:CaseParser.TestCase, target:String, port:Null<Int>, warmDir:String, structural:Array<String>):Array<String> {
 		var changed = [];
+		function write(path:String, content:String) {
+			var full = Path.join([dir, path]);
+			if (!FileSystem.exists(full))
+				structural.push(path);
+			FileSystem.createDirectory(Path.directory(full));
+			File.saveContent(full, content);
+			changed.push(path);
+		}
+		function delete(path:String) {
+			var full = Path.join([dir, path]);
+			if (FileSystem.exists(full)) {
+				FileSystem.deleteFile(full);
+				structural.push(path);
+			}
+			changed.push(path);
+		}
 		for (op in step.ops) {
 			switch (op) {
 				case Write(path, content):
+					write(path, content);
+				case Delete(path):
+					delete(path);
+				case DeleteDir(path):
+					removeDir(Path.join([dir, path]));
+					changed.push(path);
+					structural.push(path);
+				case Symlink(path, target):
 					var full = Path.join([dir, path]);
 					FileSystem.createDirectory(Path.directory(full));
-					File.saveContent(full, content);
+					var p = new Process("ln", ["-sfn", Path.join([dir, target]), full]);
+					var code = p.exitCode();
+					p.close();
+					if (code != 0)
+						throw new haxe.Exception('could not create the symbolic link $path');
 					changed.push(path);
-				case Delete(path):
-					var full = Path.join([dir, path]);
-					if (FileSystem.exists(full))
-						FileSystem.deleteFile(full);
-					changed.push(path);
+					structural.push(path);
 				case Overlay(path, content):
 					var full = Path.join([dir, path]);
-					if (port != null) {
+					if (port != null)
 						sendOverlay(port, full, content);
-					} else {
-						FileSystem.createDirectory(Path.directory(full));
-						File.saveContent(full, content);
-						changed.push(path);
-					}
+					else
+						write(path, content);
 				case RemoveOverlay(path):
 					var full = Path.join([dir, path]);
 					if (port != null) {
@@ -461,10 +501,9 @@ class RunIncremental {
 					} else {
 						var disk = Path.join([warmDir, path]);
 						if (FileSystem.exists(disk))
-							File.saveContent(full, File.getContent(disk));
-						else if (FileSystem.exists(full))
-							FileSystem.deleteFile(full);
-						changed.push(path);
+							write(path, File.getContent(disk));
+						else
+							delete(path);
 					}
 			}
 		}
@@ -479,15 +518,19 @@ class RunIncremental {
 		compilation are not detected (see the `real-mtime` cases). Unless a case
 		asks for real modification times, every step gets its own modification
 		time, two seconds after the previous step (a fraction of a second after it
-		for a `@same-second` step), on the changed files and their parent
-		directories (directory times are used to detect new files).
+		for a `@same-second` step), on the changed files and, for the ones that
+		were created or deleted ([structural]), on their parent directories
+		(directory times are used to detect new files). The directory of a file
+		that is only modified keeps its time, as on a real file system.
 	**/
-	static function touchStep(dir:String, changed:Array<String>) {
+	static function touchStep(dir:String, changed:Array<String>, structural:Array<String>) {
 		var targets = [Path.join([dir, "build.hxml"])];
 		for (file in changed) {
 			var full = Path.join([dir, file]);
 			if (FileSystem.exists(full))
 				targets.push(full);
+			if (!structural.contains(file))
+				continue;
 			var parent = Path.directory(full);
 			while (parent.length >= dir.length) {
 				if (!targets.contains(parent))

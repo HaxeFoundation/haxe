@@ -5,6 +5,8 @@ class ParseError extends haxe.Exception {}
 enum FileOp {
 	Write(path:String, content:String);
 	Delete(path:String);
+	DeleteDir(path:String);
+	Symlink(path:String, target:String);
 	Overlay(path:String, content:String);
 	RemoveOverlay(path:String);
 }
@@ -44,7 +46,9 @@ typedef Step = {
 	@args -D foo                extra compiler arguments for every step
 	@main Main                  main class (`none` for no `-main`)
 	@known-failure <reason>     the case is expected to fail for now
-	@known-failure [t1,t2] <r>  only on the given targets
+	@known-failure [t1,t2] <r>  only on the given targets; `legacy` and `watch`
+	                            restrict it to a file system mode of the server
+	                            instead (`--vfs`), e.g. `[js,legacy]`
 	@real-mtime                 do not give each step its own modification time
 
 	=== initial                 first section: the initial state
@@ -52,6 +56,9 @@ typedef Step = {
 	--- Main.hx                 then file blocks: content until the next
 	class Main { ... }          `--- ` or `=== ` line
 	--- delete Old.hx           removes a file
+	--- delete-dir pack         removes a directory and its content
+	--- symlink A.hx real/A.hx  makes A.hx a symbolic link to real/A.hx (both
+	                            relative to the project directory)
 	--- overlay Foo.hx          unsaved editor content (server/overlay); the
 	                            cold compilation sees it as the file content
 	--- remove-overlay Foo.hx   drops the overlay
@@ -82,6 +89,9 @@ typedef Step = {
 	`out/main.js` with node for the js target.
 **/
 class CaseParser {
+	/** The file system modes of the server a known failure can be restricted to. **/
+	public static final VFS_MODES = ["legacy", "watch"];
+
 	public static function parse(name:String, source:String):TestCase {
 		var tc = new TestCase(name);
 		var lines = source.replace("\r\n", "\n").split("\n");
@@ -106,7 +116,13 @@ class CaseParser {
 						var rest = d.rest;
 						if (rest.startsWith("[")) {
 							var end = rest.indexOf("]");
-							tc.knownFailureTargets = rest.substring(1, end).split(",").map(StringTools.trim);
+							var conditions = rest.substring(1, end).split(",").map(StringTools.trim);
+							var modes = conditions.filter(c -> VFS_MODES.contains(c));
+							var targets = conditions.filter(c -> !VFS_MODES.contains(c));
+							if (modes.length > 0)
+								tc.knownFailureModes = modes;
+							if (targets.length > 0)
+								tc.knownFailureTargets = targets;
 							rest = rest.substr(end + 1).trim();
 						}
 						tc.knownFailure = rest == "" ? "known failure" : rest;
@@ -186,7 +202,14 @@ class CaseParser {
 					content.push(lines[i]);
 					i++;
 				}
-				if (header.startsWith("delete ")) {
+				if (header.startsWith("delete-dir ")) {
+					step.ops.push(DeleteDir(header.substr(11).trim()));
+				} else if (header.startsWith("symlink ")) {
+					var p = firstWord(header.substr(8));
+					if (p.rest == "")
+						throw new ParseError('$name: symlink needs a path and a target in step "${step.name}"');
+					step.ops.push(Symlink(p.word, p.rest));
+				} else if (header.startsWith("delete ")) {
 					step.ops.push(Delete(header.substr(7).trim()));
 				} else if (header.startsWith("remove-overlay ")) {
 					step.ops.push(RemoveOverlay(header.substr(15).trim()));
@@ -231,9 +254,13 @@ class TestCase {
 	public var realMtime:Bool = false;
 	/** Targets the known failure applies to, all targets if null. **/
 	public var knownFailureTargets:Null<Array<String>> = null;
+	/** File system modes of the server the known failure applies to, all modes if null. **/
+	public var knownFailureModes:Null<Array<String>> = null;
 
-	public function knownFailureFor(target:String):Null<String> {
-		return knownFailureTargets == null || knownFailureTargets.contains(target) ? knownFailure : null;
+	public function knownFailureFor(target:String, vfsMode:String):Null<String> {
+		var applies = (knownFailureTargets == null || knownFailureTargets.contains(target))
+			&& (knownFailureModes == null || knownFailureModes.contains(vfsMode));
+		return applies ? knownFailure : null;
 	}
 	public var steps:Array<Step> = [];
 
