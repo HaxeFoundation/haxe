@@ -27,6 +27,12 @@ type dce_mode =
 	| DceStd
 	| DceFull
 
+module TypeParameterTbl = Hashtbl.Make(struct
+	type t = tclass
+	let equal = (==)
+	let hash c = Hashtbl.hash (c.cl_path,c.cl_pos)
+end)
+
 type dce = {
 	scom : SafeCom.t;
 	mscom : SafeCom.t option;
@@ -42,6 +48,7 @@ type dce = {
 	merge_mutex : Mutex.t;
 	field_marker_mutex : Mutex.t;
 	used_mutex : Mutex.t;
+	marked_type_params : unit TypeParameterTbl.t;
 	feature_mutex : Mutex.t;
 	add_feature_manager : NowOrLater.t;
 }
@@ -280,10 +287,11 @@ and mark_t dce p t =
 			let stack = t :: stack in
 			match follow t with
 			| TInst({cl_kind = KTypeParameter ttp} as c,pl) ->
-				if not (has_class_flag c CUsed) then begin
-					add_class_flag c CUsed;
-					List.iter (loop stack) (get_constraints ttp);
-				end;
+				Mutex.lock dce.used_mutex;
+				let first = not (TypeParameterTbl.mem dce.marked_type_params c) in
+				if first then TypeParameterTbl.add dce.marked_type_params c ();
+				Mutex.unlock dce.used_mutex;
+				if first then List.iter (loop stack) (get_constraints ttp);
 				List.iter (loop stack) pl
 			| TInst(c,pl) ->
 				mark_class dce c;
@@ -1004,6 +1012,7 @@ let run pool scom mscom main mode is_std_file types =
 		merge_mutex = Mutex.create();
 		field_marker_mutex = Mutex.create();
 		used_mutex = Mutex.create();
+		marked_type_params = TypeParameterTbl.create 0;
 		feature_mutex = Mutex.create();
 		add_feature_manager = NowOrLater.create();
 	} in
