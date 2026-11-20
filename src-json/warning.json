@@ -168,7 +168,8 @@
 	{
 		"name": "WHaxe6Compat",
 		"doc": "Code that Haxe 6 rejects (enable to prepare a migration)",
-		"parent": "WTyper"
+		"parent": "WTyper",
+		"enabled": false
 	},
 	{
 		"name": "WTypingOrder",

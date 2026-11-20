@@ -220,6 +220,9 @@ let make_binop ctx op e1 e2 is_assign_op p =
 		in
 		BinopResult.create_normal op e1 e2 t is_assign_op false p
 	in
+	let warn_unknown_operand e =
+		if not (Meta.has Meta.HasUntyped ctx.f.curfield.cf_meta) then warning ctx WHaxe6Compat "The type of this operand is not known: Haxe 6 infers it as Int, add a type annotation if another type is meant" e.epos
+	in
 	match op with
 	| OpAdd ->
 		mk_op e1 e2 (match classify e1.etype, classify e2.etype with
@@ -231,19 +234,29 @@ let make_binop ctx op e1 e2 is_assign_op p =
 			tfloat
 		| KUnk , KInt ->
 			if unify_int ctx e1 KUnk then tint else tfloat
-		| KUnk , KFloat
+		| KUnk , KFloat ->
+			warn_unknown_operand e1;
+			e2.etype
 		| KUnk , KString  ->
 			e2.etype
 		| KInt , KUnk ->
 			if unify_int ctx e2 KUnk then tint else tfloat
-		| KFloat , KUnk
+		| KFloat , KUnk ->
+			warn_unknown_operand e2;
+			e1.etype
 		| KString , KUnk ->
 			e1.etype
 		| _ , KString
 		| KString , _ ->
 			tstring
+		| KUnk , KDyn ->
+			warn_unknown_operand e1;
+			e2.etype
 		| _ , KDyn ->
 			e2.etype
+		| KDyn , KUnk ->
+			warn_unknown_operand e2;
+			e1.etype
 		| KDyn , _ ->
 			e1.etype
 		| KUnk , KUnk ->
