@@ -1,0 +1,11 @@
+-cp src
+-lib hxnodejs
+-lib hxcoro
+--each
+
+--main RunIncremental
+-js bin/incremental.js
+
+--next
+--main Replay
+-js bin/replay.js

@@ -1,7 +1,11 @@
+import Platform;
 import haxe.io.Path;
+import hxcoro.Coro;
+import hxcoro.Coro.*;
+import hxcoro.concurrent.CoroSemaphore;
+import hxcoro.task.ICoroNode;
 import sys.FileSystem;
 import sys.io.File;
-import sys.io.Process;
 
 using StringTools;
 
@@ -20,8 +24,13 @@ using StringTools;
 	Step expectations (`@expect-*`) additionally check that the scenario
 	exercises what it is meant to.
 
+	The runner runs on node (see `Platform`); the cases run at the same time
+	(`--jobs`), each in its own directories with its own server.
+
 	Usage (from `tests/incremental`):
-	  haxe run.hxml [-- options]
+	  haxe run.hxml                         build and run all cases
+	  haxe build.hxml
+	  node bin/incremental.js [options]
 	Options:
 	  --filter <substring>  only run cases whose path contains the substring
 	  --haxe <path>         compiler to test (default: `haxe` from PATH)
@@ -37,6 +46,9 @@ using StringTools;
 	  --check-deps          check that the dependencies recorded by the compiler are
 	                        complete (needs `-D dump-fingerprints`)
 	  --args "<args>"        extra compiler arguments for every compilation
+	  --jobs <n>            number of cases run at the same time (default: the
+	                        number of processors; 1 with --verbose)
+	  --timeout <seconds>   time after which a case fails (default: 300)
 **/
 class RunIncremental {
 	public static var haxeCmd = "haxe";
@@ -55,19 +67,21 @@ class RunIncremental {
 	static var realMtime = false;
 	static var checkDeps = false;
 	static var extraArgs:Array<String> = [];
+	static var jobs:Null<Int> = null;
+	static var timeout = 300;
 	/** Compiler features some expectations need, detected by `detectFeatures`. **/
 	static var features:Map<String, Bool> = [];
 	/** The features some expectations needed and the compiler does not have. **/
 	static var unsupported:Array<String> = [];
 	static var skippedExpectations = 0;
 	static var root:String;
-	/** Fake clock for modification times, see `touchStep`. **/
-	static var clock:Float = Math.ffloor(Date.now().getTime() / 1000) + 10;
-	/** Tenths of a second after `clock` (see `@same-second`). **/
-	static var clockTenths = 0;
 	static var workRoot:String;
 
 	static function main() {
+		Platform.run(runAll);
+	}
+
+	@:coroutine static function runAll(node:ICoroNode):Int {
 		var args = Sys.args();
 		var i = 0;
 		while (i < args.length) {
@@ -96,6 +110,10 @@ class RunIncremental {
 					checkDeps = true;
 				case "--args":
 					extraArgs = extraArgs.concat(args[++i].split(" ").filter(s -> s != ""));
+				case "--jobs":
+					jobs = Std.parseInt(args[++i]);
+				case "--timeout":
+					timeout = Std.parseInt(args[++i]);
 				case other:
 					Sys.println('Unknown option $other');
 					Sys.exit(2);
@@ -118,7 +136,7 @@ class RunIncremental {
 		files.sort(Reflect.compare);
 
 		var results = [];
-		var port = 7400 + Std.random(500);
+		var runs = [];
 		for (file in files) {
 			var rel = file.substr(root.length + 1);
 			if (filter != null && rel.indexOf(filter) < 0)
@@ -133,10 +151,28 @@ class RunIncremental {
 			for (target in targets) {
 				if (targetFilter != null && !targetFilter.contains(target))
 					continue;
-				var outcome = runCase(tc, target, port++);
-				results.push({name: rel, target: target, outcome: outcome});
-				printOutcome(rel, target, outcome);
+				runs.push({name: rel, target: target, tc: tc});
 			}
+		}
+		// The cases are independent (own directories, server and port), so
+		// several run at the same time; the outcomes are printed in order.
+		if (jobs == null)
+			jobs = verbose ? 1 : Platform.cpuCount();
+		var slots = new CoroSemaphore(jobs < 1 ? 1 : jobs);
+		var port = 7400 + Std.random(500);
+		var tasks = [
+			for (index => run in runs)
+				node.async(_ -> {
+					slots.acquire();
+					var outcome = try runCase(run.tc, run.target, port + index) catch (e:haxe.Exception) Failed(['runner error: ${e.message}']);
+					slots.release();
+					outcome;
+				})
+		];
+		for (index => run in runs) {
+			var outcome = tasks[index].await();
+			results.push({name: run.name, target: run.target, outcome: outcome});
+			printOutcome(run.name, run.target, outcome);
 		}
 
 		var passed = 0, failed = 0, xfail = 0, xpass = 0, skipped = 0;
@@ -155,7 +191,7 @@ class RunIncremental {
 			Sys.println('$skippedExpectations expectations not checked (not supported by this compiler: ${unsupported.join(", ")})');
 		if (!keep)
 			removeDir(workRoot);
-		Sys.exit(failed + xpass > 0 ? 1 : 0);
+		return failed + xpass > 0 ? 1 : 0;
 	}
 
 	static function printOutcome(name:String, target:String, outcome:Outcome) {
@@ -190,18 +226,8 @@ class RunIncremental {
 		}
 	}
 
-	static var version:Null<String> = null;
-
-	/** What `haxe --version` prints. **/
-	static function compilerVersion() {
-		if (version == null) {
-			var p = new Process(haxeCmd, ["--version"]);
-			version = (p.stdout.readAll().toString() + p.stderr.readAll().toString()).trim();
-			p.exitCode();
-			p.close();
-		}
-		return version;
-	}
+	/** What `haxe --version` prints, set by `detectFeatures`. **/
+	static var version:String;
 
 	/**
 		Detects the compiler features that some expectations need: the
@@ -209,33 +235,30 @@ class RunIncremental {
 		`server/vfs` and `server/overlay`. Expectations needing a missing
 		feature are not checked, and cases with overlays are skipped.
 	**/
-	static function detectFeatures() {
-		var p = new Process(haxeCmd, ["--help-defines"]);
-		features["dump-fingerprints"] = p.stdout.readAll().toString().indexOf("dump-fingerprints") >= 0;
-		p.exitCode();
-		p.close();
+	@:coroutine static function detectFeatures() {
+		var p = Proc.run(haxeCmd, ["--version"]);
+		version = (p.stdout() + p.stderr()).trim();
+		features["dump-fingerprints"] = Proc.run(haxeCmd, ["--help-defines"]).stdout().indexOf("dump-fingerprints") >= 0;
+		hasHl();
 		var methods = ["server/retyped", "server/vfs", "server/overlay"];
 		var port = 7300 + Std.random(90);
-		while (portInUse(port))
+		while (Platform.portInUse(port))
 			port++;
-		var server = new Process(haxeCmd, ["--wait", Std.string(port)]);
+		var server = new Proc(haxeCmd, ["--wait", Std.string(port)]);
 		for (_ in 0...50) {
-			if (portInUse(port))
+			if (Platform.portInUse(port))
 				break;
-			Sys.sleep(0.1);
+			delay(100);
 		}
 		for (method in methods) {
 			var request = haxe.Json.stringify({jsonrpc: "2.0", id: 1, method: method, params: {}});
-			var p = new Process(haxeCmd, ["--connect", Std.string(port), "--display", request]);
-			var out = p.stderr.readAll().toString() + p.stdout.readAll().toString();
-			p.exitCode();
-			p.close();
+			var p = Proc.run(haxeCmd, ["--connect", Std.string(port), "--display", request]);
+			var out = p.stderr() + p.stdout();
 			// -32601: method not found
 			features[method] = out.indexOf("-32601") < 0 && out.indexOf("jsonrpc") >= 0;
 		}
 		server.kill();
 		server.exitCode();
-		server.close();
 	}
 
 	/** Whether [feature] is supported; records it as missing otherwise. **/
@@ -248,21 +271,7 @@ class RunIncremental {
 		return false;
 	}
 
-	/** Whether a program accepts connections on [port] of the local host. **/
-	static function portInUse(port:Int):Bool {
-		var s = new sys.net.Socket();
-		try {
-			s.setTimeout(0.5);
-			s.connect(new sys.net.Host("127.0.0.1"), port);
-			s.close();
-			return true;
-		} catch (_:Dynamic) {
-			s.close();
-			return false;
-		}
-	}
-
-	static function runCase(tc:CaseParser.TestCase, target:String, port:Int):Outcome {
+	@:coroutine static function runCase(tc:CaseParser.TestCase, target:String, port:Int):Outcome {
 		var usesOverlays = Lambda.exists(tc.steps, step -> Lambda.exists(step.ops, op -> op.match(Overlay(_, _) | RemoveOverlay(_))));
 		if (usesOverlays && !supports("server/overlay"))
 			return Skipped("needs server/overlay");
@@ -272,9 +281,9 @@ class RunIncremental {
 		FileSystem.createDirectory(warmDir);
 		FileSystem.createDirectory(coldDir);
 
-		var server = null;
-		var serverOut = null;
-		var serverErr = null;
+		// what the server prints is shown when the case fails (a server that dies
+		// during a compilation gives the client an empty output and exit code 0)
+		var server:Null<Proc> = null;
 		var errors = [];
 		var connected = false;
 		// A port may be taken (by another program, which can answer the probe
@@ -285,30 +294,22 @@ class RunIncremental {
 				port += 1000;
 			// a program already listening may accept the probe and never answer
 			// (Windows Delivery Optimization on 7680): skip a port in use
-			if (portInUse(port))
+			if (Platform.portInUse(port))
 				continue;
-			server = new Process(haxeCmd, ["--wait", Std.string(port)]);
-			// what the server prints, shown when the case fails (a server that dies
-			// during a compilation gives the client an empty output and exit code 0)
-			serverOut = readInBackground(server.stdout);
-			serverErr = readInBackground(server.stderr);
+			server = new Proc(haxeCmd, ["--wait", Std.string(port)]);
 			// Give the server time to listen.
 			for (_ in 0...50) {
-				var probe = new Process(haxeCmd, ["--connect", Std.string(port), "--version"]);
-				var out = probe.stdout.readAll().toString() + probe.stderr.readAll().toString();
-				var code = probe.exitCode();
-				probe.close();
-				if (code == 0 && out.trim() == compilerVersion()) {
+				var probe = Proc.run(haxeCmd, ["--connect", Std.string(port), "--version"]);
+				if (probe.exitCode() == 0 && (probe.stdout() + probe.stderr()).trim() == version) {
 					connected = true;
 					break;
 				}
-				Sys.sleep(0.1);
+				delay(100);
 			}
 			if (connected)
 				break;
 			server.kill();
 			server.exitCode();
-			server.close();
 		}
 		if (!connected)
 			return Failed(['could not start compilation server on port $port']);
@@ -319,10 +320,17 @@ class RunIncremental {
 		var previousDeps:Null<Map<String, Array<String>>> = null;
 		var dumpFile = Path.join([base, "fingerprints.txt"]);
 		var previousFingerprints:Null<Map<String, String>> = null;
+		// Fake clock for modification times, see `touchStep`.
+		var clock = Math.ffloor(Date.now().getTime() / 1000) + 10;
+		// Tenths of a second after `clock` (see `@same-second`).
+		var clockTenths = 0;
+		var label = "";
 		try {
-			for (stepIndex in 0...tc.steps.length) {
+			// a case that hangs (e.g. a server that never answers) fails instead of
+			// blocking the run; the processes it waits for are killed
+			Coro.timeout(timeout * 1000, _ -> for (stepIndex in 0...tc.steps.length) {
 				var step = tc.steps[stepIndex];
-				var label = 'step $stepIndex "${step.name}"';
+				label = 'step $stepIndex "${step.name}"';
 				var changed = [];
 				// a new second, or a fraction of a second later in the same one
 				if (step.sameSecond) {
@@ -336,7 +344,7 @@ class RunIncremental {
 				for (dir in [warmDir, coldDir]) {
 					changed = applyOps(dir, step, tc, target, dir == warmDir ? port : null, warmDir);
 					if (!tc.realMtime && !realMtime)
-						touchStep(dir, changed);
+						touchStep(dir, changed, clock + clockTenths / 10);
 				}
 				if (invalidate) {
 					for (file in changed)
@@ -394,21 +402,21 @@ class RunIncremental {
 				}
 				if (errors.length > 0)
 					break;
-			}
+			});
+		} catch (e:hxcoro.TimeoutException) {
+			errors.push('$label: timed out after $timeout seconds');
 		} catch (e:haxe.Exception) {
 			errors.push('runner error: ${e.message}');
 		}
 		if (errors.length > 0) {
-			var probe = new Process(haxeCmd, ["--connect", Std.string(port), "--version"]);
+			var probe = Proc.run(haxeCmd, ["--connect", Std.string(port), "--version"]);
 			if (probe.exitCode() != 0)
 				errors.push('the compilation server no longer answers');
-			probe.close();
 		}
 		server.kill();
-		// waited for: a later case may listen on its port
 		server.exitCode();
 		if (errors.length > 0) {
-			var output = (serverOut() + serverErr()).trim();
+			var output = (server.stdout() + server.stderr()).trim();
 			if (output != "") {
 				var lines = output.split("\n");
 				if (lines.length > 40)
@@ -416,7 +424,6 @@ class RunIncremental {
 				errors.push('server output:\n' + lines.join("\n"));
 			}
 		}
-		server.close();
 
 		return switch [errors.length, tc.knownFailureFor(target)] {
 			case [0, null]: Passed;
@@ -432,7 +439,7 @@ class RunIncremental {
 		cold one; removing an overlay restores the cold file from the warm
 		directory's disk content.
 	**/
-	static function applyOps(dir:String, step:CaseParser.Step, tc:CaseParser.TestCase, target:String, port:Null<Int>, warmDir:String):Array<String> {
+	@:coroutine static function applyOps(dir:String, step:CaseParser.Step, tc:CaseParser.TestCase, target:String, port:Null<Int>, warmDir:String):Array<String> {
 		var changed = [];
 		for (op in step.ops) {
 			switch (op) {
@@ -483,7 +490,7 @@ class RunIncremental {
 		for a `@same-second` step), on the changed files and their parent
 		directories (directory times are used to detect new files).
 	**/
-	static function touchStep(dir:String, changed:Array<String>) {
+	static function touchStep(dir:String, changed:Array<String>, time:Float) {
 		var targets = [Path.join([dir, "build.hxml"])];
 		for (file in changed) {
 			var full = Path.join([dir, file]);
@@ -498,9 +505,8 @@ class RunIncremental {
 				parent = Path.directory(parent);
 			}
 		}
-		var p = new Process("touch", ["-m", "-d", "@" + Std.string(Std.int(clock)) + "." + clockTenths].concat(targets));
-		p.exitCode();
-		p.close();
+		for (path in targets)
+			Platform.setModificationTime(path, time);
 	}
 
 	/**
@@ -509,12 +515,9 @@ class RunIncremental {
 		number of file system calls of the last compilation (`server/vfs`).
 	**/
 	/** The modules of the case (files of [dir]) that the previous compilation of the server typed. **/
-	static function retypedModules(dir:String, port:Int):Array<String> {
+	@:coroutine static function retypedModules(dir:String, port:Int):Array<String> {
 		var request = haxe.Json.stringify({jsonrpc: "2.0", id: 1, method: "server/retyped", params: {}});
-		var p = new Process(haxeCmd, ["--connect", Std.string(port), "--display", request]);
-		var out = p.stderr.readAll().toString();
-		p.exitCode();
-		p.close();
+		var out = Proc.run(haxeCmd, ["--connect", Std.string(port), "--display", request]).stderr();
 		var modules:Array<String> = try haxe.Json.parse(out).result.result catch (_) [];
 		var l = [];
 		for (m in modules)
@@ -524,15 +527,12 @@ class RunIncremental {
 		return l;
 	}
 
-	static function noChangeCompilationCalls(dir:String, port:Int):Int {
+	@:coroutine static function noChangeCompilationCalls(dir:String, port:Int):Int {
 		var calls = -1;
 		for (_ in 0...5) {
 			compile(dir, port, false);
 			var request = haxe.Json.stringify({jsonrpc: "2.0", id: 1, method: "server/vfs", params: {}});
-			var p = new Process(haxeCmd, ["--connect", Std.string(port), "--display", request]);
-			var out = p.stderr.readAll().toString();
-			p.exitCode();
-			p.close();
+			var out = Proc.run(haxeCmd, ["--connect", Std.string(port), "--display", request]).stderr();
 			calls = try haxe.Json.parse(out).result.result.fileSystemCalls catch (_) -1;
 			if (calls == 0)
 				break;
@@ -540,26 +540,22 @@ class RunIncremental {
 		return calls;
 	}
 
-	static function sendOverlay(port:Int, file:String, content:Null<String>) {
+	@:coroutine static function sendOverlay(port:Int, file:String, content:Null<String>) {
 		var params:Dynamic = {file: file};
 		if (content != null)
 			params.contents = content;
 		var request = haxe.Json.stringify({jsonrpc: "2.0", id: 1, method: "server/overlay", params: params});
-		var p = new Process(haxeCmd, ["--connect", Std.string(port), "--display", request]);
-		p.exitCode();
-		p.close();
+		Proc.run(haxeCmd, ["--connect", Std.string(port), "--display", request]);
 	}
 
-	static function notifyInvalidate(port:Int, dir:String, file:String) {
+	@:coroutine static function notifyInvalidate(port:Int, dir:String, file:String) {
 		var request = haxe.Json.stringify({
 			jsonrpc: "2.0",
 			id: 1,
 			method: "server/invalidate",
 			params: {file: Path.join([dir, file])}
 		});
-		var p = new Process(haxeCmd, ["--connect", Std.string(port), "--cwd", dir, "--display", request]);
-		p.exitCode();
-		p.close();
+		Proc.run(haxeCmd, ["--connect", Std.string(port), "--cwd", dir, "--display", request]);
 	}
 
 	/** The fingerprints of a dump of `-D dump-fingerprints`: `key\tnode` to fingerprint. **/
@@ -655,7 +651,7 @@ class RunIncremental {
 		return null;
 	}
 
-	public static function compile(dir:String, port:Null<Int>, clean = true, ?extra:Array<String>):CompileResult {
+	@:coroutine public static function compile(dir:String, port:Null<Int>, clean = true, ?extra:Array<String>):CompileResult {
 		var outDir = Path.join([dir, "out"]);
 		if (clean) {
 			removeDir(outDir);
@@ -665,25 +661,17 @@ class RunIncremental {
 		args = args.concat(["--cwd", dir, "build.hxml"]);
 		if (extra != null)
 			args = args.concat(extra);
-		var p = new Process(haxeCmd, args);
-		var stderr = readInBackground(p.stderr);
-		var stdout = p.stdout.readAll().toString();
-		var stderr = stderr();
+		var p = Proc.run(haxeCmd, args);
 		var code = p.exitCode();
-		p.close();
-		var out = normalize(stdout + stderr, dir);
+		var out = normalize(p.stdout() + p.stderr(), dir);
 		var run = "";
 		if (runProgram && code == 0) {
 			var js = Path.join([dir, "out", "main.js"]);
 			var hl = Path.join([dir, "out", "main.hl"]);
 			var cmd = if (FileSystem.exists(js)) ["node", js] else if (FileSystem.exists(hl) && hasHl()) ["hl", hl] else null;
 			if (cmd != null) {
-				var proc = new Process(cmd[0], cmd.slice(1));
-				var err = readInBackground(proc.stderr);
-				run = proc.stdout.readAll().toString() + err();
-				proc.exitCode();
-				proc.close();
-				run = normalize(run, dir);
+				var proc = Proc.run(cmd[0], cmd.slice(1));
+				run = normalize(proc.stdout() + proc.stderr(), dir);
 			}
 		}
 		return {
@@ -694,27 +682,15 @@ class RunIncremental {
 		};
 	}
 
-	/** Reads [input] to its end in a thread, so that a process filling both its
-		stdout and stderr pipes cannot block. Returns a function waiting for the content. **/
-	public static function readInBackground(input:haxe.io.Input):() -> String {
-		var result:Null<String> = null;
-		var done = new sys.thread.Lock();
-		sys.thread.Thread.create(() -> {
-			result = try input.readAll().toString() catch (_:Dynamic) "";
-			done.release();
-		});
-		return () -> {
-			done.wait();
-			result;
-		};
-	}
-
 	static var hlAvailable:Null<Bool>;
 
 	/** Whether the HashLink VM is available to run `out/main.hl`. **/
-	static function hasHl():Bool {
+	@:coroutine static function hasHl():Bool {
 		if (hlAvailable == null)
-			hlAvailable = Sys.command("sh", ["-c", "command -v hl > /dev/null"]) == 0;
+			hlAvailable = try {
+				Proc.run("hl", ["--version"]);
+				true;
+			} catch (_:haxe.Exception) false;
 		return hlAvailable;
 	}
 
@@ -841,7 +817,8 @@ class RunIncremental {
 				case NoFsCalls:
 					// Checked separately, see noChangeCompilationCalls.
 				case Output(text):
-					if (target == "interp" || target == "js" || (target == "hl" && hasHl())) {
+					// (whether hl is available is known from `detectFeatures`)
+					if (target == "interp" || target == "js" || (target == "hl" && hlAvailable)) {
 						if (output.indexOf(text) < 0)
 							errors.push('expected program output containing "$text", got:\n$output');
 					}

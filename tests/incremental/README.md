@@ -15,13 +15,23 @@ meant to.
 
 ## Running
 
+The runner runs on node and needs the `hxnodejs` and `hxcoro` libraries.
+`haxe run.hxml` builds it and runs all cases; to pass options, build it with
+`haxe build.hxml` and run it with node:
+
 ```
 cd tests/incremental
-haxe run.hxml                         # all cases, all targets
-haxe run.hxml --filter macros/        # cases whose path contains "macros/"
-haxe run.hxml --targets interp        # one target
-haxe run.hxml --show-known --verbose  # details of known failures, every compilation
+haxe run.hxml                                  # build, then all cases, all targets
+haxe build.hxml                                # build bin/incremental.js and bin/replay.js
+node bin/incremental.js --filter macros/       # cases whose path contains "macros/"
+node bin/incremental.js --targets interp       # one target
+node bin/incremental.js --show-known --verbose # details of known failures, every compilation
 ```
+
+The cases run at the same time, as many as there are processors (`--jobs <n>`;
+1 with `--verbose`), and the outcomes are printed in order. A case that takes
+longer than `--timeout <seconds>` (default 300) fails, and the processes it
+waits for are killed.
 
 Options: `--haxe <path>` (compiler to test), `--args "<args>"` (extra compiler
 arguments, e.g. `-D incremental-check-refs`), `--strict-order` (do not sort
@@ -36,8 +46,8 @@ Some expectations need compiler features, detected when the runner starts:
 Without them, these expectations are not checked (the summary says how many),
 and cases using overlays (`server/overlay`) are reported as `SKIP`.
 
-In CI, the suite runs on Linux as part of the `js` target of `tests/RunCi.hx`
-(after the server tests); the runner sets modification times with GNU `touch`.
+In CI, the suite runs as part of the `js` target of `tests/RunCi.hx` (after
+the server tests).
 
 Targets: `interp` (`--interp`, program output is the compiler output), `js`
 (`out/main.js`, run with node) and `hl` (`out/main.hl`, run with `hl` when it
@@ -52,7 +62,8 @@ list (expectations about `out/main.js` then fail by design).
 cold, with the same comparison:
 
 ```
-haxe replay.hxml --repo ../path/to/heaps --hxml heaps.hxml --commits 30 [--ignore-order] [--run]
+haxe build.hxml
+node bin/replay.js --repo ../path/to/heaps --hxml heaps.hxml --commits 30 [--ignore-order] [--run]
 ```
 
 The build file is copied into each checkout (`$DIR` is replaced with the
