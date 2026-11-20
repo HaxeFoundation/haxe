@@ -356,8 +356,10 @@ let rec mkdir_recursive base dir_list =
 				path
 		in
 		if not ( (path = "") || ( (path_len = 2) && ((String.sub path 1 1) = ":") ) ) then
-			if not (Sys.file_exists path) then
-				Unix.mkdir path 0o755;
+			if not (Sys.file_exists path) then begin
+				(* another thread or process may have created the directory since the check *)
+				try Unix.mkdir path 0o755 with Unix.Unix_error(Unix.EEXIST,_,_) -> ()
+			end;
 		mkdir_recursive (if (path = "") then "/" else path) remaining
 
 (**

@@ -84,7 +84,8 @@ class FileSystem {
 			path = _p;
 		}
 		for (part in parts) {
-			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part) && !NativeSys.sys_create_dir(part, 493))
+			// another thread or process may have created the directory since exists(part)
+			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part) && !NativeSys.sys_create_dir(part, 493) && !exists(part))
 				throw "Could not create directory:" + part;
 		}
 	}
