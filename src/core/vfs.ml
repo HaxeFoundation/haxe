@@ -266,19 +266,39 @@ let stat_uncached path =
 	count_syscall "stat" path;
 	try info_of_stats (Unix.stat path) with Unix.Unix_error _ -> missing
 
-(* Also gives the real path of [path] when it is a symbolic link to a file. *)
+(* The paths a symbolic link goes through, up to the real path of the file:
+   a change of any of them changes what the link gives. *)
+let link_targets path =
+	let rec loop path acc n =
+		if n = 0 then acc else
+		match Unix.readlink path with
+		| target ->
+			let target = if Filename.is_relative target then Filename.concat (Filename.dirname path) target else target in
+			let target = full_path target in
+			loop target (target :: acc) (n - 1)
+		| exception Unix.Unix_error _ ->
+			acc
+	in
+	let hops = loop path [] 40 in
+	let hops = match (try Some (full_path (Unix.realpath path)) with Unix.Unix_error _ -> None) with
+		| Some real when not (List.mem real hops) -> real :: hops
+		| _ -> hops
+	in
+	List.rev hops
+
+(* Also gives the paths a symbolic link to a file goes through. *)
 let stat_link_uncached path =
 	count_syscall "stat" path;
 	try
 		let st = Unix.lstat path in
 		if st.Unix.st_kind <> Unix.S_LNK then
-			info_of_stats st,None
+			info_of_stats st,[]
 		else begin
 			let info = info_of_stats (Unix.stat path) in
-			info,(if info.kind = File then (try Some (full_path (Unix.realpath path)) with Unix.Unix_error _ -> None) else None)
+			info,(if info.kind = File then link_targets path else [])
 		end
 	with Unix.Unix_error _ ->
-		missing,None
+		missing,[]
 
 let find_overlay key =
 	if Hashtbl.length overlays = 0 then None else Mutex.protect mutex (fun () -> Hashtbl.find_opt overlays key)
@@ -294,7 +314,7 @@ let rec stat_full path key =
 		| Some info ->
 			info
 		| None ->
-			let info,target = stat_link_uncached path in
+			let info,targets = stat_link_uncached path in
 			(* The watch of the parent directory covers the changes of this entry. *)
 			let parent = match parent_key key with
 				| Some parent_key ->
@@ -303,28 +323,25 @@ let rec stat_full path key =
 				| None ->
 					None
 			in
-			(* For a link, the watch of the directory of its target. *)
-			let target = match target with
-				| Some target ->
-					let target_key = key_of_full target in
-					begin match parent_key target_key with
-					| Some target_parent_key when target_key <> key ->
-						let target_parent = Filename.dirname target in
-						if (stat_full target_parent target_parent_key).kind = Dir then Some (target_key,target_parent_key,target_parent) else None
-					| _ ->
-						None
-					end
-				| None ->
+			(* For a link, the watches of the directories of the paths it goes
+			   through. *)
+			let targets = List.filter_map (fun target ->
+				let target_key = key_of_full target in
+				match parent_key target_key with
+				| Some target_parent_key when target_key <> key ->
+					let target_parent = Filename.dirname target in
+					if (stat_full target_parent target_parent_key).kind = Dir then Some (target_key,target_parent_key,target_parent) else None
+				| _ ->
 					None
-			in
+			) targets in
 			Mutex.protect mutex (fun () ->
 				Option.may (fun (parent_key,parent) -> Watcher.request_unlocked parent_key parent) parent;
-				Option.may (fun (target_key,target_parent_key,target_parent) ->
+				List.iter (fun (target_key,target_parent_key,target_parent) ->
 					Watcher.request_unlocked target_parent_key target_parent;
 					let l = Option.default [] (Hashtbl.find_opt links target_key) in
 					if not (List.mem key l) then Hashtbl.replace links target_key (key :: l);
 					add_child_to_unlocked target_parent_key key
-				) target;
+				) targets;
 				Hashtbl.replace infos key info;
 				add_child_unlocked key
 			);

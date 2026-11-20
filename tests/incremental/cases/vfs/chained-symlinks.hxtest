@@ -1,0 +1,42 @@
+# A module file is a symbolic link to another symbolic link: pointing the
+# middle link to another file, then editing that file, are changes of the
+# module.
+@args -cp src
+@main Main
+=== initial
+@expect-output v1
+@expect-no-fs-calls
+--- shared/A.hx
+package pack;
+
+class Foo {
+	public static function get() return "v1";
+}
+--- shared/B.hx
+package pack;
+
+class Foo {
+	public static function get() return "v2";
+}
+--- symlink shared/mid.hx shared/A.hx
+--- symlink src/pack/Foo.hx shared/mid.hx
+--- src/Main.hx
+class Main {
+	static function main() {
+		trace(pack.Foo.get());
+	}
+}
+
+=== middle link changed
+@expect-output v2
+@expect-no-fs-calls
+--- symlink shared/mid.hx shared/B.hx
+
+=== new target edited
+@expect-output v3
+--- shared/B.hx
+package pack;
+
+class Foo {
+	public static function get() return "v3";
+}
