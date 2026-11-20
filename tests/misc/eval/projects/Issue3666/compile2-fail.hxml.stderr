@@ -1,0 +1,2 @@
+Main2.hx:7: characters 3-23 : Cannot compare (x : Unknown<0>) -> Unknown<0> and Abstract<Int>
+Main2.hx:7: characters 3-23 : Explicit type arguments need a dot: inst.<...>(...)

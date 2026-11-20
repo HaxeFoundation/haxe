@@ -1669,6 +1669,11 @@ and parse_field ctx e1 efk p s =
 		| [ (Const (String (f,kind)),p2) ] when p.pmax = p2.pmin ->
 			check_quoted_field_name ctx s f kind p2;
 			expr_next ctx (EField (e1,f,efk) , punion (pos e1) p2) s
+		| [ (Binop OpLt,p2) ] when p.pmax = p2.pmin && efk = EFNormal ->
+			begin match%parser s with
+			| [ [%let tl = psep_nonempty Comma (parse_complex_type ctx)]; (Binop OpGt,p3) ] -> expr_next ctx (ETypeArgs (e1,tl), punion (pos e1) p3) s
+			| [ ] -> serror()
+			end
 		| [ ] ->
 			(* turn an integer followed by a dot into a float *)
 			match e1 with
