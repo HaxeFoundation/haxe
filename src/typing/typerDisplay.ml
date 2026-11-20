@@ -133,7 +133,7 @@ let completion_item_of_expr ctx e =
 					DisplayException.send_positions_raise ctx.com []
 			| _ -> *)
 				let fa = get_constructor_access c tl e.epos in
-				let fcc = unify_field_call ctx fa el [] e.epos false in
+				let fcc = unify_field_call ctx fa el [] e.epos false WithType.value in
 				let cf = fcc.fc_field in
 				let t = match follow (FieldAccess.get_map_function fa cf.cf_type) with
 					| TFun(args,_) -> TFun(args,TInst(c,tl))
@@ -355,7 +355,7 @@ and display_expr ctx e_ast e dk mode with_type p =
 	let maybe_expand_overload el_typed e e_on host cf = match mode with
 		| MCall el when cf.cf_overloads <> [] ->
 			let fa = FieldAccess.create e_on cf host false p in
-			let fcc = unify_field_call ctx fa el_typed el p false in
+			let fcc = unify_field_call ctx fa el_typed el p false WithType.value in
 			FieldAccess.get_field_expr {fa with fa_field = fcc.fc_field} FCall
 		| _ ->
 			e
