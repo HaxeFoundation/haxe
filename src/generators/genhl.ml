@@ -121,7 +121,7 @@ type context = {
 	defined_funs : (int,unit) Hashtbl.t;
 	cached_types : (string list, ttype) Hashtbl.t;
 	mutable m : method_context;
-	mutable anons_cache : (tanon, ttype) PMap.t;
+	anons_cache : (int, tanon * ttype) Hashtbl.t;
 	mutable method_wrappers : ((ttype * ttype), int) PMap.t;
 	mutable rec_cache : (Type.t * ttype option ref) list;
 	mutable cached_tuples : (ttype list, ttype) PMap.t;
@@ -453,6 +453,68 @@ let get_rec_cache ctx t none_callback not_found_callback =
 	in
 	loop false ctx.rec_cache
 
+(* Whether two structures convert to the same HL type: equality on what
+   [to_type] reads (field names, kinds and types, declarations by path, type
+   parameters physically for their constraints), not on positions nor
+   metadata. A structure written at several places is one type. *)
+let same_anon (a : tanon) (b : tanon) =
+	let assumed = ref [] in
+	let rec norm t = match t with
+		| TMono { tm_type = Some t } -> norm t
+		| TLazy f -> norm (lazy_type f)
+		| _ -> t
+	in
+	let rec ty t1 t2 =
+		t1 == t2 ||
+		let t1 = norm t1 and t2 = norm t2 in
+		t1 == t2 ||
+		match t1, t2 with
+		| TMono _, TMono _ | TDynamic _, TDynamic _ -> true
+		| TInst (c1,l1), TInst (c2,l2) ->
+			(match c1.cl_kind, c2.cl_kind with
+			| (KTypeParameter _ | KExpr _), _ | _, (KTypeParameter _ | KExpr _) -> c1 == c2
+			| _ -> c1.cl_path = c2.cl_path) && params l1 l2
+		| TEnum (e1,l1), TEnum (e2,l2) -> e1.e_path = e2.e_path && params l1 l2
+		| TType (d1,l1), TType (d2,l2) -> d1.t_path = d2.t_path && params l1 l2
+		| TAbstract (a1,l1), TAbstract (a2,l2) -> a1.a_path = a2.a_path && params l1 l2
+		| TFun (args1,r1), TFun (args2,r2) ->
+			(try List.for_all2 (fun (_,o1,t1) (_,o2,t2) -> o1 = o2 && ty t1 t2) args1 args2 with Invalid_argument _ -> false) && ty r1 r2
+		| TAnon a1, TAnon a2 -> anon a1 a2
+		| _ -> false
+	and params l1 l2 = try List.for_all2 ty l1 l2 with Invalid_argument _ -> false
+	and anon a1 a2 =
+		a1 == a2 || List.exists (fun (x,y) -> x == a1 && y == a2) !assumed ||
+		(match !(a1.a_status), !(a2.a_status) with
+		| ClassStatics c1, ClassStatics c2 -> c1.cl_path = c2.cl_path
+		| EnumStatics e1, EnumStatics e2 -> e1.e_path = e2.e_path
+		| (ClassStatics _ | EnumStatics _), _ | _, (ClassStatics _ | EnumStatics _) -> false
+		| _ ->
+			let method_kind cf = match cf.cf_kind with Method (MethNormal | MethInline) -> true | _ -> false in
+			assumed := (a1,a2) :: !assumed;
+			PMap.fold (fun _ n -> n + 1) a1.a_fields 0 = PMap.fold (fun _ n -> n + 1) a2.a_fields 0 &&
+			PMap.foldi (fun name cf1 acc -> acc && match PMap.find name a2.a_fields with
+				| cf2 -> method_kind cf1 = method_kind cf2 && ty cf1.cf_type cf2.cf_type
+				| exception Not_found -> false
+			) a1.a_fields true)
+	in
+	anon a b
+
+(* a hash of the fields of a structure (names and the head of their types),
+   compatible with [same_anon] *)
+let anon_key (a : tanon) =
+	let rec head t = match t with
+		| TMono { tm_type = Some t } -> head t
+		| TLazy f -> head (lazy_type f)
+		| TInst (c,_) -> Hashtbl.hash c.cl_path
+		| TEnum (e,_) -> Hashtbl.hash e.e_path
+		| TType (d,_) -> Hashtbl.hash d.t_path
+		| TAbstract (a,_) -> Hashtbl.hash a.a_path
+		| TFun (args,_) -> 1 + List.length args
+		| TAnon _ -> 0
+		| TMono _ | TDynamic _ -> -1
+	in
+	PMap.foldi (fun n cf h -> (h * 65599 + Hashtbl.hash n * 31 + head cf.cf_type) land max_int) a.a_fields 0
+
 let rec to_type ?tref ctx t =
 	match t with
 	| TMono r ->
@@ -484,10 +546,9 @@ let rec to_type ?tref ctx t =
 		| _ -> die "" __LOC__)
 	| TAnon a ->
 		if PMap.is_empty a.a_fields then HDyn else
+		let key = anon_key a in
 		(try
-			(* can't use physical comparison in PMap since addresses might change in GC compact,
-				maybe add an uid to tanon if too slow ? *)
-			PMap.find a ctx.anons_cache
+			snd (List.find (fun (a',_) -> same_anon a a') (Hashtbl.find_all ctx.anons_cache key))
 		with Not_found ->
 			let vp = {
 				vfields = [||];
@@ -497,7 +558,7 @@ let rec to_type ?tref ctx t =
 			(match tref with
 			| None -> ()
 			| Some r -> r := Some t);
-			ctx.anons_cache <- PMap.add a t ctx.anons_cache;
+			Hashtbl.add ctx.anons_cache key (a,t);
 			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) a.a_fields [] in
 			let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
 			vp.vfields <- Array.of_list fields;
@@ -4460,7 +4521,7 @@ let create_context com =
 		core_type = get_class "CoreType";
 		core_enum = get_class "CoreEnum";
 		ref_abstract = get_abstract "Ref";
-		anons_cache = PMap.empty;
+		anons_cache = Hashtbl.create 0;
 		rec_cache = [];
 		method_wrappers = PMap.empty;
 		cdebug_files = new_lookup();
