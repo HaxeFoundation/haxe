@@ -130,15 +130,10 @@ class Bytes {
 		for (i in 0...len & 3)
 			set(pos++, value);
 		#elseif python
-		final batchSize = 2048;
-		for (i in 0...python.lib.Math.ceil(len / batchSize)) {
-			final sliceStart = pos + i * batchSize;
-			final sliceSize = python.lib.Builtins.min(batchSize, len - i * batchSize);
-			python.Syntax.assign(
-				python.Syntax.arrayAccess(b, sliceStart, sliceStart + sliceSize),
-				python.Syntax.binop(new python.Bytes(python.Syntax.tuple(value & 0xFF)), "*", sliceSize)
-			);
-		}
+		python.Syntax.assign(
+			python.Syntax.arrayAccess(b, pos, pos + len),
+			python.Syntax.binop(new python.Bytes(python.Syntax.tuple(value & 0xFF)), "*", len)
+		);
 		#else
 		for (i in 0...len)
 			set(pos++, value);
