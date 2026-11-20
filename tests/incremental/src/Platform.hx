@@ -78,7 +78,12 @@ class Proc {
 			});
 			var out = readAll(process.stdout);
 			errRead.wait();
-			var code = process.exitCode();
+			// the pipes of a killed process are closed, and the blocking `exitCode` fails reading them
+			var code:Null<Int> = try process.exitCode() catch (_:Dynamic) null;
+			while (code == null) {
+				Sys.sleep(0.01);
+				code = process.exitCode(false);
+			}
 			mutex.acquire();
 			process.close();
 			this.out = out;

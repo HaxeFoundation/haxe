@@ -277,6 +277,18 @@ class RunIncremental {
 	}
 
 	/**
+		Whether the server on [port] answers a client with the version of the
+		compiler. A server that hangs (or another program on the port) may accept
+		the client and never answer, so the client is given a few seconds.
+	**/
+	@:coroutine static function serverAnswers(port:Int):Bool {
+		return try Coro.timeout(10000, _ -> {
+			var probe = Proc.run(haxeCmd, ["--connect", Std.string(port), "--version"]);
+			probe.exitCode() == 0 && (probe.stdout() + probe.stderr()).trim() == version;
+		}) catch (_:hxcoro.TimeoutException) false;
+	}
+
+	/**
 		Runs a case on [target]. The features that some of its expectations
 		needed and the compiler does not have are added to [skipped], once per
 		expectation not checked.
@@ -309,8 +321,7 @@ class RunIncremental {
 			server = new Proc(haxeCmd, ["--wait", Std.string(port)]);
 			// Give the server time to listen.
 			for (_ in 0...50) {
-				var probe = Proc.run(haxeCmd, ["--connect", Std.string(port), "--version"]);
-				if (probe.exitCode() == 0 && (probe.stdout() + probe.stderr()).trim() == version) {
+				if (serverAnswers(port)) {
 					connected = true;
 					break;
 				}
@@ -418,8 +429,7 @@ class RunIncremental {
 			errors.push('runner error: ${e.message}');
 		}
 		if (errors.length > 0) {
-			var probe = Proc.run(haxeCmd, ["--connect", Std.string(port), "--version"]);
-			if (probe.exitCode() != 0)
+			if (!serverAnswers(port))
 				errors.push('the compilation server no longer answers');
 		}
 		server.kill();
