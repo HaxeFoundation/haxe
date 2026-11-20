@@ -19,7 +19,8 @@ the error is undone.
 With --mem, the size of what the server keeps alive is measured after each
 compilation (server/gcCompact): it must not grow with the compilations, failed
 ones included. A growth of more than --leak-mb between the first successful
-compilations and the last ones is reported as a LEAK line.
+compilations and the last ones is reported as a LEAK line. The fuzzer stops at
+the start if the compiler does not report that size.
 
     python3 tests/fuzz/fuzz.py --dir <project> --hxml build.hxml --out out/main.js \
         --src src,lib --edits 50 --seed 1 --port 7000
@@ -94,6 +95,10 @@ def live_mb():
 	p = subprocess.run([H, "--connect", args.port, "--display", request], capture_output=True, text=True)
 	try: return json.loads(p.stderr)["result"]["result"]["live"] / 1e6
 	except Exception: return -1
+
+if args.mem and live_mb() < 0:
+	server.kill()
+	sys.exit("--mem needs a compiler whose server/gcCompact reports the live memory")
 
 last = None
 
