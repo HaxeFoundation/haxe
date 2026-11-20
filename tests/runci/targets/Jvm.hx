@@ -88,5 +88,13 @@ class Jvm {
 		changeDirectory(threadsDir);
 		buildAndRun(["build.hxml", "--jvm", "export/threads.jar"].concat(args), "export/threads.jar");
 		verifyDex("export/threads.jar");
+
+		// The incremental tests with the runner on threads (the js target runs them on node),
+		// for the interp cases only: what is tested here is the runner.
+		infoMsg("Test incremental recompilation (runner on the JVM):");
+		haxelibInstallGit("HaxeFoundation", "hxcoro", hxcoroVersion);
+		changeDirectory(incrementalDir);
+		runCommand("haxe", ["build-jvm.hxml"]);
+		runCommand("java", ["-jar", "bin/incremental.jar", "--targets", "interp"]);
 	}
 }

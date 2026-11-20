@@ -1,76 +1,98 @@
 import hxcoro.Coro.*;
 import hxcoro.CoroRun;
 import hxcoro.task.NodeLambda;
-import js.node.Buffer;
-import js.node.ChildProcess;
+import sys.thread.Lock;
+import sys.thread.Mutex;
+import sys.thread.Thread;
 
 /**
-	What the runner needs beyond the standard library and hxcoro, on node. The
-	rest of the runner uses `sys` and coroutines only, so that another target
-	only needs this module.
+	What the runner needs beyond the standard library and hxcoro, on threaded
+	sys targets (`Platform.js.hx` is the node version). The coroutines run on
+	hxcoro's thread pool, so the cases run on several threads.
 **/
 class Platform {
 	/** Runs [main] and exits with the code it returns (2 if it throws). **/
 	public static function run(main:NodeLambda<Int>) {
-		CoroRun.promise(main).then(code -> js.Node.process.exitCode = code, e -> {
-			Sys.println('runner error: $e');
-			js.Node.process.exitCode = 2;
-		});
+		var code = try CoroRun.run(main) catch (e:haxe.Exception) {
+			Sys.println('runner error: ${e.details()}');
+			2;
+		}
+		Sys.exit(code);
 	}
 
 	public static function cpuCount():Int {
-		return js.node.Os.cpus().length;
+		#if jvm
+		return java.lang.Runtime.getRuntime().availableProcessors();
+		#else
+		return 4;
+		#end
 	}
 
 	/** Whether a program accepts connections on [port] of the local host. **/
-	@:coroutine public static function portInUse(port:Int):Bool {
-		return suspend(cont -> {
-			var s = js.node.Net.connect({host: "127.0.0.1", port: port});
-			var done = false;
-			function finish(inUse:Bool) {
-				if (done)
-					return;
-				done = true;
-				s.destroy();
-				cont.resume(inUse, null);
-			}
-			s.setTimeout(500);
-			s.on("connect", () -> finish(true));
-			s.on("error", _ -> finish(false));
-			s.on("timeout", () -> finish(false));
-		});
+	public static function portInUse(port:Int):Bool {
+		var s = new sys.net.Socket();
+		try {
+			s.setTimeout(0.5);
+			s.connect(new sys.net.Host("127.0.0.1"), port);
+			s.close();
+			return true;
+		} catch (_:Dynamic) {
+			s.close();
+			return false;
+		}
 	}
 
 	/** Sets the modification time of [path] to [time] (seconds, with a fraction). **/
 	public static function setModificationTime(path:String, time:Float) {
-		var date = Date.fromTime(time * 1000);
-		js.node.Fs.utimesSync(path, date, date);
+		#if jvm
+		java.nio.file.Files.setLastModifiedTime(java.nio.file.Paths.get(path, ...[]),
+			java.nio.file.attribute.FileTime.fromMillis(haxe.Int64.fromFloat(time * 1000)));
+		#else
+		throw new haxe.exceptions.NotImplementedException();
+		#end
 	}
 }
 
 /**
-	A child process whose output is collected, waited for by coroutines (so
-	that the other cases keep running). Cancelling a coroutine waiting in
-	`exitCode` kills the process.
+	A child process whose output is collected, waited for by coroutines (a
+	thread waits for the process and resumes them). Cancelling a coroutine
+	waiting in `exitCode` kills the process.
 **/
 class Proc {
-	final process:js.node.child_process.ChildProcess;
-	final out:Array<Buffer> = [];
-	final err:Array<Buffer> = [];
+	final process:sys.io.Process;
+	final mutex = new Mutex();
+	var out = "";
+	var err = "";
 	var code:Null<Int> = null;
-	var error:Null<haxe.Exception> = null;
 	var onExit:Null<() -> Void> = null;
 
 	public function new(cmd:String, args:Array<String>) {
-		process = ChildProcess.spawn(cmd, args);
-		process.stdout.on("data", (b:Buffer) -> out.push(b));
-		process.stderr.on("data", (b:Buffer) -> err.push(b));
-		process.on("error", (e:js.lib.Error) -> {
-			error = new haxe.Exception('could not run $cmd: ${e.message}');
-			finish(-1);
+		process = new sys.io.Process(cmd, args);
+		Thread.create(() -> {
+			// both pipes are read at the same time, so that a process filling one cannot block
+			var errRead = new Lock();
+			var err = "";
+			Thread.create(() -> {
+				err = readAll(process.stderr);
+				errRead.release();
+			});
+			var out = readAll(process.stdout);
+			errRead.wait();
+			var code = process.exitCode();
+			mutex.acquire();
+			process.close();
+			this.out = out;
+			this.err = err;
+			this.code = code;
+			var callback = onExit;
+			mutex.release();
+			if (callback != null)
+				callback();
 		});
-		// after the output streams are closed
-		process.on("close", (code:Null<Int>, _) -> finish(code == null ? -1 : code));
+	}
+
+	static function readAll(input:haxe.io.Input):String {
+		return try input.readAll().toString() catch (_:Dynamic) "";
 	}
 
 	/** Runs [cmd] to its end. **/
@@ -80,38 +102,35 @@ class Proc {
 		return p;
 	}
 
-	function finish(code:Int) {
-		if (this.code != null)
-			return;
-		this.code = code;
-		if (onExit != null)
-			onExit();
-	}
-
-	/** What the process wrote to its standard output so far. **/
+	/** What the process wrote to its standard output (once it ended). **/
 	public function stdout():String {
-		return Buffer.concat(out).toString();
+		return out;
 	}
 
-	/** What the process wrote to its standard error so far. **/
+	/** What the process wrote to its standard error (once it ended). **/
 	public function stderr():String {
-		return Buffer.concat(err).toString();
+		return err;
 	}
 
 	public function kill() {
+		mutex.acquire();
 		if (code == null)
 			process.kill();
+		mutex.release();
 	}
 
-	/** Waits for the process to end and returns its exit code (-1 if it was killed). **/
+	/** Waits for the process to end and returns its exit code. **/
 	@:coroutine public function exitCode():Int {
-		if (code == null)
-			suspendCancellable(cont -> {
+		suspendCancellable(cont -> {
+			mutex.acquire();
+			var exited = code != null;
+			if (!exited)
 				onExit = () -> cont.resume(null, null);
-				_ -> kill();
-			});
-		if (error != null)
-			throw error;
+			mutex.release();
+			if (exited)
+				cont.resume(null, null);
+			_ -> kill();
+		});
 		return code;
 	}
 }

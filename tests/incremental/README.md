@@ -33,6 +33,11 @@ The cases run at the same time, as many as there are processors (`--jobs <n>`;
 longer than `--timeout <seconds>` (default 300) fails, and the processes it
 waits for are killed.
 
+The runner also runs on the JVM, where the cases run on several threads
+(`haxe build-jvm.hxml`, then `java -jar bin/incremental.jar [options]`).
+What the runner needs beyond the standard library and hxcoro is in
+`src/Platform.js.hx` for node and `src/Platform.hx` for threaded targets.
+
 Options: `--haxe <path>` (compiler to test), `--args "<args>"` (extra compiler
 arguments, e.g. `-D incremental-check-refs`), `--strict-order` (do not sort
 compiler messages before comparing), `--invalidate` (notify the server with
@@ -47,7 +52,8 @@ Without them, these expectations are not checked (the summary says how many),
 and cases using overlays (`server/overlay`) are reported as `SKIP`.
 
 In CI, the suite runs as part of the `js` target of `tests/RunCi.hx` (after
-the server tests).
+the server tests), and its `interp` cases with the JVM runner as part of the
+`jvm` target.
 
 Targets: `interp` (`--interp`, program output is the compiler output), `js`
 (`out/main.js`, run with node) and `hl` (`out/main.hl`, run with `hl` when it

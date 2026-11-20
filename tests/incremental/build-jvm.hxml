@@ -1,0 +1,4 @@
+-cp src
+-lib hxcoro
+--main RunIncremental
+--jvm bin/incremental.jar

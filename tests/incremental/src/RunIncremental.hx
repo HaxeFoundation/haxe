@@ -24,8 +24,9 @@ using StringTools;
 	Step expectations (`@expect-*`) additionally check that the scenario
 	exercises what it is meant to.
 
-	The runner runs on node (see `Platform`); the cases run at the same time
-	(`--jobs`), each in its own directories with its own server.
+	The runner runs on node, or on the JVM (`build-jvm.hxml`), see `Platform`;
+	the cases run at the same time (`--jobs`), each in its own directories with
+	its own server.
 
 	Usage (from `tests/incremental`):
 	  haxe run.hxml                         build and run all cases
