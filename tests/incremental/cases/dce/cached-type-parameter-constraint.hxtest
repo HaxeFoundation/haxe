@@ -1,0 +1,35 @@
+# A class only reached through the constraint of a type parameter is kept by
+# DCE. The type parameter of a module reused from the in-memory cache is the
+# same object as in the previous compilation: it must not count as already
+# visited, or its constraint is not marked and the class is removed.
+@targets js
+@args -dce full -D disable-hxb-cache
+
+=== initial
+@expect-output 1
+@expect-file out/main.js OnlyConstraint
+--- Main.hx
+class Main {
+	static function main() {
+		js.Syntax.code("console.log({0})", Other.get() + Lib.zero());
+	}
+}
+--- Lib.hx
+class OnlyConstraint {}
+
+class Lib {
+	@:keep public static function check<T:OnlyConstraint>(l:Array<T>) {}
+	public static function zero() return 0;
+}
+--- Other.hx
+class Other {
+	public static function get() return 1;
+}
+
+=== another module changes
+@expect-output 2
+@expect-file out/main.js OnlyConstraint
+--- Other.hx
+class Other {
+	public static function get() return 2;
+}
