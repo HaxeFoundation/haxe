@@ -1,6 +1,5 @@
 # A module file is a symbolic link to a file outside the class path: a change
 # of the target is a change of the module.
-@known-failure [watch] the directory of the target of a symbolic link is not watched
 @args -cp src
 @main Main
 === initial
