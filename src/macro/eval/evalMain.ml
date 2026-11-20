@@ -105,7 +105,7 @@ let create com api is_macro args =
 		builtins = builtins;
 		type_cache = IntMap.empty;
 		overrides = Hashtbl.create 0;
-		had_error = false;
+		field_failed = (fun _ -> false);
 		args;
 		(* prototypes *)
 		string_prototype = fake_proto fake_proto_cache key_String;
@@ -172,28 +172,24 @@ let create com api is_macro args =
 (* API for macroContext.ml *)
 
 let call_path ctx path f vl api =
-	if ctx.had_error then
-		None
-	else begin
-		let old = ctx.curapi in
-		ctx.curapi <- api;
-		let path = match List.rev path with
-			| [] -> die "" __LOC__
-			| name :: path -> List.rev path,name
-		in
-		catch_exceptions ctx ~final:(fun () -> ctx.curapi <- old) (fun () ->
-			let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
-			let vfield = field vtype (hash f) in
-			let p = api.pos in
-			let info = create_env_info true p.pfile (ctx.file_keys#get p.pfile) (EKMacro (path_hash path, hash f)) (IntHashtbl.create 0) 0 0 in
-			let env = push_environment ctx info in
-			env.env_leave_pmin <- p.pmin;
-			env.env_leave_pmax <- p.pmax;
-			let v = call_value_on vtype vfield vl in
-			pop_environment ctx env;
-			v
-		) api.pos
-	end
+	let old = ctx.curapi in
+	ctx.curapi <- api;
+	let path = match List.rev path with
+		| [] -> die "" __LOC__
+		| name :: path -> List.rev path,name
+	in
+	catch_exceptions ctx ~final:(fun () -> ctx.curapi <- old) (fun () ->
+		let vtype = get_static_prototype_as_value ctx (path_hash path) api.pos in
+		let vfield = field vtype (hash f) in
+		let p = api.pos in
+		let info = create_env_info true p.pfile (ctx.file_keys#get p.pfile) (EKMacro (path_hash path, hash f)) (IntHashtbl.create 0) 0 0 in
+		let env = push_environment ctx info in
+		env.env_leave_pmin <- p.pmin;
+		env.env_leave_pmax <- p.pmax;
+		let v = call_value_on vtype vfield vl in
+		pop_environment ctx env;
+		v
+	) api.pos
 
 let value_signature v =
 	let buf = Buffer.create 0 in
@@ -400,15 +396,13 @@ let setup get_api =
 let do_reuse ctx api args =
 	ctx.curapi <- api;
 	ctx.args <- args;
-	ctx.had_error <- false;
 	ctx.static_prototypes#reset
 
-let set_error ctx b =
-	(* TODO: Have to reset this somewhere if running compilation server. But where... *)
-	ctx.had_error <- b
+let set_field_failed ctx f =
+	ctx.field_failed <- f
 
 let add_types ctx types ready =
-	if not ctx.had_error then ignore(catch_exceptions ctx (fun () -> ignore(add_types ctx types ready)) null_pos)
+	ignore(catch_exceptions ctx (fun () -> ignore(add_types ctx types ready)) null_pos)
 
 let make_runtime_error msg pos =
 	let vi = encode_instance key_haxe_macro_Error in
@@ -538,7 +532,7 @@ let value_string = value_string
 
 let exc_string = exc_string
 
-let eval_expr ctx e = if ctx.had_error then None else eval_expr ctx EKEntrypoint e
+let eval_expr ctx e = eval_expr ctx EKEntrypoint e
 
 let handle_decoding_error f v t =
 	let line = ref 1 in

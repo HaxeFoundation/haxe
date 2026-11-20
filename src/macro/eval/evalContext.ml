@@ -277,7 +277,8 @@ and context = {
 	detail_times : bool;
 	builtins : builtins;
 	debug : debug;
-	mutable had_error : bool;
+	(* Whether running a field could observe code that failed to type: calling it aborts the macro. *)
+	mutable field_failed : Type.tclass_field -> bool;
 	mutable curapi : value MacroApi.compiler_api;
 	mutable type_cache : Type.module_type IntMap.t;
 	overrides : (Globals.path * string,bool) Hashtbl.t;

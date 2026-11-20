@@ -678,6 +678,67 @@ and flush_macro_context mint mctx =
 	let timer_level = Timer.level_from_define mctx.com.defines Define.MacroTimes in
 	macro_timer mctx.com.timer_ctx timer_level ["flush"] None f ()
 
+(* The positions of the errors reported in the macro context of the current
+   compilation, and the fields known to have failed or not since the last one. *)
+let macro_errors : pos list ref = ref []
+let macro_errors_generation = ref 0
+let macro_failed_fields : (pos * string,bool) Hashtbl.t = Hashtbl.create 0
+let macro_errors_mutex = Mutex.create ()
+
+let add_macro_error p =
+	MacroFailure.report ();
+	Mutex.protect macro_errors_mutex (fun () ->
+		macro_errors := p :: !macro_errors;
+		incr macro_errors_generation;
+		Hashtbl.reset macro_failed_fields
+	)
+
+(* Whether running [cf] could observe code that failed to type: an error was
+   reported within the field (signature, body or initializer), within code
+   inlined in it, or in a field it uses, transitively. The code of the macro
+   context is typed before it runs, whatever the order of typing. *)
+let macro_field_failed cf =
+	let errors,generation = Mutex.protect macro_errors_mutex (fun () -> !macro_errors,(!macro_errors_generation,Atomic.get MacroFailure.marks)) in
+	if errors = [] then false else begin
+		let pos_failed p = List.exists (fun ep -> ep.pfile = p.pfile && ep.pmin >= p.pmin && ep.pmax <= p.pmax) errors in
+		let key cf = (cf.cf_pos,cf.cf_name) in
+		let remember k b = Mutex.protect macro_errors_mutex (fun () ->
+			if (!macro_errors_generation,Atomic.get MacroFailure.marks) = generation then Hashtbl.replace macro_failed_fields k b
+		) in
+		(* a field reached again while it is checked is assumed not to fail: only
+		   the result of the whole check is exact for the fields it visited *)
+		let visiting = Hashtbl.create 0 in
+		let rec field_failed cf =
+			let k = key cf in
+			match Mutex.protect macro_errors_mutex (fun () -> Hashtbl.find_opt macro_failed_fields k) with
+			| Some b ->
+				b
+			| None when Hashtbl.mem visiting k ->
+				false
+			| None ->
+				Hashtbl.add visiting k ();
+				let b = MacroFailure.has_failed cf || pos_failed cf.cf_pos || (match cf.cf_expr with
+					| None -> false
+					| Some e -> expr_failed e
+				) in
+				if b then remember k true;
+				b
+		and constructor_failed c = match c.cl_constructor,c.cl_super with
+			| Some cf,_ -> field_failed cf
+			| None,Some(csup,_) -> constructor_failed csup
+			| None,None -> false
+		and expr_failed e =
+			pos_failed e.epos || begin match e.eexpr with
+				| TField(_,(FStatic(_,cf) | FInstance(_,_,cf) | FClosure(_,cf))) -> field_failed cf
+				| TNew(c,_,_) -> constructor_failed c
+				| _ -> false
+			end || Texpr.check_expr expr_failed e
+		in
+		let b = field_failed cf in
+		if not b then Hashtbl.iter (fun k () -> remember k false) visiting;
+		b
+	end
+
 let create_macro_interp api mctx =
 	let com2 = mctx.com in
 	let mint, init = (match !macro_interp_cache with
@@ -690,8 +751,9 @@ let create_macro_interp api mctx =
 			mint, (fun() -> ())
 	) in
 	let on_error = CompilerMessage.default_error_handler com2 in
+	Interp.set_field_failed mint macro_field_failed;
 	com2.error_ext <- (fun err ->
-		Interp.set_error (Interp.get_ctx()) true;
+		add_macro_error err.err_pos;
 		macro_interp_cache := None;
 		on_error err
 	);
@@ -704,6 +766,12 @@ let create_macro_interp api mctx =
 	(init, mint)
 
 let create_macro_context com =
+	Mutex.protect macro_errors_mutex (fun () ->
+		macro_errors := [];
+		MacroFailure.reset ();
+		incr macro_errors_generation;
+		Hashtbl.reset macro_failed_fields
+	);
 	let com2 = Common.clone com true in
 	enter_stage com2 CInitMacrosDone;
 	com.get_macros <- (fun() -> Some com2);
@@ -822,10 +890,12 @@ let do_call_macro com api cpath name args p =
 
 let load_macro ctx com mctx api display cpath f p =
 	let meth,mloaded = load_macro'' com mctx display cpath f p in
-	let _,_,{cl_path = cpath},_ = meth in
+	let _,_,{cl_path = cpath},mfield = meth in
 	let call args =
 		add_dependency ctx.m.curmod mloaded MDepFromMacro;
-		do_call_macro ctx.com api cpath f args p
+		(* a macro whose function failed to type fails (Build failure...) *)
+		if macro_field_failed mfield then None
+		else do_call_macro ctx.com api cpath f args p
 	in
 	mctx, meth, call
 

@@ -831,7 +831,8 @@ let jit_timer ctx f =
 	Timer.time ctx.timer_ctx [(if ctx.is_macro then "macro" else "interp");"jit"] f ()
 
 (* Creates a [EvalValue.vfunc] of function [tf], which can be [static] or not. *)
-let jit_tfunction ctx key_type key_field tf static pos =
+let jit_tfunction ctx cf key_type key_field tf static pos =
+	if ctx.field_failed cf then (fun _ -> raise MacroApi.Abort) else
 	let f () =
 		(* Create a new JitContext with an initial scope *)
 		let jit = EvalJitContext.create ctx in
@@ -844,8 +845,8 @@ let jit_tfunction ctx key_type key_field tf static pos =
 	jit_timer ctx f
 
 (* The same, jitted on the first call of the function, which keeps its identity. *)
-let jit_tfunction_lazy ctx key_type key_field tf static pos =
-	let jitted = AtomicLazy.from_fun (fun () -> jit_tfunction ctx key_type key_field tf static pos) in
+let jit_tfunction_lazy ctx cf key_type key_field tf static pos =
+	let jitted = AtomicLazy.from_fun (fun () -> jit_tfunction ctx cf key_type key_field tf static pos) in
 	let cache = ref None in
 	(fun vl -> match !cache with
 		| Some f -> f vl
