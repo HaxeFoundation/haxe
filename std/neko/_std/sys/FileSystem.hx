@@ -79,7 +79,13 @@ class FileSystem {
 		}
 		for (part in parts) {
 			if (part.charCodeAt(part.length - 1) != ":".code && !exists(part))
-				sys_create_dir(untyped part.__s, 493);
+				try {
+					sys_create_dir(untyped part.__s, 493);
+				} catch (e:Dynamic) {
+					// another thread or process may have created the directory since exists(part)
+					if (!exists(part))
+						neko.Lib.rethrow(e);
+				}
 		}
 	}
 

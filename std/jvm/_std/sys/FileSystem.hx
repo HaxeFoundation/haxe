@@ -98,7 +98,8 @@ class FileSystem {
 
 	public static function createDirectory(path:String):Void {
 		var f = new File(path);
-		if (!f.isDirectory() && !f.mkdirs())
+		// mkdirs fails if the directory exists, which another thread or process may have just created
+		if (!f.mkdirs() && !f.isDirectory())
 			throw "Cannot create dir " + path;
 	}
 

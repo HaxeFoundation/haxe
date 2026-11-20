@@ -97,8 +97,12 @@ class FileSystem {
 
 	public static function createDirectory(path:String):Void {
 		Global.clearstatcache(true, path);
-		if (!Global.is_dir(path))
-			Global.mkdir(path, 493, true);
+		if (!Global.is_dir(path) && !Syntax.suppress(Global.mkdir(path, 493, true))) {
+			// another process may have created the directory since is_dir
+			Global.clearstatcache(true, path);
+			if (!Global.is_dir(path))
+				throw new haxe.Exception('Could not create directory $path');
+		}
 	}
 
 	public static inline function deleteFile(path:String):Void {
