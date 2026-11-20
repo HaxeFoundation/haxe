@@ -164,8 +164,28 @@ let run ?cwd cmd args =
 		let argv = Array.append [|cmd|] args in
 		with_pipes (spawn ~cwd cmd argv (windows_command_line argv))
 
+(* As Sys.command: 255 for a child killed or stopped by a signal. *)
 let exit_code_of_status = function
-	| Unix.WEXITED c | Unix.WSIGNALED c | Unix.WSTOPPED c -> c
+	| Unix.WEXITED c -> c
+	| Unix.WSIGNALED _ | Unix.WSTOPPED _ -> 255
+
+let rec waitpid_no_eintr pid =
+	try snd (Unix.waitpid [] pid)
+	with Unix.Unix_error (Unix.EINTR,_,_) -> waitpid_no_eintr pid
+
+(* As system(), the interrupt and quit signals are ignored while waiting for
+   the child: they go to the child from the terminal. *)
+let wait_ignoring_signals pid =
+	if Sys.win32 then
+		waitpid_no_eintr pid
+	else begin
+		let old_int = Sys.signal Sys.sigint Sys.Signal_ignore in
+		let old_quit = Sys.signal Sys.sigquit Sys.Signal_ignore in
+		Fun.protect ~finally:(fun () ->
+			Sys.set_signal Sys.sigint old_int;
+			Sys.set_signal Sys.sigquit old_quit
+		) (fun () -> waitpid_no_eintr pid)
+	end
 
 (** As Sys.command, the shell command [cmd] with the standard descriptors of
 	this process, in directory [cwd] if given. *)
@@ -178,7 +198,7 @@ let command ?cwd cmd =
 	| Some cwd ->
 		let prog, argv, cmdline = shell cmd in
 		match spawn ~cwd prog argv cmdline Unix.stdin Unix.stdout Unix.stderr with
-		| pid -> exit_code_of_status (snd (Unix.waitpid [] pid))
+		| pid -> exit_code_of_status (wait_ignoring_signals pid)
 		| exception Unix.Unix_error _ -> 127
 
 let read_stdout p buf pos len =
