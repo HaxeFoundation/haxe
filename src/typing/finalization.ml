@@ -96,7 +96,7 @@ type state =
 	| Done
 	| NotYet
 
-let sort_modules_types com ?(keep=fun _ -> true) ?(warn=true) sorted_modules =
+let sort_types ?(warn=true) com (modules : module_lut) =
 	let types = ref [] in
 	let states = Hashtbl.create 0 in
 	let state p = try Hashtbl.find states p with Not_found -> NotYet in
@@ -104,7 +104,6 @@ let sort_modules_types com ?(keep=fun _ -> true) ?(warn=true) sorted_modules =
 
 	let rec loop t =
 		let p = t_path t in
-		if not (keep t) then () else
 		match state p with
 		| Done -> ()
 		| Generating ->
@@ -188,32 +187,9 @@ let sort_modules_types com ?(keep=fun _ -> true) ?(warn=true) sorted_modules =
 		) c.cl_statics
 
 	in
-	List.iter (fun m -> List.iter loop m.m_types) sorted_modules;
-	List.rev !types
-
-let sort_types com (modules : module_lut) =
 	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (modules#fold (fun _ m acc -> m :: acc) []) in
-	sort_modules_types com sorted_modules, sorted_modules
-
-let sort_type_list com types =
-	let type_set types =
-		let h = Hashtbl.create (List.length types) in
-		List.iter (fun t -> Hashtbl.add h (t_path t) (t_infos t)) types;
-		h
-	in
-	let mem h t =
-		let infos = t_infos t in
-		List.exists (fun infos' -> infos' == infos) (Hashtbl.find_all h (t_path t))
-	in
-	let modules = Hashtbl.create 0 in
-	List.iter (fun t ->
-		let m = (t_infos t).mt_module in
-		Hashtbl.replace modules m.m_path m
-	) types;
-	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (Hashtbl.fold (fun _ m acc -> m :: acc) modules []) in
-	let sorted = sort_modules_types com ~keep:(mem (type_set types)) ~warn:false sorted_modules in
-	let sorted_set = type_set sorted in
-	sorted @ List.filter (fun t -> not (mem sorted_set t)) types
+	List.iter (fun m -> List.iter loop m.m_types) sorted_modules;
+	List.rev !types, sorted_modules
 
 let generate ctx main_path =
 	let types,modules = sort_types ctx.com ctx.com.module_lut in

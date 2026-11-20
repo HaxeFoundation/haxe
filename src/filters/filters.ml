@@ -264,7 +264,7 @@ let destruction (com : Common.context) scom ectx detail_times rename_locals_conf
 		);
 		all_types
 	) in
-	com.types <- Finalization.sort_type_list com all_types;
+	com.types <- all_types;
 
 	with_timer scom.timer_ctx detail_times "type 4" None (fun () ->
 		SafeCom.run_with_scom com scom (fun () ->
@@ -538,4 +538,6 @@ let run com ectx before_destruction =
 		com.callbacks#run com.error_ext com.callbacks#get_after_save;
 	);
 	before_destruction();
-	destruction com scom ectx detail_times rename_locals_config com.types all_types_array
+	(* Sort again: cached types hold the expressions saved above, new types held unfiltered ones during the first sort. *)
+	com.types <- fst (Finalization.sort_types ~warn:false com com.module_lut);
+	destruction com scom ectx detail_times rename_locals_config com.types (Array.of_list com.types)
