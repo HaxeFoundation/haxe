@@ -138,6 +138,8 @@ class Js {
 		infoMsg("Test incremental recompilation:");
 		changeDirectory(incrementalDir);
 		runCommand("haxe", ["run.hxml"]);
+		// again with a server that watches the file system
+		runCommand("node", ["bin/incremental.js", "--vfs", "watch"]);
 
 		changeDirectory(sysDir);
 		installNpmPackages(["deasync"]);

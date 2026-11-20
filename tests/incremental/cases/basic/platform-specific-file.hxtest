@@ -1,6 +1,6 @@
 # A platform-specific file (Name.js.hx / Name.macro.hx style) appears next to
 # the generic one and takes precedence for that platform.
-@known-failure [js] a new platform-specific file (Impl.js.hx) next to a loaded module is not seen by the server (needs a virtual file system)
+@known-failure [js,legacy] a new platform-specific file (Impl.js.hx) next to a loaded module is not seen by the server (needs a virtual file system)
 @targets js
 === initial
 @expect-output generic
