@@ -537,9 +537,14 @@ and jit_expr jit return e =
 				let i = get_proto_field_index proto name in
 				AtomicLazy.from_fun (fun () -> match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v e.epos)
 			in
-			let jit_with_null_check ef = match local_slot jit ef with
-				| Some slot -> emit_local_null_check slot ef.epos
-				| None -> emit_null_check (jit_expr jit false ef) ef.epos
+			let jit_with_null_check ef = match ef.eexpr with
+				| TConst TThis ->
+					(* [this] is never null *)
+					jit_expr jit false ef
+				| _ ->
+					match local_slot jit ef with
+					| Some slot -> emit_local_null_check slot ef.epos
+					| None -> emit_null_check (jit_expr jit false ef) ef.epos
 			in
 			let instance_call c =
 				let exec = jit_with_null_check ef in
