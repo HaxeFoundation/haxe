@@ -1,2 +1,3 @@
--cp src
---run RunIncremental
+build.hxml
+--next
+--cmd node bin/incremental.js

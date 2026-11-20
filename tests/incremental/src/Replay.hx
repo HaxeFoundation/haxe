@@ -1,7 +1,8 @@
+import Platform;
 import haxe.io.Path;
+import hxcoro.Coro.*;
 import sys.FileSystem;
 import sys.io.File;
-import sys.io.Process;
 
 using StringTools;
 
@@ -11,8 +12,8 @@ using StringTools;
 	(fresh compiler), and compares the results like the scenario runner does
 	(exit code, messages, program output, generated files).
 
-	Usage (from `tests/incremental`):
-	  haxe replay.hxml --repo <path> --hxml <file> [options]
+	Usage (from `tests/incremental`, after `haxe build.hxml`):
+	  node bin/replay.js --repo <path> --hxml <file> [options]
 	Options:
 	  --repo <path>         local git repository (its history must contain the range)
 	  --hxml <file>         build file; `$DIR` is replaced with the checkout directory,
@@ -26,6 +27,10 @@ using StringTools;
 **/
 class Replay {
 	static function main() {
+		Platform.run(_ -> replay());
+	}
+
+	@:coroutine static function replay():Int {
 		var args = Sys.args();
 		var repo:Null<String> = null;
 		var hxml:Null<String> = null;
@@ -67,8 +72,8 @@ class Replay {
 			git(work, ["clone", "--quiet", "--no-checkout", repo, dir]);
 
 		var port = 7900 + Std.random(90);
-		var server = new Process(RunIncremental.haxeCmd, ["--wait", Std.string(port)]);
-		Sys.sleep(1);
+		var server = new Proc(RunIncremental.haxeCmd, ["--wait", Std.string(port)]);
+		delay(1000);
 
 		var failures = 0;
 		var dumpFile = Path.join([work, "fingerprints.txt"]);
@@ -116,22 +121,18 @@ class Replay {
 			}
 		}
 		server.kill();
-		server.close();
+		server.exitCode();
 		Sys.println("");
 		Sys.println('${list.length - failures} identical, $failures different; total warm ${Math.round(warmTime * 1000)}ms, cold ${Math.round(coldTime * 1000)}ms');
 		if (!keep)
 			RunIncremental.removeDir(work);
-		Sys.exit(failures > 0 ? 1 : 0);
+		return failures > 0 ? 1 : 0;
 	}
 
-	static function git(dir:String, args:Array<String>):String {
-		var p = new Process("git", ["-C", dir].concat(args));
-		var out = p.stdout.readAll().toString();
-		var err = p.stderr.readAll().toString();
-		var code = p.exitCode();
-		p.close();
-		if (code != 0)
-			throw 'git ${args.join(" ")} failed: $err';
-		return out;
+	@:coroutine static function git(dir:String, args:Array<String>):String {
+		var p = Proc.run("git", ["-C", dir].concat(args));
+		if (p.exitCode() != 0)
+			throw 'git ${args.join(" ")} failed: ${p.stderr()}';
+		return p.stdout();
 	}
 }
