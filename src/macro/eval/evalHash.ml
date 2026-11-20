@@ -18,13 +18,64 @@
  *)
 
 let reverse_map = Hashtbl.create 0
+let reverse_mutex = Mutex.create ()
+(* the hashes are already well spread: no polymorphic hash of them *)
+module HashSet = Hashtbl.Make(struct
+	type t = int
+	let equal = Int.equal
+	let hash i = i
+end)
 
-let rev_hash i = Hashtbl.find reverse_map i
+(* the hashes the domain registered, with a direct-mapped cache of the
+   recent ones in front of them *)
+type registered = {
+	known : unit HashSet.t;
+	recent : int array;
+}
+
+let recent_size = 4096
+
+let registered : registered Domain.DLS.key = Domain.DLS.new_key (fun () -> {
+	known = HashSet.create 0;
+	recent = Array.make recent_size (-1);
+})
+
+let rev_hash i = Mutex.protect reverse_mutex (fun () -> Hashtbl.find reverse_map i)
 
 let hash f =
 	let i = Hashtbl.hash f in
-	Hashtbl.replace reverse_map i f;
+	let r = Domain.DLS.get registered in
+	let k = i land (recent_size - 1) in
+	if Array.unsafe_get r.recent k <> i then begin
+		if not (HashSet.mem r.known i) then begin
+			Mutex.protect reverse_mutex (fun () -> Hashtbl.replace reverse_map i f);
+			HashSet.replace r.known i ()
+		end;
+		Array.unsafe_set r.recent k i
+	end;
 	i
+
+(* [hash] of a name the macro API gives again and again (a string literal of
+   its encoders and decoders): a direct-mapped cache per domain, by the
+   identity of the string. A string moved by the GC is only a miss. *)
+let literal_size = 1024
+
+let literals : (string * int) array Domain.DLS.key = Domain.DLS.new_key (fun () ->
+	(* a string of its own, which no caller can give *)
+	let none = Bytes.to_string (Bytes.make 1 '\000') in
+	Array.make literal_size (none,Hashtbl.hash none)
+)
+
+let hash_literal (s : string) =
+	let cache = Domain.DLS.get literals in
+	let k = ((Obj.magic s : int) lsr 2) land (literal_size - 1) in
+	let (s',i) = Array.unsafe_get cache k in
+	if s' == s then i
+	else begin
+		let i = hash s in
+		Array.unsafe_set cache k (s,i);
+		i
+	end
 
 let path_hash path = hash (Globals.s_type_path path)
 
