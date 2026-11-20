@@ -496,7 +496,6 @@ let anon_field_read proto i name p v = match vresolve v with
 		end
 	| VNull -> throw_string "field access on null" p
 	| v -> field v name
-[@@inline]
 
 let emit_anon_field_read exec proto i name p = fun env ->
 	anon_field_read proto i name p (exec env)
@@ -745,7 +744,6 @@ let arith_add p v1 v2 = match v1,v2 with
 	| VInt a,VInt b -> vint (a + b)
 	| VFloat a,VFloat b -> vfloat (a +. b)
 	| _ -> op_add p v1 v2
-[@@inline]
 
 let emit_op_add p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
@@ -778,7 +776,6 @@ let arith_sub p v1 v2 = match v1,v2 with
 	| VInt a,VInt b -> vint (a - b)
 	| VFloat a,VFloat b -> vfloat (a -. b)
 	| _ -> op_sub p v1 v2
-[@@inline]
 
 let emit_op_sub p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
@@ -811,7 +808,6 @@ let arith_mult p v1 v2 = match v1,v2 with
 	| VInt a,VInt b -> vint (a * b)
 	| VFloat a,VFloat b -> vfloat (a *. b)
 	| _ -> op_mult p v1 v2
-[@@inline]
 
 let emit_op_mult p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
@@ -842,7 +838,6 @@ let emit_local_assign_mult p slot exec = fun env ->
 
 let arith_div p v1 v2 = match v1,v2 with
 	| _ -> op_div p v1 v2
-[@@inline]
 
 let emit_op_div p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
@@ -866,7 +861,6 @@ let emit_op_div_ec p exec1 v2 = fun env ->
 let arith_and p v1 v2 = match v1,v2 with
 	| VInt a,VInt b -> VInt (a land b)
 	| _ -> op_and p v1 v2
-[@@inline]
 
 let emit_op_and p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
@@ -898,7 +892,6 @@ let emit_local_assign_and p slot exec = fun env ->
 let arith_or p v1 v2 = match v1,v2 with
 	| VInt a,VInt b -> VInt (a lor b)
 	| _ -> op_or p v1 v2
-[@@inline]
 
 let emit_op_or p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
@@ -930,7 +923,6 @@ let emit_local_assign_or p slot exec = fun env ->
 let arith_xor p v1 v2 = match v1,v2 with
 	| VInt a,VInt b -> VInt (a lxor b)
 	| _ -> op_xor p v1 v2
-[@@inline]
 
 let emit_op_xor p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
@@ -961,7 +953,6 @@ let emit_local_assign_xor p slot exec = fun env ->
 
 let arith_shl p v1 v2 = match v1,v2 with
 	| _ -> op_shl p v1 v2
-[@@inline]
 
 let emit_op_shl p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
@@ -984,7 +975,6 @@ let emit_op_shl_ec p exec1 v2 = fun env ->
 
 let arith_shr p v1 v2 = match v1,v2 with
 	| _ -> op_shr p v1 v2
-[@@inline]
 
 let emit_op_shr p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
@@ -1007,7 +997,6 @@ let emit_op_shr_ec p exec1 v2 = fun env ->
 
 let arith_ushr p v1 v2 = match v1,v2 with
 	| _ -> op_ushr p v1 v2
-[@@inline]
 
 let emit_op_ushr p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
@@ -1030,7 +1019,6 @@ let emit_op_ushr_ec p exec1 v2 = fun env ->
 
 let arith_mod p v1 v2 = match v1,v2 with
 	| _ -> op_mod p v1 v2
-[@@inline]
 
 let emit_op_mod p exec1 exec2 = fun env ->
 	let v1 = exec1 env in
@@ -1154,7 +1142,6 @@ let cond_lt v1 v2 = match v1,v2 with
 	| VInt a,VInt b -> a < b
 	| VFloat a,VFloat b -> a < b
 	| _ -> compare v1 v2 = CInf
-[@@inline]
 
 let emit_cond_lt exec1 exec2 = fun env ->
 	let v1 = exec1 env in
@@ -1179,7 +1166,6 @@ let cond_lte v1 v2 = match v1,v2 with
 	| VInt a,VInt b -> a <= b
 	| VFloat a,VFloat b -> a <= b
 	| _ -> (match compare v1 v2 with CInf | CEq -> true | _ -> false)
-[@@inline]
 
 let emit_cond_lte exec1 exec2 = fun env ->
 	let v1 = exec1 env in
@@ -1204,7 +1190,6 @@ let cond_gt v1 v2 = match v1,v2 with
 	| VInt a,VInt b -> a > b
 	| VFloat a,VFloat b -> a > b
 	| _ -> compare v1 v2 = CSup
-[@@inline]
 
 let emit_cond_gt exec1 exec2 = fun env ->
 	let v1 = exec1 env in
@@ -1229,7 +1214,6 @@ let cond_gte v1 v2 = match v1,v2 with
 	| VInt a,VInt b -> a >= b
 	| VFloat a,VFloat b -> a >= b
 	| _ -> (match compare v1 v2 with CSup | CEq -> true | _ -> false)
-[@@inline]
 
 let emit_cond_gte exec1 exec2 = fun env ->
 	let v1 = exec1 env in
@@ -1253,7 +1237,6 @@ let emit_cond_gte_ec exec1 v2 = fun env ->
 let cond_eq v1 v2 = match v1,v2 with
 	| VInt a,VInt b -> a = b
 	| _ -> equals v1 v2
-[@@inline]
 
 let emit_cond_eq exec1 exec2 = fun env ->
 	let v1 = exec1 env in
@@ -1277,7 +1260,6 @@ let emit_cond_eq_ec exec1 v2 = fun env ->
 let cond_neq v1 v2 = match v1,v2 with
 	| VInt a,VInt b -> a <> b
 	| _ -> not (equals v1 v2)
-[@@inline]
 
 let emit_cond_neq exec1 exec2 = fun env ->
 	let v1 = exec1 env in
