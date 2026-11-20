@@ -137,6 +137,10 @@ type context = {
 	cdebug_files : (string, string) lookup;
 	mutable ct_delayed : (unit -> unit) list;
 	mutable ct_depth : int;
+	virtuals : (int, virtual_proto list) Hashtbl.t;
+	mutable virtuals_pending : (virtual_proto * (ttype -> unit)) list;
+	mutable virtuals_depth : int;
+	mutable virtuals_holders : ((ttype -> ttype) -> unit) list;
 }
 
 let compare_version v1 v2 =
@@ -515,6 +519,66 @@ let anon_key (a : tanon) =
 	in
 	PMap.foldi (fun n cf h -> (h * 65599 + Hashtbl.hash n * 31 + head cf.cf_type) land max_int) a.a_fields 0
 
+let begin_virtual ctx on_replace =
+	let vp = mk_virtual() in
+	ctx.virtuals_pending <- (vp,on_replace) :: ctx.virtuals_pending;
+	ctx.virtuals_depth <- ctx.virtuals_depth + 1;
+	vp
+
+let rec subst_virtuals repl t =
+	match t with
+	| HVirtual v -> (try HVirtual (List.assq v repl) with Not_found -> t)
+	| HFun (args,ret) -> HFun (List.map (subst_virtuals repl) args, subst_virtuals repl ret)
+	| HMethod (args,ret) -> HMethod (List.map (subst_virtuals repl) args, subst_virtuals repl ret)
+	| HNull t -> HNull (subst_virtuals repl t)
+	| HRef t -> HRef (subst_virtuals repl t)
+	| HArray t -> HArray (subst_virtuals repl t)
+	| HPacked t -> HPacked (subst_virtuals repl t)
+	| _ -> t
+
+(* [f] updates a type created while virtuals are pending, when some of them are merged *)
+let hold_virtuals ctx f =
+	if ctx.virtuals_depth > 0 then ctx.virtuals_holders <- f :: ctx.virtuals_holders
+
+let subst_proto subst p =
+	p.pfields <- Array.map (fun (n,s,t) -> n, s, subst t) p.pfields;
+	p.pindex <- PMap.map (fun (i,t) -> i, subst t) p.pindex;
+	p.pinterfaces <- PMap.foldi (fun t i acc -> PMap.add (subst t) i acc) p.pinterfaces PMap.empty
+
+(*
+	Structurally equal virtuals are merged into a single one, so they can be compared physically.
+	This is done once the outermost virtual is complete, since recursive ones are only known then.
+	The virtuals that are merged are replaced in the types created meanwhile.
+*)
+let end_virtual ctx vp =
+	ctx.virtuals_depth <- ctx.virtuals_depth - 1;
+	if ctx.virtuals_depth > 0 then HVirtual vp else begin
+		let pending = List.rev ctx.virtuals_pending in
+		let holders = ctx.virtuals_holders in
+		ctx.virtuals_pending <- [];
+		ctx.virtuals_holders <- [];
+		let repl = List.fold_left (fun repl (v,on_replace) ->
+			let key = Array.fold_left (fun h (n,_,_) -> h * 31 + Hashtbl.hash n) 0 v.vfields in
+			let bucket = try Hashtbl.find ctx.virtuals key with Not_found -> [] in
+			match List.find_opt (fun c -> tsame (HVirtual v) (HVirtual c)) bucket with
+			| Some c ->
+				on_replace (HVirtual c);
+				(v,c) :: repl
+			| None ->
+				Hashtbl.replace ctx.virtuals key (v :: bucket);
+				repl
+		) [] pending in
+		match repl with
+		| [] -> HVirtual vp
+		| _ ->
+			let subst = subst_virtuals repl in
+			List.iter (fun (v,_) ->
+				if not (List.mem_assq v repl) then v.vfields <- Array.map (fun (n,i,t) -> n, i, subst t) v.vfields
+			) pending;
+			List.iter (fun f -> f subst) holders;
+			HVirtual (try List.assq vp repl with Not_found -> vp)
+	end
+
 let rec to_type ?tref ctx t =
 	match t with
 	| TMono r ->
@@ -550,10 +614,7 @@ let rec to_type ?tref ctx t =
 		(try
 			snd (List.find (fun (a',_) -> same_anon a a') (Hashtbl.find_all ctx.anons_cache key))
 		with Not_found ->
-			let vp = {
-				vfields = [||];
-				vindex = PMap.empty;
-			} in
+			let vp = begin_virtual ctx (fun t -> Hashtbl.add ctx.anons_cache key (a,t)) in
 			let t = HVirtual vp in
 			(match tref with
 			| None -> ()
@@ -563,7 +624,7 @@ let rec to_type ?tref ctx t =
 			let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
 			vp.vfields <- Array.of_list fields;
 			Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
-			t
+			end_virtual ctx vp
 		)
 	| TDynamic _ ->
 		HDyn
@@ -704,10 +765,7 @@ and class_type ?(tref=None) ctx c pl statics =
 	try
 		Hashtbl.find ctx.cached_types key_path
 	with Not_found when (has_class_flag c CInterface) && not statics ->
-		let vp = {
-			vfields = [||];
-			vindex = PMap.empty;
-		} in
+		let vp = begin_virtual ctx (fun t -> Hashtbl.replace ctx.cached_types key_path t) in
 		let t = HVirtual vp in
 		Hashtbl.replace ctx.cached_types key_path t;
 		let rec loop c =
@@ -724,7 +782,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
 		vp.vfields <- Array.of_list fields;
 		Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
-		t
+		end_virtual ctx vp
 	| Not_found ->
 		let pname = s_type_path (List.tl key_path, List.hd key_path) in
 		let p = {
@@ -742,6 +800,7 @@ and class_type ?(tref=None) ctx c pl statics =
 			pbindings = [];
 		} in
 		let t = (if Meta.has Meta.Struct c.cl_meta && not statics then HStruct p else HObj p) in
+		hold_virtuals ctx (fun subst -> subst_proto subst p);
 		(match tref with
 		| None -> ()
 		| Some r -> r := Some t);
@@ -875,6 +934,7 @@ and enum_type ?(tref=None) ctx e =
 			eparams = [||];
 		} in
 		let t = HEnum et in
+		hold_virtuals ctx (fun subst -> et.efields <- Array.map (fun (n,s,tl) -> n, s, Array.map subst tl) et.efields);
 		(match tref with
 		| None -> ()
 		| Some r -> r := Some t);
@@ -918,6 +978,7 @@ and enum_class ctx e =
 			pbindings = [];
 		} in
 		let t = HObj p in
+		hold_virtuals ctx (fun subst -> subst_proto subst p);
 		Hashtbl.replace ctx.cached_types key_path t;
 		let psuper = (match class_type ctx ctx.base_enum [] false with HObj o -> o | _ -> die "" __LOC__) in
 		let start_field = psuper.pnfields in
@@ -958,7 +1019,12 @@ and enum_class ctx e =
 					} in
 					ctx.m <- old;
 					Hashtbl.add ctx.defined_funs eid ();
+					let index = DynArray.length ctx.cfunctions in
 					DynArray.add ctx.cfunctions hlf;
+					hold_virtuals ctx (fun subst ->
+						let f = DynArray.get ctx.cfunctions index in
+						DynArray.set ctx.cfunctions index { f with ftype = subst f.ftype; regs = LargeArray.map subst f.regs }
+					);
 					p.pbindings <- (fid, eid) :: p.pbindings
 				| t -> die "" __LOC__);
 		) e.e_constrs;
@@ -4528,6 +4594,10 @@ let create_context com =
 		macro_typedefs = Hashtbl.create 0;
 		ct_delayed = [];
 		ct_depth = 0;
+		virtuals = Hashtbl.create 0;
+		virtuals_pending = [];
+		virtuals_depth = 0;
+		virtuals_holders = [];
 	} in
 	ctx.tstring <- to_type ctx ctx.com.basic.tstring;
 	ignore(alloc_string ctx "");

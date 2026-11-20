@@ -82,6 +82,7 @@ and field_proto = {
 }
 
 and virtual_proto = {
+	vid : int; (* unique, so that comparing two distinct virtuals never recurses into their fields *)
 	mutable vfields : (string * string index * ttype) array;
 	mutable vindex : (string, int) PMap.t;
 }
@@ -241,6 +242,14 @@ type code = {
 	constants : (global * int array) array;
 }
 
+let virtual_uid = Atomic.make 0
+
+let mk_virtual () = {
+	vid = Atomic.fetch_and_add virtual_uid 1;
+	vfields = [||];
+	vindex = PMap.empty;
+}
+
 let null_proto =
 	{
 		pname = "";
@@ -337,11 +346,11 @@ let is_dynamic t =
 	| HDyn | HFun _ | HObj _ | HArray _ | HVirtual _ | HDynObj | HNull _ | HEnum _ -> true
 	| _ -> false
 
-let rec tsame t1 t2 =
+let rec tsame_rec seen t1 t2 =
 	if t1 == t2 then true else
 	match t1, t2 with
-	| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
-	| HMethod (args1,ret1), HMethod (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 tsame args1 args2 && tsame ret2 ret1
+	| HFun (args1,ret1), HFun (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 (tsame_rec seen) args1 args2 && tsame_rec seen ret2 ret1
+	| HMethod (args1,ret1), HMethod (args2,ret2) when List.length args1 = List.length args2 -> List.for_all2 (tsame_rec seen) args1 args2 && tsame_rec seen ret2 ret1
 	| HObj p1, HObj p2 -> p1 == p2
 	| HEnum e1, HEnum e2 -> e1 == e2
 	| HStruct p1, HStruct p2 -> p1 == p2
@@ -349,16 +358,20 @@ let rec tsame t1 t2 =
 	| HVirtual v1, HVirtual v2 ->
 		if v1 == v2 then true else
 		if Array.length v1.vfields <> Array.length v2.vfields then false else
+		if List.exists (fun (s1,s2) -> s1 == v1 && s2 == v2) seen then true else
+		let seen = (v1,v2) :: seen in
 		let rec loop i =
 			if i = Array.length v1.vfields then true else
 			let _, i1, t1 = v1.vfields.(i) in
 			let _, i2, t2 = v2.vfields.(i) in
-			if i1 = i2 && tsame t1 t2 then loop (i + 1) else false
+			if i1 = i2 && tsame_rec seen t1 t2 then loop (i + 1) else false
 		in
 		loop 0
-	| HNull t1, HNull t2 -> tsame t1 t2
-	| HRef t1, HRef t2 -> tsame t1 t2
+	| HNull t1, HNull t2 -> tsame_rec seen t1 t2
+	| HRef t1, HRef t2 -> tsame_rec seen t1 t2
 	| _ -> false
+
+let tsame t1 t2 = tsame_rec [] t1 t2
 
 let compatible_element_types t1 t2 =
 	if t1 == t2 then
