@@ -362,7 +362,7 @@ let file_exists path =
 
 (* Modification time of [path], or 0 if it does not exist. *)
 let mtime path =
-	if !mode = Off && Hashtbl.length overlays = 0 then Extc.filetime path else (stat path).mtime
+	(stat path).mtime
 
 let readdir_uncached path key =
 	count_syscall "readdir" path;
