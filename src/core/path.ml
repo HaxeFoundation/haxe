@@ -324,7 +324,16 @@ let module_name_of_file file =
 	| [] ->
 		Globals.die "" __LOC__
 
-let mkdir_mutex = Mutex.create ()
+(**
+	Creates directory `path` unless it already exists.
+	Doesn't check for existence first, because another thread or process could create the directory in between.
+*)
+let mkdir_if_missing path =
+	try
+		Unix.mkdir path 0o755
+	with Unix.Unix_error _ as exc ->
+		(* The error for an existing directory depends on the OS, so check what is there instead. *)
+		if not (try Sys.is_directory (remove_trailing_slash path) with Sys_error _ -> false) then raise exc
 
 let rec create_file bin ext acc = function
 	| [] -> Globals.die "" __LOC__
@@ -336,7 +345,7 @@ let rec create_file bin ext acc = function
 		ch
 	| d :: l ->
 		let dir = String.concat "/" (List.rev (d :: acc)) in
-		Mutex.protect mkdir_mutex (fun () -> if not (Sys.file_exists (remove_trailing_slash dir)) then Unix.mkdir dir 0o755);
+		mkdir_if_missing dir;
 		create_file bin ext (d :: acc) l
 
 let rec mkdir_recursive base dir_list =
@@ -356,10 +365,7 @@ let rec mkdir_recursive base dir_list =
 				path
 		in
 		if not ( (path = "") || ( (path_len = 2) && ((String.sub path 1 1) = ":") ) ) then
-			if not (Sys.file_exists path) then begin
-				(* another thread or process may have created the directory since the check *)
-				try Unix.mkdir path 0o755 with Unix.Unix_error(Unix.EEXIST,_,_) -> ()
-			end;
+			mkdir_if_missing path;
 		mkdir_recursive (if (path = "") then "/" else path) remaining
 
 (**
