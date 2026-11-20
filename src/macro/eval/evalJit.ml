@@ -843,6 +843,18 @@ let jit_tfunction ctx key_type key_field tf static pos =
 	in
 	jit_timer ctx f
 
+(* The same, jitted on the first call of the function, which keeps its identity. *)
+let jit_tfunction_lazy ctx key_type key_field tf static pos =
+	let jitted = AtomicLazy.from_fun (fun () -> jit_tfunction ctx key_type key_field tf static pos) in
+	let cache = ref None in
+	(fun vl -> match !cache with
+		| Some f -> f vl
+		| None ->
+			let f = AtomicLazy.force jitted in
+			cache := Some f;
+			f vl
+	)
+
 (* JITs expression [e] to a function. This is used for expressions that are not in a method. *)
 let jit_expr ctx e =
 	let f () =
