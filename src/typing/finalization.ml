@@ -96,7 +96,7 @@ type state =
 	| Done
 	| NotYet
 
-let sort_types com (modules : module_lut) =
+let sort_types ?(warn=true) com (modules : module_lut) =
 	let types = ref [] in
 	let states = Hashtbl.create 0 in
 	let state p = try Hashtbl.find states p with Not_found -> NotYet in
@@ -107,7 +107,7 @@ let sort_types com (modules : module_lut) =
 		match state p with
 		| Done -> ()
 		| Generating ->
-			module_warning com (t_infos t).mt_module WStaticInitOrder [] ("Warning : maybe loop in static generation of " ^ s_type_path p) (t_infos t).mt_pos;
+			if warn then module_warning com (t_infos t).mt_module WStaticInitOrder [] ("Warning : maybe loop in static generation of " ^ s_type_path p) (t_infos t).mt_pos;
 		| NotYet ->
 			Hashtbl.add states p Generating;
 			let t = (match t with

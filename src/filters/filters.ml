@@ -539,4 +539,6 @@ let run com ectx before_destruction =
 		com.callbacks#run com.error_ext com.callbacks#get_after_save;
 	);
 	before_destruction();
-	destruction com scom ectx detail_times rename_locals_config com.types all_types_array
+	(* Sort again: cached types hold the expressions saved above, new types held unfiltered ones during the first sort. *)
+	com.types <- fst (Finalization.sort_types ~warn:false com com.module_lut);
+	destruction com scom ectx detail_times rename_locals_config com.types (Array.of_list com.types)

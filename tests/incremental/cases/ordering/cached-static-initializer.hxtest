@@ -3,7 +3,6 @@
 # post-processed expression (`new haxe.ds.StringMap()`), which used to add a
 # dependency edge that a cold compilation does not see before the filters,
 # moving haxe.ds.StringMap and haxe.IMap in the JS output.
-@known-failure [js] the output order of types depends on the cache (types sorted before the filters)
 @targets js
 === initial
 @expect-output 1
