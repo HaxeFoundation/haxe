@@ -267,7 +267,9 @@ class RunIncremental {
 		var server = new Proc(haxeCmd, ["--wait", Std.string(port)]);
 		waitForServer(port);
 		for (method in methods) {
-			var request = haxe.Json.stringify({jsonrpc: "2.0", id: 1, method: method, params: {}});
+			// valid parameters, so that a supported method answers with a result (no overlay to remove)
+			var params:Dynamic = method == "server/overlay" ? {file: Path.join([workRoot, "Probe.hx"])} : {};
+			var request = haxe.Json.stringify({jsonrpc: "2.0", id: 1, method: method, params: params});
 			var p = Proc.run(haxeCmd, ["--connect", Std.string(port), "--display", request]);
 			var err = p.stderr();
 			var out = err + p.stdout();
@@ -916,7 +918,8 @@ class RunIncremental {
 			return;
 		for (entry in FileSystem.readDirectory(dir)) {
 			var path = Path.join([dir, entry]);
-			if (FileSystem.isDirectory(path))
+			// a link whose target is gone does not exist, but is still an entry to delete
+			if (FileSystem.exists(path) && FileSystem.isDirectory(path))
 				removeDir(path);
 			else
 				FileSystem.deleteFile(path);
