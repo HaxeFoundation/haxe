@@ -937,7 +937,13 @@ let _optimize (f:fundecl) =
 			(* print_state i state; (* debug *) *)
 			(match op with
 			| OIncr r | ODecr r | ORef (_,r) -> unalias state.(r)
-			| OCallClosure (_,r,_) when f.regs.(r) = HDyn && (match f.regs.(state.(r).ralias.rindex) with HFun (_,rt) -> not (is_dynamic rt) | HDyn -> false | _ -> true) -> unalias state.(r) (* Issue3218.hx *)
+			| OCallClosure (_,r,args) when f.regs.(r) = HDyn && (match f.regs.(state.(r).ralias.rindex) with
+				| HFun (targs,rt) ->
+					not (is_dynamic rt)
+					|| List.length targs <> List.length args
+					|| not (List.for_all2 (fun t a -> t = HDyn || tsame t f.regs.(a)) targs args)
+				| HDyn -> false
+				| _ -> true) -> unalias state.(r) (* Issue3218.hx *)
 			| _ -> ());
 			let op = opcode_map (fun r ->
 				let s = state.(r) in
