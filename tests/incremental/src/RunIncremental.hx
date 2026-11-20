@@ -130,7 +130,6 @@ class RunIncremental {
 		FileSystem.createDirectory(workRoot);
 
 		detectFeatures();
-		// only a server watching the file system answers `server/vfs`
 		if (features["server/vfs"])
 			vfsMode = "watch";
 		if (Sys.getEnv("HAXE_VFS") == "watch" && vfsMode != "watch") {
@@ -270,12 +269,16 @@ class RunIncremental {
 		for (method in methods) {
 			var request = haxe.Json.stringify({jsonrpc: "2.0", id: 1, method: method, params: {}});
 			var p = Proc.run(haxeCmd, ["--connect", Std.string(port), "--display", request]);
-			var out = p.stderr() + p.stdout();
+			var err = p.stderr();
+			var out = err + p.stdout();
 			// -32601: method not found
 			features[method] = out.indexOf("-32601") < 0 && out.indexOf("jsonrpc") >= 0;
-			// a server that does not watch the file system answers with another error
-			if (method == "server/vfs")
-				features[method] = out.indexOf("fileSystemCalls") >= 0;
+			if (method == "server/vfs") {
+				// the mode of the server, and whether it sees changes from file system events
+				var result:Dynamic = try haxe.Json.parse(err).result.result catch (_) null;
+				features[method] = result != null && result.mode == "watch";
+				features["file system events"] = features[method] && result.watching == true;
+			}
 		}
 		server.kill();
 		server.exitCode();
@@ -435,7 +438,7 @@ class RunIncremental {
 					errors.push('$label: $e');
 				for (e in checkExpectations(step.expectations, warm, warmDir, target))
 					errors.push('$label: $e');
-				if (step.expectations.contains(NoFsCalls) && supports("server/vfs", skipped)) {
+				if (step.expectations.contains(NoFsCalls) && supports("server/vfs", skipped) && supports("file system events", skipped)) {
 					var calls = noChangeCompilationCalls(warmDir, port);
 					if (calls != 0)
 						errors.push('$label: a compilation without changes made $calls file system calls, expected 0');

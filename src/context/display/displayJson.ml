@@ -536,8 +536,9 @@ let handler =
 			Result jnull
 		);
 		"server/vfs", (fun hctx ->
-			if !Vfs.mode <> Vfs.Watched then JsonRpc.raise_method_not_found hctx.jsonrpc#get_id "server/vfs";
 			Result (jobject [
+				"mode",jstring (match !Vfs.mode with Vfs.Off -> "off" | Vfs.Watched -> "watch");
+				"watching",jbool (Vfs.watching ());
 				"fileSystemCalls",jint (Atomic.get Vfs.last_compilation_syscalls);
 			])
 		);

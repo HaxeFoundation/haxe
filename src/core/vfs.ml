@@ -246,6 +246,12 @@ module Watcher = struct
 		)
 end
 
+(* Whether changes are seen from file system events: false without the
+   watched view, and where directories can only be checked again on each
+   compilation. *)
+let watching () =
+	!mode = Watched && match Stdlib.Lazy.force Watcher.loop with Some _ -> true | None -> false
+
 let begin_compilation () =
 	Atomic.set syscalls 0;
 	if !mode = Watched then begin
