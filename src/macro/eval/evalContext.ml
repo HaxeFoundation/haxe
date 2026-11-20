@@ -458,9 +458,9 @@ let push_environment ctx info =
 	else
 		Array.make info.num_captures vnull
 	in
-	let stack_depth = match eval.env with
-		| None -> 1;
-		| Some env -> env.env_stack_depth + 1
+	let stack_depth = match info.kind, eval.env with
+		| EKMacro _, _ | _, None -> 1
+		| _, Some env -> env.env_stack_depth + 1
 	in
 	let env = {
 		env_info = info;
@@ -470,7 +470,7 @@ let push_environment ctx info =
 		env_locals = locals;
 		env_captures = captures;
 		env_extra_locals = IntMap.empty;
-		env_parent = if info.kind = EKEntrypoint then None else eval.env;
+		env_parent = (match info.kind with EKEntrypoint -> None | _ -> eval.env);
 		env_eval = eval;
 		env_stack_depth = stack_depth;
 	} in
