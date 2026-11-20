@@ -104,7 +104,7 @@ type call_arg_context = {
 type typer_globals = {
 	mutable delayed : typer_pass_tasks Array.t;
 	mutable delayed_min_index : int;
-	(* -D typer-shuffle=<seed> *)
+	(* HAXE_TYPER_SHUFFLE=<seed> *)
 	typer_shuffle : Random.State.t option;
 	mutable debug_delayed : (typer_pass * ((unit -> unit) * (string * string list) * typer) list) list;
 	retain_meta : bool;
@@ -539,6 +539,17 @@ let rec flush_pass g (p : typer_pass) where =
 				tasks.tasks <- List.filteri (fun i _ -> i <> n) l;
 				f();
 				flush_pass g p where
+			| [] when g.typer_shuffle <> None && tasks.tasks_late <> [] ->
+				(* the late tasks run one at a time, oldest first, so that the normal
+				   tasks they delay still run before the next one *)
+				begin match List.rev tasks.tasks_late with
+				| f :: l ->
+					tasks.tasks_late <- List.rev l;
+					f();
+					flush_pass g p where
+				| [] ->
+					assert false
+				end
 			| f :: l ->
 				tasks.tasks <- l;
 				f();
