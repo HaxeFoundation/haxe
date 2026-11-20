@@ -170,6 +170,12 @@ end
 let find_module ~(typing_mode : HxbData.typing_mode) com cc path =
 	(new hxb_reader_api_com ~typing_mode com cc)#find_module path
 
+let cached_modules (cc : CompilationCache.context_cache) =
+	let l = Hashtbl.fold (fun _ m acc -> (m.m_path,m.m_extra) :: acc) cc#get_modules [] in
+	Hashtbl.fold (fun _ (mc : HxbData.module_cache) acc ->
+		if Hashtbl.mem cc#get_modules mc.mc_path then acc else (mc.mc_path,mc.mc_extra) :: acc
+	) cc#get_hxb l
+
 type handler_context = {
 	com : Common.context;
 	jsonrpc : jsonrpc_handler;
@@ -432,10 +438,9 @@ let handler =
 		"server/modules", (fun hctx ->
 			let sign = Digest.from_hex (hctx.jsonrpc#get_string_param "signature") in
 			let cc = hctx.display#get_cs#get_context sign in
-			let open HxbData in
-			let l = Hashtbl.fold (fun _ m acc ->
-				if m.mc_extra.m_kind <> MFake then jstring (s_type_path m.mc_path) :: acc else acc
-			) cc#get_hxb [] in
+			let l = List.filter_map (fun (path,extra) ->
+				if extra.m_kind <> MFake then Some (jstring (s_type_path path)) else None
+			) (cached_modules cc) in
 			Result (jarray l)
 		);
 		"server/module", (fun hctx ->
@@ -446,7 +451,7 @@ let handler =
 			let typing_mode:HxbData.typing_mode = if Define.defined hctx.com.defines Define.DisableHxbOptimizations then FullTyping else AllowPartialTyping in
 			try
 				let m = find_module ~typing_mode hctx.com cc path in
-				Result (generate_module (cc#get_hxb) (find_module ~typing_mode hctx.com cc) m)
+				Result (generate_module (cached_modules cc) (find_module ~typing_mode hctx.com cc) m)
 			with Not_found ->
 				Error (jstring "No such module")
 		);
