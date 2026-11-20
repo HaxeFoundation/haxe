@@ -10,6 +10,14 @@ open Globals
 open Type
 open Common
 
+(* Anonymous structures by identity. The hash only reads the names and positions
+   of the fields, which the check does not change. *)
+module AnonSet = Hashtbl.Make(struct
+	type t = tanon
+	let equal = (==)
+	let hash an = PMap.fold (fun cf acc -> Hashtbl.hash (acc,cf.cf_name,cf.cf_pos.pmin)) an.a_fields 0
+end)
+
 let check com =
 	let reported = Hashtbl.create 0 in
 	let count = ref 0 in
@@ -74,7 +82,7 @@ let check com =
 			|| (match c.cl_kind with KTypeParameter _ | KGenericInstance _ | KExpr _ -> true | _ -> false)) then
 			report (Printf.sprintf "field %s is not a field of %s" cf.cf_name (s_type_path c.cl_path)) p
 	in
-	let visited_anons = ref [] in
+	let visited_anons = AnonSet.create 0 in
 	let rec check_t p t = match t with
 		| TInst(c,tl) -> check_module_type (TClassDecl c) p; List.iter (check_t p) tl
 		| TEnum(e,tl) -> check_module_type (TEnumDecl e) p; List.iter (check_t p) tl
@@ -82,8 +90,8 @@ let check com =
 		| TAbstract(a,tl) -> check_module_type (TAbstractDecl a) p; List.iter (check_t p) tl
 		| TFun(args,ret) -> List.iter (fun (_,_,t) -> check_t p t) args; check_t p ret
 		| TAnon an ->
-			if not (List.memq an !visited_anons) then begin
-				visited_anons := an :: !visited_anons;
+			if not (AnonSet.mem visited_anons an) then begin
+				AnonSet.add visited_anons an ();
 				PMap.iter (fun _ cf -> check_t p cf.cf_type) an.a_fields
 			end
 		| TMono r -> (match r.tm_type with Some t -> check_t p t | None -> ())
@@ -106,7 +114,7 @@ let check com =
 			in
 			(* the typedef of the current version of its module *)
 			let td = match current_module td.t_module with
-				| Some m' -> (try List.find_map (function TTypeDecl td' when td'.t_path = td.t_path -> Some td' | _ -> None) m'.m_types |> Option.get with _ -> td)
+				| Some m' -> Option.default td (List.find_map (function TTypeDecl td' when td'.t_path = td.t_path -> Some td' | _ -> None) m'.m_types)
 				| None -> td
 			in
 			begin match declared td.t_type with
