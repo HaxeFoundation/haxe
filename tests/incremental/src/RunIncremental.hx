@@ -71,9 +71,6 @@ class RunIncremental {
 	static var timeout = 300;
 	/** Compiler features some expectations need, detected by `detectFeatures`. **/
 	static var features:Map<String, Bool> = [];
-	/** The features some expectations needed and the compiler does not have. **/
-	static var unsupported:Array<String> = [];
-	static var skippedExpectations = 0;
 	static var root:String;
 	static var workRoot:String;
 
@@ -151,7 +148,7 @@ class RunIncremental {
 			for (target in targets) {
 				if (targetFilter != null && !targetFilter.contains(target))
 					continue;
-				runs.push({name: rel, target: target, tc: tc});
+				runs.push({name: rel, target: target, tc: tc, skipped: []});
 			}
 		}
 		// The cases are independent (own directories, server and port), so
@@ -164,7 +161,7 @@ class RunIncremental {
 			for (index => run in runs)
 				node.async(_ -> {
 					slots.acquire();
-					var outcome = try runCase(run.tc, run.target, port + index) catch (e:haxe.Exception) Failed(['runner error: ${e.message}']);
+					var outcome = try runCase(run.tc, run.target, port + index, run.skipped) catch (e:haxe.Exception) Failed(['runner error: ${e.message}']);
 					slots.release();
 					outcome;
 				})
@@ -175,6 +172,15 @@ class RunIncremental {
 			printOutcome(run.name, run.target, outcome);
 		}
 
+		// the features some expectations needed and the compiler does not have
+		var unsupported = [];
+		var skippedExpectations = 0;
+		for (run in runs) {
+			skippedExpectations += run.skipped.length;
+			for (feature in run.skipped)
+				if (!unsupported.contains(feature))
+					unsupported.push(feature);
+		}
 		var passed = 0, failed = 0, xfail = 0, xpass = 0, skipped = 0;
 		for (r in results) {
 			switch (r.outcome) {
@@ -261,19 +267,22 @@ class RunIncremental {
 		server.exitCode();
 	}
 
-	/** Whether [feature] is supported; records it as missing otherwise. **/
-	static function supports(feature:String):Bool {
+	/** Whether [feature] is supported; adds it to [skipped] otherwise (an expectation not checked). **/
+	static function supports(feature:String, skipped:Array<String>):Bool {
 		if (features[feature])
 			return true;
-		if (!unsupported.contains(feature))
-			unsupported.push(feature);
-		skippedExpectations++;
+		skipped.push(feature);
 		return false;
 	}
 
-	@:coroutine static function runCase(tc:CaseParser.TestCase, target:String, port:Int):Outcome {
+	/**
+		Runs a case on [target]. The features that some of its expectations
+		needed and the compiler does not have are added to [skipped], once per
+		expectation not checked.
+	**/
+	@:coroutine static function runCase(tc:CaseParser.TestCase, target:String, port:Int, skipped:Array<String>):Outcome {
 		var usesOverlays = Lambda.exists(tc.steps, step -> Lambda.exists(step.ops, op -> op.match(Overlay(_, _) | RemoveOverlay(_))));
-		if (usesOverlays && !supports("server/overlay"))
+		if (usesOverlays && !supports("server/overlay", skipped))
 			return Skipped("needs server/overlay");
 		var base = Path.join([workRoot, tc.name.replace("/", "_").replace(".hxtest", ""), target]);
 		var warmDir = Path.join([base, "warm"]);
@@ -353,10 +362,9 @@ class RunIncremental {
 				var warm = compile(warmDir, port);
 				for (e in step.expectations)
 					switch (e) {
-						case Retyped(_) if (!supports("server/retyped")):
+						case Retyped(_) if (!supports("server/retyped", skipped)):
 						case Retyped(expected):
 							var retyped = retypedModules(warmDir, port);
-							expected.sort(Reflect.compare);
 							if (retyped.join(" ") != expected.join(" "))
 								errors.push('$label: expected the modules [${expected.join(" ")}] to be typed again, got [${retyped.join(" ")}]');
 						case _:
@@ -367,7 +375,7 @@ class RunIncremental {
 				var currentFingerprints = fingerprints && FileSystem.exists(dumpFile) ? readFingerprints(dumpFile) : null;
 				for (e in step.expectations) {
 					switch (e) {
-						case FingerprintSame(_, _) | FingerprintChanged(_, _) if (!supports("dump-fingerprints")):
+						case FingerprintSame(_, _) | FingerprintChanged(_, _) if (!supports("dump-fingerprints", skipped)):
 						case FingerprintSame(node, key) | FingerprintChanged(node, key):
 							var same = e.match(FingerprintSame(_, _));
 							var before = previousFingerprints == null ? null : findFingerprint(previousFingerprints, node, key);
@@ -395,7 +403,7 @@ class RunIncremental {
 					errors.push('$label: $e');
 				for (e in checkExpectations(step.expectations, warm, warmDir, target))
 					errors.push('$label: $e');
-				if (step.expectations.contains(NoFsCalls) && supports("server/vfs")) {
+				if (step.expectations.contains(NoFsCalls) && supports("server/vfs", skipped)) {
 					var calls = noChangeCompilationCalls(warmDir, port);
 					if (calls != 0)
 						errors.push('$label: a compilation without changes made $calls file system calls, expected 0');

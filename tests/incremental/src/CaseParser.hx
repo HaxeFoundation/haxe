@@ -168,7 +168,10 @@ class CaseParser {
 							var p = firstWord(d.rest);
 							step.expectations.push(FingerprintChanged(p.word, p.rest));
 						case "expect-retyped":
-							step.expectations.push(Retyped(d.rest.split(" ").filter(s -> s != "")));
+							// sorted like the modules the server reports
+							var modules = d.rest.split(" ").filter(s -> s != "");
+							modules.sort(Reflect.compare);
+							step.expectations.push(Retyped(modules));
 						case other:
 							throw new ParseError('$name: unknown step directive @$other in step "${step.name}"');
 					}
