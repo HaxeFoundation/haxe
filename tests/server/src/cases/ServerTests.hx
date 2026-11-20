@@ -137,6 +137,23 @@ class ServerTests extends TestCase {
 
 	@:variant("InMemory", true)
 	@:variant("Hxb", false)
+	function testCachedModulesList(inMemory:Bool) {
+		vfs.putContent("Main.hx", "class Main { static function main() Dep.f(); }");
+		vfs.putContent("Dep.hx", "class Dep { public static function f() {} }");
+		var args = ["--main", "Main", "--no-output"];
+		args = args.concat(inMemory ? ["-D", "disable-hxb-cache"] : ["--undefine", "disable-hxb-cache"]);
+		runHaxe(args);
+		assertSuccess();
+		final sig = runHaxeJson(args, ServerMethods.Contexts, null).find(ctx -> ctx.desc == "after_init_macros").signature;
+		final modules = runHaxeJson(args, ServerMethods.Modules, {signature: sig});
+		Assert.contains("Main", modules);
+		Assert.contains("Dep", modules);
+		final dep = runHaxeJson(args, ServerMethods.Module, {signature: sig, path: "Dep"});
+		Assert.isTrue(dep.dependents.exists(m -> m.path == "Main"));
+	}
+
+	@:variant("InMemory", true)
+	@:variant("Hxb", false)
 	function testDisplayModuleRecache(inMemory:Bool) {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["--main", "HelloWorld", "--interp"];

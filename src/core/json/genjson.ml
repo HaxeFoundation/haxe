@@ -678,7 +678,7 @@ let generate_module_type ctx mt =
 
 (* module *)
 
-let generate_module modules find_module m =
+let generate_module cached_modules find_module m =
 	jobject [
 		"id",jint m.m_id;
 		"path",generate_module_path m.m_path;
@@ -698,10 +698,9 @@ let generate_module modules find_module m =
 		"dependents",jarray (List.map (fun (path, sign) -> (jobject [
 			"path",jstring (s_type_path path);
 			"sign",jstring (Digest.to_hex sign);
-		])) (Hashtbl.fold (fun _ (m':HxbData.module_cache) acc ->
-			if PMap.mem m.m_id m'.mc_extra.m_deps then (m'.mc_path, m'.mc_extra.m_sign) :: acc
-			else acc
-		) modules []));
+		])) (List.filter_map (fun (path,extra) ->
+			if PMap.mem m.m_id extra.m_deps then Some (path, extra.m_sign) else None
+		) cached_modules));
 	]
 
 let create_full_config () = {
