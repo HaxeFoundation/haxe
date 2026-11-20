@@ -24,8 +24,8 @@ compilations and the last ones is reported as a LEAK line.
     python3 tests/fuzz/fuzz.py --dir <project> --hxml build.hxml --out out/main.js \
         --src src,lib --edits 50 --seed 1 --port 7000
 
-The project directory must be a git checkout (it is reset to HEAD at the start
-and at the end). Differences are printed as DIFF lines, with the warm and cold
+The project directory must be in a git checkout, without uncommitted changes
+in it: the edited files are restored at the end. Differences are printed as DIFF lines, with the warm and cold
 compiler messages and output files saved next to the project (<dir>.fuzz-warm.txt,
 <dir>.fuzz-cold.txt, <dir>.fuzz-warm.<ext>, <dir>.fuzz-cold.<ext>).
 The number of modules the server typed again is printed when the server
@@ -54,7 +54,9 @@ H = os.path.abspath(args.haxe)
 D = os.path.abspath(args.dir)
 random.seed(args.seed)
 
-subprocess.run(["git", "-C", D, "checkout", "-q", "--force", "HEAD"], check=True)
+dirty = subprocess.run(["git", "-C", D, "status", "--porcelain", "--untracked-files=no", "--", "."], capture_output=True, text=True, check=True).stdout
+if dirty:
+	sys.exit("uncommitted changes in " + D + ", which the fuzzer would overwrite:\n" + dirty)
 server = subprocess.Popen([H, "--wait", args.port], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 # wait until the server answers (the port of a previous run may still be bound)
 for _ in range(100):
@@ -223,6 +225,6 @@ finally:
 	if fails and args.stop:
 		print("stopped at the first difference: the project is left as it was compiled", flush=True)
 	else:
-		subprocess.run(["git", "-C", D, "checkout", "-q", "--force", "HEAD"])
+		subprocess.run(["git", "-C", D, "checkout", "-q", "--force", "HEAD", "--", "."])
 print("fails", fails)
 sys.exit(1 if fails else 0)
