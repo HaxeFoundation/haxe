@@ -1470,6 +1470,18 @@ let core_type_global ctx name =
 	let c = if name = "Bool" then ctx.core_enum else ctx.core_type in
 	alloc_global ctx ("$" ^ name) (class_type ctx c [] false)
 
+(* the global of the table of the types *)
+let types_global ctx =
+	alloc_global ctx "__types__" (HAbstract ("hl_bytes_map", alloc_string ctx "hl_bytes_map"))
+
+(* The globals that the VM can only identify by their index: they are always
+   present, and numbered first in this order. *)
+let unnamed_globals = ["$Int"; "$Float"; "$Bool"; "$Dynamic"; "__types__"]
+
+let alloc_unnamed_globals ctx =
+	List.iter (fun name -> ignore (core_type_global ctx name)) ["Int"; "Float"; "Bool"; "Dynamic"];
+	ignore (types_global ctx)
+
 let type_global ctx t p =
 	match t with
 	| TClassDecl c ->
@@ -2527,11 +2539,11 @@ and eval_expr ctx e =
 			r
 		| "$allTypes", [] ->
 			let r = alloc_tmp ctx (to_type ctx e.etype) in
-			op ctx (OGetGlobal (r, alloc_global ctx "__types__" (rtype ctx r)));
+			op ctx (OGetGlobal (r, types_global ctx));
 			r
 		| "$allTypes", [v] ->
 			let v = eval_expr ctx v in
-			op ctx (OSetGlobal (alloc_global ctx "__types__" (rtype ctx v), v));
+			op ctx (OSetGlobal (types_global ctx, v));
 			v
 		| "$hash", [v] ->
 			(match v.eexpr with
@@ -4206,7 +4218,7 @@ let object_syms sizes o =
    order of the first use of its symbols, walking the objects in order (then
    what their symbols use: the HL types, the globals and their types, the
    natives), the functions in the order of the objects, then the natives, by
-   library. The result only depends on the objects, not on the order of the
+   library; the unnamed globals come first. The result only depends on the objects, not on the order of the
    generation nor on the symbols. *)
 let link ctx objects enum_objects entry =
 	let com = ctx.com in
@@ -4350,6 +4362,9 @@ let link ctx objects enum_objects entry =
 	let t = timer ["generate";"hl";"link";"walk"] in
 	(* the first string is the empty one: the types without a name refer to it *)
 	str 0;
+	let unnamed = List.map (fun name -> Hashtbl.find ctx.cglobals.map name) unnamed_globals in
+	List.iter gnum unnamed;
+	List.iter (fun g -> typ (DynArray.get ctx.cglobals.arr g)) unnamed;
 	Array.iter obj objects;
 	t();
 	let t = timer ["generate";"hl";"link";"types"] in
@@ -5256,6 +5271,7 @@ let create_context com overrides =
 	ignore(alloc_string ctx "");
 	ctx.tstring <- to_type ctx ctx.com.basic.tstring;
 	ignore(class_type ctx ctx.base_class [] false);
+	alloc_unnamed_globals ctx;
 	ctx
 
 (* what the generation reads of all the types: the overridden methods, and
