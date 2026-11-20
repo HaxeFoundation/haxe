@@ -1,0 +1,53 @@
+# The instances of a @:generic method are placed next to it in the generated
+# code, in the same order whatever the order in which their call sites are
+# typed.
+@targets js
+@shuffle-seeds 1 2 3 4 5 6 7 8
+
+=== initial
+@expect-output 1 s 1.5 true
+--- Main.hx
+class Main {
+	static function main() {
+		var classes:Array<Class<Dynamic>> = [A, B, C, D];
+		trace([for (c in classes) Reflect.callMethod(c, Reflect.field(c, "f"), [])].join(" "));
+	}
+}
+--- G.hx
+class G {
+	@:generic public static function id<T>(x:T):T
+		return x;
+}
+--- A.hx
+@:keep
+class A {
+	public static function f():Int
+		return G.id(1);
+}
+--- B.hx
+@:keep
+class B {
+	public static function f():String
+		return G.id("s");
+}
+--- C.hx
+@:keep
+class C {
+	public static function f():Float
+		return G.id(1.5);
+}
+--- D.hx
+@:keep
+class D {
+	public static function f():Bool
+		return G.id(true);
+}
+
+=== retyped
+@expect-output 1 s 1.5 true
+--- C.hx
+@:keep
+class C {
+	public static function f():Float
+		return G.id(3 / 2);
+}
