@@ -420,6 +420,20 @@ module ValueHashtbl = Hashtbl.Make(struct
 end)
 
 let vnull = VNull
+
+(* An array of [n] nulls: small ones are allocated inline (Array.make is a C
+   call). *)
+let make_null_array n = match n with
+	| 0 -> [||]
+	| 1 -> [|VNull|]
+	| 2 -> [|VNull;VNull|]
+	| 3 -> [|VNull;VNull;VNull|]
+	| 4 -> [|VNull;VNull;VNull;VNull|]
+	| 5 -> [|VNull;VNull;VNull;VNull;VNull|]
+	| 6 -> [|VNull;VNull;VNull;VNull;VNull;VNull|]
+	| 7 -> [|VNull;VNull;VNull;VNull;VNull;VNull;VNull|]
+	| 8 -> [|VNull;VNull;VNull;VNull;VNull;VNull;VNull;VNull|]
+	| n -> Array.make n VNull
 let vtrue = VTrue
 let vfalse = VFalse
 let vbool b = if b then VTrue else VFalse
@@ -443,9 +457,14 @@ let vnative_string s = VNativeString s
 
 let s_expr_pretty e = (Type.s_expr_pretty false "" false (Type.s_type (Type.print_context())) e)
 
-let rec vresolve v = match v with
-	| VLazy f -> vresolve (AtomicLazy.force f)
+let rec vresolve_lazy f = match AtomicLazy.force f with
+	| VLazy f -> vresolve_lazy f
+	| v -> v
+
+let vresolve v = match v with
+	| VLazy f -> vresolve_lazy f
 	| _ -> v
+[@@inline]
 
 let associate_enum_value_pos ve p = match ve with
 	| VEnumValue ve ->
