@@ -1,0 +1,53 @@
+# the classes are generated in parallel: the output must be the same as on one domain
+-main Main
+-dce no
+--macro include("haxe.ds")
+--macro include("haxe.io")
+--macro include("haxe.format")
+--macro include("haxe.crypto")
+-D hl-gen-sequential
+-hl bin/sequential.hl
+
+--next
+-main Main
+-dce no
+--macro include("haxe.ds")
+--macro include("haxe.io")
+--macro include("haxe.format")
+--macro include("haxe.crypto")
+-hl bin/parallel1.hl
+
+--next
+-main Main
+-dce no
+--macro include("haxe.ds")
+--macro include("haxe.io")
+--macro include("haxe.format")
+--macro include("haxe.crypto")
+-hl bin/parallel2.hl
+
+--next
+-main Main
+-dce no
+--macro include("haxe.ds")
+--macro include("haxe.io")
+--macro include("haxe.format")
+--macro include("haxe.crypto")
+-hl bin/parallel3.hl
+
+--next
+-main Main
+-dce no
+--macro include("haxe.ds")
+--macro include("haxe.io")
+--macro include("haxe.format")
+--macro include("haxe.crypto")
+-hl bin/parallel4.hl
+
+--next
+--run Compare
+bin/sequential.hl
+bin/parallel1.hl
+bin/parallel2.hl
+bin/parallel3.hl
+bin/parallel4.hl

@@ -29,9 +29,16 @@ open Hlcode
 
 (* compiler *)
 
+(* A table of the generation context, read and grown by the domains
+   generating classes in parallel: under its lock, with a cache of the keys
+   already seen on each domain. *)
 type ('a,'b) lookup = {
 	arr : 'b DynArray.t;
 	map : ('a, int) Hashtbl.t;
+	lock : Mutex.t;
+	(* its cache on the domains, for the context [stamp] *)
+	slot : int;
+	stamp : int;
 }
 
 (* not mutable, might be be shared *)
@@ -61,7 +68,7 @@ let make_assigns ?(sorted=false) l =
 
 type method_context = {
 	mid : int;
-	mregs : (int, ttype) lookup;
+	mregs : ttype DynArray.t;
 	mops : opcode DynArray.t;
 	mret : ttype;
 	mdebug : Globals.pos DynArray.t;
@@ -116,6 +123,12 @@ type gen_object = {
 	mutable g_nwrappers : int;
 }
 
+module TypeKey = struct
+	type t = string list
+	let equal = (=)
+	let hash = Hashtbl.hash
+end
+
 (* The symbols of the generation are the indexes of its tables (strings,
    ints, floats, bytes, functions by key, globals by name or constant value,
    debug files by name): a table only grows, and maps an index to the same key
@@ -139,11 +152,19 @@ type context = {
 	overrides : (string * path, bool) Hashtbl.t;
 	cached_types : (string list, ttype) Hashtbl.t;
 	mutable m : method_context;
-	(* structures, by [anon_key], then by [same_anon] *)
-	anons_cache : (int, tanon * ttype) Hashtbl.t;
+	(* structures, by [anon_key], in the order of their creation *)
+	anons_cache : (int, (tanon * ttype) list) Hashtbl.t;
 	mutable rec_cache : (Type.t * ttype option ref) list;
-	mutable cached_tuples : (ttype list, ttype) PMap.t;
+	cached_tuples : (ttype list, ttype) PMap.t ref;
 	mutable tstring : ttype;
+	(* The HL types are built under [tlock] (one domain at a time, in
+	   [cached_types], [anons_cache] and [virtuals]); a type is published, for
+	   the domains reading without the lock, when the construction that created
+	   it ends. *)
+	tlock : Mutex.t;
+	tpending : (unit -> unit) list ref;
+	ptypes : (string list, ttype) Saturn.Htbl.t;
+	panons : (int, (tanon * ttype) list) Saturn.Htbl.t;
 	array_impl : array_impl;
 	base_class : tclass;
 	base_type : tclass;
@@ -243,25 +264,93 @@ let to_utf8 str p =
 let warning ctx msg p =
 	ctx.cur.g_warnings <- (msg,p) :: ctx.cur.g_warnings
 
-let tuple_type ctx tl =
-	try
-		PMap.find tl ctx.cached_tuples
-	with Not_found ->
-		let ct = HEnum {
-			eglobal = None;
-			ename = "";
-			eid = 0;
-			efields = [|"",0,Array.of_list tl|];
-			eparams = [||];
-		} in
-		ctx.cached_tuples <- PMap.add tl ct ctx.cached_tuples;
-		ct
+(* the depth of the type lock held by this domain *)
+let type_lock_depth = Domain.DLS.new_key (fun () -> ref 0)
 
-let new_lookup() =
+(* [f ()] under the type lock; the types it created are published when the
+   outermost section ends. A type is built without the typedefs being
+   resolved around it, so that its content does not depend on where it is
+   first reached. *)
+let with_type_lock ctx f =
+	let f () =
+		let rec_cache = ctx.rec_cache in
+		ctx.rec_cache <- [];
+		Std.finally (fun () -> ctx.rec_cache <- rec_cache) f ()
+	in
+	let d = Domain.DLS.get type_lock_depth in
+	if !d > 0 then f () else begin
+		Mutex.lock ctx.tlock;
+		d := 1;
+		match f () with
+		| v ->
+			let l = !(ctx.tpending) in
+			ctx.tpending := [];
+			List.iter (fun f -> f ()) (List.rev l);
+			d := 0;
+			Mutex.unlock ctx.tlock;
+			v
+		| exception e ->
+			ctx.tpending := [];
+			d := 0;
+			Mutex.unlock ctx.tlock;
+			raise e
+	end
+
+let publish tbl k v =
+	if not (Saturn.Htbl.try_add tbl k v) then ignore (Saturn.Htbl.try_set tbl k v)
+
+(* a class or enum type, created under the type lock *)
+let cache_type ctx key t =
+	Hashtbl.replace ctx.cached_types key t;
+	ctx.tpending := (fun () -> publish ctx.ptypes key (Hashtbl.find ctx.cached_types key)) :: !(ctx.tpending)
+
+let tuple_type ctx tl =
+	with_type_lock ctx (fun () ->
+		try
+			PMap.find tl !(ctx.cached_tuples)
+		with Not_found ->
+			let ct = HEnum {
+				eglobal = None;
+				ename = "";
+				eid = 0;
+				efields = [|"",0,Array.of_list tl|];
+				eparams = [||];
+			} in
+			ctx.cached_tuples := PMap.add tl ct !(ctx.cached_tuples);
+			ct
+	)
+
+let context_stamp = Atomic.make 0
+
+let new_lookup ~stamp ~slot () =
 	{
 		arr = DynArray.create();
 		map = Hashtbl.create 0;
+		lock = Mutex.create ();
+		slot = slot;
+		stamp = stamp;
 	}
+
+(* the caches of a domain: the keys of the tables of a context, and the files
+   of a generation *)
+type domain_caches = {
+	mutable dc_stamp : int;
+	mutable dc_tables : Obj.t array;
+	mutable dc_gen : int;
+	mutable dc_files : (string, Lexer.lexer_file) Hashtbl.t;
+}
+
+let lookup_slots = 9
+
+let domain_caches = Domain.DLS.new_key (fun () -> { dc_stamp = -1; dc_tables = [||]; dc_gen = -1; dc_files = Hashtbl.create 0 })
+
+let local_cache (l : ('a,'b) lookup) : ('a,int) Hashtbl.t =
+	let dc = Domain.DLS.get domain_caches in
+	if dc.dc_stamp <> l.stamp then begin
+		dc.dc_stamp <- l.stamp;
+		dc.dc_tables <- Array.init lookup_slots (fun _ -> Obj.repr (Hashtbl.create 0));
+	end;
+	Obj.obj dc.dc_tables.(l.slot)
 
 let null_capture =
 	{
@@ -272,24 +361,38 @@ let null_capture =
 	}
 
 let lookup l v fb =
-	try
-		Hashtbl.find l.map v
-	with Not_found ->
-		let id = DynArray.length l.arr in
-		DynArray.add l.arr (Obj.magic 0);
-		Hashtbl.add l.map v id;
-		DynArray.set l.arr id (fb());
+	let cache = local_cache l in
+	match Hashtbl.find_opt cache v with
+	| Some id -> id
+	| None ->
+		let id = Mutex.protect l.lock (fun () ->
+			match Hashtbl.find_opt l.map v with
+			| Some id -> id
+			| None ->
+				let id = DynArray.length l.arr in
+				DynArray.add l.arr (Obj.magic 0);
+				Hashtbl.add l.map v id;
+				DynArray.set l.arr id (fb());
+				id
+		) in
+		Hashtbl.add cache v id;
 		id
 
 let lookup_alloc l v =
-	let id = DynArray.length l.arr in
-	DynArray.add l.arr v;
-	id
+	Mutex.protect l.lock (fun () ->
+		let id = DynArray.length l.arr in
+		DynArray.add l.arr v;
+		id
+	)
+
+(* the value of an index, while the table may grow *)
+let lookup_get l i =
+	Mutex.protect l.lock (fun () -> DynArray.get l.arr i)
 
 let method_context id t captured hasthis =
 	{
 		mid = id;
-		mregs = new_lookup();
+		mregs = DynArray.create();
 		mops = DynArray.create();
 		mvars = Hashtbl.create 0;
 		mallocs = PMap.empty;
@@ -351,7 +454,7 @@ let efield_name e f =
 	s_type_path e.e_path ^ ":" ^ f.ef_name
 
 let global_type ctx g =
-	DynArray.get ctx.cglobals.arr g
+	lookup_get ctx.cglobals g
 
 (* Whether two structures convert to the same HL type: equality on what
    [to_type] reads (field names, kinds and types, declarations by path, type
@@ -415,12 +518,9 @@ let anon_key (a : tanon) =
 	in
 	PMap.foldi (fun n cf h -> (h * 65599 + Hashtbl.hash n * 31 + head cf.cf_type) land max_int) a.a_fields 0
 
-let find_anon cache key a =
-	let rec loop = function
-		| [] -> raise Not_found
-		| (a',t) :: l -> if same_anon a a' then t else loop l
-	in
-	loop (Hashtbl.find_all cache key)
+(* the type of the first structure of [l] that is the same as [a] *)
+let find_anon l a =
+	List.find_map (fun (a',t) -> if same_anon a a' then Some t else None) l
 
 let is_overridden ctx c f =
 	Hashtbl.mem ctx.overrides (f.cf_name,c.cl_path)
@@ -492,6 +592,27 @@ let rec get_const e =
 let set_curpos ctx p =
 	ctx.m.mcurpos <- p
 
+(* the generation being done, for the caches of the domains *)
+let generation_stamp = Atomic.make 0
+
+(* [Lexer.get_error_line], the files being found once by each domain (without
+   the lock of the table of the files) *)
+let error_line p =
+	let dc = Domain.DLS.get domain_caches in
+	let gen = Atomic.get generation_stamp in
+	if dc.dc_gen <> gen then begin
+		dc.dc_gen <- gen;
+		dc.dc_files <- Hashtbl.create 0;
+	end;
+	let file = match Hashtbl.find_opt dc.dc_files p.pfile with
+		| Some f -> f
+		| None ->
+			let f = Lexer.find_file p.pfile in
+			Hashtbl.add dc.dc_files p.pfile f;
+			f
+	in
+	fst (Lexer.find_line p.pmin file)
+
 (* the debug information of the instructions of a function: their file (a
    symbol, by name) and line, and the position starting the line *)
 let make_debug ctx arr =
@@ -505,7 +626,7 @@ let make_debug ctx arr =
 		let p = DynArray.unsafe_get arr i in
 		if !first || p != !cur then begin
 			let file = if not !first && p.pfile == (!cur).pfile then !cur_file else lookup ctx.cdebug_files p.pfile (fun() -> p.pfile) in
-			let line = Lexer.get_error_line p in
+			let line = error_line p in
 			if line <> !cur_line || file <> !cur_file then begin
 				cur_file := file;
 				cur_line := line;
@@ -641,21 +762,29 @@ let rec to_type ?tref ctx t =
 	| TAnon a ->
 		if PMap.is_empty a.a_fields then HDyn else
 		let key = anon_key a in
-		(try
-			find_anon ctx.anons_cache key a
-		with Not_found ->
-			let vp = begin_virtual ctx (fun t -> Hashtbl.add ctx.anons_cache key (a,t)) in
+		(match (match Saturn.Htbl.find_opt ctx.panons key with Some l -> find_anon l a | None -> None) with
+		| Some t -> t
+		| None ->
+		with_type_lock ctx (fun () ->
+		let l = try Hashtbl.find ctx.anons_cache key with Not_found -> [] in
+		match find_anon l a with
+		| Some t -> t
+		| None ->
+			let vp = begin_virtual ctx (fun t ->
+				Hashtbl.replace ctx.anons_cache key (List.map (fun (a',t') -> a', if a' == a then t else t') (Hashtbl.find ctx.anons_cache key))
+			) in
 			let t = HVirtual vp in
 			(match tref with
 			| None -> ()
 			| Some r -> r := Some t);
-			Hashtbl.add ctx.anons_cache key (a,t);
+			Hashtbl.replace ctx.anons_cache key (l @ [a,t]);
+			ctx.tpending := (fun () -> publish ctx.panons key (Hashtbl.find ctx.anons_cache key)) :: !(ctx.tpending);
 			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) a.a_fields [] in
 			let fields = List.sort (fun (n1,_,_) (n2,_,_) -> compare n1 n2) fields in
 			vp.vfields <- Array.of_list fields;
 			Array.iteri (fun i (n,_,_) -> vp.vindex <- PMap.add n i vp.vindex) vp.vfields;
 			end_virtual ctx vp
-		)
+		))
 	| TDynamic _ ->
 		HDyn
 	| TEnum (e,_) ->
@@ -792,12 +921,17 @@ and real_type ctx e =
 and class_type ?(tref=None) ctx c pl statics =
 	let c = if (has_class_flag c CExtern) then resolve_class ctx c pl statics else c in
 	let key_path = (if statics then "$" ^ snd c.cl_path else snd c.cl_path) :: fst c.cl_path in
+	match Saturn.Htbl.find_opt ctx.ptypes key_path with
+	| Some t -> t
+	| None -> with_type_lock ctx (fun () -> class_type_locked tref ctx c statics key_path)
+
+and class_type_locked tref ctx c statics key_path =
 	try
 		Hashtbl.find ctx.cached_types key_path
 	with Not_found when (has_class_flag c CInterface) && not statics ->
 		let vp = begin_virtual ctx (fun t -> Hashtbl.replace ctx.cached_types key_path t) in
 		let t = HVirtual vp in
-		Hashtbl.replace ctx.cached_types key_path t;
+		cache_type ctx key_path t;
 		let rec loop c =
 			let rec concat_uniq fields pfields =
 				match pfields with
@@ -835,7 +969,7 @@ and class_type ?(tref=None) ctx c pl statics =
 		| None -> ()
 		| Some r -> r := Some t);
 		ctx.ct_depth <- ctx.ct_depth + 1;
-		Hashtbl.replace ctx.cached_types key_path t;
+		cache_type ctx key_path t;
 		if c.cl_path = ([],"Array") then die "" __LOC__;
 		if c == ctx.base_class then begin
 			if statics then die "" __LOC__;
@@ -952,6 +1086,11 @@ and class_type ?(tref=None) ctx c pl statics =
 
 and enum_type ?(tref=None) ctx e =
 	let key_path = snd e.e_path :: fst e.e_path in
+	match Saturn.Htbl.find_opt ctx.ptypes key_path with
+	| Some t -> t
+	| None -> with_type_lock ctx (fun () -> enum_type_locked tref ctx e key_path)
+
+and enum_type_locked tref ctx e key_path =
 	try
 		Hashtbl.find ctx.cached_types key_path
 	with Not_found ->
@@ -968,7 +1107,7 @@ and enum_type ?(tref=None) ctx e =
 		(match tref with
 		| None -> ()
 		| Some r -> r := Some t);
-		Hashtbl.replace ctx.cached_types key_path t;
+		cache_type ctx key_path t;
 		et.efields <- Array.of_list (List.map (fun f ->
 			let f = PMap.find f e.e_constrs in
 			let args = (match f.ef_type with
@@ -989,6 +1128,11 @@ and enum_type ?(tref=None) ctx e =
 
 and enum_class ctx e =
 	let key_path = ("$" ^ snd e.e_path) :: fst e.e_path in
+	match Saturn.Htbl.find_opt ctx.ptypes key_path with
+	| Some t -> t
+	| None -> with_type_lock ctx (fun () -> enum_class_locked ctx e key_path)
+
+and enum_class_locked ctx e key_path =
 	try
 		Hashtbl.find ctx.cached_types key_path
 	with Not_found ->
@@ -1009,7 +1153,7 @@ and enum_class ctx e =
 		} in
 		let t = HObj p in
 		hold_virtuals ctx (fun subst -> subst_proto subst p);
-		Hashtbl.replace ctx.cached_types key_path t;
+		cache_type ctx key_path t;
 		let psuper = (match class_type ctx ctx.base_enum [] false with HObj o -> o | _ -> die "" __LOC__) in
 		let start_field = psuper.pnfields in
 		let fa = DynArray.create() in
@@ -1073,12 +1217,12 @@ and alloc_std ctx name args ret =
 		let fid = alloc_fun_path ctx ([],"std") name in
 		(alloc_string ctx lib, alloc_string ctx name,HFun (args,ret),fid)
 	) in
-	let _,_,_,fid = DynArray.get ctx.cnatives.arr nid in
+	let _,_,_,fid = lookup_get ctx.cnatives nid in
 	fid
 
 and alloc_fresh ctx t =
-	let rid = DynArray.length ctx.m.mregs.arr in
-	DynArray.add ctx.m.mregs.arr t;
+	let rid = DynArray.length ctx.m.mregs in
+	DynArray.add ctx.m.mregs t;
 	rid
 
 and alloc_tmp ctx t =
@@ -1103,7 +1247,7 @@ and current_pos ctx =
 	DynArray.length ctx.m.mops
 
 and rtype ctx r =
-	DynArray.get ctx.m.mregs.arr r
+	DynArray.get ctx.m.mregs r
 
 and hold ctx r =
 	if not ctx.optimize then () else
@@ -1321,6 +1465,11 @@ let before_break_continue ctx =
 	in
 	loop (ctx.m.mtrys - ctx.m.mloop_trys)
 
+(* the global of the value of a core type, of the same type wherever it is used *)
+let core_type_global ctx name =
+	let c = if name = "Bool" then ctx.core_enum else ctx.core_type in
+	alloc_global ctx ("$" ^ name) (class_type ctx c [] false)
+
 let type_global ctx t p =
 	match t with
 	| TClassDecl c ->
@@ -1328,12 +1477,9 @@ let type_global ctx t p =
 	| TAbstractDecl a ->
 		let rt = class_type ctx ctx.base_type [] false in
 		let g = (match a.a_path with
-		| [], "Int" -> alloc_global ctx "$Int" rt
-		| [], "Float" -> alloc_global ctx "$Float" rt
-		| [], "Bool" -> alloc_global ctx "$Bool" rt
+		| [], ("Int" | "Float" | "Bool" | "Dynamic" as name) -> core_type_global ctx name
 		| [], "Class" -> fst (class_global ctx ctx.base_class)
 		| [], "Enum" -> fst (class_global ctx ctx.base_enum)
-		| [], "Dynamic" -> alloc_global ctx "$Dynamic" rt
 		| _ -> abort ("Unsupported type value " ^ s_type_path (t_path t)) p) in
 		g, rt
 	| TEnumDecl e ->
@@ -1925,7 +2071,7 @@ and make_const ctx c p =
 		let g = lookup_alloc ctx.cglobals t in
 		g, Array.of_list fields
 	) in
-	let g, _ = DynArray.get ctx.cconstants.arr cidx in
+	let g, _ = lookup_get ctx.cconstants cidx in
 	g
 
 and make_string ctx s p =
@@ -3255,7 +3401,7 @@ and eval_expr ctx e =
 				| TMeta ((Meta.ExceptionTypeCheck,_,_),{eexpr=TCall(_,_::[{eexpr=TTypeExpr(mt)}])}) ->
 					catched_types := fst (type_global ctx mt e.epos) :: !catched_types
 				| TMeta ((Meta.ExceptionTypeCheck,_,_),{eexpr=TConst(TBool(true))}) ->
-					catched_types := alloc_global ctx "$Dynamic" HDyn :: !catched_types
+					catched_types := core_type_global ctx "Dynamic" :: !catched_types
 				| _ -> Type.iter find_meta e
 				)
 			in
@@ -3532,7 +3678,7 @@ and gen_method_wrapper ctx rt t p =
 			fpath = "","";
 			findex = fid;
 			ftype = HFun (rt :: targs, tret);
-			regs = LargeArray.of_dynarray ctx.m.mregs.arr;
+			regs = LargeArray.of_dynarray ctx.m.mregs;
 			code = LargeArray.of_dynarray ctx.m.mops;
 			debug = make_debug ctx ctx.m.mdebug;
 			assigns = make_assigns ctx.m.massign;
@@ -3708,7 +3854,7 @@ and make_fun ?gen_content ?lname ctx name fidx f cthis cparent =
 		fpath = name;
 		findex = fidx;
 		ftype = HFun (fargs, tret);
-		regs = LargeArray.of_dynarray ctx.m.mregs.arr;
+		regs = LargeArray.of_dynarray ctx.m.mregs;
 		code = LargeArray.of_dynarray ctx.m.mops;
 		debug = make_debug ctx ctx.m.mdebug;
 		assigns = make_assigns ~sorted:true ctx.m.massign;
@@ -3946,7 +4092,7 @@ let gen_enum_ctor ctx e ef eid =
 		fpath = "", "";
 		findex = eid;
 		ftype = HFun (fargs, tret);
-		regs = LargeArray.of_dynarray ctx.m.mregs.arr;
+		regs = LargeArray.of_dynarray ctx.m.mregs;
 		code = LargeArray.of_dynarray ctx.m.mops;
 		debug = make_debug ctx ctx.m.mdebug;
 		assigns = make_assigns ctx.m.massign;
@@ -4524,7 +4670,7 @@ let generate_static_content ctx types f items =
 						die "" __LOC__
 				in
 
-				let g = alloc_global ctx ("$" ^ name) t in
+				let g = core_type_global ctx name in
 				let r = alloc_tmp ctx t in
 				let rt = alloc_tmp ctx HType in
 				op ctx (ONew r);
@@ -4554,7 +4700,7 @@ let generate_static_content ctx types f items =
 			let fid = alloc_fun_path ctx ([],"std") "hot_sync_statics" in
 			(alloc_string ctx "?std", alloc_string ctx "hot_sync_statics", HFun ([HType;HI32],HI32), fid)
 		) in
-		let _,_,_,native = DynArray.get ctx.cnatives.arr native in
+		let _,_,_,native = lookup_get ctx.cnatives native in
 		let load_bits c w =
 			let r = alloc_tmp ctx HI32 in
 			hold ctx r;
@@ -5039,8 +5185,6 @@ let create_context com overrides =
 		| _ -> die "" __LOC__
 	in
 	let hl_ver = Gctx.defined_value_safe ~default:"" com Define.HlVer in
-	if Gctx.raw_defined com "hl_legacy32" && hl_ver <> "" && compare_version hl_ver "2.0.0" >= 0 then
-		com.warning WGenerator [] "-D hl_legacy32 is for 32-bit compatibility, but 32-bit builds are no longer supported since HashLink 2.0 (hl_ver >= 2.0.0)" (fake_pos "-D hl_legacy32");
 	let array_impl = {
 		aall = get_class "ArrayAccess";
 		abase = get_class "ArrayBase";
@@ -5066,6 +5210,7 @@ let create_context com overrides =
 			else
 				Some (get_class "ArrayBytes_hl_GUID");
 	} in
+	let stamp = Atomic.fetch_and_add context_stamp 1 + 1 in
 	let ctx = {
 		com = com;
 		hl_ver = hl_ver;
@@ -5073,17 +5218,17 @@ let create_context com overrides =
 		optimize = not (Gctx.raw_defined com "hl_no_opt");
 		w_null_compare = Gctx.raw_defined com "hl_w_null_compare";
 		m = method_context 0 HVoid null_capture false;
-		cints = new_lookup();
-		cstrings = new_lookup();
-		cbytes = new_lookup();
-		cfloats = new_lookup();
-		cglobals = new_lookup();
-		cnatives = new_lookup();
-		cconstants = new_lookup();
+		cints = new_lookup ~stamp ~slot:0 ();
+		cstrings = new_lookup ~stamp ~slot:1 ();
+		cbytes = new_lookup ~stamp ~slot:2 ();
+		cfloats = new_lookup ~stamp ~slot:3 ();
+		cglobals = new_lookup ~stamp ~slot:4 ();
+		cnatives = new_lookup ~stamp ~slot:5 ();
+		cconstants = new_lookup ~stamp ~slot:6 ();
 		overrides = overrides;
 		cached_types = Hashtbl.create 0;
-		cached_tuples = PMap.empty;
-		cfids = new_lookup();
+		cached_tuples = ref PMap.empty;
+		cfids = new_lookup ~stamp ~slot:7 ();
 		tstring = HVoid;
 		array_impl = array_impl;
 		base_class = get_class "Class";
@@ -5094,7 +5239,11 @@ let create_context com overrides =
 		ref_abstract = get_abstract "Ref";
 		anons_cache = Hashtbl.create 0;
 		rec_cache = [];
-		cdebug_files = new_lookup();
+		cdebug_files = new_lookup ~stamp ~slot:8 ();
+		tlock = Mutex.create ();
+		tpending = ref [];
+		ptypes = Saturn.Htbl.create ~hashed_type:(module TypeKey) ();
+		panons = Saturn.Htbl.create ();
 		ct_delayed = [];
 		ct_depth = 0;
 		virtuals = Hashtbl.create 0;
@@ -5172,31 +5321,79 @@ let prepare_types types =
 
 (* the generation of the code: the objects of the classes, of the entry point
    and of the enum constructors, then their link *)
-let generate_code com =
+exception Generation_failed of exn * Printexc.raw_backtrace
+
+let generate_code ?(sequential=false) com =
 	let timer = Timer.start_timer com.timer_ctx in
 	let overrides = prepare_types com.types in
 	let ctx = create_context com overrides in
 	let dump = Gctx.defined com Define.Dump in
-	(* the classes, in the order of the types *)
+	(* the classes, generated on the domains of the pool (each with a context
+	   of its own sharing the tables), the largest first *)
 	let t = timer ["generate";"hl";"functions"] in
-	let fresh = DynArray.create () in
-	let class_objects = List.filter_map (fun t ->
+	let classes = Array.of_list (List.filter_map (fun t ->
 		match t with
-		| TClassDecl c ->
-			let o = generate_object ctx t c in
-			List.iter (fun (msg,p) -> com.warning WGenerator [] msg p) o.o_warnings;
-			DynArray.add fresh o;
-			Some o
-		| _ ->
-			None
-	) com.types in
+		| TClassDecl c -> Some (t,c)
+		| _ -> None
+	) com.types) in
+	let generated = Array.make (Array.length classes) None in
+	let emit_warnings l = List.iter (fun (msg,p) -> com.warning WGenerator [] msg p) l in
+	(* on one domain, the warnings of a class are emitted as soon as it is
+	   generated, or fails *)
+	let emitted = ref false in
+	let generate i =
+		let (t,c) = classes.(i) in
+		let ctx = { ctx with m = method_context 0 HVoid null_capture false; cur = new_gen_object ([],""); rec_cache = []; ct_delayed = []; ct_depth = 0; virtuals_pending = []; virtuals_holders = []; virtuals_depth = 0 } in
+		match generate_object ctx t c with
+		| o ->
+			if !emitted then emit_warnings o.o_warnings;
+			generated.(i) <- Some o
+		| exception e when !emitted ->
+			emit_warnings (List.rev ctx.cur.g_warnings);
+			raise e
+	in
+	let generate_sequential () =
+		emitted := true;
+		for i = 0 to Array.length classes - 1 do generate i done
+	in
+	Atomic.incr generation_stamp;
+	(if sequential || Array.length classes < 16 then
+		generate_sequential ()
+	else begin
+		(* a failure is reported by a sequential generation, in the order of the types *)
+		let failed = Atomic.make None in
+		let weights = Array.map (fun (_,c) -> List.length c.cl_ordered_fields + List.length c.cl_ordered_statics) classes in
+		let order = Array.init (Array.length classes) (fun k -> k) in
+		Array.stable_sort (fun a b -> compare weights.(b) weights.(a)) order;
+		Parallel.run_with_pool com.pool (fun pool ->
+			match pool with
+			| None -> generate_sequential ()
+			| Some pool ->
+				Domainslib.Task.parallel_for pool ~chunk_size:1 ~start:0 ~finish:(Array.length order - 1) ~body:(fun k ->
+					if Option.is_none (Atomic.get failed) then try generate order.(k) with e -> ignore (Atomic.compare_and_set failed None (Some (e,Printexc.get_raw_backtrace ())))
+				)
+		);
+		Option.may (fun (e,bt) -> raise (Generation_failed (e,bt))) (Atomic.get failed)
+	end);
+	let fresh = DynArray.create () in
+	let class_objects = Array.to_list (Array.map (fun o ->
+		let o = match o with Some o -> o | None -> die "" __LOC__ in
+		if not !emitted then emit_warnings o.o_warnings;
+		DynArray.add fresh o;
+		o
+	) generated) in
 	t();
 	(* the entry point and the enum constructors *)
 	let t = timer ["generate";"hl";"init"] in
 	ctx.cur <- new_gen_object ([],"");
-	let entry = generate_static_init ctx com.types com.main.main_expr in
+	let entry = try
+		generate_static_init ctx com.types com.main.main_expr
+	with e ->
+		emit_warnings (List.rev ctx.cur.g_warnings);
+		raise e
+	in
 	let entry_object = make_object ctx.cur in
-	List.iter (fun (msg,p) -> com.warning WGenerator [] msg p) entry_object.o_warnings;
+	emit_warnings entry_object.o_warnings;
 	DynArray.add fresh entry_object;
 	let enum_objects = generate_enum_ctors ctx in
 	t();
@@ -5278,7 +5475,23 @@ let generate com =
 		Common.write_file_if_changed com.file !prev_data
 	end else
 
-	let code, gnames = generate_code com
+	let hl_ver = Gctx.defined_value_safe ~default:"" com Define.HlVer in
+	if Gctx.raw_defined com "hl_legacy32" && hl_ver <> "" && compare_version hl_ver "2.0.0" >= 0 then
+		com.warning WGenerator [] "-D hl_legacy32 is for 32-bit compatibility, but 32-bit builds are no longer supported since HashLink 2.0 (hl_ver >= 2.0.0)" (fake_pos "-D hl_legacy32");
+
+	(* -D hl-gen-sequential: the classes are generated on one domain *)
+	let sequential = Gctx.raw_defined com "hl_gen_sequential" in
+	let code, gnames =
+		try
+			generate_code ~sequential com
+		with
+		| Generation_failed ((Out_of_memory | Stack_overflow | Sys.Break) as e,bt) ->
+			Printexc.raise_with_backtrace e bt
+		| Generation_failed (e,bt) ->
+			(* the error of the first class, in the order of the types *)
+			ignore (generate_code ~sequential:true com);
+			(* the failure only happens in parallel: it is not hidden *)
+			Printexc.raise_with_backtrace e bt
 	in
 
 	if dump then begin
