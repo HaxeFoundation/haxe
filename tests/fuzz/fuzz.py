@@ -5,9 +5,10 @@ Warm/cold fuzzing of the compilation server.
 Random edits are applied to the sources of a project; after each edit, a
 compilation through the server (warm) is compared with a compilation from
 scratch (cold): exit code, compiler messages and output file must be the same.
-Half of the cold compilations use a random typing order (-D typer-shuffle),
-so that a dependence on that order also shows up as a difference. The edits
-accumulate; an edit that does not compile is undone.
+Half of the cold compilations use a random typing order (the compiler reads
+its seed from the HAXE_TYPER_SHUFFLE environment variable), so that a
+dependence on that order also shows up as a difference. The edits accumulate;
+an edit that does not compile is undone.
 
 Some edits (--errors, a probability) introduce an error at a given level of
 the compilation: syntax, type loading, field signature, field initialization,
@@ -69,9 +70,9 @@ excluded = [e for e in args.exclude.split(",") if e]
 files = [os.path.join(r, f) for d in args.src.split(",") for r, _, fs in os.walk(os.path.join(D, d)) for f in fs
 	if f.endswith(".hx") and not any(e in os.path.join(r, f) for e in excluded)]
 
-def run(cmd):
+def run(cmd, env=None):
 	t0 = time.time()
-	p = subprocess.run([H] + cmd, cwd=D, capture_output=True, text=True)
+	p = subprocess.run([H] + cmd, cwd=D, capture_output=True, text=True, env=env)
 	return p.returncode, p.stdout + p.stderr, time.time() - t0
 
 def read_out():
@@ -162,10 +163,13 @@ def compare(label):
 	rc, out, t = run(["--connect", args.port, "--cwd", D, args.hxml])
 	warm_file = read_out()
 	nr = retyped()
-	cold_args = []
+	cold_env = dict(os.environ)
+	cold_env.pop("HAXE_TYPER_SHUFFLE", None)
+	shuffle = ""
 	if random.random() < 0.5:
-		cold_args += ["-D", "typer-shuffle=%d" % random.randrange(1 << 30)]
-	crc, cout, _ = run([args.hxml] + cold_args)
+		cold_env["HAXE_TYPER_SHUFFLE"] = str(random.randrange(1 << 30))
+		shuffle = "HAXE_TYPER_SHUFFLE=" + cold_env["HAXE_TYPER_SHUFFLE"]
+	crc, cout, _ = run([args.hxml], cold_env)
 	cold_file = read_out()
 	def messages(s):
 		return s if args.ignore is None else "\n".join(l for l in s.split("\n") if not re.search(args.ignore, l))
@@ -176,7 +180,7 @@ def compare(label):
 	# own output back
 	if warm_file is not None:
 		open(os.path.join(D, args.out), "wb").write(warm_file)
-	print("%-5s rc=%d %.2fs retyped=%-4d %s%-60s cold: %s" % ("SAME" if same else "DIFF", rc, t, nr, "live=%-5.0f " % mem if mem >= 0 else "", label, " ".join(cold_args)), flush=True)
+	print("%-5s rc=%d %.2fs retyped=%-4d %s%-60s cold: %s" % ("SAME" if same else "DIFF", rc, t, nr, "live=%-5.0f " % mem if mem >= 0 else "", label, shuffle), flush=True)
 	if not same:
 		open(D + ".fuzz-warm.txt", "w").write(out)
 		open(D + ".fuzz-cold.txt", "w").write(cout)
