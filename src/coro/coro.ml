@@ -252,7 +252,19 @@ let create_continuation_class ctx cont coro_class initial_state invoke_resume_fi
 	if ctx.config.debug then
 		Printer.s_tclass "\t" coro_class.cls |> Printf.printf "%s\n";
 
-	ctx.typer.m.curmod.m_types <- ctx.typer.m.curmod.m_types @ [ TClassDecl coro_class.cls ]
+	(* The continuation classes of a module are kept sorted by name after its
+	   other types, whatever the order in which its functions are typed. *)
+	let is_continuation_class = function
+		| TClassDecl { cl_super = Some (c,_) } -> c == coro_class.continuation_api.base_continuation_class
+		| _ -> false
+	in
+	let name = snd coro_class.cls.cl_path in
+	let rec insert = function
+		| mt :: l when is_continuation_class mt && snd (t_infos mt).mt_path > name -> TClassDecl coro_class.cls :: mt :: l
+		| mt :: l -> mt :: insert l
+		| [] -> [TClassDecl coro_class.cls]
+	in
+	ctx.typer.m.curmod.m_types <- insert ctx.typer.m.curmod.m_types
 
 let check_assertions assert_config num_states num_hoisted p =
 	let open CoroConfig in
