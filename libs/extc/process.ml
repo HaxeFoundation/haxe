@@ -14,7 +14,7 @@
 	the POSIX shell convention and the old fork+exec behavior where
 	fork always succeeded). *)
 
-(* A process runs on a loop of its own, until it has exited. *)
+(* A process runs on a loop that is its own until it has exited. *)
 type process = {
 	loop : Luv.Loop.t;
 	mutable handle : Luv.Process.t option; (* None if not started, or closed *)
@@ -51,15 +51,33 @@ let shell cmd =
 	end else
 		"/bin/sh", ["/bin/sh"; "-c"; cmd], false
 
-let new_process () =
-	{ loop = luv_ok (Luv.Loop.init ()); handle = None; pid = 0; stdin = None; stdout = None; stderr = None; exit_code = None }
+(* Loops are kept for the next process instead of being closed. On Linux,
+   closing one ends its io_uring instance, and the kernel then interrupts a
+   later blocking system call of this thread: a connect or a read on a socket
+   with a timeout fails with EINTR. *)
+let free_loops = ref []
+let free_loops_mutex = Mutex.create ()
 
-(* Closes the handle of [p], then its loop once nothing is left on it. *)
+let take_loop () =
+	let loop = Mutex.protect free_loops_mutex (fun () ->
+		match !free_loops with
+		| loop :: l -> free_loops := l; Some loop
+		| [] -> None
+	) in
+	match loop with
+	| Some loop -> loop
+	| None -> luv_ok (Luv.Loop.init ())
+
+let new_process () =
+	{ loop = take_loop (); handle = None; pid = 0; stdin = None; stdout = None; stderr = None; exit_code = None }
+
+(* Closes the handle of [p] and gives its loop back once nothing is left on
+   it. To call once per process. *)
 let release p =
 	Option.iter (fun h -> Luv.Handle.close h ignore) p.handle;
 	p.handle <- None;
 	ignore (Luv.Loop.run ~loop:p.loop ());
-	ignore (Luv.Loop.close p.loop)
+	Mutex.protect free_loops_mutex (fun () -> free_loops := p.loop :: !free_loops)
 
 (* Starts [cmd] with [args], or the shell command [cmd] if [args] is [None],
    as process [p] with the descriptors [fd0], [fd1] and [fd2] of this process
