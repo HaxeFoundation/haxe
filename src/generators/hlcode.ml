@@ -501,13 +501,137 @@ let gather_types (code:code) =
 	) code.functions;
 	DynArray.to_array arr, !types
 
+(* The types by their shape: the same constructors, with the same class,
+   virtual and enum records (physically). Two types of the same shape are the
+   same type of the output. *)
+let rec same_shape a b =
+	a == b ||
+	match a, b with
+	| HFun (args1,r1), HFun (args2,r2) | HMethod (args1,r1), HMethod (args2,r2) ->
+		(try List.for_all2 same_shape args1 args2 with Invalid_argument _ -> false) && same_shape r1 r2
+	| HObj p1, HObj p2 | HStruct p1, HStruct p2 -> p1 == p2
+	| HVirtual v1, HVirtual v2 -> v1 == v2
+	| HEnum e1, HEnum e2 -> e1 == e2
+	| HArray t1, HArray t2 | HRef t1, HRef t2 | HNull t1, HNull t2 | HPacked t1, HPacked t2 -> same_shape t1 t2
+	| HAbstract (n1,s1), HAbstract (n2,s2) -> s1 = s2 && n1 = n2
+	| _ -> false
+
+(* a hash of [same_shape]: the constructors, the records by their name, and
+   only the first arguments and fields *)
+let rec shape_hash depth t =
+	let mix h k = h * 65599 + k in
+	let rec list h n = function
+		| [] -> h
+		| t :: l -> if n = 0 then h else list (mix h (shape_hash (depth - 1) t)) (n - 1) l
+	in
+	let fields h a f =
+		let n = min (Array.length a) 4 in
+		let h = ref (mix h (Array.length a)) in
+		for i = 0 to n - 1 do h := f !h (Array.unsafe_get a i) done;
+		!h
+	in
+	match t with
+	| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HType | HDynObj | HGUID -> Hashtbl.hash t
+	| HObj p -> mix 1 p.pid
+	| HStruct p -> mix 2 p.pid
+	| _ when depth = 0 -> Obj.tag (Obj.repr t)
+	| HFun (args,ret) -> list (mix (mix 3 (List.length args)) (shape_hash (depth - 1) ret)) 4 args
+	| HMethod (args,ret) -> list (mix (mix 4 (List.length args)) (shape_hash (depth - 1) ret)) 4 args
+	| HArray t -> mix 5 (shape_hash (depth - 1) t)
+	| HRef t -> mix 6 (shape_hash (depth - 1) t)
+	| HNull t -> mix 7 (shape_hash (depth - 1) t)
+	| HPacked t -> mix 8 (shape_hash (depth - 1) t)
+	| HAbstract (_,s) -> mix 9 s
+	| HVirtual v -> fields 10 v.vfields (fun h (_,s,t) -> mix (mix h s) (shape_hash (depth - 1) t))
+	| HEnum e -> if e.eid <> 0 then mix 11 e.eid else fields 12 e.efields (fun h (_,_,tl) -> list h 4 (Array.to_list tl))
+
+module ShapeTbl = Hashtbl.Make(struct
+	type t = ttype
+	let equal = same_shape
+	let hash t = (shape_hash 3 t) land max_int
+end)
+
+(* the distinct types of a function (ftype, registers, [OType]) in the order of
+   their first use, by shape *)
+let function_types f =
+	let out = DynArray.create () and tbl = ref None and basics = ref [] in
+	let add t =
+		match t with
+		| HVoid | HUI8 | HUI16 | HI32 | HI64 | HF32 | HF64 | HBool | HBytes | HDyn | HType | HDynObj | HGUID ->
+			if not (List.mem t !basics) then begin basics := t :: !basics; DynArray.add out t end
+		| _ ->
+		match !tbl with
+		| Some tbl -> if not (ShapeTbl.mem tbl t) then begin ShapeTbl.add tbl t (); DynArray.add out t end
+		| None ->
+			let n = DynArray.length out in
+			let rec seen i = i < n && (same_shape (DynArray.unsafe_get out i) t || seen (i + 1)) in
+			if not (seen 0) then begin
+				DynArray.add out t;
+				if n >= 32 then begin
+					let h = ShapeTbl.create 64 in
+					DynArray.iter (fun t -> ShapeTbl.replace h t ()) out;
+					tbl := Some h
+				end
+			end
+	in
+	add f.ftype;
+	Array.iter add f.regs;
+	Array.iter (function OType (_,t) -> add t | _ -> ()) f.code;
+	DynArray.to_array out
+
+(* [gather_types], with the index of a type found by its shape first (the
+   structural comparison of the map only once per shape) *)
+let gather_types_by_shape ?functions_types (code:code) =
+	(* structurally equal types are one type, as in [gather_types] *)
+	let types = Hashtbl.create 0 in
+	let shapes = ShapeTbl.create 0 in
+	let arr = DynArray.create() in
+	let rec get_type t =
+		if not (ShapeTbl.mem shapes t) then begin
+			(match t with
+			| HObj { psuper = Some p } -> get_type (HObj p)
+			| HStruct { psuper = Some p } -> get_type (HStruct p)
+			| HNull t | HRef t -> get_type t
+			| _ -> ());
+			match Hashtbl.find_opt types t with
+			| Some index ->
+				ShapeTbl.add shapes t index
+			| None ->
+				let index = DynArray.length arr in
+				DynArray.add arr t;
+				Hashtbl.add types t index;
+				ShapeTbl.add shapes t index;
+				match t with
+				| HFun (args, ret) | HMethod (args, ret) ->
+					List.iter get_type args;
+					get_type ret
+				| HObj p | HStruct p ->
+					Array.iter (fun (_,n,t) -> get_type t) p.pfields
+				| HVirtual v ->
+					Array.iter (fun (_,_,t) -> get_type t) v.vfields
+				| HEnum e ->
+					Array.iter (fun (_,_,tl) -> Array.iter get_type tl) e.efields
+				| _ ->
+					()
+		end
+	in
+	List.iter (fun t -> get_type t) [HVoid; HUI8; HUI16; HI32; HI64; HF32; HF64; HBool; HType; HDyn]; (* make sure all basic types get lower indexes *)
+	Array.iter (fun g -> get_type g) code.globals;
+	Array.iter (fun (_,_,t,_) -> get_type t) code.natives;
+	(match functions_types with
+	| Some l -> Array.iter (Array.iter get_type) l
+	| None -> Array.iter (fun f -> Array.iter get_type (function_types f)) code.functions);
+	DynArray.to_array arr, (fun t -> try ShapeTbl.find shapes t with Not_found -> Hashtbl.find types t)
+
 let lookup_type types t =
 	try PMap.find t types with Not_found -> Globals.die "" __LOC__
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
 (* DUMP *)
 
-(* the initial value of the debug arrays, a block of the major heap *)
+(* the initial value of the debug arrays: a block of the major heap, since
+   [Array.make] of a large array with a young block first empties the minor
+   heap (a stop-the-world collection of all the domains) *)
 let null_debug = (0,0,Globals.null_pos)
 
 let rec tstr ?(stack=[]) ?(detailed=false) t =
