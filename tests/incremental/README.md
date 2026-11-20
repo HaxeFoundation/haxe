@@ -107,7 +107,10 @@ class Dep {
 ```
 
 - Header directives: `@targets`, `@args` (extra compiler arguments), `@main`
-  (`none` for no `-main`), `@known-failure [targets] <reason>`, `@real-mtime`.
+  (`none` for no `-main`), `@known-failure [targets] <reason>`, `@real-mtime`,
+  `@shuffle-seeds <seed>...` (every step is also compiled cold with each seed
+  in the `HAXE_TYPER_SHUFFLE` environment variable, which makes the compiler
+  run its delayed typing tasks in a random order; the output must be the same).
 - Each `=== name` section is a step: directives first (`@args` replaces the
   extra arguments from that step on, `@same-second`), then file blocks
   `--- path` (content up to the next `--- ` or `=== ` line) and

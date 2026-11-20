@@ -46,6 +46,8 @@ typedef Step = {
 	@known-failure <reason>     the case is expected to fail for now
 	@known-failure [t1,t2] <r>  only on the given targets
 	@real-mtime                 do not give each step its own modification time
+	@shuffle-seeds 1 2 3        also compile every step cold with these seeds of
+	                            the shuffled typing order (HAXE_TYPER_SHUFFLE)
 
 	=== initial                 first section: the initial state
 	@expect-success             step directives come first in a section
@@ -102,6 +104,8 @@ class CaseParser {
 						tc.main = d.rest == "none" ? null : d.rest;
 					case "real-mtime":
 						tc.realMtime = true;
+					case "shuffle-seeds":
+						tc.shuffleSeeds = d.rest.split(" ").filter(s -> s != "");
 					case "known-failure":
 						var rest = d.rest;
 						if (rest.startsWith("[")) {
@@ -232,6 +236,8 @@ class TestCase {
 	public var main:Null<String> = "Main";
 	public var knownFailure:Null<String> = null;
 	public var realMtime:Bool = false;
+	/** Seeds of the shuffled typing order the cold compilations are also run with. **/
+	public var shuffleSeeds:Array<String> = [];
 	/** Targets the known failure applies to, all targets if null. **/
 	public var knownFailureTargets:Null<Array<String>> = null;
 

@@ -413,6 +413,11 @@ class RunIncremental {
 				}
 				for (e in compare(warm, cold, warmDir, coldDir))
 					errors.push('$label: $e');
+				for (seed in tc.shuffleSeeds) {
+					var shuffled = compile(coldDir, null, true, null, ["HAXE_TYPER_SHUFFLE" => seed]);
+					for (e in compare(warm, shuffled, warmDir, coldDir))
+						errors.push('$label, cold with HAXE_TYPER_SHUFFLE=$seed: $e');
+				}
 				for (e in checkExpectations(step.expectations, warm, warmDir, target))
 					errors.push('$label: $e');
 				if (step.expectations.contains(NoFsCalls) && supports("server/vfs", skipped)) {
@@ -670,7 +675,7 @@ class RunIncremental {
 		return null;
 	}
 
-	@:coroutine public static function compile(dir:String, port:Null<Int>, clean = true, ?extra:Array<String>):CompileResult {
+	@:coroutine public static function compile(dir:String, port:Null<Int>, clean = true, ?extra:Array<String>, ?env:Map<String, String>):CompileResult {
 		var outDir = Path.join([dir, "out"]);
 		if (clean) {
 			removeDir(outDir);
@@ -680,7 +685,7 @@ class RunIncremental {
 		args = args.concat(["--cwd", dir, "build.hxml"]);
 		if (extra != null)
 			args = args.concat(extra);
-		var p = Proc.run(haxeCmd, args);
+		var p = Proc.run(haxeCmd, args, env);
 		var code = p.exitCode();
 		var out = normalize(p.stdout() + p.stderr(), dir);
 		var run = "";
