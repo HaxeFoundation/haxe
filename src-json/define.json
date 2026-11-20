@@ -75,12 +75,6 @@
 		"doc": "Activated when compiling with -debug."
 	},
 	{
-		"name": "IncrementalCheckRefs",
-		"define": "incremental-check-refs",
-		"signatureNeutral": true,
-		"doc": "Check that no type or field reference of the compilation points to an older version of its module (compilation server)."
-	},
-	{
 		"name": "DisableHxbCache",
 		"define": "disable-hxb-cache",
 		"signatureNeutral": true,
@@ -503,6 +497,12 @@
 		"define": "include-prefix",
 		"doc": "Prepend path to generated include files.",
 		"platforms": ["cpp"]
+	},
+	{
+		"name": "IncrementalCheckRefs",
+		"define": "incremental-check-refs",
+		"signatureNeutral": true,
+		"doc": "Check that no type or field reference of the compilation points to an older version of its module (compilation server)."
 	},
 	{
 		"name": "Interp",
