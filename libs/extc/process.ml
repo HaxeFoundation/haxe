@@ -7,6 +7,10 @@
 	Uses [Unix.create_process] which is domain-safe and handles
 	[posix_spawn] on modern systems.
 
+	The one exception is starting a process in another directory on Windows
+	(see [spawn_in]): [Unix.create_process] cannot do it, and there is no
+	shell that could reliably do it for us as /bin/sh does elsewhere.
+
 	When the command is not found, [run] returns a process whose pipes
 	immediately return EOF and whose [exit] returns code 127 (matching
 	the POSIX shell convention and the old fork+exec behavior where
@@ -39,49 +43,43 @@ let make_null_fd () =
 let unix_error_msg err fn arg =
 	Printf.sprintf "%s(%s): %s" fn arg (Unix.error_message err)
 
-external spawn_in_supported : unit -> bool = "process_spawn_in_supported"
-
-(* Starts [prog] with [argv] (POSIX) or [cmdline] (Windows) in directory [cwd],
-   with the given standard descriptors; returns its pid. *)
-external spawn_in : string -> string -> string array -> string -> Unix.file_descr -> Unix.file_descr -> Unix.file_descr -> int
+(* Windows only (spawn_stubs.c): as Unix.create_process, starts [prog] with
+   the command line [cmdline] and the given standard handles, but in directory
+   [cwd]; returns its process handle. *)
+external spawn_in : string -> string -> string -> Unix.file_descr -> Unix.file_descr -> Unix.file_descr -> int
 	= "process_spawn_in_bytecode" "process_spawn_in_native"
 
-(** Shell command [cmd] run in directory [cwd], where processes cannot be
-	started in another directory. It does not start with "cd ", which the
-	compiler takes as a change of its own directory. *)
-let shell_command_in ~cwd cmd =
-	Printf.sprintf "{ cd %s || exit; }\n%s" (Filename.quote cwd) cmd
+(* The /bin/sh command that runs the shell command [cmd] in directory [cwd]. *)
+let sh_command_in ~cwd cmd =
+	Printf.sprintf "cd %s || exit\n%s" (Filename.quote cwd) cmd
+
+(* The /bin/sh arguments that run [prog] with [args] in directory [cwd]. *)
+let sh_args_in ~cwd prog args =
+	Array.append [|"-c"; "cd \"$1\" && shift && exec \"$@\""; "sh"; cwd; prog|] args
 
 (* The command line of [argv], quoted as by Unix.create_process on Windows. *)
 let windows_command_line argv =
 	let quote s = if s = "" || String.exists (fun c -> c = ' ' || c = '\t' || c = '"') s then Filename.quote s else s in
 	String.concat " " (List.map quote (Array.to_list argv))
 
-(* The program, arguments and command line that run the shell command [cmd]. *)
-let shell cmd =
-	if Sys.win32 then begin
-		let shell = try Sys.getenv "COMSPEC" with Not_found -> "cmd.exe" in
-		let argv = [|shell; "/c"; cmd|] in
-		shell, argv, windows_command_line [|shell|] ^ " /c " ^ cmd
-	end else
-		"/bin/sh", [|"/bin/sh"; "-c"; cmd|], ""
+(* The Windows program and command line that run the shell command [cmd]. *)
+let windows_shell cmd =
+	let shell = try Sys.getenv "COMSPEC" with Not_found -> "cmd.exe" in
+	shell, windows_command_line [|shell|] ^ " /c " ^ cmd
 
-(* A program path relative to [cwd] is found there, as it would be by a
-   process started from [cwd]. *)
-let program_in ~cwd prog =
-	let has_dir = String.contains prog '/' || (Sys.win32 && String.contains prog '\\') in
-	if Filename.is_relative prog && has_dir then
-		Filename.concat cwd prog
-	else if Sys.win32 && not has_dir then begin
-		let local = Filename.concat cwd prog in
-		if Sys.file_exists (local ^ ".exe") then local ^ ".exe"
-		else if Filename.extension prog <> "" && Sys.file_exists local then local
-		else prog
-	end else
-		prog
+(* On Windows, a program path relative to [cwd] is found there, as it would be
+   by a process started from [cwd]. *)
+let windows_program_in ~cwd prog =
+	let has_dir = String.contains prog '/' || String.contains prog '\\' in
+	let local = Filename.concat cwd prog in
+	if has_dir then
+		(if Filename.is_relative prog then local else prog)
+	else if Sys.file_exists (local ^ ".exe") then local ^ ".exe"
+	else if Filename.extension prog <> "" && Sys.file_exists local then local
+	else prog
 
-let spawn ~cwd prog argv cmdline fd0 fd1 fd2 =
-	spawn_in cwd (program_in ~cwd prog) argv cmdline fd0 fd1 fd2
+let windows_spawn ~cwd prog cmdline fd0 fd1 fd2 =
+	spawn_in cwd (windows_program_in ~cwd prog) cmdline fd0 fd1 fd2
 
 (* A process whose standard descriptors are new pipes, started by [create]. *)
 let with_pipes create =
@@ -153,39 +151,19 @@ let run ?cwd cmd args =
 	match cwd, args with
 	| None, _ ->
 		run_in_current_dir cmd args
-	| Some cwd, None when not (spawn_in_supported ()) ->
-		run_in_current_dir (shell_command_in ~cwd cmd) None
-	| Some cwd, Some args when not (spawn_in_supported ()) ->
-		run_in_current_dir "/bin/sh" (Some (Array.append [|"-c"; "cd \"$0\" && exec \"$@\""; cwd; cmd|] args))
+	| Some cwd, None when not Sys.win32 ->
+		run_in_current_dir (sh_command_in ~cwd cmd) None
+	| Some cwd, Some args when not Sys.win32 ->
+		run_in_current_dir "/bin/sh" (Some (sh_args_in ~cwd cmd args))
 	| Some cwd, None ->
-		let prog, argv, cmdline = shell cmd in
-		with_pipes (spawn ~cwd prog argv cmdline)
+		let prog, cmdline = windows_shell cmd in
+		with_pipes (windows_spawn ~cwd prog cmdline)
 	| Some cwd, Some args ->
-		let argv = Array.append [|cmd|] args in
-		with_pipes (spawn ~cwd cmd argv (windows_command_line argv))
-
-(* As Sys.command: 255 for a child killed or stopped by a signal. *)
-let exit_code_of_status = function
-	| Unix.WEXITED c -> c
-	| Unix.WSIGNALED _ | Unix.WSTOPPED _ -> 255
+		with_pipes (windows_spawn ~cwd cmd (windows_command_line (Array.append [|cmd|] args)))
 
 let rec waitpid_no_eintr pid =
 	try snd (Unix.waitpid [] pid)
 	with Unix.Unix_error (Unix.EINTR,_,_) -> waitpid_no_eintr pid
-
-(* As system(), the interrupt and quit signals are ignored while waiting for
-   the child: they go to the child from the terminal. *)
-let wait_ignoring_signals pid =
-	if Sys.win32 then
-		waitpid_no_eintr pid
-	else begin
-		let old_int = Sys.signal Sys.sigint Sys.Signal_ignore in
-		let old_quit = Sys.signal Sys.sigquit Sys.Signal_ignore in
-		Fun.protect ~finally:(fun () ->
-			Sys.set_signal Sys.sigint old_int;
-			Sys.set_signal Sys.sigquit old_quit
-		) (fun () -> waitpid_no_eintr pid)
-	end
 
 (** As Sys.command, the shell command [cmd] with the standard descriptors of
 	this process, in directory [cwd] if given. *)
@@ -193,12 +171,15 @@ let command ?cwd cmd =
 	match cwd with
 	| None ->
 		Sys.command cmd
-	| Some cwd when not (spawn_in_supported ()) ->
-		Sys.command (shell_command_in ~cwd cmd)
+	| Some cwd when not Sys.win32 ->
+		Sys.command (sh_command_in ~cwd cmd)
 	| Some cwd ->
-		let prog, argv, cmdline = shell cmd in
-		match spawn ~cwd prog argv cmdline Unix.stdin Unix.stdout Unix.stderr with
-		| pid -> exit_code_of_status (wait_ignoring_signals pid)
+		let prog, cmdline = windows_shell cmd in
+		match windows_spawn ~cwd prog cmdline Unix.stdin Unix.stdout Unix.stderr with
+		| pid ->
+			(match waitpid_no_eintr pid with
+			| Unix.WEXITED c -> c
+			| Unix.WSIGNALED _ | Unix.WSTOPPED _ -> 255)
 		| exception Unix.Unix_error _ -> 127
 
 let read_stdout p buf pos len =
