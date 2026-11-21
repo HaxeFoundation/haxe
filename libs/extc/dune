@@ -12,10 +12,7 @@
 
 (library
 	(name extproc)
-	(libraries unix)
-	(foreign_stubs
-		(language c)
-		(names spawn_stubs))
+	(libraries unix luv)
 	(modules process)
 	(wrapped false)
 )
