@@ -1,0 +1,56 @@
+# The classes generated for coroutines are placed in the same order whatever
+# the order in which the functions of their module are typed.
+@targets js
+@shuffle-seeds 1 2 3 4 5 6 7 8
+
+=== initial
+@expect-output done
+--- Main.hx
+class Main {
+	@:coroutine static function a() {}
+	@:coroutine static function b() {}
+	@:coroutine static function c() {}
+	@:coroutine static function d() {}
+
+	static function e() {
+		@:coroutine function local1() {}
+		@:coroutine function local2() {}
+		return [local1, local2];
+	}
+
+	static function f() {
+		@:coroutine function local() {}
+		return local;
+	}
+
+	static function main() {
+		var all:Array<Dynamic> = [a, b, c, d, e(), f()];
+		trace("done");
+	}
+}
+
+=== retyped
+@expect-output done again
+--- Main.hx
+class Main {
+	@:coroutine static function a() {}
+	@:coroutine static function b() {}
+	@:coroutine static function c() {}
+	@:coroutine static function d() {}
+
+	static function e() {
+		@:coroutine function local1() {}
+		@:coroutine function local2() {}
+		return [local1, local2];
+	}
+
+	static function f() {
+		@:coroutine function local() {}
+		return local;
+	}
+
+	static function main() {
+		var all:Array<Dynamic> = [a, b, c, d, e(), f()];
+		trace("done again");
+	}
+}

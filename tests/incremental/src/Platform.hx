@@ -66,8 +66,9 @@ class Proc {
 	var code:Null<Int> = null;
 	var onExit:Null<() -> Void> = null;
 
-	public function new(cmd:String, args:Array<String>) {
-		process = new sys.io.Process(cmd, args);
+	/** [env] adds variables to the environment of the runner. **/
+	public function new(cmd:String, args:Array<String>, ?env:Map<String, String>) {
+		process = env == null ? new sys.io.Process(cmd, args) : start(cmd, args, env);
 		Thread.create(() -> {
 			// both pipes are read at the same time, so that a process filling one cannot block
 			var errRead = new Lock();
@@ -96,13 +97,32 @@ class Proc {
 		});
 	}
 
+	static function start(cmd:String, args:Array<String>, env:Map<String, String>):sys.io.Process {
+		#if jvm
+		var builder = @:privateAccess sys.io.Process.createProcessBuilder(cmd, args);
+		for (k => v in env)
+			builder.environment().put(k, v);
+		var proc = builder.start();
+		var process = Type.createEmptyInstance(sys.io.Process);
+		@:privateAccess {
+			process.proc = proc;
+			process.stdout = new jvm.io.NativeInput(proc.getInputStream());
+			process.stderr = new jvm.io.NativeInput(proc.getErrorStream());
+			process.stdin = new jvm.io.NativeOutput(proc.getOutputStream());
+		}
+		return process;
+		#else
+		throw new haxe.exceptions.NotImplementedException();
+		#end
+	}
+
 	static function readAll(input:haxe.io.Input):String {
 		return try input.readAll().toString() catch (_:Dynamic) "";
 	}
 
 	/** Runs [cmd] to its end. **/
-	@:coroutine public static function run(cmd:String, args:Array<String>):Proc {
-		var p = new Proc(cmd, args);
+	@:coroutine public static function run(cmd:String, args:Array<String>, ?env:Map<String, String>):Proc {
+		var p = new Proc(cmd, args, env);
 		p.exitCode();
 		return p;
 	}

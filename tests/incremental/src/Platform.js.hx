@@ -61,8 +61,18 @@ class Proc {
 	var error:Null<haxe.Exception> = null;
 	var onExit:Null<() -> Void> = null;
 
-	public function new(cmd:String, args:Array<String>) {
-		process = ChildProcess.spawn(cmd, args);
+	/** [env] adds variables to the environment of the runner. **/
+	public function new(cmd:String, args:Array<String>, ?env:Map<String, String>) {
+		if (env == null) {
+			process = ChildProcess.spawn(cmd, args);
+		} else {
+			var vars = new haxe.DynamicAccess<String>();
+			for (k => v in js.Node.process.env)
+				vars[k] = v;
+			for (k => v in env)
+				vars[k] = v;
+			process = ChildProcess.spawn(cmd, args, {env: vars});
+		}
 		process.stdout.on("data", (b:Buffer) -> out.push(b));
 		process.stderr.on("data", (b:Buffer) -> err.push(b));
 		process.on("error", (e:js.lib.Error) -> {
@@ -74,8 +84,8 @@ class Proc {
 	}
 
 	/** Runs [cmd] to its end. **/
-	@:coroutine public static function run(cmd:String, args:Array<String>):Proc {
-		var p = new Proc(cmd, args);
+	@:coroutine public static function run(cmd:String, args:Array<String>, ?env:Map<String, String>):Proc {
+		var p = new Proc(cmd, args, env);
 		p.exitCode();
 		return p;
 	}

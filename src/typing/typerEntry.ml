@@ -247,6 +247,9 @@ let create com macros =
 			module_check_policies = [];
 			delayed = Array.init TyperPass.all_typer_passes_length (fun _ -> { tasks = []; tasks_late = []});
 			delayed_min_index = 0;
+			typer_shuffle = (match Sys.getenv_opt "HAXE_TYPER_SHUFFLE" with
+				| None | Some "" -> None
+				| Some seed -> Some (Random.State.make [|Hashtbl.hash seed|]));
 			debug_delayed = [];
 			retain_meta = Common.defined com Define.RetainUntypedMeta;
 			global_using = [];

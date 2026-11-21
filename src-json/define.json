@@ -499,6 +499,12 @@
 		"platforms": ["cpp"]
 	},
 	{
+		"name": "IncrementalCheckRefs",
+		"define": "incremental-check-refs",
+		"signatureNeutral": true,
+		"doc": "Check that no type or field reference of the compilation points to an older version of its module (compilation server)."
+	},
+	{
 		"name": "Interp",
 		"define": "interp",
 		"doc": "The code is compiled to be run with `--interp`."

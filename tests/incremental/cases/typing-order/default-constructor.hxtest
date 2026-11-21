@@ -1,0 +1,35 @@
+# A class without a constructor inherits the one of its super class, also
+# when the super class inherits its own from further up, whatever the order in
+# which the classes are typed.
+@targets js
+@shuffle-seeds 1 2 3 4 5 6 7 8
+
+=== initial
+@expect-output 1 2 3 4
+--- Main.hx
+class Main {
+	static function main() {
+		trace(new C1(1).v + " " + new C2(2).v + " " + new C3(3).v + " " + new C4(4).v);
+	}
+}
+--- C4.hx
+class C4 extends C3 {}
+--- C3.hx
+class C3 extends C2 {}
+--- C2.hx
+class C2 extends C1 {}
+--- C1.hx
+class C1 extends Base {}
+--- Base.hx
+class Base {
+	public var v:Int;
+	public function new(v:Int) {
+		this.v = v;
+	}
+}
+
+=== retyped
+@expect-output 1 2 3 4
+--- C3.hx
+class C3 extends C2 {
+}

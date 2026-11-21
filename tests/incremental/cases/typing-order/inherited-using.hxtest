@@ -1,0 +1,73 @@
+# The @:using of a class or interface applies to the classes extending or
+# implementing it, through several levels, whatever the order in which the
+# classes are typed.
+@targets js
+@shuffle-seeds 1 2 3 4 5 6 7 8
+
+=== initial
+@expect-output base 1 2 3 4 5 6
+--- Main.hx
+class Main {
+	static function main() {
+		trace(new Base().describe() + " " + new Child1().ext() + " " + new Child2().ext() + " " + new Child3().ext()
+			+ " " + new Impl1().iext() + " " + new Impl2().iext() + " " + new Impl3().iext());
+	}
+}
+--- Child3.hx
+class Child3 extends Child2 {
+	public function new() super(3);
+}
+--- Child2.hx
+class Child2 extends Child1 {
+	public function new(v = 2) super(v);
+}
+--- Child1.hx
+class Child1 extends Base {
+	public var v:Int;
+	public function new(v = 1) {
+		super();
+		this.v = v;
+	}
+}
+--- Base.hx
+@:using(Ext)
+class Base {
+	public function new() {}
+}
+--- Ext.hx
+class Ext {
+	public static function describe(b:Base) return "base";
+	public static function ext(c:Child1) return c.v;
+	public static function iext(i:IBase) return i.n();
+}
+--- Impl3.hx
+class Impl3 implements IChild2 {
+	public function new() {}
+	public function n() return 6;
+}
+--- Impl2.hx
+class Impl2 implements IChild1 {
+	public function new() {}
+	public function n() return 5;
+}
+--- Impl1.hx
+class Impl1 implements IBase {
+	public function new() {}
+	public function n() return 4;
+}
+--- IChild2.hx
+interface IChild2 extends IChild1 {}
+--- IChild1.hx
+interface IChild1 extends IBase {}
+--- IBase.hx
+@:using(Ext)
+interface IBase {
+	function n():Int;
+}
+
+=== retyped
+@expect-output base 1 2 3 4 5 6
+--- Child3.hx
+class Child3 extends Child2 {
+	public function new() super(1 + 2);
+}

@@ -343,6 +343,17 @@ let rec extends c csup =
 		| None -> false
 		| Some (c,_) -> extends c csup
 
+(* The @:using classes of a type: its own, then those of its super class and
+   interfaces. *)
+let rec type_usings mt =
+	let own = (t_infos mt).mt_using in
+	match mt with
+	| TClassDecl c ->
+		let inherited (c,_) = type_usings (TClassDecl c) in
+		own @ (match c.cl_super with Some csup -> inherited csup | None -> []) @ List.concat_map inherited c.cl_implements
+	| _ ->
+		own
+
 let add_descendant c descendant =
 	c.cl_descendants <- descendant :: c.cl_descendants
 
