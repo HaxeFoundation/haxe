@@ -127,7 +127,7 @@ let get_memory_json (cs : CompilationCache.t) mreq =
 				"list",jarray l;
 			];
 			"binaryCache",jobject [
-				"size",jint (mem_size cache_mem.(2));
+				"size",jint 0;
 			];
 		]
 	| MModule(sign,path) ->

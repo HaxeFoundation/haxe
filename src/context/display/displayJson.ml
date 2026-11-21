@@ -116,65 +116,14 @@ class display_handler (jsonrpc : jsonrpc_handler) com (cs : CompilationCache.t) 
 		end
 end
 
-class hxb_reader_api_com
-	~(typing_mode : HxbData.typing_mode)
-	(com : Common.context)
-	(cc : CompilationCache.context_cache)
-= object(self)
-	method make_module (path : path) (file : string) =
-		let mc = cc#get_hxb_module path in
-		{
-			m_id = mc.mc_id;
-			m_path = path;
-			m_types = [];
-			m_statics = None;
-			(* Creating a new m_extra because if we keep the same reference, display requests *)
-			(* can alter it with bad data (for example adding dependencies that are not cached) *)
-			m_extra = { mc.mc_extra with m_deps = mc.mc_extra.m_deps; m_display_deps = None }
-		}
-
-	method add_module (m : module_def) =
-		com.module_lut#add m.m_path m;
-
-	method resolve_type (pack : string list) (mname : string) (tname : string) (_:HxbData.typing_mode) =
-		let path = (pack,mname) in
-		let m = self#find_module path in
-		List.find (fun t -> snd (t_path t) = tname) m.m_types
-
-	method resolve_module (path : path) (_:HxbData.typing_mode) =
-		self#find_module path
-
-	method find_module (m_path : path) =
-		try
-			com.module_lut#find m_path
-		with Not_found -> try
-			cc#find_module m_path
-		with Not_found ->
-			let mc = cc#get_hxb_module m_path in
-			let reader = new HxbReader.hxb_reader mc.mc_path com.hxb_reader_stats (if Common.defined com Define.HxbTimes then Some com.timer_ctx else None) in
-			fst (reader#read_chunks_until (self :> HxbReaderApi.hxb_reader_api) mc.mc_chunks (if typing_mode = FullTyping then EOM else MTF) typing_mode)
-
-	method basic_types =
-		com.basic
-
-	method get_var_id (i : int) =
-		i
-
-	method read_expression_eagerly (cf : tclass_field) =
-		false
-
-	method make_lazy_type t f =
-		TLazy (make_unforced_lazy t f "com-api")
-end
-
-let find_module ~(typing_mode : HxbData.typing_mode) com cc path =
-	(new hxb_reader_api_com ~typing_mode com cc)#find_module path
+let find_module com cc path =
+	try
+		com.module_lut#find path
+	with Not_found ->
+		cc#find_module path
 
 let cached_modules (cc : CompilationCache.context_cache) =
-	let l = Hashtbl.fold (fun _ m acc -> (m.m_path,m.m_extra) :: acc) cc#get_modules [] in
-	Hashtbl.fold (fun _ (mc : HxbData.module_cache) acc ->
-		if Hashtbl.mem cc#get_modules mc.mc_path then acc else (mc.mc_path,mc.mc_extra) :: acc
-	) cc#get_hxb l
+	Hashtbl.fold (fun _ m acc -> (m.m_path,m.m_extra) :: acc) cc#get_modules []
 
 type handler_context = {
 	com : Common.context;
@@ -448,10 +397,9 @@ let handler =
 			let path = Path.parse_path (hctx.jsonrpc#get_string_param "path") in
 			let cs = hctx.display#get_cs in
 			let cc = cs#get_context sign in
-			let typing_mode:HxbData.typing_mode = if Define.defined hctx.com.defines Define.DisableHxbOptimizations then FullTyping else AllowPartialTyping in
 			try
-				let m = find_module ~typing_mode hctx.com cc path in
-				Result (generate_module (cached_modules cc) (find_module ~typing_mode hctx.com cc) m)
+				let m = find_module hctx.com cc path in
+				Result (generate_module (cached_modules cc) (find_module hctx.com cc) m)
 			with Not_found ->
 				Error (jstring "No such module")
 		);
@@ -461,7 +409,7 @@ let handler =
 			let typeName = hctx.jsonrpc#get_string_param "typeName" in
 			let cc = hctx.display#get_cs#get_context sign in
 			try
-				let m = find_module ~typing_mode:FullTyping hctx.com cc path in
+				let m = find_module hctx.com cc path in
 				let rec loop mtl = match mtl with
 					| [] ->
 						Error (jstring "No such type")

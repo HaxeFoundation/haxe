@@ -1,0 +1,9 @@
+-main Main
+--interp
+--hxb bin/main.hxb
+
+--next
+
+--hxb-lib bin/main.hxb
+-main Main
+--interp

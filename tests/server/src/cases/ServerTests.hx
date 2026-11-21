@@ -252,13 +252,10 @@ class ServerTests extends TestCase {
 		assertSuccess();
 	}
 
-	@:variant("InMemory", true)
-	@:variant("Hxb", false)
-	function testCachedModulesList(inMemory:Bool) {
+	function testCachedModulesList(_) {
 		vfs.putContent("Main.hx", "class Main { static function main() Dep.f(); }");
 		vfs.putContent("Dep.hx", "class Dep { public static function f() {} }");
 		var args = ["--main", "Main", "--no-output"];
-		args = args.concat(inMemory ? ["-D", "disable-hxb-cache"] : ["--undefine", "disable-hxb-cache"]);
 		runHaxe(args);
 		assertSuccess();
 		final sig = runHaxeJson(args, ServerMethods.Contexts, null).find(ctx -> ctx.desc == "after_init_macros").signature;
@@ -269,25 +266,15 @@ class ServerTests extends TestCase {
 		Assert.isTrue(dep.dependents.exists(m -> m.path == "Main"));
 	}
 
-	@:variant("InMemory", true)
-	@:variant("Hxb", false)
-	function testDisplayModuleRecache(inMemory:Bool) {
+	function testDisplayModuleRecache(_) {
 		vfs.putContent("HelloWorld.hx", getTemplate("HelloWorld.hx"));
 		var args = ["--main", "HelloWorld", "--interp"];
-		if (inMemory)
-			args = args.concat(["-D", "disable-hxb-cache"]);
-		else
-			args = args.concat(["--undefine", "disable-hxb-cache"]);
 
 		runHaxe(args);
 		runHaxe(args);
 		assertReuse("HelloWorld");
 
 		var displayArgs = ["--main", "HelloWorld", "--interp"];
-		if (inMemory)
-			displayArgs = displayArgs.concat(["-D", "disable-hxb-cache"]);
-		else
-			displayArgs = displayArgs.concat(["--undefine", "disable-hxb-cache"]);
 
 		runHaxeJson(displayArgs, DisplayMethods.Hover, {file: new FsPath("HelloWorld.hx"), offset: 64});
 		runHaxe(args);

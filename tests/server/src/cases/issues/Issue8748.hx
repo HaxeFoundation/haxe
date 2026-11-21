@@ -8,8 +8,6 @@ class Issue8748 extends TestCase {
 		var args = [
 			"-main",
 			"WithDependency",
-			// hxb optimizations will ignore invalidation there
-			"-D", "disable-hxb-optimizations",
 			"--interp",
 			"--macro",
 			"haxe.macro.Context.registerModuleDependency(\"Dependency\", \"res/dep.dep\")"

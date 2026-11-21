@@ -737,11 +737,11 @@ class hxb_reader_api_typeload
 	method add_module (m : module_def) =
 		com.module_lut#add m.m_path m
 
-	method resolve_type (pack : string list) (mname : string) (tname : string) (_:HxbData.typing_mode) =
+	method resolve_type (pack : string list) (mname : string) (tname : string) =
 		let m = load_module com g (pack,mname) p in
 		List.find (fun t -> snd (t_path t) = tname) m.m_types
 
-	method resolve_module (path : path) (_:HxbData.typing_mode) =
+	method resolve_module (path : path) =
 		load_module com g path p
 
 	method basic_types =
@@ -805,9 +805,7 @@ and load_module' com g m p =
 		match !TypeloadCacheHook.type_module_hook com (delay g) m p with
 		| GoodModule m ->
 			m
-		| BinaryModule _ ->
-			die "" __LOC__ (* The server builds those *)
-		| NoModule | BadModule _ | BadBinaryModule _ -> try
+		| NoModule | BadModule _ -> try
 			load_hxb_module com g m p
 		with Not_found ->
 			let raise_not_found () = raise_error_msg (Module_not_found m) p in
