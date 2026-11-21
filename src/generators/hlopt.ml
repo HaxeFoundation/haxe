@@ -886,6 +886,8 @@ let _optimize (f:fundecl) =
 		end
 	) blocks_pos;
 	let trap_writes p = try Hashtbl.find trap_writes p with Not_found -> ISet.empty in
+	let trap_regs = Hashtbl.create 0 in
+	Array.iteri (fun i op -> match op with OTrap (r,d) -> Hashtbl.replace trap_regs (i + 1 + d) r | _ -> ()) f.code;
 
 	let rec propagate b =
 		let state = if b.bloop then
@@ -1097,7 +1099,10 @@ let _optimize (f:fundecl) =
 	Hashtbl.iter (fun _ b ->
 		List.iter (fun p ->
 			match (try (Hashtbl.find blocks_pos p).bneed_all with Not_found -> None) with
-			| Some need -> ISet.iter (fun r -> set_live r b.bstart b.bend) (ISet.inter need (trap_writes p))
+			| Some need ->
+				let need = ISet.inter need (trap_writes p) in
+				let need = (try ISet.remove (Hashtbl.find trap_regs p) need with Not_found -> need) in
+				ISet.iter (fun r -> set_live r b.bstart b.bend) need
 			| None -> ()
 		) b.btrap
 	) blocks_pos;

@@ -408,6 +408,26 @@ class TestExceptions extends Test {
 		eq(42, inCatch);
 		eq(42, x);
 	}
+	// The caught value is the exception even when the try used temporaries, and a nested handler
+	// still sees the writes made before the throw.
+	function testCaughtValueAfterWritesInTry() {
+		var x = 0;
+		var caught = null;
+		try {
+			try {
+				var s = "a" + x;
+				x = s.length;
+				throwString();
+				x = 0;
+			} catch(e:haxe.io.Eof) {
+				x = -1;
+			}
+		} catch(e:String) {
+			caught = e;
+		}
+		eq("error", caught);
+		eq(2, x);
+	}
 	function throwString() {
 		throw "error";
 	}
