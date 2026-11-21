@@ -1,0 +1,49 @@
+# Two structures share a field whose type is a monomorph bound by a previous
+# compilation; one of them is in a module typed again.
+@targets hl
+@args -D disable-hxb-cache
+
+=== initial
+@expect-success
+--- Main.hx
+class Main {
+	static function main() {
+		Kept.make("a");
+		Edited.make("b");
+	}
+}
+--- Params.hx
+class Params {
+	public function new() {}
+}
+--- Kept.hx
+class Kept {
+	public static var map = new Map<String, { rt : String, params : Params }>();
+	public static function make(name:String) {
+		var params = null;
+		if (name.length > 0)
+			params = new Params();
+		map.set(name, { rt : name, params : params });
+	}
+}
+--- Edited.hx
+class Edited {
+	public static var map = new Map<String, { sign : String, params : Params }>();
+	public static function make(name:String) {
+		var params = name.length > 1 ? null : new Params();
+		map.set(name, { sign : name, params : params });
+		return 1;
+	}
+}
+
+=== a literal of Edited changes
+@expect-success
+--- Edited.hx
+class Edited {
+	public static var map = new Map<String, { sign : String, params : Params }>();
+	public static function make(name:String) {
+		var params = name.length > 2 ? null : new Params();
+		map.set(name, { sign : name, params : params });
+		return 1;
+	}
+}

@@ -104,6 +104,9 @@ class Macro {
 		for (cf in c.fields.get()) {
 			checkField(cf);
 		}
+		if (c.constructor != null) {
+			checkField(c.constructor.get());
+		}
 	}
 
 	static function extractHlContent(e:Expr):String {
