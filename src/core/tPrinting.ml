@@ -669,6 +669,7 @@ module Printer = struct
 					Hashtbl.replace seen path ();
 					loop false reason
 				end
+			| DependencyNotCached path -> Buffer.add_string buf ("DependencyNotCached " ^ (s_type_path path))
 			| Tainted cause -> Buffer.add_string buf ("Tainted " ^ (s_module_tainting_reason cause))
 			| FileChanged file -> Buffer.add_string buf ("FileChanged " ^ file)
 			| Shadowed file -> Buffer.add_string buf ("Shadowed " ^ file)

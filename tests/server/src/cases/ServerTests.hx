@@ -289,6 +289,17 @@ class ServerTests extends TestCase {
 		assertSkipping("HelloWorld", Tainted("server/invalidate"));
 	}
 
+	function testCompletionLoadsUncachedModule() {
+		var source = 'class Main { static function main() { trace(new haxe.Template("")); } }';
+		vfs.putContent("Main.hx", source);
+		var args = ["--main", "Main", "--js", "out.js"];
+		runHaxe(args);
+		assertSuccess();
+		runHaxeJson(args, DisplayMethods.Completion, {file: new FsPath("Main.hx"), offset: source.indexOf("haxe.") + 5, wasAutoTriggered: true});
+		runHaxe(args);
+		assertSuccess();
+	}
+
 	function testMutuallyDependent() {
 		vfs.putContent("MutuallyDependent1.hx", getTemplate("MutuallyDependent1.hx"));
 		vfs.putContent("MutuallyDependent2.hx", getTemplate("MutuallyDependent2.hx"));
