@@ -16,6 +16,8 @@ type cached_file = {
 type cached_directory = {
 	c_path : string;
 	mutable c_mtime : float;
+	(* Whether its new subdirectories are watched too. *)
+	c_recursive : bool;
 }
 
 type cached_native_lib = {
@@ -174,9 +176,10 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 	method get_children = children
 end
 
-let create_directory path mtime = {
+let create_directory ?(recursive=true) path mtime = {
 	c_path = path;
 	c_mtime = mtime;
+	c_recursive = recursive;
 }
 
 class virtual server_task (id : string list) (priority : int) = object(self)
