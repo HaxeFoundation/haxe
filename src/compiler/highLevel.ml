@@ -105,6 +105,6 @@ let entry sctx request_scope (request_args : Args.request_args) =
 			else
 				code
 	in
-	let code = Std.finally Vfs.reset_cwd loop request_args.parts in
+	let code = Fun.protect ~finally:Vfs.reset_cwd (fun () -> loop request_args.parts) in
 	Unix.chdir curdir;
 	code
