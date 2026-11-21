@@ -103,6 +103,8 @@ class function_arguments
 	in
 object(self)
 
+	method syntax = syntax
+
 	val mutable type_repr = None
 	val mutable expr_repr = None
 

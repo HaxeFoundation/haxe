@@ -31,11 +31,11 @@ class Lib {
 	/**
 		Load and return a Neko primitive from a NDLL library.
 	**/
-	public static function load(lib:String, prim:String, nargs:Int):Dynamic {
+	public static function load(lib:String, prim:String, nargs:Int):haxe.Constraints.Function {
 		return untyped __dollar__loader.loadprim((lib + "@" + prim).__s, nargs);
 	}
 
-	public static function loadLazy(lib, prim, nargs):Dynamic {
+	public static function loadLazy(lib, prim, nargs):haxe.Constraints.Function {
 		try {
 			return load(lib, prim, nargs);
 		} catch (e:Dynamic) {
