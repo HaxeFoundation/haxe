@@ -75,6 +75,10 @@ module Connect = struct
 end
 
 module SocketRequest = struct
+	(* Raised when a client connection ends or stalls before sending a complete request.
+	   The server drops that connection and keeps waiting. *)
+	exception Connection_aborted of string
+
 	let setup_client_stdin_forward overflow sin =
 		(* Set up stdin forwarding: create a pipe and a thread that reads
 		   from the client socket and writes to the pipe. *)
@@ -114,7 +118,7 @@ module SocketRequest = struct
 			try
 				let r = Unix.recv sin tmp 0 bufsize [] in
 				if r = 0 then
-					failwith "Incomplete request"
+					raise (Connection_aborted "Incomplete request")
 				else begin
 					ServerMessage.socket_message (Printf.sprintf "Reading %d bytes\n" r);
 					let rec find_null i = if i >= r then -1 else if Bytes.get tmp i = '\000' then i else find_null (i + 1) in
@@ -132,7 +136,7 @@ module SocketRequest = struct
 				end
 			with Unix.Unix_error((Unix.EWOULDBLOCK|Unix.EAGAIN),_,_) ->
 				if count = 100 then
-					failwith "Aborting inactive connection"
+					raise (Connection_aborted "Aborting inactive connection")
 				else begin
 					ServerMessage.socket_message "Waiting for data...";
 					ignore(Unix.select [] [] [] 0.05);
@@ -383,8 +387,12 @@ let wait_loop verbose accept =
 				let data = Helper.parse_hxml_data hxml in
 				let parsed_args = Args.parse_args data in
 				RequestQueue.add rq parsed_args stdin conn;
-			with Unix.Unix_error _ ->
+			with
+			| Unix.Unix_error _ ->
 				ServerMessage.socket_message "Connection Aborted";
+				conn.close()
+			| SocketRequest.Connection_aborted msg ->
+				ServerMessage.socket_message ("Connection Aborted: " ^ msg);
 				conn.close()
 			end;
 		done

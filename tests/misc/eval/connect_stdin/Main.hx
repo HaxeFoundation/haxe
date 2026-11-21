@@ -210,6 +210,20 @@ class Main {
 			return true;
 		});
 
+		// Test 12: A connection closed without sending a request (e.g. a port probe)
+		// must not stop the server.
+		test("empty connection keeps server running", () -> {
+			var socket = new sys.net.Socket();
+			socket.connect(new sys.net.Host("127.0.0.1"), port);
+			socket.close();
+			Sys.sleep(0.5);
+			var client = new Process("haxe", ["--connect", Std.string(port), "-cp", ".", "--main", "StdinEcho", "--no-output"]);
+			client.stdin.close();
+			var exitCode = client.exitCode();
+			client.close();
+			return exitCode == 0;
+		});
+
 		// Clean up the server
 		server.kill();
 		server.close();
