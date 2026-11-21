@@ -870,6 +870,25 @@ let _optimize (f:fundecl) =
 	in
 *)
 
+	(* The registers written inside each trap, by handler position. The only edges to a handler come
+	   from the trap, its end and explicit throws, but any instruction inside the trap can throw. *)
+	let trap_writes = Hashtbl.create 0 in
+	Hashtbl.iter (fun _ b ->
+		if b.btrap <> [] then begin
+			let w = ref ISet.empty in
+			for i = b.bstart to b.bend do
+				opcode_fx (fun r read -> if not read then w := ISet.add r !w) (op i)
+			done;
+			List.iter (fun p ->
+				let prev = try Hashtbl.find trap_writes p with Not_found -> ISet.empty in
+				Hashtbl.replace trap_writes p (ISet.union prev !w)
+			) b.btrap
+		end
+	) blocks_pos;
+	let trap_writes p = try Hashtbl.find trap_writes p with Not_found -> ISet.empty in
+	let trap_regs = Hashtbl.create 0 in
+	Array.iteri (fun i op -> match op with OTrap (r,d) -> Hashtbl.replace trap_regs (i + 1 + d) r | _ -> ()) f.code;
+
 	let rec propagate b =
 		let state = if b.bloop then
 			empty_state()
@@ -911,6 +930,13 @@ let _optimize (f:fundecl) =
 			r.ralias.rbind <- List.filter (fun r2 -> r2 != r) r.ralias.rbind;
 			r.ralias <- r
 		in
+		ISet.iter (fun r ->
+			let s = state.(r) in
+			List.iter (fun s2 -> s2.ralias <- s2) s.rbind;
+			s.rbind <- [];
+			s.rnullcheck <- false;
+			unalias s
+		) (trap_writes b.bstart);
 		let rec loop i =
 			let do_read r =
 				let w = last_write.(r) in
@@ -1073,6 +1099,19 @@ let _optimize (f:fundecl) =
 			Option.get b.bneed_all
 	in
 	ignore(live root);
+
+	(* Keep the registers which a handler needs and which its trap writes alive throughout the trap,
+	   so that a write isn't removed because a later write inside the trap overwrites it. *)
+	Hashtbl.iter (fun _ b ->
+		List.iter (fun p ->
+			match (try (Hashtbl.find blocks_pos p).bneed_all with Not_found -> None) with
+			| Some need ->
+				let need = ISet.inter need (trap_writes p) in
+				let need = (try ISet.remove (Hashtbl.find trap_regs p) need with Not_found -> need) in
+				ISet.iter (fun r -> set_live r b.bstart b.bend) need
+			| None -> ()
+		) b.btrap
+	) blocks_pos;
 
 	(* nop *)
 
