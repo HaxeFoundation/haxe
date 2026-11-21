@@ -326,6 +326,15 @@ let emit_safe_cast exec t p = fun env ->
 
 (* Calls *)
 
+(* The function [v] gives, forced once by the call site (the cache is only
+   written with the forced value, which never changes). *)
+let force_function cache v = match !cache with
+	| Some f -> f
+	| None ->
+		let f = AtomicLazy.force v in
+		cache := Some f;
+		f
+
 (* super.call() - immediate *)
 
 let emit_super_field_call max_depth slot proto i execs p =
@@ -342,10 +351,11 @@ let emit_super_field_call max_depth slot proto i execs p =
 
 let emit_proto_field_call max_depth v execs p =
 	let args = emit_args execs in
+	let fcache = ref None in
 	let pmin = p.pmin and pmax = p.pmax in
 	(fun env ->
 		check_stack_depth max_depth env;
-		let f = AtomicLazy.force v in
+		let f = force_function fcache v in
 		let vl = args env in
 		env.env_leave_pmin <- pmin;
 		env.env_leave_pmax <- pmax;
@@ -361,14 +371,38 @@ let get_prototype v p = match vresolve v with
 	| VVector _ -> (get_ctx()).vector_prototype
 	| _ -> unexpected_value_p v "instance" p
 
+(* The prototype a call site last saw, with the prototype declaring the method
+   and its slot (a monomorphic inline cache). *)
+type method_cache = {
+	mc_proto : vprototype;
+	mc_owner : vprototype;
+	mc_slot : int;
+}
+
+let rec find_method proto name =
+	match IntMap.find_opt name proto.pnames with
+	| Some i -> proto,i
+	| None -> match proto.pparent with
+		| Some proto -> find_method proto name
+		| None -> raise Not_found
+
 let emit_method_call max_depth exec name execs p =
 	let args = emit_args execs in
 	let pmin = p.pmin and pmax = p.pmax in
+	let cache = ref None in
+	let lookup proto =
+		let owner,i = try find_method proto name with Not_found -> throw_string (Printf.sprintf "Field %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p in
+		cache := Some {mc_proto = proto; mc_owner = owner; mc_slot = i};
+		owner.pfields.(i)
+	in
 	(fun env ->
 		check_stack_depth max_depth env;
 		let vthis = exec env in
 		let proto = get_prototype vthis p in
-		let vf = try proto_field_raise proto name with Not_found -> throw_string (Printf.sprintf "Field %s not found on prototype %s" (rev_hash name) (rev_hash proto.ppath)) p in
+		let vf = match !cache with
+			| Some c when c.mc_proto == proto -> c.mc_owner.pfields.(c.mc_slot)
+			| _ -> lookup proto
+		in
 		let vl = args env in
 		env.env_leave_pmin <- pmin;
 		env.env_leave_pmax <- pmax;
@@ -393,10 +427,11 @@ let emit_field_call max_depth exec name execs p =
 
 let emit_constructor_call max_depth proto v execs p =
 	let args = emit_args execs in
+	let fcache = ref None in
 	let pmin = p.pmin and pmax = p.pmax in
 	(fun env ->
 		check_stack_depth max_depth env;
-		let f = AtomicLazy.force v in
+		let f = force_function fcache v in
 		let vthis = create_instance_direct proto INormal in
 		let vl = args env in
 		env.env_leave_pmin <- pmin;
@@ -424,10 +459,11 @@ let emit_special_super_call max_depth fnew execs =
 
 let emit_super_call max_depth v execs p =
 	let args = emit_args execs in
+	let fcache = ref None in
 	let pmin = p.pmin and pmax = p.pmax in
 	(fun env ->
 		check_stack_depth max_depth env;
-		let f = AtomicLazy.force v in
+		let f = force_function fcache v in
 		let vthis = env.env_locals.(0) in
 		let vl = args env in
 		env.env_leave_pmin <- pmin;

@@ -794,7 +794,7 @@ module TypeBinding = struct
 		in
 		let r = make_unforced_lazy t (fun () ->
 			(* type constant init fields (issue #1956) *)
-			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
+			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then MacroFailure.typing ctx.com cf (fun () ->
 				enter_field_typing_pass ctx.g ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
 				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.com.is_macro_context then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 				let e = type_var_field ctx t e fctx.is_static fctx.is_display_field p in
@@ -853,7 +853,7 @@ module TypeBinding = struct
 				cf.cf_expr <- Some e;
 				cf.cf_type <- t;
 				check_field_display ctx fctx c cf;
-			end;
+			);
 			t
 		) "bind_var" in
 		if not fctx.is_static then cctx.force_constructor <- true;
@@ -922,7 +922,7 @@ module TypeBinding = struct
 			end;
 		in
 		let maybe_bind () =
-			if not ctx.g.return_partial_type then bind ();
+			if not ctx.g.return_partial_type then MacroFailure.typing ctx.com cf bind;
 			t
 		in
 		let r = make_unforced_lazy t maybe_bind "type_fun" in
@@ -1751,7 +1751,7 @@ let init_class ctx_c cctx c p herits fields =
 		let ctx = create_typer_context_for_field ctx_c cctx fctx f cf in
 		try
 			if fctx.is_field_debug then print_endline ("Created field context: " ^ dump_field_context fctx);
-			init_field (ctx,cctx,fctx) f cf;
+			MacroFailure.typing ctx.com cf (fun () -> init_field (ctx,cctx,fctx) f cf);
 			if fctx.field_kind = CfrInit then begin
 				if !has_init then
 					display_error ctx.com ("Duplicate class field declaration : " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name) cf.cf_name_pos

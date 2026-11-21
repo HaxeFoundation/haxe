@@ -537,9 +537,14 @@ and jit_expr jit return e =
 				let i = get_proto_field_index proto name in
 				AtomicLazy.from_fun (fun () -> match proto.pfields.(i) with VFunction (f,_) -> f | v -> cannot_call v e.epos)
 			in
-			let jit_with_null_check ef = match local_slot jit ef with
-				| Some slot -> emit_local_null_check slot ef.epos
-				| None -> emit_null_check (jit_expr jit false ef) ef.epos
+			let jit_with_null_check ef = match ef.eexpr with
+				| TConst TThis ->
+					(* [this] is never null *)
+					jit_expr jit false ef
+				| _ ->
+					match local_slot jit ef with
+					| Some slot -> emit_local_null_check slot ef.epos
+					| None -> emit_null_check (jit_expr jit false ef) ef.epos
 			in
 			let instance_call c =
 				let exec = jit_with_null_check ef in
@@ -826,7 +831,8 @@ let jit_timer ctx f =
 	Timer.time ctx.timer_ctx [(if ctx.is_macro then "macro" else "interp");"jit"] f ()
 
 (* Creates a [EvalValue.vfunc] of function [tf], which can be [static] or not. *)
-let jit_tfunction ctx key_type key_field tf static pos =
+let jit_tfunction ctx cf key_type key_field tf static pos =
+	if ctx.field_failed cf then (fun _ -> raise MacroApi.Abort) else
 	let f () =
 		(* Create a new JitContext with an initial scope *)
 		let jit = EvalJitContext.create ctx in
@@ -837,6 +843,18 @@ let jit_tfunction ctx key_type key_field tf static pos =
 		if hasret then create_function ctx eci exec fl else create_function_noret ctx eci exec fl
 	in
 	jit_timer ctx f
+
+(* The same, jitted on the first call of the function, which keeps its identity. *)
+let jit_tfunction_lazy ctx cf key_type key_field tf static pos =
+	let jitted = AtomicLazy.from_fun (fun () -> jit_tfunction ctx cf key_type key_field tf static pos) in
+	let cache = ref None in
+	(fun vl -> match !cache with
+		| Some f -> f vl
+		| None ->
+			let f = AtomicLazy.force jitted in
+			cache := Some f;
+			f vl
+	)
 
 (* JITs expression [e] to a function. This is used for expressions that are not in a method. *)
 let jit_expr ctx e =

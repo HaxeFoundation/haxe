@@ -197,7 +197,7 @@ let encode_obj l =
 		}
 
 let encode_obj_s l =
-	encode_obj (List.map (fun (s,v) -> (hash s),v) l)
+	encode_obj (List.map (fun (s,v) -> (hash_literal s),v) l)
 
 (* Enum values *)
 

@@ -651,6 +651,7 @@ end
 
 let rec type_inline (ictx : inline_context) cf f ethis params tret config p ?(self_calling_closure=false) force =
 	let scom = ictx.scom in
+	if MacroFailure.has_failed cf then MacroFailure.report ();
 	try
 		let cl = (match follow ethis.etype with
 			| TInst (c,_) -> c
