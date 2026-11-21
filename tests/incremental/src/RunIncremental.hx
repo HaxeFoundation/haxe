@@ -73,6 +73,8 @@ class RunIncremental {
 	static var timeout = 300;
 	/** The file system mode of the server: `legacy`, or `watch` (see `--vfs`). **/
 	static var vfsMode = "legacy";
+	/** Marks an expectation of [runCase]'s `skipped` that only applies to a server watching the file system. **/
+	static inline final WATCH_ONLY = "--vfs watch";
 	/** Compiler features some expectations need, detected by `detectFeatures`. **/
 	static var features:Map<String, Bool> = [];
 	static var root:String;
@@ -130,8 +132,6 @@ class RunIncremental {
 		FileSystem.createDirectory(workRoot);
 
 		detectFeatures();
-		if (features["server/vfs"])
-			vfsMode = "watch";
 		if (Sys.getEnv("HAXE_VFS") == "watch" && vfsMode != "watch") {
 			Sys.println("HAXE_VFS=watch is not supported by this compiler");
 			Sys.exit(2);
@@ -189,12 +189,17 @@ class RunIncremental {
 		// the features some expectations needed and the compiler does not have
 		var unsupported = [];
 		var skippedExpectations = 0;
-		for (run in runs) {
-			skippedExpectations += run.skipped.length;
-			for (feature in run.skipped)
+		var watchOnly = 0;
+		for (run in runs)
+			for (feature in run.skipped) {
+				if (feature == WATCH_ONLY) {
+					watchOnly++;
+					continue;
+				}
+				skippedExpectations++;
 				if (!unsupported.contains(feature))
 					unsupported.push(feature);
-		}
+			}
 		var passed = 0, failed = 0, xfail = 0, xpass = 0, skipped = 0;
 		for (r in results) {
 			switch (r.outcome) {
@@ -209,6 +214,8 @@ class RunIncremental {
 		Sys.println('$passed passed, $failed failed, $xfail known failures, $xpass unexpected passes, $skipped skipped');
 		if (skippedExpectations > 0)
 			Sys.println('$skippedExpectations expectations not checked (not supported by this compiler: ${unsupported.join(", ")})');
+		if (watchOnly > 0)
+			Sys.println('$watchOnly expectations only checked with --vfs watch');
 		if (!keep)
 			removeDir(workRoot);
 		return failed + xpass > 0 ? 1 : 0;
@@ -278,8 +285,10 @@ class RunIncremental {
 			if (method == "server/vfs") {
 				// the mode of the server, and whether it sees changes from file system events
 				var result:Dynamic = try haxe.Json.parse(err).result.result catch (_) null;
-				features[method] = result != null && result.mode == "watch";
-				features["file system events"] = features[method] && result.watching == true;
+				features[method] = result != null;
+				if (result != null && result.mode == "watch")
+					vfsMode = "watch";
+				features["file system events"] = vfsMode == "watch" && result.watching == true;
 			}
 		}
 		server.kill();
@@ -440,7 +449,9 @@ class RunIncremental {
 					errors.push('$label: $e');
 				for (e in checkExpectations(step.expectations, warm, warmDir, target))
 					errors.push('$label: $e');
-				if (step.expectations.contains(NoFsCalls) && supports("server/vfs", skipped) && supports("file system events", skipped)) {
+				if (step.expectations.contains(NoFsCalls) && vfsMode != "watch")
+					skipped.push(WATCH_ONLY);
+				else if (step.expectations.contains(NoFsCalls) && supports("server/vfs", skipped) && supports("file system events", skipped)) {
 					var calls = noChangeCompilationCalls(warmDir, port);
 					if (calls != 0)
 						errors.push('$label: a compilation without changes made $calls file system calls, expected 0');

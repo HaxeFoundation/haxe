@@ -51,6 +51,8 @@ Some expectations need compiler features, detected when the runner starts:
 `@expect-retyped` (`server/retyped`) and `@expect-no-fs-calls` (`server/vfs`).
 Without them, these expectations are not checked (the summary says how many),
 and cases using overlays (`server/overlay`) are reported as `SKIP`.
+`@expect-no-fs-calls` is only checked with `--vfs watch`, on a platform where
+the server sees changes from file system events.
 
 In CI, the suite runs as part of the `js` target of `tests/RunCi.hx` (after
 the server tests), once with the default server and once with `--vfs watch`,
