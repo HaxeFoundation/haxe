@@ -73,6 +73,19 @@ class ServerTests extends TestCase {
 		assertHasPrint("E");
 	}
 
+	function testShadowingInOtherPackage() {
+		vfs.putContent("a/Other.hx", "class Other {}");
+		vfs.putContent("b/Main.hx", 'class Main { static function main() trace("D"); }');
+		var args = ["-cp", "b", "-cp", "a", "-main", "Main", "--no-output", "-js", "no.js"];
+		runHaxe(args);
+		vfs.putContent("a/pack/Main.hx", 'package pack; class Main { static function main() trace("E"); }');
+		vfs.touch("a/pack/Main.hx");
+		vfs.touch("a/pack");
+		vfs.touch("a");
+		runHaxe(args);
+		assertReuse("Main");
+	}
+
 	function testShadowingWithCwd() {
 		vfs.putContent("sub/a/Other.hx", "class Other {}");
 		vfs.putContent("sub/b/Main.hx", 'class Main { static function main() Sys.println("D"); }');
@@ -109,6 +122,19 @@ class ServerTests extends TestCase {
 		vfs.touch("haxe");
 		runHaxe(args);
 		Assert.isTrue(messages.exists(m -> m.contains("skipping haxe.ds.Option (Shadowed")));
+	}
+
+	function testShadowingMacroModule() {
+		vfs.putContent("a/Other.hx", "class Other {}");
+		vfs.putContent("b/MyMacro.hx", 'class MyMacro { public static macro function get() return macro "D"; }');
+		vfs.putContent("b/Main.hx", "class Main { static function main() Sys.println(MyMacro.get()); }");
+		var args = ["-cp", "b", "-cp", "a", "-main", "Main", "--interp"];
+		runHaxe(args);
+		vfs.putContent("a/MyMacro.hx", 'class MyMacro { public static macro function get() return macro "E"; }');
+		vfs.touch("a/MyMacro.hx");
+		vfs.touch("a");
+		runHaxe(args);
+		assertHasPrint("E");
 	}
 
 	function testShadowingMacroClassPath() {

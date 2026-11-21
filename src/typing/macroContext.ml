@@ -703,6 +703,8 @@ let create_macro_interp api mctx =
 	mctx.g.macros <- Some (init,mctx);
 	(init, mint)
 
+let on_macro_context_created : (Common.context -> unit) ref = ref (fun _ -> ())
+
 let create_macro_context com =
 	let com2 = Common.clone com true in
 	enter_stage com2 CInitMacrosDone;
@@ -735,6 +737,7 @@ let create_macro_context com =
 	let mctx = !create_context_ref com2 None in
 	mctx.m.is_display_file <- false;
 	CommonCache.lock_signature com2 "get_macro_context";
+	!on_macro_context_created com2;
 	mctx
 
 let get_macro_context ctx =
