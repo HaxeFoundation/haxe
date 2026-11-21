@@ -213,25 +213,22 @@ let check_module sctx com m_path m_extra p =
 		| _ ->
 			false
 	in
+	(* Only the directory of the package of the module in a class path can hold a file shadowing it. *)
 	let check_module_shadowing com m_path m_extra =
 		let own_file = Path.UniqueKey.lazy_key m_extra.m_file in
-		let check dir =
-			let file = (dir ^ (snd m_path)) ^ ".hx" in
-			if Sys.file_exists file then begin
+		let changed = get_changed_directories sctx com in
+		let pack_dir = String.concat "" (List.map (fun s -> s ^ "/") (fst m_path)) in
+		com.class_paths#iter (fun cp ->
+			let dir = cp#absolute_path ^ pack_dir in
+			let changed = if cp#path = "" then package_directory_changed sctx com dir else List.exists (fun cdir -> cdir.c_path = dir) changed in
+			let file = dir ^ (snd m_path) ^ ".hx" in
+			if changed && Sys.file_exists file then begin
 				let time = file_time file in
 				(* The file of the module does not shadow it, unless its content changed. *)
 				if time > m_extra.m_time && not (com.part_scope.file_keys#get file = own_file && unchanged_content m_path m_extra file time) then begin
 					ServerMessage.module_path_changed com "" (m_path,m_extra,time,file);
 					raise (Dirty (Shadowed file))
 				end
-			end
-		in
-		List.iter (fun cdir -> check cdir.c_path) (get_changed_directories sctx com);
-		let pack_dir = String.concat "" (List.map (fun s -> s ^ "/") (fst m_path)) in
-		com.class_paths#iter (fun cp ->
-			if cp#path = "" then begin
-				let dir = cp#absolute_path ^ pack_dir in
-				if package_directory_changed sctx com dir then check dir
 			end
 		)
 	in
@@ -648,10 +645,34 @@ and type_module sctx com delay mpath p =
 	t();
 	m
 
+(* The directories of a context are listed from its first compilation, and
+   again when its class paths change. The watched view resolves the modules
+   again instead. *)
+let watch_directories sctx com =
+	let cs = sctx.cs in
+	let sign = Define.get_signature com.defines in
+	let class_path_strings = absolute_class_paths com in
+	(try
+		if (Hashtbl.find sctx.class_paths sign) <> class_path_strings then begin
+			ServerMessage.class_paths_changed com "";
+			Hashtbl.replace sctx.class_paths sign class_path_strings;
+			cs#clear_directories sign;
+			cs#clear_package_directories sign;
+			(cs#get_context sign)#set_initialized false;
+		end;
+	with Not_found ->
+		Hashtbl.add sctx.class_paths sign class_path_strings);
+	if !Vfs.mode <> Vfs.Watched then begin try
+		ignore (cs#find_directories sign)
+	with Not_found ->
+		ignore (get_changed_directories sctx com)
+	end
+
 let ensure_macro_setup sctx =
 	if not sctx.macro_context_setup then begin
 		sctx.macro_context_setup <- true;
 		MacroContext.setup();
+		MacroContext.on_macro_context_created := (fun mcom -> if sctx.is_server then watch_directories sctx mcom);
 	end
 
 let cleanup sctx =
@@ -677,28 +698,11 @@ let before_anything sctx ctx =
 	ensure_macro_setup sctx
 
 let after_target_init sctx com =
-	let cs = sctx.cs in
 	let sign = Define.get_signature com.defines in
 	ServerMessage.defines com "";
 	ServerMessage.signature com "" sign;
 	ServerMessage.display_position com "" (DisplayPosition.display_position#get);
-	let class_path_strings = absolute_class_paths com in
-	(try
-		if (Hashtbl.find sctx.class_paths sign) <> class_path_strings then begin
-			ServerMessage.class_paths_changed com "";
-			Hashtbl.replace sctx.class_paths sign class_path_strings;
-			cs#clear_directories sign;
-			cs#clear_package_directories sign;
-			(cs#get_context sign)#set_initialized false;
-		end;
-	with Not_found ->
-		Hashtbl.add sctx.class_paths sign class_path_strings);
-	(* The watched view resolves the modules again instead. *)
-	if !Vfs.mode <> Vfs.Watched then begin try
-		ignore (cs#find_directories sign)
-	with Not_found ->
-		ignore (get_changed_directories sctx com)
-	end
+	watch_directories sctx com
 
 (* The directories of the class paths are listed once the server is back in
    its own working directory: the absolute paths of the class paths added after
