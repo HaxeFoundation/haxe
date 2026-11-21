@@ -1579,7 +1579,8 @@ class hxb_reader
 		a.a_enum <- self#read_bool;
 
 	method read_abstract_fields (a : tabstract) =
-		a.a_array <- self#read_list (fun () -> self#read_field_ref);
+		a.a_array_read <- self#read_list (fun () -> self#read_field_ref);
+		a.a_array_write <- self#read_list (fun () -> self#read_field_ref);
 		a.a_read <- self#read_option (fun () -> self#read_field_ref);
 		a.a_write <- self#read_option (fun () -> self#read_field_ref);
 		a.a_call <- self#read_option (fun () -> self#read_field_ref);
