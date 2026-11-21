@@ -1,0 +1,59 @@
+# An error in a module of the macro context does not stop the macros called
+# after it: the cold compilation types the module with the error before the
+# build macro of a class, which the warm compilation reuses.
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		Early.run();
+		trace(new Built().x);
+	}
+}
+--- Early.hx
+class Early {
+	public static macro function run() {
+		return macro null;
+	}
+	static function unused() {
+		return 1;
+	}
+}
+--- Built.hx
+@:build(Builder.build())
+class Built {
+	public function new() {}
+}
+--- Builder.hx
+import haxe.macro.Context;
+class Builder {
+	public static function build() {
+		var fields = Context.getBuildFields();
+		fields.push({name: "x", pos: Context.currentPos(), kind: FVar(macro : Int, macro 1), access: [APublic]});
+		return fields;
+	}
+}
+
+=== an error in the macro module used first
+@expect-error Unknown identifier : unknownIdent
+--- Early.hx
+class Early {
+	public static macro function run() {
+		return macro null;
+	}
+	static function unused() {
+		return unknownIdent;
+	}
+}
+
+=== the error is fixed
+@expect-output 1
+--- Early.hx
+class Early {
+	public static macro function run() {
+		return macro null;
+	}
+	static function unused() {
+		return 1;
+	}
+}
