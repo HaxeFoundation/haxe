@@ -460,7 +460,7 @@ let handler =
 			let key = hctx.com.part_scope.file_keys#get file in
 			let cs = hctx.display#get_cs in
 			List.iter (fun cc ->
-				Hashtbl.replace cc#get_removed_files key (ClassPaths.create_resolved_file file hctx.com.empty_class_path)
+				Hashtbl.replace cc#get_removed_files key (ClassPaths.create_resolved_file file hctx.com.empty_class_path,None)
 			) cs#get_contexts;
 			Result (jstring file);
 		);

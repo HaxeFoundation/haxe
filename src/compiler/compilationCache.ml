@@ -53,7 +53,7 @@ class context_cache (index : int) (sign : Digest.t) = object(self)
 		try
 			let f = Hashtbl.find files key in
 			Hashtbl.remove files key;
-			Hashtbl.replace removed_files key f.c_file_path
+			Hashtbl.replace removed_files key (f.c_file_path,Some (f.c_package,get_module_name_of_cfile f.c_file_path.file f))
 		with Not_found -> ()
 
 	(* Like remove_file, but doesn't keep track of the file *)

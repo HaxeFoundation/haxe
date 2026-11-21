@@ -300,6 +300,22 @@ class ServerTests extends TestCase {
 		assertSuccess();
 	}
 
+	function testToplevelCompletionAfterInvalidate() {
+		vfs.putContent("Main.hx", "class Main { static function main() { Other.f(); } }");
+		vfs.putContent("Other.hx", "class Other { public static function f() { Sys.println(file()); } static function file(?p:haxe.PosInfos) return p.fileName; }");
+		var third = "class Third { static function f() { var x = 1; x; } }";
+		vfs.putContent("Third.hx", third);
+		var args = ["--main", "Main", "--interp"];
+		runHaxe(args);
+		assertHasPrint("Other.hx");
+		var completion = {file: new FsPath("Third.hx"), offset: third.indexOf("x;"), wasAutoTriggered: false};
+		runHaxeJson(args, DisplayMethods.Completion, completion);
+		runHaxeJson([], ServerMethods.Invalidate, {file: new FsPath("Other.hx")});
+		runHaxeJson(args, DisplayMethods.Completion, completion);
+		runHaxe(args);
+		assertHasPrint("Other.hx");
+	}
+
 	function testMutuallyDependent() {
 		vfs.putContent("MutuallyDependent1.hx", getTemplate("MutuallyDependent1.hx"));
 		vfs.putContent("MutuallyDependent2.hx", getTemplate("MutuallyDependent2.hx"));
