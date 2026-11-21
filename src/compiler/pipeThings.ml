@@ -28,6 +28,7 @@ let rec read_content channel buf f =
 
 (** Runs a shell command in server mode, forwarding stdin from the client
 	and capturing stdout/stderr through the socket protocol.
+	The command runs in [cwd] if given, otherwise in the current directory.
 	Uses {!Process.run} to create the child process so we can connect
 	the child's stdin to the client's forwarded data and properly signal
 	EOF when the client closes its end. *)
