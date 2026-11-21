@@ -125,10 +125,10 @@ let init_fields init_fields builtins =
 			vint (mbedtls_x509_crt_parse (as_x509_crt this) (decode_bytes bytes));
 		);
 		"parse_file",vifun1 (fun this path ->
-			vint (mbedtls_x509_crt_parse_file (as_x509_crt this) (decode_string path));
+			vint (mbedtls_x509_crt_parse_file (as_x509_crt this) (Vfs.resolve (decode_string path)));
 		);
 		"parse_path",vifun1 (fun this path ->
-			vint (mbedtls_x509_crt_parse_path (as_x509_crt this) (decode_string path));
+			vint (mbedtls_x509_crt_parse_path (as_x509_crt this) (Vfs.resolve (decode_string path)));
 		);
 	];
 	init_fields builtins (["mbedtls"],"Config") [] [
@@ -164,13 +164,13 @@ let init_fields init_fields builtins =
 			vint (mbedtls_pk_parse_key (as_pk_context this) (decode_bytes key) (match password with VNull -> None | _ -> Some (decode_string password)) (as_ctr_drbg rng));
 		);
 		"parse_keyfile",vifun3 (fun this path password rng ->
-			vint (mbedtls_pk_parse_keyfile (as_pk_context this) (decode_string path) (match password with VNull -> None | _ -> Some (decode_string password)) (as_ctr_drbg rng));
+			vint (mbedtls_pk_parse_keyfile (as_pk_context this) (Vfs.resolve (decode_string path)) (match password with VNull -> None | _ -> Some (decode_string password)) (as_ctr_drbg rng));
 		);
 		"parse_public_key",vifun1 (fun this key ->
 			vint (mbedtls_pk_parse_public_key (as_pk_context this) (decode_bytes key));
 		);
 		"parse_public_keyfile",vifun1 (fun this path ->
-			vint (mbedtls_pk_parse_public_keyfile (as_pk_context this) (decode_string path));
+			vint (mbedtls_pk_parse_public_keyfile (as_pk_context this) (Vfs.resolve (decode_string path)));
 		);
 	];
 	init_fields builtins (["mbedtls"],"Ssl") [] [

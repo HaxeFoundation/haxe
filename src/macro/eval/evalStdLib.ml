@@ -628,7 +628,7 @@ module StdContext = struct
 	let register data = plugin_data := Some data
 
 	let loadPlugin = vfun1 (fun filePath ->
-		let filePath = decode_string filePath in
+		let filePath = Vfs.resolve (decode_string filePath) in
 		let filePath = Dynlink.adapt_filename filePath in
 		if PMap.mem filePath !plugins then
 			PMap.find filePath !plugins
@@ -989,9 +989,12 @@ module StdEReg = struct
 	)
 end
 
+let decode_path v = Vfs.resolve (decode_string v)
+
 module StdFile = struct
 	let create_out path binary flags =
-		let path = decode_string path in
+		let path = decode_path path in
+		Vfs.invalidate path;
 		let binary = match binary with
 			| VTrue | VNull -> true
 			| _ -> false
@@ -1010,6 +1013,7 @@ module StdFile = struct
 			let ch = open_out_bin path in
 			output_string ch content;
 			close_out ch;
+			Vfs.invalidate path;
 			vnull
 		with Sys_error s ->
 			exc_string s
@@ -1023,17 +1027,17 @@ module StdFile = struct
 	)
 
 	let getBytes = vfun1 (fun path ->
-		let path = decode_string path in
+		let path = decode_path path in
 		try encode_bytes (Bytes.unsafe_of_string (Std.input_file ~bin:true path)) with Sys_error _ -> exc_string ("Could not read file " ^ path)
 	)
 
 	let getContent = vfun1 (fun path ->
-		let path = decode_string path in
+		let path = decode_path path in
 		try ((create_unknown (Std.input_file ~bin:true path))) with Sys_error _ -> exc_string ("Could not read file " ^ path)
 	)
 
 	let read = vfun2 (fun path binary ->
-		let path = decode_string path in
+		let path = decode_path path in
 		let binary = match binary with
 			| VTrue | VNull -> true
 			| _ -> false
@@ -1046,13 +1050,13 @@ module StdFile = struct
 	)
 
 	let saveBytes = vfun2 (fun path bytes ->
-		let path = decode_string path in
+		let path = decode_path path in
 		let bytes = decode_bytes bytes in
 		write_out path (Bytes.unsafe_to_string bytes)
 	)
 
 	let saveContent = vfun2 (fun path content ->
-		let path = decode_string path in
+		let path = decode_path path in
 		let content = decode_string content in
 		write_out path content
 	)
@@ -1205,36 +1209,39 @@ module StdFileSystem = struct
 		else remove_trailing_slash s
 
 	let createDirectory = vfun1 (fun path ->
-		catch_unix_error Path.mkdir_from_path_unix_err (Path.add_trailing_slash (decode_string path));
+		catch_unix_error Path.mkdir_from_path_unix_err (Path.add_trailing_slash (decode_path path));
+		Vfs.invalidate (decode_path path);
 		vnull
 	)
 
 	let deleteDirectory = vfun1 (fun path ->
-		catch_unix_error Unix.rmdir (decode_string path);
+		catch_unix_error Unix.rmdir (decode_path path);
+		Vfs.invalidate (decode_path path);
 		vnull
 	)
 
 	let deleteFile = vfun1 (fun path ->
-		(try Sys.remove (decode_string path) with Sys_error s -> exc_string s);
+		(try Sys.remove (decode_path path) with Sys_error s -> exc_string s);
+		Vfs.invalidate (decode_path path);
 		vnull
 	)
 
 	let exists = vfun1 (fun path ->
-		let b = try Sys.file_exists (patch_path (decode_string path)) with Sys_error _ -> false in
+		let b = try Sys.file_exists (patch_path (decode_path path)) with Sys_error _ -> false in
 		vbool b
 	)
 
 	let fullPath = vfun1 (fun relPath ->
-		try create_unknown (Extc.get_full_path (decode_string relPath)) with exc -> exc_string (Printexc.to_string exc)
+		try create_unknown (Extc.get_full_path (decode_path relPath)) with exc -> exc_string (Printexc.to_string exc)
 	)
 
 	let isDirectory = vfun1 (fun dir ->
-		let b = try Sys.is_directory (patch_path(decode_string dir)) with Sys_error _ -> false in
+		let b = try Sys.is_directory (patch_path(decode_path dir)) with Sys_error _ -> false in
 		vbool b
 	)
 
 	let readDirectory = vfun1 (fun dir ->
-		let dir = decode_string dir in
+		let dir = decode_path dir in
 		let d = try
 			if not (Sys.is_directory (patch_path dir)) then exc_string "No such directory";
 			Sys.readdir dir
@@ -1245,12 +1252,14 @@ module StdFileSystem = struct
 	)
 
 	let rename = vfun2 (fun path newPath ->
-		(try Sys.rename (decode_string path) (decode_string newPath) with Sys_error s -> exc_string s);
+		(try Sys.rename (decode_path path) (decode_path newPath) with Sys_error s -> exc_string s);
+		Vfs.invalidate (decode_path path);
+		Vfs.invalidate (decode_path newPath);
 		vnull
 	)
 
 	let stat = vfun1 (fun path ->
-		let s = catch_unix_error Unix.stat (patch_path (decode_string path)) in
+		let s = catch_unix_error Unix.stat (patch_path (decode_path path)) in
 		encode_obj [
 			key_gid,vint s.st_gid;
 			key_uid,vint s.st_uid;
@@ -2841,7 +2850,7 @@ module StdSys = struct
 
 	let _command = vfun1 (fun cmd ->
 		let cmd = decode_string cmd in
-		vint (((get_ctx()).curapi.get_com()).run_command cmd)
+		vint (((get_ctx()).curapi.get_com()).run_command ?cwd:(Atomic.get Vfs.macro_cwd) cmd)
 	)
 
 	let cpuTime = vfun0 (fun () -> vfloat (Sys.time()))
@@ -2868,7 +2877,7 @@ module StdSys = struct
 	)
 
 	let getCwd = vfun0 (fun () ->
-		let dir = catch_unix_error Unix.getcwd() in
+		let dir = catch_unix_error Vfs.getcwd () in
 		let l = String.length dir in
 		if l = 0 then
 			encode_string "./"
@@ -2919,7 +2928,7 @@ module StdSys = struct
 	)
 
 	let setCwd = vfun1 (fun s ->
-		catch_unix_error Unix.chdir (decode_string s);
+		catch_unix_error Vfs.setcwd (decode_string s);
 		vnull
 	)
 
@@ -3590,7 +3599,7 @@ let init_constructors builtins =
 					| VArray va -> Some (Array.map decode_string (Array.sub va.avalues 0 va.alength))
 					| _ -> unexpected_value args "array"
 				in
-				let proc = process_catch (fun () -> Process.run cmd args) () in
+				let proc = process_catch (fun () -> Process.run ?cwd:(Atomic.get Vfs.macro_cwd) cmd args) () in
 				encode_instance key_sys_io__Process_NativeProcess ~kind:(IProcess proc)
 			| _ -> die "" __LOC__
 		);

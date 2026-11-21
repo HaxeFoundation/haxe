@@ -533,6 +533,26 @@ let handler =
 		);
 		"server/invalidate", (fun hctx ->
 			let file = hctx.jsonrpc#get_string_param "file" in
+			Vfs.invalidate file;
+			let fkey = hctx.com.part_scope.file_keys#get file in
+			let cs = hctx.display#get_cs in
+			cs#taint_modules fkey ServerInvalidate;
+			cs#remove_files fkey;
+			Result jnull
+		);
+		"server/vfs", (fun hctx ->
+			Result (jobject [
+				"mode",jstring (match !Vfs.mode with Vfs.Off -> "off" | Vfs.Watched -> "watch");
+				"watching",jbool (Vfs.watching ());
+				"fileSystemCalls",jint (Atomic.get Vfs.last_compilation_syscalls);
+			])
+		);
+		"server/overlay", (fun hctx ->
+			let file = hctx.jsonrpc#get_string_param "file" in
+			begin match hctx.jsonrpc#get_opt_param (fun () -> Some (hctx.jsonrpc#get_string_param "contents")) None with
+			| Some contents -> Vfs.set_overlay file contents
+			| None -> Vfs.remove_overlay file
+			end;
 			let fkey = hctx.com.part_scope.file_keys#get file in
 			let cs = hctx.display#get_cs in
 			cs#taint_modules fkey ServerInvalidate;

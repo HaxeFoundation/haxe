@@ -39,35 +39,39 @@ let run_or_diagnose com f =
 	else
 		f ()
 
-let run_command com cmd =
-	let io = com.request_scope.io in
+let expand_command com cmd =
 	(* TODO: this is a hack *)
-	let cmd = if com.sctx.is_server then begin
+	if com.sctx.is_server then begin
 		let h = Hashtbl.create 0 in
 		Hashtbl.add h "__file__" com.file;
 		Hashtbl.add h "__platform__" (platform_name com.platform);
 		Helper.expand_env ~h:(Some h) cmd
 	end else
 		cmd
-	in
-	let len = String.length cmd in
-	let result =
-		if len > 3 && String.sub cmd 0 3 = "cd " then begin
-			Sys.chdir (String.sub cmd 3 (len - 3));
-			0
-		end else if not com.sctx.is_server then
-			(* In non-server mode, inherit stdin/stdout/stderr so that interactive commands work *)
-			Sys.command cmd
-		else begin
-			(* In server mode, capture stdout/stderr through the output target and
-			   forward the client's stdin from request_scope. *)
-			PipeThings.run_command io cmd
-		end
-	in
-	result
 
-let run_command com cmd =
-	Timer.time com.timer_ctx ["command";cmd] (run_command com) cmd
+let run_expanded_command com ?cwd cmd =
+	if not com.sctx.is_server then
+		(* In non-server mode, inherit stdin/stdout/stderr so that interactive commands work *)
+		Process.command ?cwd cmd
+	else
+		(* In server mode, capture stdout/stderr through the output target and
+		   forward the client's stdin from request_scope. *)
+		PipeThings.run_command ?cwd com.request_scope.io cmd
+
+let run_command com ?cwd cmd =
+	Timer.time com.timer_ctx ["command";cmd] (fun cmd -> run_expanded_command com ?cwd (expand_command com cmd)) cmd
+
+(* Runs a --cmd command, or changes the working directory if the command is
+   "cd dir": each command runs in its own shell, so this is how a "cd" applies
+   to the following ones. *)
+let run_command_or_chdir com cmd =
+	let expanded = expand_command com cmd in
+	let len = String.length expanded in
+	if len > 3 && String.sub expanded 0 3 = "cd " then begin
+		Sys.chdir (String.sub expanded 3 (len - 3));
+		0
+	end else
+		Timer.time com.timer_ctx ["command";cmd] (fun cmd -> run_expanded_command com cmd) expanded
 
 module Setup = struct
 	let initialize_target com actx =
@@ -396,7 +400,7 @@ let compile com actx sctx =
 	com.callbacks#run com.error_ext com.callbacks#get_after_generation;
 	if not actx.no_output then begin
 		List.iter (fun c ->
-			let r = run_command com c in
+			let r = run_command_or_chdir com c in
 			if r <> 0 then failwith ("Command failed with error " ^ string_of_int r)
 		) (List.rev actx.cmds)
 	end

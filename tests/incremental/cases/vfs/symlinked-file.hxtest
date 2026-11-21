@@ -1,0 +1,29 @@
+# A module file is a symbolic link to a file outside the class path: a change
+# of the target is a change of the module.
+@args -cp src
+@main Main
+=== initial
+@expect-output v1
+@expect-no-fs-calls
+--- shared/Foo.hx
+package pack;
+
+class Foo {
+	public static function get() return "v1";
+}
+--- symlink src/pack/Foo.hx shared/Foo.hx
+--- src/Main.hx
+class Main {
+	static function main() {
+		trace(pack.Foo.get());
+	}
+}
+
+=== target edited
+@expect-output v2
+--- shared/Foo.hx
+package pack;
+
+class Foo {
+	public static function get() return "v2";
+}

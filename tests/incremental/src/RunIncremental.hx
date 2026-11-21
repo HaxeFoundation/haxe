@@ -50,6 +50,7 @@ using StringTools;
 	  --jobs <n>            number of cases run at the same time (default: the
 	                        number of processors; 1 with --verbose)
 	  --timeout <seconds>   time after which a case fails (default: 300)
+	  --vfs <mode>          file system mode of the server (`HAXE_VFS`), e.g. `watch`
 **/
 class RunIncremental {
 	public static var haxeCmd = "haxe";
@@ -70,6 +71,10 @@ class RunIncremental {
 	static var extraArgs:Array<String> = [];
 	static var jobs:Null<Int> = null;
 	static var timeout = 300;
+	/** The file system mode of the server: `legacy`, or `watch` (see `--vfs`). **/
+	static var vfsMode = "legacy";
+	/** Marks an expectation of [runCase]'s `skipped` that only applies to a server watching the file system. **/
+	static inline final WATCH_ONLY = "--vfs watch";
 	/** Compiler features some expectations need, detected by `detectFeatures`. **/
 	static var features:Map<String, Bool> = [];
 	static var root:String;
@@ -106,6 +111,9 @@ class RunIncremental {
 					realMtime = true;
 				case "--check-deps":
 					checkDeps = true;
+				case "--vfs":
+					// inherited by the servers the runner starts
+					Sys.putEnv("HAXE_VFS", args[++i]);
 				case "--args":
 					extraArgs = extraArgs.concat(args[++i].split(" ").filter(s -> s != ""));
 				case "--jobs":
@@ -124,6 +132,11 @@ class RunIncremental {
 		FileSystem.createDirectory(workRoot);
 
 		detectFeatures();
+		if (Sys.getEnv("HAXE_VFS") == "watch" && vfsMode != "watch") {
+			Sys.println("HAXE_VFS=watch is not supported by this compiler");
+			Sys.exit(2);
+		}
+		Sys.println('File system mode of the server: $vfsMode');
 		if (checkDeps && !features["dump-fingerprints"]) {
 			Sys.println("--check-deps needs a compiler supporting -D dump-fingerprints");
 			Sys.exit(2);
@@ -176,12 +189,17 @@ class RunIncremental {
 		// the features some expectations needed and the compiler does not have
 		var unsupported = [];
 		var skippedExpectations = 0;
-		for (run in runs) {
-			skippedExpectations += run.skipped.length;
-			for (feature in run.skipped)
+		var watchOnly = 0;
+		for (run in runs)
+			for (feature in run.skipped) {
+				if (feature == WATCH_ONLY) {
+					watchOnly++;
+					continue;
+				}
+				skippedExpectations++;
 				if (!unsupported.contains(feature))
 					unsupported.push(feature);
-		}
+			}
 		var passed = 0, failed = 0, xfail = 0, xpass = 0, skipped = 0;
 		for (r in results) {
 			switch (r.outcome) {
@@ -196,6 +214,8 @@ class RunIncremental {
 		Sys.println('$passed passed, $failed failed, $xfail known failures, $xpass unexpected passes, $skipped skipped');
 		if (skippedExpectations > 0)
 			Sys.println('$skippedExpectations expectations not checked (not supported by this compiler: ${unsupported.join(", ")})');
+		if (watchOnly > 0)
+			Sys.println('$watchOnly expectations only checked with --vfs watch');
 		if (!keep)
 			removeDir(workRoot);
 		return failed + xpass > 0 ? 1 : 0;
@@ -252,17 +272,24 @@ class RunIncremental {
 		while (Platform.portInUse(port))
 			port++;
 		var server = new Proc(haxeCmd, ["--wait", Std.string(port)]);
-		for (_ in 0...50) {
-			if (Platform.portInUse(port))
-				break;
-			delay(100);
-		}
+		waitForServer(port);
 		for (method in methods) {
-			var request = haxe.Json.stringify({jsonrpc: "2.0", id: 1, method: method, params: {}});
+			// valid parameters, so that a supported method answers with a result (no overlay to remove)
+			var params:Dynamic = method == "server/overlay" ? {file: Path.join([workRoot, "Probe.hx"])} : {};
+			var request = haxe.Json.stringify({jsonrpc: "2.0", id: 1, method: method, params: params});
 			var p = Proc.run(haxeCmd, ["--connect", Std.string(port), "--display", request]);
-			var out = p.stderr() + p.stdout();
+			var err = p.stderr();
+			var out = err + p.stdout();
 			// -32601: method not found
 			features[method] = out.indexOf("-32601") < 0 && out.indexOf("jsonrpc") >= 0;
+			if (method == "server/vfs") {
+				// the mode of the server, and whether it sees changes from file system events
+				var result:Dynamic = try haxe.Json.parse(err).result.result catch (_) null;
+				features[method] = result != null;
+				if (result != null && result.mode == "watch")
+					vfsMode = "watch";
+				features["file system events"] = vfsMode == "watch" && result.watching == true;
+			}
 		}
 		server.kill();
 		server.exitCode();
@@ -288,6 +315,16 @@ class RunIncremental {
 		}) catch (_:hxcoro.TimeoutException) false;
 	}
 
+	/** Waits for the server on [port] to answer with the version of the compiler. **/
+	@:coroutine static function waitForServer(port:Int):Bool {
+		for (_ in 0...50) {
+			if (serverAnswers(port))
+				return true;
+			delay(100);
+		}
+		return false;
+	}
+
 	/**
 		Runs a case on [target]. The features that some of its expectations
 		needed and the compiler does not have are added to [skipped], once per
@@ -297,6 +334,9 @@ class RunIncremental {
 		var usesOverlays = Lambda.exists(tc.steps, step -> Lambda.exists(step.ops, op -> op.match(Overlay(_, _) | RemoveOverlay(_))));
 		if (usesOverlays && !supports("server/overlay", skipped))
 			return Skipped("needs server/overlay");
+		// symbolic links are made with `ln`
+		if (Sys.systemName() == "Windows" && Lambda.exists(tc.steps, step -> Lambda.exists(step.ops, op -> op.match(Symlink(_, _)))))
+			return Skipped("needs symbolic links");
 		var base = Path.join([workRoot, tc.name.replace("/", "_").replace(".hxtest", ""), target]);
 		var warmDir = Path.join([base, "warm"]);
 		var coldDir = Path.join([base, "cold"]);
@@ -319,14 +359,7 @@ class RunIncremental {
 			if (Platform.portInUse(port))
 				continue;
 			server = new Proc(haxeCmd, ["--wait", Std.string(port)]);
-			// Give the server time to listen.
-			for (_ in 0...50) {
-				if (serverAnswers(port)) {
-					connected = true;
-					break;
-				}
-				delay(100);
-			}
+			connected = waitForServer(port);
 			if (connected)
 				break;
 			server.kill();
@@ -363,9 +396,10 @@ class RunIncremental {
 					clockTenths = 0;
 				}
 				for (dir in [warmDir, coldDir]) {
-					changed = applyOps(dir, step, tc, target, dir == warmDir ? port : null, warmDir);
+					var structural = [];
+					changed = applyOps(dir, step, tc, target, dir == warmDir ? port : null, warmDir, structural);
 					if (!tc.realMtime && !realMtime)
-						touchStep(dir, changed, clock + clockTenths / 10);
+						touchStep(dir, changed, structural, clock + clockTenths / 10);
 				}
 				if (invalidate) {
 					for (file in changed)
@@ -415,7 +449,9 @@ class RunIncremental {
 					errors.push('$label: $e');
 				for (e in checkExpectations(step.expectations, warm, warmDir, target))
 					errors.push('$label: $e');
-				if (step.expectations.contains(NoFsCalls) && supports("server/vfs", skipped)) {
+				if (step.expectations.contains(NoFsCalls) && vfsMode != "watch")
+					skipped.push(WATCH_ONLY);
+				else if (step.expectations.contains(NoFsCalls) && supports("server/vfs", skipped) && supports("file system events", skipped)) {
 					var calls = noChangeCompilationCalls(warmDir, port);
 					if (calls != 0)
 						errors.push('$label: a compilation without changes made $calls file system calls, expected 0');
@@ -444,7 +480,7 @@ class RunIncremental {
 			}
 		}
 
-		return switch [errors.length, tc.knownFailureFor(target)] {
+		return switch [errors.length, tc.knownFailureFor(target, vfsMode)] {
 			case [0, null]: Passed;
 			case [0, _]: UnexpectedPass;
 			case [_, null]: Failed(errors);
@@ -456,31 +492,50 @@ class RunIncremental {
 		Applies the file operations of a step to [dir]. Overlays are sent to the
 		server for the warm directory ([port] given), and written to disk for the
 		cold one; removing an overlay restores the cold file from the warm
-		directory's disk content.
+		directory's disk content. Returns the changed paths; the ones that were
+		created or deleted are added to [structural].
 	**/
-	@:coroutine static function applyOps(dir:String, step:CaseParser.Step, tc:CaseParser.TestCase, target:String, port:Null<Int>, warmDir:String):Array<String> {
+	@:coroutine static function applyOps(dir:String, step:CaseParser.Step, tc:CaseParser.TestCase, target:String, port:Null<Int>, warmDir:String, structural:Array<String>):Array<String> {
 		var changed = [];
+		function write(path:String, content:String) {
+			var full = Path.join([dir, path]);
+			if (!FileSystem.exists(full))
+				structural.push(path);
+			FileSystem.createDirectory(Path.directory(full));
+			File.saveContent(full, content);
+			changed.push(path);
+		}
+		function delete(path:String) {
+			var full = Path.join([dir, path]);
+			if (FileSystem.exists(full)) {
+				FileSystem.deleteFile(full);
+				structural.push(path);
+			}
+			changed.push(path);
+		}
 		for (op in step.ops) {
 			switch (op) {
 				case Write(path, content):
+					write(path, content);
+				case Delete(path):
+					delete(path);
+				case DeleteDir(path):
+					removeDir(Path.join([dir, path]));
+					changed.push(path);
+					structural.push(path);
+				case Symlink(path, target):
 					var full = Path.join([dir, path]);
 					FileSystem.createDirectory(Path.directory(full));
-					File.saveContent(full, content);
+					if (Proc.run("ln", ["-sfn", Path.join([dir, target]), full]).exitCode() != 0)
+						throw new haxe.Exception('could not create the symbolic link $path');
 					changed.push(path);
-				case Delete(path):
-					var full = Path.join([dir, path]);
-					if (FileSystem.exists(full))
-						FileSystem.deleteFile(full);
-					changed.push(path);
+					structural.push(path);
 				case Overlay(path, content):
 					var full = Path.join([dir, path]);
-					if (port != null) {
+					if (port != null)
 						sendOverlay(port, full, content);
-					} else {
-						FileSystem.createDirectory(Path.directory(full));
-						File.saveContent(full, content);
-						changed.push(path);
-					}
+					else
+						write(path, content);
 				case RemoveOverlay(path):
 					var full = Path.join([dir, path]);
 					if (port != null) {
@@ -488,10 +543,9 @@ class RunIncremental {
 					} else {
 						var disk = Path.join([warmDir, path]);
 						if (FileSystem.exists(disk))
-							File.saveContent(full, File.getContent(disk));
-						else if (FileSystem.exists(full))
-							FileSystem.deleteFile(full);
-						changed.push(path);
+							write(path, File.getContent(disk));
+						else
+							delete(path);
 					}
 			}
 		}
@@ -506,15 +560,19 @@ class RunIncremental {
 		compilation are not detected (see the `real-mtime` cases). Unless a case
 		asks for real modification times, every step gets its own modification
 		time, two seconds after the previous step (a fraction of a second after it
-		for a `@same-second` step), on the changed files and their parent
-		directories (directory times are used to detect new files).
+		for a `@same-second` step), on the changed files and, for the ones that
+		were created or deleted ([structural]), on their parent directories
+		(directory times are used to detect new files). The directory of a file
+		that is only modified keeps its time, as on a real file system.
 	**/
-	static function touchStep(dir:String, changed:Array<String>, time:Float) {
+	static function touchStep(dir:String, changed:Array<String>, structural:Array<String>, time:Float) {
 		var targets = [Path.join([dir, "build.hxml"])];
 		for (file in changed) {
 			var full = Path.join([dir, file]);
 			if (FileSystem.exists(full))
 				targets.push(full);
+			if (!structural.contains(file))
+				continue;
 			var parent = Path.directory(full);
 			while (parent.length >= dir.length) {
 				if (!targets.contains(parent))
@@ -871,7 +929,8 @@ class RunIncremental {
 			return;
 		for (entry in FileSystem.readDirectory(dir)) {
 			var path = Path.join([dir, entry]);
-			if (FileSystem.isDirectory(path))
+			// a link whose target is gone does not exist, but is still an entry to delete
+			if (FileSystem.exists(path) && FileSystem.isDirectory(path))
 				removeDir(path);
 			else
 				FileSystem.deleteFile(path);

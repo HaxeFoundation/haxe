@@ -96,6 +96,7 @@ let entry sctx request_scope (request_args : Args.request_args) =
 		| [] ->
 			0
 		| part :: rest ->
+			Vfs.reset_cwd ();
 			let com = create_context_from_part sctx request_scope has_display (rest <> []) part in
 			let code = Compiler.compile_ctx sctx com in
 			Unix.chdir curdir;
@@ -104,6 +105,6 @@ let entry sctx request_scope (request_args : Args.request_args) =
 			else
 				code
 	in
-	let code = loop request_args.parts in
+	let code = Fun.protect ~finally:Vfs.reset_cwd (fun () -> loop request_args.parts) in
 	Unix.chdir curdir;
 	code
