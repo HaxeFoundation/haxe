@@ -1115,4 +1115,5 @@ let interpret ctx args =
 		| Some e -> ignore(Interp.eval_expr mctx e)
 
 let setup() =
+	MacroApi.current_macro_module := (fun () -> (Interp.get_ctx()).EvalContext.curapi.MacroApi.current_module ());
 	Interp.setup Interp.macro_api

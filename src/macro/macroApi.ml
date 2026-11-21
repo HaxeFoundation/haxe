@@ -253,6 +253,16 @@ let haxe_float f p =
 	else
 		(Ast.EConst (Ast.Float (Numeric.float_repres f, None)), p)
 
+(* The module whose typing runs the current macro. *)
+let current_macro_module : (unit -> module_def) ref = ref (fun () -> null_module)
+
+(* A macro changing the metadata of a type of another module than the one it runs for: the type
+   must be typed again when that module is, since typing it again drops the change. *)
+let meta_written m () =
+	let cur = !current_macro_module () in
+	if cur != m && cur.m_extra.m_kind = MCode && m.m_extra.m_kind = MCode then
+		add_dependency m cur MDepFromMacro
+
 (* ------------------------------------------------------------------------------------------------------------- *)
 (* Our macro api functor *)
 
@@ -1084,13 +1094,14 @@ let vopt f v = match v with
 	| None -> vnull
 	| Some v -> f v
 
-let encode_meta m set =
+let encode_meta ?(on_write=(fun () -> ())) m set =
 	let meta = ref m in
 	encode_obj [
 		"get", vfun0 (fun() ->
 			encode_meta_content (!meta)
 		);
 		"add", vfun3 (fun k vl p ->
+			on_write ();
 			let el = List.map decode_expr (decode_array vl) in
 			meta := (Meta.from_string (decode_string k), el, decode_pos p) :: !meta;
 			set (!meta);
@@ -1101,6 +1112,7 @@ let encode_meta m set =
 			encode_and_map_array encode_meta_entry (List.filter (fun (m,_,_) -> m = k) (!meta))
 		);
 		"remove", vfun1 (fun k ->
+			on_write ();
 			let k = Meta.from_string (decode_string k) in
 			meta := List.filter (fun (m,_,_) -> m <> k) (!meta);
 			set (!meta);
@@ -1121,7 +1133,7 @@ let rec encode_mtype t fields =
 		"pos", encode_pos i.mt_pos;
 		"module", encode_string (s_type_path i.mt_module.m_path);
 		"isPrivate", vbool i.mt_private;
-		"meta", encode_meta i.mt_meta (fun m -> i.mt_meta <- m);
+		"meta", encode_meta ~on_write:(meta_written i.mt_module) i.mt_meta (fun m -> i.mt_meta <- m);
 		"doc", null encode_string (get_own_doc_opt i.mt_doc);
 		"params", encode_type_params i.mt_params;
 	] @ fields)
