@@ -1,0 +1,56 @@
+# A directory that the server watches is deleted and created again: changes
+# in the new directory and in its subdirectories are still seen.
+@args -cp src
+@main Main
+=== initial
+@expect-output v1 w1
+@expect-no-fs-calls
+--- src/Main.hx
+class Main {
+	static function main() {
+		trace(pack.Foo.get() + " " + pack.sub.Bar.get());
+	}
+}
+--- src/pack/Foo.hx
+package pack;
+
+class Foo {
+	public static function get() return "v1";
+}
+--- src/pack/sub/Bar.hx
+package pack.sub;
+
+class Bar {
+	public static function get() return "w1";
+}
+
+=== directory deleted and created again
+@expect-output v2 w2
+--- delete-dir src/pack
+--- src/pack/Foo.hx
+package pack;
+
+class Foo {
+	public static function get() return "v2";
+}
+--- src/pack/sub/Bar.hx
+package pack.sub;
+
+class Bar {
+	public static function get() return "w2";
+}
+
+=== files edited in the new directories
+@expect-output v3 w3
+--- src/pack/Foo.hx
+package pack;
+
+class Foo {
+	public static function get() return "v3";
+}
+--- src/pack/sub/Bar.hx
+package pack.sub;
+
+class Bar {
+	public static function get() return "w3";
+}

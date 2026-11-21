@@ -12,7 +12,7 @@
 
 (library
 	(name extproc)
-	(libraries unix)
+	(libraries unix luv)
 	(modules process)
 	(wrapped false)
 )

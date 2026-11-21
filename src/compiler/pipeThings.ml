@@ -13,33 +13,29 @@
     Stdin data from the client is forwarded as raw bytes after the null-terminated
     argument string, so newlines in stdin require no special encoding. *)
 
-(** Reads all available data from [channel] in 1024-byte chunks,
-	passing each chunk to [f]. Stops on EOF or Unix error. *)
-let rec read_content channel buf f =
-	begin try
-		let i = input channel buf 0 1024 in
-		if i > 0 then begin
-			f (Bytes.unsafe_to_string (Bytes.sub buf 0 i));
-			read_content channel buf f
-		end
-	with Unix.Unix_error _ ->
+(** Reads all available data with [read] in 1024-byte chunks,
+	passing each chunk to [f]. Stops on EOF or error. *)
+let rec read_content read buf f =
+	match read buf 0 1024 with
+	| i when i > 0 ->
+		f (String.sub buf 0 i);
+		read_content read buf f
+	| _ | exception Failure _ ->
 		()
-	end
 
 (** Runs a shell command in server mode, forwarding stdin from the client
 	and capturing stdout/stderr through the socket protocol.
+	The command runs in [cwd] if given, otherwise in the current directory.
 	Uses {!Process.run} to create the child process so we can connect
 	the child's stdin to the client's forwarded data and properly signal
 	EOF when the client closes its end. *)
-let run_command io cmd =
+let run_command ?cwd io cmd =
 	let write_out = CompilerIo.write_out io in
 	let write_err = CompilerIo.write_err io in
-	let proc = Process.run cmd None in
-	let pout = Unix.in_channel_of_descr proc.Process.stdout_fd in
-	let pin = Unix.out_channel_of_descr proc.Process.stdin_fd in
-	let perr = Unix.in_channel_of_descr proc.Process.stderr_fd in
-	let bout = Bytes.create 1024 in
-	let berr = Bytes.create 1024 in
+	let proc = Process.run ?cwd cmd None in
+	let bout = String.make 1024 '\000' in
+	let berr = String.make 1024 '\000' in
+	let close_stdin () = try Process.close_stdin proc with Failure _ -> () in
 	(* Use a flag to signal the stdin-forwarding thread to stop.
 		The thread uses Unix.select with a timeout so it can check this flag
 		periodically, avoiding a hang when the child exits but the client
@@ -55,28 +51,30 @@ let run_command io cmd =
 					if readable <> [] then begin
 						let i = Unix.read stdin_fd buf 0 1024 in
 						if i = 0 then raise Exit;
-						output pin buf 0 i;
-						flush pin
+						let s = Bytes.sub_string buf 0 i in
+						let pos = ref 0 in
+						while !pos < i do
+							pos := !pos + Process.write_stdin proc s !pos (i - !pos)
+						done
 					end
 				done with _ -> ());
-				close_out_noerr pin
+				close_stdin ()
 			) ())
 		| None ->
-			close_out_noerr pin;
+			close_stdin ();
 			None
 	in
-	let tout = Thread.create (fun() -> read_content pout bout write_out) () in
-	let terr = Thread.create (fun() -> read_content perr berr write_err) () in
+	let tout = Thread.create (fun() -> read_content (Process.read_stdout proc) bout write_out) () in
+	let terr = Thread.create (fun() -> read_content (Process.read_stderr proc) berr write_err) () in
 	(* Join stdout/stderr threads first — they complete when the child closes
 		its output fds (typically on exit). Then reap the child process, signal
 		the stdin thread to stop, and join it. *)
 	Thread.join tout;
 	Thread.join terr;
-	close_in_noerr pout;
-	close_in_noerr perr;
 	let code = Process.exit proc in
 	stop_stdin := true;
 	(match tin with Some t -> Thread.join t | None -> ());
+	Process.close proc;
 	code
 
 let ssend sock str =

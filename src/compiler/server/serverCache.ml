@@ -184,16 +184,44 @@ let check_module sctx com m_path m_extra p =
 			end
 		) paths
 	in
+	let has_policy m_extra policy = List.mem policy m_extra.m_check_policy || match policy with
+		| NoFileSystemCheck when !ServerConfig.do_not_check_modules && com.display.dms_kind <> DMNone -> true
+		| _ -> false
+	in
+	(* With the watched file system view, the path of the module is resolved
+	   again: it must still give the file of the module. *)
+	let check_module_resolution com m_path m_extra =
+		match m_path with
+		| _,name when String.length name > 0 && name.[0] = '_' ->
+			()
+		| _ ->
+			try
+				let rfile = TypeloadParse.resolve_module_file com m_path (ref []) p in
+				let file = rfile.ClassPaths.file in
+				let time = file_time file in
+				if com.part_scope.file_keys#get file <> Path.UniqueKey.lazy_key m_extra.m_file
+					|| (has_policy m_extra NoFileSystemCheck && time > m_extra.m_time && not (unchanged_content m_path m_extra file time)) then begin
+					ServerMessage.module_path_changed com "" (m_path,m_extra,time,file);
+					raise (Dirty (Shadowed file))
+				end
+			with Not_found ->
+				()
+	in
+	let check_module_shadowing com m_path m_extra =
+		if !Vfs.mode = Vfs.Watched then
+			check_module_resolution com m_path m_extra
+		else
+			check_module_shadowing (get_changed_directories sctx com) m_path m_extra
+	in
 	let start_mark = sctx.compilation_step in
 	let unknown_state_modules = ref [] in
 	let rec check m_path m_extra =
 		let check_module_path () =
-			let directories = get_changed_directories sctx com in
 			match m_extra.m_kind with
 			| MFake | MImport -> () (* don't get classpath *)
 			| MExtern ->
 				(* if we have a file then this will override our extern type *)
-				check_module_shadowing directories m_path m_extra;
+				check_module_shadowing com m_path m_extra;
 				let rec loop = function
 					| [] ->
 						if sctx.verbose then print_endline ("No library file was found for " ^ s_type_path m_path); (* TODO *)
@@ -210,21 +238,18 @@ let check_module sctx com m_path m_extra p =
 				in
 				loop com.load_extern_type
 			| MCode ->
-				check_module_shadowing directories m_path m_extra
+				check_module_shadowing com m_path m_extra
 			| MMacro when com.is_macro_context ->
-				check_module_shadowing directories m_path m_extra
+				check_module_shadowing com m_path m_extra
 			| MMacro ->
 				begin match com.get_macros() with
 					| None ->
 						()
 					| Some mcom ->
-						check_module_shadowing (get_changed_directories sctx mcom) m_path m_extra
+						check_module_shadowing mcom m_path m_extra
 				end
 		in
-		let has_policy policy = List.mem policy m_extra.m_check_policy || match policy with
-			| NoFileSystemCheck when !ServerConfig.do_not_check_modules && com.display.dms_kind <> DMNone -> true
-			| _ -> false
-		in
+		let has_policy = has_policy m_extra in
 		let check_file () =
 			let file = Path.UniqueKey.lazy_path m_extra.m_file in
 			let time = file_time file in

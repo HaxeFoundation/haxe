@@ -43,17 +43,20 @@ arguments, e.g. `-D incremental-check-refs`), `--strict-order` (do not sort
 compiler messages before comparing), `--invalidate` (notify the server with
 `server/invalidate` instead of relying on modification times), `--keep` (keep
 the `work` directory), `--check-deps` (check the dependencies recorded by a compiler supporting
-`-D dump-fingerprints`).
+`-D dump-fingerprints`), `--vfs watch` (start the servers with `HAXE_VFS=watch`,
+so that they watch the file system instead of checking modification times).
 
 Some expectations need compiler features, detected when the runner starts:
 `@expect-fingerprint-same`/`-changed` (`-D dump-fingerprints`),
 `@expect-retyped` (`server/retyped`) and `@expect-no-fs-calls` (`server/vfs`).
 Without them, these expectations are not checked (the summary says how many),
 and cases using overlays (`server/overlay`) are reported as `SKIP`.
+`@expect-no-fs-calls` is only checked with `--vfs watch`, on a platform where
+the server sees changes from file system events.
 
 In CI, the suite runs as part of the `js` target of `tests/RunCi.hx` (after
-the server tests), and its `interp` cases with the JVM runner as part of the
-`jvm` target.
+the server tests), once with the default server and once with `--vfs watch`,
+and its `interp` cases with the JVM runner as part of the `jvm` target.
 
 Targets: `interp` (`--interp`, program output is the compiler output), `js`
 (`out/main.js`, run with node) and `hl` (`out/main.hl`, run with `hl` when it
@@ -111,10 +114,15 @@ class Dep {
   `@shuffle-seeds <seed>...` (every step is also compiled cold with each seed
   in the `HAXE_TYPER_SHUFFLE` environment variable, which makes the compiler
   run its delayed typing tasks in a random order; the output must be the same).
+  The list of `@known-failure` can also name a file system mode of the server,
+  `legacy` (the default) or `watch`, e.g. `[js,legacy]`: the case is then
+  expected to pass in the other mode.
+
 - Each `=== name` section is a step: directives first (`@args` replaces the
   extra arguments from that step on, `@same-second`), then file blocks
-  `--- path` (content up to the next `--- ` or `=== ` line) and
-  `--- delete path`.
+  `--- path` (content up to the next `--- ` or `=== ` line),
+  `--- delete path`, `--- delete-dir path` and `--- symlink path target`
+  (a symbolic link to another file of the project).
 - Expectations: `@expect-success`, `@expect-error <text>`,
   `@expect-warning <text>`, `@expect-no-warning`, `@expect-output <text>`,
   `@expect-no-output <text>`, `@expect-compiler-output <text>`,
@@ -123,9 +131,9 @@ class Dep {
 ## Modification times
 
 Unless a case uses `@real-mtime`, the runner gives every step its own
-modification time, two seconds after the previous one, on changed files and
-their directories, so that cases do not depend on how fast the machine
-compiles. A step with `@same-second` gets a time a fraction of a second after
+modification time, two seconds after the previous one, on changed files and,
+when a file is created or deleted, on its directories, so that cases do not
+depend on how fast the machine compiles. A step with `@same-second` gets a time a fraction of a second after
 the previous step instead (`cases/basic/same-second-edit.hxtest`).
 
 ## Macro file dependencies

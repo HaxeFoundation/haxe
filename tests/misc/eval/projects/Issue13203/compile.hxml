@@ -1,0 +1,4 @@
+-cp src
+--macro Macro.init()
+--main Main
+--interp
