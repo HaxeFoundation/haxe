@@ -159,7 +159,7 @@ let find_referenced_types_flags ctx obj filter super_deps constructor_deps heade
               add_extern_enum enum_def
           | _ -> add_type (t_path type_def))
       (* Must visit the types, Type.iter will visit the expressions ... *)
-      | TTry (e, catches) ->
+      | TTry (e, catches, _) ->
           List.iter (fun (v, _) -> visit_type v.v_type) catches
       (* Must visit type too, Type.iter will visit the expressions ... *)
       | TNew (klass, params, _) -> (

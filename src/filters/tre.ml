@@ -114,10 +114,13 @@ let rec transform_function ctx is_recursive_call fn =
 		| TWhile _ ->
 			map_expr (transform_expr true false) e
 		(* cancel tre inside of try blocks *)
-		| TTry (e_try, catches) ->
+		| TTry (e_try, catches, efinally) ->
 			let e_try = transform_expr true function_end e_try in
-			let catches = List.map (fun (v, e) -> v, transform_expr cancel_tre function_end e) catches in
-			{ e with eexpr = TTry (e_try, catches) }
+			(* With `finally`, a tail call in a catch block still has to run the `finally` after it returns. *)
+			let cancel_catches = cancel_tre || efinally <> None in
+			let catches = List.map (fun (v, e) -> v, transform_expr cancel_catches function_end e) catches in
+			let efinally = Option.map (transform_expr true false) efinally in
+			{ e with eexpr = TTry (e_try, catches, efinally) }
 		(* named local function *)
 		| TBinop (OpAssign, ({ eexpr = TLocal ({ v_kind = VUser TVOLocalFunction } as v) } as e_var), ({ eexpr = TFunction fn } as e_fn)) ->
 			let fn = transform_function ctx (is_recursive_named_local_call v) fn in
@@ -170,9 +173,10 @@ let rec has_tail_recursion is_recursive_call cancel_tre function_end e =
 	| TWhile _ ->
 		check_expr (has_tail_recursion is_recursive_call true false) e
 	(* cancel tre inside of try blocks *)
-	| TTry (e, catches) ->
+	| TTry (e, catches, efinally) ->
+		let cancel_catches = cancel_tre || efinally <> None in
 		has_tail_recursion is_recursive_call true function_end e
-		|| List.exists (fun (_, e) -> has_tail_recursion is_recursive_call cancel_tre function_end e) catches
+		|| List.exists (fun (_, e) -> has_tail_recursion is_recursive_call cancel_catches function_end e) catches
 	(* named local function *)
 	| TBinop (OpAssign, { eexpr = TLocal ({ v_kind = VUser TVOLocalFunction } as v) }, { eexpr = TFunction fn }) ->
 		has_tail_recursion (is_recursive_named_local_call v) false true fn.tf_expr

@@ -269,7 +269,7 @@ module Transformer = struct
 							()
 					end;
 					declare v;
-				| TTry(e1,catches) ->
+				| TTry(e1,catches,efinally) ->
 					it e1;
 					List.iter (fun (v,e) ->
 						let restore = save() in
@@ -277,6 +277,7 @@ module Transformer = struct
 						it e;
 						restore()
 					) catches;
+					Option.may it efinally;
 				| TBinop( (OpAssign | OpAssignOp(_)), { eexpr = TLocal v }, e2) ->
 					if not (PMap.mem v.v_id !cur) then
 						Hashtbl.add non_locals v.v_id v;
@@ -897,15 +898,18 @@ module Transformer = struct
 			let r = { a_expr with eexpr = TArray(e1.a_expr, e2.a_expr)} in
 			let blocks = List.append e1.a_blocks e2.a_blocks in
 			lift_expr ae.a_next_id ~blocks:blocks r
-		| (false, TTry(etry, catches)) ->
+		| (false, TTry(etry, catches, efinally)) ->
 			let etry = trans false [] etry in
 			let catches = List.map (fun(v,e) -> KeywordHandler.check_var_declaration v; v, trans false [] e) catches in
+			let efinally = Option.map (trans false []) efinally in
 			let blocks = List.flatten (List.map (fun (_,e) -> e.a_blocks) catches) in
 			let catches = List.map (fun(v,e) -> v, e.a_expr) catches in
-			let r = { a_expr with eexpr = TTry(etry.a_expr, catches)} in
+			let blocks = match efinally with None -> blocks | Some e -> blocks @ e.a_blocks in
+			let efinally = Option.map (fun e -> e.a_expr) efinally in
+			let r = { a_expr with eexpr = TTry(etry.a_expr, catches, efinally)} in
 			let blocks = List.append etry.a_blocks blocks in
 			lift false blocks r
-		| (true, TTry(etry, catches)) ->
+		| (true, TTry(etry, catches, efinally)) ->
 
 			let id = ae.a_next_id () in
 			let temp_var = to_tvar id a_expr.etype a_expr.epos in
@@ -914,7 +918,7 @@ module Transformer = struct
 			let mk_temp_assign right = { a_expr with eexpr = TBinop(OpAssign, temp_local, right)} in
 			let etry = mk_temp_assign etry in
 			let catches = List.map (fun (v,e)-> KeywordHandler.check_var_declaration v; v, mk_temp_assign e) catches in
-			let new_try = { a_expr with eexpr = TTry(etry, catches)} in
+			let new_try = { a_expr with eexpr = TTry(etry, catches, efinally)} in
 			let block = [temp_var_def; new_try; temp_local] in
 			let new_block = { a_expr with eexpr = TBlock(block)} in
 			forward_transform new_block ae
@@ -1354,8 +1358,8 @@ module Printer = struct
 				Printf.sprintf "while %s:\n%s    %s" (print_expr pctx (remove_outer_parens econd)) indent (print_expr_indented e1)
 			| TWhile(econd,e1,DoWhile) ->
 				abort "Currently not supported" e.epos
-			| TTry(e1,catches) ->
-				print_try pctx e1 catches
+			| TTry(e1,catches,efinally) ->
+				print_try pctx e1 catches efinally
 			| TReturn eo ->
 				Printf.sprintf "return%s" (opt eo (print_op_assign_right pctx) " ")
 			| TBreak ->
@@ -1443,7 +1447,7 @@ module Printer = struct
 			| _ ->
 				do_default()
 
-	and print_try pctx e1 catches =
+	and print_try pctx e1 catches efinally =
 		let print_catch pctx (v,e) =
 			let s_type = print_module_type (module_type_of_type v.v_type)
 			and s_expr = pctx.pc_indent ^ (print_expr pctx e) in
@@ -1454,7 +1458,14 @@ module Printer = struct
 		let try_str = Printf.sprintf "try:\n%s    %s\n%s" indent (print_expr_indented e1) indent in
 		let catch_pctx = {pctx with pc_indent = "    " ^ pctx.pc_indent} in
 		let catch_str = String.concat (Printf.sprintf "\n") (List.map (print_catch catch_pctx) catches) in
-		Printf.sprintf "%s%s" try_str catch_str
+		let finally_str = match efinally with
+			| None ->
+				""
+			| Some e ->
+				let sep = if catches = [] then "" else "\n" ^ indent in
+				Printf.sprintf "%sfinally:\n%s    %s" sep indent (print_expr_indented e)
+		in
+		Printf.sprintf "%s%s%s" try_str catch_str finally_str
 
 	and print_call2 pctx e1 el =
 		let id = print_expr pctx e1 in

@@ -79,10 +79,11 @@ class ExprTools {
 			case EVars(vl):
 				for (v in vl)
 					opt2(v.expr, f);
-			case ETry(e, cl):
+			case ETry(e, cl, efinally):
 				f(e);
 				for (c in cl)
 					f(c.expr);
+				opt2(efinally, f);
 			case ETernary(e1, e2, e3) | EIf(e1, e2, e3):
 				f(e1);
 				f(e2);
@@ -180,11 +181,11 @@ class ExprTools {
 				case ECheckType(e, t): ECheckType(f(e), t);
 				case EContinue, EBreak:
 					e.expr;
-				case ETry(e, catches):
+				case ETry(e, catches, efinally):
 					var ret = [];
 					for (c in catches)
 						ret.push({name: c.name, type: c.type, expr: f(c.expr)});
-					ETry(f(e), ret);
+					ETry(f(e), ret, opt(efinally, f));
 				case ESwitch(e, cases, edef):
 					var ret = [];
 					for (c in cases)

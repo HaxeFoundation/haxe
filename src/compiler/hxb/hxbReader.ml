@@ -668,7 +668,8 @@ class hxb_reader
 				let p = self#read_pos in
 				(pn,th,e,p)
 			) in
-			ETry(e1,catches)
+			let efinally = self#read_option (fun () -> self#read_expr) in
+			ETry(e1,catches,efinally)
 		| 24 -> EReturn None
 		| 25 -> EReturn (Some (self#read_expr))
 		| 26 -> EBreak
@@ -1218,7 +1219,8 @@ class hxb_reader
 							let e = loop () in
 							(v,e)
 						) in
-						TTry(e1,catches),None
+						let efinally = self#read_option loop in
+						TTry(e1,catches,efinally),None
 					| 84 ->
 						let e1 = loop () in
 						let e2 = loop () in

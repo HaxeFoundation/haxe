@@ -1696,7 +1696,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 							self#write_expr_while condition expr do_while
 					)
 				| TSwitch switch -> self#write_expr_switch switch.switch_subject switch.switch_cases switch.switch_default
-				| TTry (try_expr, catches) -> self#write_expr_try_catch try_expr catches
+				| TTry (try_expr, catches, efinally) -> self#write_expr_try_catch try_expr catches efinally
 				| TReturn expr -> self#write_expr_return expr
 				| TBreak -> self#write "break"
 				| TContinue -> self#write "continue"
@@ -1865,7 +1865,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					match e.eexpr with
 						| TIf (_, _, _) -> false
 						| TWhile (_, _, _) -> false
-						| TTry (_, _) -> false
+						| TTry _ -> false
 						| TFunction _ -> false
 						| TBlock _ -> false
 						| TSwitch _ -> false
@@ -1994,7 +1994,7 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 		(**
 			Writes try...catch to output buffer
 		*)
-		method write_expr_try_catch try_expr catches =
+		method write_expr_try_catch try_expr catches efinally =
 			self#write "try ";
 			self#write_as_block try_expr;
 			let rec traverse = function
@@ -2005,7 +2005,11 @@ class code_writer (ctx:php_generator_context) hx_type_path php_name =
 					self#write_as_block body;
 					traverse rest
 			in
-			traverse catches
+			traverse catches;
+			Option.may (fun e ->
+				self#write " finally ";
+				self#write_as_block e
+			) efinally
 		(**
 			Writes TCast to output buffer
 		*)

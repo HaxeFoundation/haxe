@@ -559,9 +559,10 @@ let inline_constructors (scom : SafeCom.t) original_e =
 			ignore(analyze_aliases IEHIgnored e1);
 			(match e2 with None -> () | Some e -> ignore(analyze_aliases IEHIgnored e));
 			None
-		| TTry (e,catches) when captured==IEHIgnored ->
+		| TTry (e,catches,efinally) when captured==IEHIgnored ->
 			ignore(analyze_aliases IEHIgnored e);
 			List.iter (fun (_,e) -> ignore(analyze_aliases IEHIgnored e)) catches;
+			Option.may (fun e -> ignore(analyze_aliases IEHIgnored e)) efinally;
 			None
 		| _ ->
 			handle_default_case e

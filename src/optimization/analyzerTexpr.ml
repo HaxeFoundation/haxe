@@ -28,7 +28,9 @@ let s_expr_pretty e = s_expr_pretty false "" false (s_type (print_context())) e
 
 let is_stack_allocated c = Meta.has Meta.StructAccess c.cl_meta
 
-let map_values ?(allow_control_flow=true) f e =
+(* Moves the final values of `e` into its branches. With `allow_finally`, this includes the try and catch
+   blocks of a `try` with `finally`, which is fine as long as the `finally` block cannot observe `f`. *)
+let map_values ?(allow_control_flow=true) ?(allow_finally=true) f e =
 	let branching = ref false in
 	let efinal = ref None in
 	let f e =
@@ -66,11 +68,11 @@ let map_values ?(allow_control_flow=true) f e =
 				if not complex then raise Exit;
 				f e
 			end
-		| TTry(e1,catches) ->
+		| TTry(e1,catches,efinally) when allow_finally || efinally = None ->
 			branching := true;
 			let e1 = loop true e1 in
 			let catches = List.map (fun (v,e) -> v,loop true e) catches in
-			{e with eexpr = TTry(e1,catches)}
+			{e with eexpr = TTry(e1,catches,efinally)}
 		| TMeta(m,e1) ->
 			{e with eexpr = TMeta(m,loop complex e1)}
 		| TParenthesis e1 ->
@@ -860,7 +862,8 @@ module Fusion = struct
 						| TBinop(OpAssign,e1,e2) -> incr i; check e1 (fun e' -> {e with eexpr = TBinop(OpAssign,e1,e')}) e2
 						| _ -> raise Exit
 					in
-					let e,_ = map_values check_assign e1 in
+					(* The `finally` block could read what we assign here, so we keep it out. *)
+					let e,_ = map_values ~allow_finally:false check_assign e1 in
 					let e = match !e' with
 						| None -> die "" __LOC__
 						| Some(e1,f) ->

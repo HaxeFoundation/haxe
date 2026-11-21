@@ -318,7 +318,7 @@ and gen_expr ctx e =
 		(EIf (gen_expr ctx cond,gen_expr ctx e1,(match e2 with None -> None | Some e -> Some (gen_expr ctx e))),p)
 	| TWhile (econd,e,flag) ->
 		(EWhile (gen_expr ctx econd, gen_expr ctx e, match flag with Ast.NormalWhile -> NormalWhile | Ast.DoWhile -> DoWhile),p)
-	| TTry (e,catchs) ->
+	| TTry (e,catchs,_) ->
 		let rec loop = function
 			| [] -> call p (builtin p "rethrow") [ident p "@tmp"]
 			| (v,e) :: l ->

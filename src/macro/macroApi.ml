@@ -663,7 +663,7 @@ and encode_expr e =
 						"pos",encode_pos p;
 					]
 				) cases);null (fun (e,_) -> encode_null_expr e) eopt]
-			| ETry (e,catches) ->
+			| ETry (e,catches,efinally) ->
 				17, [loop e;encode_array (List.map (fun (v,t,e,p) ->
 					encode_obj [
 						"name",encode_placed_name v;
@@ -672,7 +672,7 @@ and encode_expr e =
 						"expr",loop e;
 						"pos",encode_pos p
 					]
-				) catches)]
+				) catches);null loop efinally]
 			| EReturn eo ->
 				18, [null loop eo]
 			| EBreak ->
@@ -1034,11 +1034,12 @@ and decode_expr v =
 				(List.map loop (decode_array (field c "values")),opt loop (field c "guard"),opt loop (field c "expr"),maybe_decode_pos (field c "pos"))
 			) (decode_array cases) in
 			ESwitch (loop e,cases,opt (fun v -> (if field v "expr" = vnull then None else Some (decode_expr v)),p) eo)
-		| 17, [e;catches] ->
+		| 17, (e :: catches :: efinally) ->
 			let catches = List.map (fun c ->
 				((decode_placed_name (field c "name_pos") (field c "name")),(opt decode_ctype (field c "type")),loop (field c "expr"),maybe_decode_pos (field c "pos"))
 			) (decode_array catches) in
-			ETry (loop e, catches)
+			let efinally = match efinally with [] -> None | [ef] -> opt loop ef | _ -> raise Invalid_expr in
+			ETry (loop e, catches, efinally)
 		| 18, [e] ->
 			EReturn (opt loop e)
 		| 19, [] ->
@@ -1477,14 +1478,15 @@ and encode_texpr e =
 					encode_array (List.map (fun case -> encode_obj ["values",encode_texpr_list case.case_patterns;"expr",loop case.case_expr]) switch.switch_cases);
 					vopt encode_texpr switch.switch_default
 				]
-			| TTry(e1,catches) -> 19,[
+			| TTry(e1,catches,efinally) -> 19,[
 				loop e1;
 				encode_array (List.map (fun (v,e) ->
 					encode_obj [
 						"v",encode_tvar v;
 						"expr",loop e
 					]) catches
-				)]
+				);
+				vopt encode_texpr efinally]
 			| TReturn e1 -> 20,[vopt encode_texpr e1]
 			| TBreak -> 21,[]
 			| TContinue -> 22,[]
@@ -1634,7 +1636,9 @@ and decode_texpr v =
 			let default = opt loop vdef in
 			let switch = mk_switch subject cases default (is_exhaustive subject default) in
 			TSwitch switch
-		| 19, [v1;cl] -> TTry(loop v1,List.map (fun v -> decode_tvar (field v "v"),loop (field v "expr")) (decode_array cl))
+		| 19, (v1 :: cl :: vfinally) ->
+			let efinally = match vfinally with [] -> None | [v] -> opt loop v | _ -> raise Invalid_expr in
+			TTry(loop v1,List.map (fun v -> decode_tvar (field v "v"),loop (field v "expr")) (decode_array cl),efinally)
 		| 20, [vo] -> TReturn(opt loop vo)
 		| 21, [] -> TBreak
 		| 22, [] -> TContinue

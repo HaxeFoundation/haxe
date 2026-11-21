@@ -34,6 +34,16 @@ open OptimizerTexpr
 	The created graph is intact and can immediately be transformed back to an expression, or used for analysis first.
 *)
 
+(* An enclosing `finally` block. Control flow that leaves its `try` or catch blocks goes through it,
+   and the flags record where it continues afterwards. *)
+type finally_block = {
+	fin_bb : BasicBlock.t;
+	mutable fin_to_outer : bool;    (* to the next enclosing `finally` block *)
+	mutable fin_to_exit : bool;     (* to the end of the function (return) *)
+	mutable fin_to_break : bool;    (* to the end of the current loop *)
+	mutable fin_to_continue : bool; (* to the head of the current loop *)
+}
+
 let rec func ctx bb tf t p =
 	let g = ctx.graph in
 	let create_node kind t p =
@@ -48,10 +58,15 @@ let rec func ctx bb tf t p =
 	let bb_breaks = ref [] in
 	let bb_continue = ref None in
 	let b_try_stack = ref [] in
+	(* The enclosing `finally` blocks, innermost first, and how many of them are outside of the current loop. *)
+	let finally_stack = ref [] in
+	let finally_outside_loop = ref 0 in
 	let begin_loop bb_loop_pre bb_continue' =
 		let old = !bb_breaks,!bb_continue in
+		let old_finally_outside_loop = !finally_outside_loop in
 		bb_breaks := [];
 		bb_continue := Some bb_continue';
+		finally_outside_loop := List.length !finally_stack;
 		let id = ctx.loop_counter in
 		g.g_loops <- IntMap.add id bb_loop_pre g.g_loops;
 		ctx.loop_stack <- id :: ctx.loop_stack;
@@ -61,6 +76,7 @@ let rec func ctx bb tf t p =
 			let breaks = !bb_breaks in
 			bb_breaks := fst old;
 			bb_continue := snd old;
+			finally_outside_loop := old_finally_outside_loop;
 			ctx.loop_stack <- List.tl ctx.loop_stack;
 			breaks;
 		)
@@ -70,6 +86,27 @@ let rec func ctx bb tf t p =
 		(fun () ->
 			b_try_stack := List.tl !b_try_stack
 		)
+	in
+	(* Routes a `return`, `break` or `continue` from `bb` through the `finally` blocks it leaves.
+	   Returns false if it doesn't leave any. *)
+	let exit_through_finally bb mark_last only_loop =
+		let crossed = if not only_loop then
+			!finally_stack
+		else
+			ExtList.List.take (List.length !finally_stack - !finally_outside_loop) !finally_stack
+		in
+		match crossed with
+		| [] ->
+			false
+		| fin :: _ ->
+			add_cfg_edge bb fin.fin_bb CFGGoto;
+			let rec loop l = match l with
+				| [fin] -> mark_last fin
+				| fin :: l -> fin.fin_to_outer <- true; loop l
+				| [] -> die "" __LOC__
+			in
+			loop crossed;
+			true
 	in
 	let add_terminator bb term =
 		bb.bb_terminator <- term;
@@ -503,38 +540,82 @@ let rec func ctx bb tf t p =
 			close_node bb_loop_body_next;
 			close_node bb_loop_pre;
 			bb_next;
-		| TTry(e1,catches) ->
+		| TTry(e1,catches,efinally) ->
 			let bb_try = create_node BKNormal e1.etype e1.epos in
 			let bb_exc = create_node BKException t_dynamic e.epos in
 			add_cfg_edge bb bb_try CFGGoto;
+			(* The `finally` block protects both the try and the catch blocks. *)
+			let finally = Option.map (fun ef ->
+				let fin = {
+					fin_bb = create_node BKNormal ef.etype ef.epos;
+					fin_to_outer = false;
+					fin_to_exit = false;
+					fin_to_break = false;
+					fin_to_continue = false;
+				} in
+				let outer_finally = !finally_stack in
+				finally_stack := fin :: outer_finally;
+				let close = begin_try fin.fin_bb in
+				fin,ef,(fun () ->
+					close();
+					finally_stack := outer_finally
+				)
+			) efinally in
 			let close = begin_try bb_exc in
 			let bb_try_next = block bb_try e1 in
 			close();
 			(* We always want to keep catch-blocks, so let's add a pseudo CFG edge if it's unreachable. *)
 			if bb_exc.bb_incoming = [] then add_cfg_edge (if bb_try_next == g.g_unreachable then bb_try else bb_try_next) bb_exc CFGMaybeThrow;
-			let is_reachable = ref (not (bb_try_next == g.g_unreachable)) in
 			let catches = List.map (fun (v,e) ->
 				let bb_catch = create_node (BKCatch v) e.etype e.epos in
 				add_cfg_edge bb_exc bb_catch CFGGoto;
 				let bb_catch_next = block bb_catch e in
-				is_reachable := !is_reachable || (not (bb_catch_next == g.g_unreachable));
 				v,bb_catch,bb_catch_next
 			) catches in
-			let bb_next = if !is_reachable then create_node BKNormal bb.bb_type bb.bb_pos else g.g_unreachable in
+			(* The blocks which complete normally, these continue after the try or in the `finally` block. *)
+			let ends = List.filter (fun bb -> bb != g.g_unreachable) (bb_try_next :: List.map (fun (_,_,bb) -> bb) catches) in
+			let bb_finally,bb_next = match finally with
+				| None ->
+					let bb_next = if ends <> [] then create_node BKNormal bb.bb_type bb.bb_pos else g.g_unreachable in
+					List.iter (fun bb -> add_cfg_edge bb bb_next CFGGoto) ends;
+					None,bb_next
+				| Some (fin,ef,close) ->
+					close();
+					List.iter (fun bb -> add_cfg_edge bb fin.fin_bb CFGGoto) ends;
+					(* Exceptions which no catch handles. *)
+					add_cfg_edge bb_exc fin.fin_bb CFGGoto;
+					let bb_fin_next = block fin.fin_bb ef in
+					let bb_next = if ends <> [] && bb_fin_next != g.g_unreachable then create_node BKNormal bb.bb_type bb.bb_pos else g.g_unreachable in
+					if bb_fin_next != g.g_unreachable then begin
+						if bb_next != g.g_unreachable then add_cfg_edge bb_fin_next bb_next CFGGoto;
+						(* Continue whatever made control flow enter the `finally` block. *)
+						if fin.fin_to_outer then add_cfg_edge bb_fin_next (List.hd !finally_stack).fin_bb CFGGoto;
+						if fin.fin_to_exit then add_cfg_edge bb_fin_next bb_exit CFGGoto;
+						if fin.fin_to_break then bb_breaks := bb_fin_next :: !bb_breaks;
+						if fin.fin_to_continue then begin match !bb_continue with
+							| Some bb_continue -> add_cfg_edge bb_fin_next bb_continue CFGGoto
+							| None -> die "" __LOC__
+						end;
+						begin match !b_try_stack with
+							| [] -> add_cfg_edge bb_fin_next bb_exit CFGMaybeThrow
+							| l -> List.iter (fun bb_exc -> add_cfg_edge bb_fin_next bb_exc CFGMaybeThrow) l
+						end;
+					end;
+					close_node bb_fin_next;
+					Some fin.fin_bb,bb_next
+			in
 			let catches = List.map (fun (v,bb_catch,bb_catch_next) ->
-				if bb_catch_next != g.g_unreachable then add_cfg_edge bb_catch_next bb_next CFGGoto;
 				close_node bb_catch_next;
 				v,bb_catch
 			) catches in
-			set_syntax_edge bb (SETry(bb_try,bb_exc,catches,bb_next,e.epos));
-			if bb_try_next != g.g_unreachable then add_cfg_edge bb_try_next bb_next CFGGoto;
+			set_syntax_edge bb (SETry(bb_try,bb_exc,catches,bb_finally,bb_next,e.epos));
 			close_node bb_try_next;
 			close_node bb_exc;
 			close_node bb;
 			bb_next
 		(* control flow *)
 		| TReturn None ->
-			add_cfg_edge bb bb_exit CFGGoto;
+			if not (exit_through_finally bb (fun fin -> fin.fin_to_exit <- true) false) then add_cfg_edge bb bb_exit CFGGoto;
 			add_terminator bb (TermReturn e.epos)
 		| TReturn (Some e1) when ExtType.is_void (follow e1.etype) ->
 			let bb = block_element bb e1 in
@@ -545,14 +626,14 @@ let rec func ctx bb tf t p =
 				block_element_value bb e1 mk_return
 			with Exit ->
 				let bb,e1 = value bb e1 in
-				add_cfg_edge bb bb_exit CFGGoto;
+				if not (exit_through_finally bb (fun fin -> fin.fin_to_exit <- true) false) then add_cfg_edge bb bb_exit CFGGoto;
 				add_terminator bb (TermReturnValue(e1,e.epos))
 			end
 		| TBreak ->
-			bb_breaks := bb :: !bb_breaks;
+			if not (exit_through_finally bb (fun fin -> fin.fin_to_break <- true) true) then bb_breaks := bb :: !bb_breaks;
 			add_terminator bb (TermBreak e.epos)
 		| TContinue ->
-			begin match !bb_continue with
+			if not (exit_through_finally bb (fun fin -> fin.fin_to_continue <- true) true) then begin match !bb_continue with
 				| Some bb_continue -> add_cfg_edge bb bb_continue CFGGoto
 				| _ -> die "" __LOC__
 			end;
@@ -713,8 +794,9 @@ let rec block_to_texpr_el ctx bb =
 				Some bb_next,None
 			| SENone ->
 				None,terminator_to_texpr_maybe bb.bb_terminator
-			| SETry(bb_try,_,bbl,bb_next,p) ->
-				if_live bb_next,Some (mk (TTry(block bb_try,List.map (fun (v,bb) -> v,block bb) bbl)) ctx.com.basic.tvoid p)
+			| SETry(bb_try,_,bbl,bb_finally,bb_next,p) ->
+				let efinally = Option.map block bb_finally in
+				if_live bb_next,Some (mk (TTry(block bb_try,List.map (fun (v,bb) -> v,block bb) bbl,efinally)) ctx.com.basic.tvoid p)
 			| SEIfThen(bb_then,bb_next,p) ->
 				if_live bb_next,Some (mk (TIf(get_terminator(),block bb_then,None)) ctx.com.basic.tvoid p)
 			| SEIfThenElse(bb_then,bb_else,bb_next,t,p) ->

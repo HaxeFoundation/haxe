@@ -618,7 +618,8 @@ let block_to_texpr_coroutine ctx cb cont cls params tf_args exprs p stack_item_i
 					b#assign etmp_error (start_exception ecaught);
 				] in
 				(vcaught,e)
-			]
+			],
+			None
 		)) com.basic.tvoid p
 	in
 

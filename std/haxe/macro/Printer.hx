@@ -309,10 +309,10 @@ class Printer {
 					s += '\n${tabs}default:' + (edef.expr == null ? "" : printExpr(edef) + ";");
 				tabs = old;
 				s + '\n$tabs}';
-			case ETry(e1, cl):
+			case ETry(e1, cl, efinally):
 				'try ${printExpr(e1)}' + cl.map(function(c) return
 					' catch(${c.name}${c.type == null ? '' : (':' + printComplexType(c.type))}) ${printExpr(c.expr)}')
-					.join("");
+					.join("") + opt(efinally, printExpr, " finally ");
 			case EReturn(eo): "return" + opt(eo, printExpr, " ");
 			case EBreak: "break";
 			case EContinue: "continue";
@@ -573,11 +573,14 @@ class Printer {
 					if (edef != null) {
 						loop(tabs + tabString + tabString + tabString, edef);
 					}
-				case ETry(e, catches):
+				case ETry(e, catches, efinally):
 					add("ETry");
 					loopI(e);
 					for (c in catches) {
 						loop(tabs + tabString + tabString, c.expr);
+					}
+					if (efinally != null) {
+						loop(tabs + tabString + tabString, efinally);
 					}
 				case EReturn(e):
 					add("EReturn");

@@ -822,7 +822,7 @@ let begin_fun ctx args tret el stat p =
 	let rec loop_try e =
 		match e.eexpr with
 		| TFunction _ -> ()
-		| TTry (_,catches) when List.exists is_not_rethrow catches -> raise Exit
+		| TTry (_,catches,_) when List.exists is_not_rethrow catches -> raise Exit
 		| _ -> Type.iter loop_try e
 	in
 	ctx.try_scope_reg <- (try List.iter loop_try el; None with Exit -> Some (alloc_reg ctx KDynamic));
@@ -1198,7 +1198,7 @@ let rec gen_expr_content ctx retval e =
 		if retval then write ctx HNull
 	| TUnop (op,flag,e) ->
 		gen_unop ctx retval op flag e
-	| TTry (e2,cases) ->
+	| TTry (e2,cases,_) ->
 		if ctx.infos.istack <> 0 then abort "Cannot compile try/catch as a right-side expression in Flash9" e.epos;
 		let branch = begin_branch ctx in
 		let p = ctx.infos.ipos in

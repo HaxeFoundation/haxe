@@ -12,10 +12,11 @@ let insert_save_stacks ectx scom =
 
 	let rec contains_insertion_points e =
 		match e.eexpr with
-		| TTry (e, catches) ->
+		| TTry (e, catches, efinally) ->
 			List.exists (fun (v, _) -> Meta.has Meta.NeedsExceptionStack v.v_meta) catches
 			|| contains_insertion_points e
 			|| List.exists (fun (_, e) -> contains_insertion_points e) catches
+			|| Option.map_default contains_insertion_points false efinally
 		| _ ->
 			check_expr contains_insertion_points e
 	in
@@ -35,8 +36,9 @@ let insert_save_stacks ectx scom =
 	in
 	let rec run e =
 		match e.eexpr with
-		| TTry (e1, catches) ->
+		| TTry (e1, catches, efinally) ->
 			let e1 = map_expr run e1 in
+			let efinally = Option.map run efinally in
 			let catches =
 				List.map (fun ((v, body) as catch) ->
 					if Meta.has Meta.NeedsExceptionStack v.v_meta then
@@ -52,7 +54,7 @@ let insert_save_stacks ectx scom =
 						catch
 				) catches
 			in
-			{ e with eexpr = TTry (e1, catches) }
+			{ e with eexpr = TTry (e1, catches, efinally) }
 		| _ ->
 			map_expr run e
 	in

@@ -960,7 +960,29 @@ and type_new ctx ptp el with_type force_inline p =
 		display_error_ext ctx.com err;
 		mk (TConst TNull) t p
 
-and type_try ctx e1 catches with_type p =
+and type_finally ctx e =
+	let e = type_expr ctx (Expr.ensure_block e) WithType.NoValue in
+	(* Leaving a `finally` block through control flow would discard whatever made the
+	   control flow enter it, so we don't allow that. Throwing is still possible. *)
+	let rec loop in_loop e = match e.eexpr with
+		| TFunction _ ->
+			()
+		| TReturn _ ->
+			display_error ctx.com "Cannot return from a finally block" e.epos
+		| TBreak when not in_loop ->
+			display_error ctx.com "Cannot break out of a finally block" e.epos
+		| TContinue when not in_loop ->
+			display_error ctx.com "Cannot continue out of a finally block" e.epos
+		| TWhile(e1,e2,_) ->
+			loop in_loop e1;
+			loop true e2
+		| _ ->
+			Type.iter (loop in_loop) e
+	in
+	loop false e;
+	e
+
+and type_try ctx e1 catches efinally with_type p =
 	let e1 = type_expr ctx (Expr.ensure_block e1) with_type in
 	let rec check_unreachable cases t p = match cases with
 		| (v,e) :: cases ->
@@ -1036,7 +1058,8 @@ and type_try ctx e1 catches with_type p =
 			) catches in
 			e1,catches,t
 	in
-	mk (TTry (e1,List.rev catches)) t p
+	let efinally = Option.map (type_finally ctx) efinally in
+	mk (TTry (e1,List.rev catches,efinally)) t p
 
 and type_map_declaration ctx e1 el with_type p =
 	let expected_kv =
@@ -1931,10 +1954,10 @@ and type_expr ?(mode=MGet) ctx (e,p) (with_type:WithType.t) =
 	| EContinue ->
 		if not ctx.e.in_loop then display_error ctx.com "Continue outside loop" p;
 		mk TContinue (terminator_type ctx with_type p) p
-	| ETry (e1,[]) ->
+	| ETry (e1,[],None) ->
 		type_expr ctx e1 with_type
-	| ETry (e1,catches) ->
-		type_try ctx e1 catches with_type p
+	| ETry (e1,catches,efinally) ->
+		type_try ctx e1 catches efinally with_type p
 	| EThrow e ->
 		let e = try
 			type_expr ctx e WithType.value

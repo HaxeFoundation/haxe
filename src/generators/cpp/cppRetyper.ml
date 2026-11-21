@@ -1640,7 +1640,7 @@ let expression ctx request_type function_args function_type expression_tree forI
               ( retyper_ctx,
                 CppSwitch (condition, conditionType, List.rev cases, cppDef, label),
                 TCppVoid ))
-      | TTry (try_block, catches) ->
+      | TTry (try_block, catches, _) ->
           (* TTry internal return - wrap whole thing in block ? *)
           if return_type <> TCppVoid then
             abort "Value from a try-block not handled" expr.epos;
