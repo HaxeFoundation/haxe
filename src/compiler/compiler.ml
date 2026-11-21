@@ -61,9 +61,10 @@ let run_expanded_command com ?cwd cmd =
 let run_command com ?cwd cmd =
 	Timer.time com.timer_ctx ["command";cmd] (fun cmd -> run_expanded_command com ?cwd (expand_command com cmd)) cmd
 
-(* A --cmd "cd dir" changes the working directory for the following commands,
-   which each run in their own shell. *)
-let run_cmd_option com cmd =
+(* Runs a --cmd command, or changes the working directory if the command is
+   "cd dir": each command runs in its own shell, so this is how a "cd" applies
+   to the following ones. *)
+let run_command_or_chdir com cmd =
 	let expanded = expand_command com cmd in
 	let len = String.length expanded in
 	if len > 3 && String.sub expanded 0 3 = "cd " then begin
@@ -399,7 +400,7 @@ let compile com actx sctx =
 	com.callbacks#run com.error_ext com.callbacks#get_after_generation;
 	if not actx.no_output then begin
 		List.iter (fun c ->
-			let r = run_cmd_option com c in
+			let r = run_command_or_chdir com c in
 			if r <> 0 then failwith ("Command failed with error " ^ string_of_int r)
 		) (List.rev actx.cmds)
 	end
