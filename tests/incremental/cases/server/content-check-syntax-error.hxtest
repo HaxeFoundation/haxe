@@ -1,0 +1,33 @@
+# A module whose file content is compared when its modification time changes
+# gets a syntax error: the error is reported by every compilation until it is
+# fixed.
+@args --macro server.setModuleCheckPolicy([""],[CheckFileContentModification])
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(Dep.value());
+	}
+}
+--- Dep.hx
+class Dep {
+	public static function value() return 1;
+}
+
+=== a syntax error
+@expect-error Expected expression
+--- Dep.hx
+class Dep {
+	public static function value() return 1 +;
+}
+
+=== compiled again
+@expect-error Expected expression
+
+=== the error is fixed
+@expect-output 2
+--- Dep.hx
+class Dep {
+	public static function value() return 2;
+}

@@ -342,7 +342,11 @@ let check_module sctx com m_path m_extra p =
 				| MSGood ->
 					(* Otherwise, run the checks *)
 					m_extra.m_cache_state <- MSUnknown;
-					check ()
+					begin try check () with e ->
+						m_extra.m_cache_state <- MSGood;
+						m_extra.m_checked <- start_mark - 1;
+						raise e
+					end
 			in
 			(* Update the module now. It will use this dirty status for the remainder of this compilation. *)
 			begin match dirty with
@@ -357,7 +361,18 @@ let check_module sctx com m_path m_extra p =
 			dirty
 		end
 	in
-	let state = check m_path m_extra in
+	let reset_unknown () =
+		List.iter (fun m_extra -> match m_extra.m_cache_state with
+			| MSUnknown ->
+				m_extra.m_checked <- start_mark - 1;
+				m_extra.m_cache_state <- MSGood;
+			| MSGood | MSBad _ ->
+				()
+		) !unknown_state_modules
+	in
+	(* A check interrupted by an exception (a syntax error met when comparing the content of a file)
+	   leaves the modules it visited to be checked again. *)
+	let state = try check m_path m_extra with e -> reset_unknown (); raise e in
 	begin match state with
 	| None ->
 		(* If the entire subgraph is clean, we can set all modules to good state *)
@@ -366,13 +381,7 @@ let check_module sctx com m_path m_extra p =
 		(* Otherwise, unknown state module may or may not be dirty. We didn't check everything eagerly, so we have
 		   to make sure that the module is checked again if it appears in a different check. This is achieved by
 		   setting m_checked to a lower value and assuming Good state again. *)
-		List.iter (fun m_extra -> match m_extra.m_cache_state with
-			| MSUnknown ->
-				m_extra.m_checked <- start_mark - 1;
-				m_extra.m_cache_state <- MSGood;
-			| MSGood | MSBad _ ->
-				()
-		) !unknown_state_modules
+		reset_unknown ()
 	end;
 	state
 
