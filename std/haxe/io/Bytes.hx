@@ -129,6 +129,11 @@ class Bytes {
 		pos += len & ~3;
 		for (i in 0...len & 3)
 			set(pos++, value);
+		#elseif python
+		python.Syntax.assign(
+			python.Syntax.arrayAccess(b, pos, pos + len),
+			python.Syntax.binop(new python.Bytes(python.Syntax.tuple(value & 0xFF)), "*", len)
+		);
 		#else
 		for (i in 0...len)
 			set(pos++, value);

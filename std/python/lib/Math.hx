@@ -37,4 +37,6 @@ extern class Math {
 	static function acos(v:Float):Float;
 	static function atan(v:Float):Float;
 	static function atan2(y:Float, x:Float):Float;
+
+	static function ceil(f:Float):Int;
 }
