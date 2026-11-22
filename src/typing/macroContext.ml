@@ -305,6 +305,24 @@ let make_macro_com_api com mcom p =
 		);
 	}
 
+(* The module of the outermost macro function being run, for a macro run outside of the typing of
+   a module (such as a callback registered by an initialization macro). *)
+let running_macro_module mctx =
+	match List.rev (Interp.call_stack (Interp.get_eval (Interp.get_ctx ()))) with
+	| env :: _ ->
+		let key = mctx.com.part_scope.file_keys#get (EvalHash.rev_hash env.env_info.pfile) in
+		mctx.com.module_lut#fold (fun _ m acc ->
+			if Path.UniqueKey.lazy_key m.m_extra.m_file = key then m else acc
+		) null_module
+	| [] ->
+		null_module
+
+(* A module defined by a macro depends on the module it is defined for, or else on the module of
+   the macro defining it. *)
+let add_defining_dependency mctx mnew mdep =
+	let mdep = if mdep == null_module then running_macro_module mctx else mdep in
+	add_dependency mnew mdep MDepFromMacro
+
 let make_macro_api ctx mctx p =
 	let parse_metadata s p =
 		try
@@ -476,7 +494,7 @@ let make_macro_api ctx mctx p =
 					let mdep = Option.map_default (fun s -> TypeloadModule.load_module ~origin:MDepFromMacro ctx (parse_path s) pos) ctx.m.curmod mdep in
 					let mnew = TypeloadModule.type_module ctx.com ctx.g ~dont_check_path:(has_native_meta) mpath (ctx.com.part_scope.file_keys#generate_virtual mpath ctx.com.part_scope.compilation_step) [tdef,pos] pos in
 					mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
-					add_dependency mnew mdep MDepFromMacro;
+					add_defining_dependency mctx mnew mdep;
 					add_dependency mdep mnew MDepFromMacroDefine;
 					ctx.com.module_nonexistent_lut#clear;
 				in
@@ -514,7 +532,7 @@ let make_macro_api ctx mctx p =
 				ctx.com.cs#taint_module mpath DefineModule;
 				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (ctx.com.part_scope.file_keys#generate_virtual mpath ctx.com.part_scope.compilation_step) types pos in
 				mnew.m_extra.m_kind <- MFake;
-				add_dependency mnew ctx.m.curmod MDepFromMacro;
+				add_defining_dependency mctx mnew ctx.m.curmod;
 				add_dependency ctx.m.curmod mnew MDepFromMacroDefine;
 				ctx.com.module_nonexistent_lut#clear;
 			end
