@@ -1120,9 +1120,8 @@ let call_init_macro com mctx e =
 
 let finalize_macro_api tctx mctx =
 	let api = make_macro_api tctx mctx null_pos in
-	match !macro_interp_cache with
-		| None -> ignore(create_macro_interp api mctx)
-		| Some mint -> mint.curapi <- api
+	Option.may (fun (select,_) -> select ()) mctx.g.macros;
+	(Interp.get_ctx ()).curapi <- api
 
 let interpret ctx args =
 	Parallel.ManagedPool.release ctx.com.sctx.pool;
