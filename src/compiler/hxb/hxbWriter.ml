@@ -1953,7 +1953,8 @@ module HxbWriter = struct
 				c
 		in
 
-		Chunk.write_list writer.chunk a.a_array (write_field_ref writer c CfrStatic);
+		Chunk.write_list writer.chunk a.a_array_read (write_field_ref writer c CfrStatic);
+		Chunk.write_list writer.chunk a.a_array_write (write_field_ref writer c CfrStatic);
 		Chunk.write_option writer.chunk a.a_read (write_field_ref writer c CfrStatic);
 		Chunk.write_option writer.chunk a.a_write (write_field_ref writer c CfrStatic);
 		Chunk.write_option writer.chunk a.a_call (write_field_ref writer c CfrStatic);
