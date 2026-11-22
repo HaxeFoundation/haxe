@@ -89,17 +89,23 @@ class PairTools {
 	}
 
 	public static function pairsIterator<A, B>(table:Table<A, B>):Iterator<{index:A, value:B}> {
+		// the iterator function from `pairs` may be stateful, so it is called once per element
 		var p = Lua.pairs(table);
 		var next = p.next;
-		var i = p.index;
+		var state = p.table;
+		var first = next(state, p.index);
+		var i = first.index;
+		var v = first.value;
 		return {
 			next: function() {
-				var res = next(table, i);
+				var cur = {index: i, value: v};
+				var res = next(state, i);
 				i = res.index;
-				return {index: res.index, value: res.value};
+				v = res.value;
+				return cur;
 			},
 			hasNext: function() {
-				return Lua.next(table, i).value != null;
+				return i != null;
 			}
 		}
 	}

@@ -428,6 +428,54 @@ class TestLua extends Test {
 		eq(expected.x, 5);
 		eq(expected.y, null);
 	}
+
+	function testTablePairsMetamethod() {
+		// an empty table whose __pairs metamethod (Lua 5.2+) returns a stateful iterator over a=1, b=2
+		var t:lua.Table<String, Int> = lua.Syntax.code("setmetatable({}, {__pairs = function(t)
+			local keys, i = {'a', 'b'}, 0
+			return function() i = i + 1; local k = keys[i]; if k then return k, i end end, t, nil
+		end})");
+		var expected = [];
+		lua.PairTools.pairsEach(t, (k, v) -> expected.push('$k=$v'));
+		if (lua.Lua._VERSION != "Lua 5.1") {
+			eq(expected.join(","), "a=1,b=2");
+		}
+		var keyValues = [];
+		for (k => v in t) {
+			keyValues.push('$k=$v');
+		}
+		eq(keyValues.join(","), expected.join(","));
+		var values = [];
+		for (v in t) {
+			values.push('$v');
+		}
+		eq(values.join(","), [for (e in expected) e.split("=")[1]].join(","));
+		var pairs = [];
+		var it = lua.PairTools.pairsIterator(t);
+		while (it.hasNext()) {
+			var e = it.next();
+			pairs.push('${e.index}=${e.value}');
+		}
+		eq(pairs.join(","), expected.join(","));
+	}
+
+	function testTableIteration() {
+		var t:lua.Table<String, Int> = lua.Table.create(null, {a: 1});
+		var keyValues = [];
+		for (k => v in t) {
+			keyValues.push('$k=$v');
+		}
+		eq(keyValues.join(","), "a=1");
+		var values = [];
+		for (v in t) {
+			values.push(v);
+		}
+		eq(values.join(","), "1");
+		var empty:lua.Table<String, Int> = lua.Table.create();
+		for (v in empty) {
+			assert();
+		}
+	}
 }
 
 @:multiReturn extern class Multi {
