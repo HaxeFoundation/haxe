@@ -174,7 +174,12 @@ class Timer {
 		#elseif python
 		return Sys.cpuTime();
 		#elseif lua
+		#if lua_vanilla
+		// Plain Lua has no monotonic wall clock: this is processor time, which does not advance while the program waits.
 		return lua.Os.clock();
+		#else
+		return lua.lib.luv.Misc.hrtime() / 1e9;
+		#end
 		#elseif sys
 		return Sys.time();
 		#else
@@ -211,6 +216,8 @@ class Timer {
 		return java.lang.System.nanoTime() / 1000000i64;
 		#elseif eval
 		return @:privateAccess Sys.timestamp_ms();
+		#elseif (lua && !lua_vanilla)
+		return Int64.fromFloat(lua.lib.luv.Misc.hrtime() / 1e6);
 		#else
 		return Int64.fromFloat(stamp() * 1000);
 		#end
