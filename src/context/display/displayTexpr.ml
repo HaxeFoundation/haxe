@@ -67,6 +67,21 @@ let actually_check_display_field ctx c cff p =
 	flush_pass ctx.g PTypeField ("check_display_field",(fst c.cl_path @ [snd c.cl_path;fst cff.cff_name]));
 	ignore(follow cf.cf_type)
 
+let actually_check_display_field ctx c cff p =
+	let restore = match c.cl_kind with
+		| KAbstractImpl a ->
+			let from_field = a.a_from_field and to_field = a.a_to_field and array = a.a_array in
+			let read = a.a_read and write = a.a_write and call = a.a_call in
+			let ops = a.a_ops and unops = a.a_unops in
+			(fun () ->
+				a.a_from_field <- from_field; a.a_to_field <- to_field; a.a_array <- array;
+				a.a_read <- read; a.a_write <- write; a.a_call <- call;
+				a.a_ops <- ops; a.a_unops <- unops)
+		| _ ->
+			(fun () -> ())
+	in
+	Std.finally restore (actually_check_display_field ctx c cff) p
+
 let check_display_field ctx sc c cf =
 	let cff = find_field_by_position sc cf.cf_name_pos in
 	actually_check_display_field ctx c cff cf.cf_pos
