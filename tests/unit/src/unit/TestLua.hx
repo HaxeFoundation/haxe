@@ -403,6 +403,31 @@ class TestLua extends Test {
 		var anyTable:lua.Table.AnyTable = opts;
 		t(anyTable != null);
 	}
+
+	function testTableStructSideEffects() {
+		var log = [];
+		function record(s:String) {
+			log.push(s);
+			return log.length;
+		}
+		// a call as a field value, next to a constant
+		var call = lua.TableStruct.create({a: 1, b: record("b")});
+		eq(call.a, 1);
+		eq(call.b, 1);
+		// nested create
+		var nested = lua.TableStruct.create({inner: lua.TableStruct.create({c: 2}), d: record("d")});
+		eq(nested.inner.c, 2);
+		eq(nested.d, 2);
+		// the field values are evaluated in order
+		var order = lua.TableStruct.create({first: record("first"), second: record("second")});
+		eq(order.first, 3);
+		eq(order.second, 4);
+		eq(log.join(","), "b,d,first,second");
+		// the type parameter is inferred from the expected type
+		var expected:lua.TableStruct<{x:Int, ?y:Int}> = lua.TableStruct.create({x: record("x")});
+		eq(expected.x, 5);
+		eq(expected.y, null);
+	}
 }
 
 @:multiReturn extern class Multi {

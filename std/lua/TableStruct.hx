@@ -45,20 +45,19 @@ import lua.Table.AnyTable;
 	since they lack the `__fields__` metadata that Haxe uses for reflection.
 **/
 @:forward
-abstract TableStruct<T:{}>(T) {
-	inline function new(v:T) {
-		this = v;
-	}
-
+extern abstract TableStruct<T:{}>(T) {
 	/**
 		Creates a plain Lua table from an anonymous struct.
 
 		The resulting table will not have `__fields__` metadata, making it
 		compatible with Lua APIs that reject tables with extra fields.
+
+		`obj` must be an object literal.
 	**/
-	public static inline function create<T:{}>(obj:T):TableStruct<T> {
-		return new TableStruct(untyped __lua_table__(obj));
-	}
+	// Generated as a table constructor by genlua. Not an inline function: the inliner would bind
+	// an argument with side effects to a local, and the table constructor needs the object literal itself.
+	@:noClosure
+	public static function create<T:{}>(obj:T):TableStruct<T>;
 
 	/**
 		Converts to `AnyTable` for use with APIs that accept any table type.
