@@ -494,7 +494,10 @@ let collect ctx tk with_type sort =
 			if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
 				()
 			else begin
-				ctx.com.module_to_file#add (cfile.c_package,module_name) cfile.c_file_path;
+				begin match cfile.c_decls with
+					| (_,p) :: _ -> ctx.com.module_to_file#add (cfile.c_package,module_name) (ClassPaths.create_resolved_file p.pfile cfile.c_file_path.class_path)
+					| [] -> ()
+				end;
 				if process_decls cfile.c_package module_name cfile.c_decls then check_package cfile.c_package;
 			end
 		) files;
