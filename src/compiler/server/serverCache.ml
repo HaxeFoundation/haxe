@@ -526,6 +526,7 @@ let ensure_macro_setup sctx =
 	end
 
 let cleanup sctx =
+	Typecore.restore_core_docs ();
 	begin match !MacroContext.macro_interp_cache with
 	| Some interp ->
 		(* curapi holds a reference to the typing context which we don't want to persist. Replace it with a
