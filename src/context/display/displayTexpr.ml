@@ -82,8 +82,11 @@ let actually_check_display_field ctx c cff p =
 	in
 	let init = c.cl_init in
 	let init_expr = Option.map (fun cf -> cf.cf_expr) init in
+	let m = c.cl_module in
+	let types = m.m_types in
 	let restore () =
 		restore ();
+		m.m_types <- types;
 		c.cl_init <- init;
 		match init,init_expr with
 		| Some cf,Some e -> cf.cf_expr <- e
