@@ -17,6 +17,11 @@ type timer_context = {
 	start_time : float;
 	timer_lut : (string list,timer) Hashtbl.t;
 	domain_id : Domain.id;
+	(* Timer contexts of other domains that started timers on behalf of this one.
+	   Each domain records into its own context without synchronization, and the
+	   report merges them by timer id. *)
+	mutable workers : timer_context list;
+	workers_mutex : Mutex.t;
 }
 
 let make id = {
@@ -34,9 +39,38 @@ let make_context root_timer =
 		measure_times = Maybe;
 		start_time = Extc.time();
 		domain_id = Domain.self ();
+		workers = [];
+		workers_mutex = Mutex.create ();
 	} in
 	Hashtbl.add ctx.timer_lut root_timer.id root_timer;
 	ctx
+
+(* The root timer of a worker context is never reported, so it isn't added to timer_lut. *)
+let make_worker_context ctx =
+	let root_timer = make [] in {
+	root_timer;
+	current = root_timer;
+	timer_lut = Hashtbl.create 0;
+	measure_times = ctx.measure_times;
+	start_time = ctx.start_time;
+	domain_id = Domain.self ();
+	workers = [];
+	workers_mutex = Mutex.create ();
+}
+
+(* The last (owner, worker) pair this domain used, so that looking up the worker
+   context usually needs no lock. *)
+let worker_cache : (timer_context * timer_context) option Domain.DLS.key =
+	Domain.DLS.new_key (fun () -> None)
+
+let get_worker_context ctx = match Domain.DLS.get worker_cache with
+	| Some(owner,worker) when owner == ctx ->
+		worker
+	| _ ->
+		let worker = make_worker_context ctx in
+		Mutex.protect ctx.workers_mutex (fun () -> ctx.workers <- worker :: ctx.workers);
+		Domain.DLS.set worker_cache (Some(ctx,worker));
+		worker
 
 let update_timer timer start =
 	let now = Extc.time () in
@@ -64,8 +98,11 @@ let start_timer ctx id =
 	)
 
 let start_timer ctx id = match id,ctx.measure_times with
-	| (_ :: _),(Yes | Maybe) when Domain.self () = ctx.domain_id ->
-		start_timer ctx id
+	| (_ :: _),(Yes | Maybe) ->
+		if Domain.self () = ctx.domain_id then
+			start_timer ctx id
+		else
+			start_timer (get_worker_context ctx) id
 	| _ ->
 		(fun () -> ())
 
@@ -112,7 +149,7 @@ let build_times_tree ctx =
 		num_calls = 0;
 		children = [];
 	} in
-	Hashtbl.iter (fun _ timer ->
+	let add_timer timer =
 		let rec loop parent sl = match sl with
 			| [] -> Globals.die "" __LOC__
 			| s :: sl ->
@@ -153,7 +190,10 @@ let build_times_tree ctx =
 		let node = loop root timer.id in
 		if not (List.memq node root.children) then
 			root.children <- node :: root.children
-	) ctx.timer_lut;
+	in
+	(* Timers of worker domains are merged into the same tree, so a node's time is the
+	   time spent in it summed over all domains. *)
+	List.iter (fun ctx -> Hashtbl.iter (fun _ timer -> add_timer timer) ctx.timer_lut) (ctx :: ctx.workers);
 	let max_name = ref 0 in
 	let max_calls = ref 0 in
 	let rec loop depth node =
@@ -172,8 +212,17 @@ let build_times_tree ctx =
 	loop 0 root;
 	!max_name,!max_calls,root
 
+(* Time recorded by timers on other domains than the one owning [ctx]. *)
+let worker_time ctx =
+	List.fold_left (fun acc worker ->
+		Hashtbl.fold (fun _ timer acc -> acc +. timer.total) worker.timer_lut acc
+	) 0. ctx.workers
+
 let report_times ctx print =
 	let max_name,max_calls,root = build_times_tree ctx in
+	let worker_label = "  on worker domains" in
+	let worker_time = worker_time ctx in
+	let max_name = if worker_time >= timer_threshold then max max_name (String.length worker_label) else max_name in
 	let max_calls = String.length (string_of_int max_calls) in
 	print (Printf.sprintf "%-*s | %7s |   %% |  p%% | %*s | info" max_name "name" "time(s)" max_calls "#");
 	let sep = String.make (max_name + max_calls + 27) '-' in
@@ -189,4 +238,9 @@ let report_times ctx print =
 	in
 	List.iter (loop 0) root.children;
 	print sep;
-	print_time "total" root
+	print_time "total" root;
+	if worker_time >= timer_threshold then begin
+		print (Printf.sprintf "%-*s | %7.3f | %3.0f |" max_name worker_label worker_time (worker_time *. 100. /. root.time));
+		print (Printf.sprintf "%-*s | %7.3f |" max_name "elapsed" (root.time -. worker_time));
+		print "Work done in parallel is counted once per domain, so the total exceeds the elapsed time.";
+	end
