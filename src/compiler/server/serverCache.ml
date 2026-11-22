@@ -26,7 +26,7 @@ let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 		let data = Std.finally (Timer.start_timer com.timer_ctx ["server";"parser cache"]) (fun () ->
 			try
 				let cfile = cc#find_file fkey in
-				if cfile.c_time <> ftime then raise Not_found;
+				if cfile.c_time <> ftime || (is_display_file && com.display.dms_kind = DMSignature) then raise Not_found;
 				Parser.ParseSuccess((cfile.c_package,cfile.c_decls),cfile.c_pdi)
 			with Not_found ->
 				let parse_result = parse_string com file p (TypeloadParse.read_file com rfile p) in
