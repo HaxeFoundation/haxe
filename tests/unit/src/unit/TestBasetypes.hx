@@ -282,8 +282,7 @@ class TestBasetypes extends Test {
 		eq(k.join("#"), "-1#8546");
 
 		var k = Lambda.array({iterator: h.keys});
-		// Reflect.compare doesn't order Int64 values where they are objects (e.g. hl_legacy32)
-		k.sort(haxe.Int64.compare);
+		k.sort(Reflect.compare);
 		eq(k.join("#"), "-8589934597#12884901893");
 
 		t(h.exists(small));

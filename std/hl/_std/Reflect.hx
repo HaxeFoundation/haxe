@@ -98,10 +98,23 @@ class Reflect {
 		return hl.Type.getDynamic(f).kind == HFun;
 	}
 
+	#if (hl_ver >= version("1.12.0") && !hl_legacy32)
 	@:hlNative("std", "dyn_compare")
 	public static function compare<T>(a:T, b:T):Int {
 		return 0;
 	}
+	#else
+	public static function compare<T>(a:T, b:T):Int {
+		if (haxe.Int64.isInt64(a) && haxe.Int64.isInt64(b))
+			return haxe.Int64.compare(cast a, cast b);
+		return compareDyn(a, b);
+	}
+
+	@:hlNative("std", "dyn_compare")
+	static function compareDyn(a:Dynamic, b:Dynamic):Int {
+		return 0;
+	}
+	#end
 
 	@:hlNative("std", "fun_compare")
 	public static function compareMethods(f1:Dynamic, f2:Dynamic):Bool {

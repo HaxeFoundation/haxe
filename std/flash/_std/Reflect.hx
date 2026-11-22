@@ -75,6 +75,8 @@
 	public static function compare<T>(a:T, b:T):Int {
 		var a:Dynamic = a;
 		var b:Dynamic = b;
+		if (haxe.Int64.isInt64(a) && haxe.Int64.isInt64(b))
+			return haxe.Int64.compare(a, b);
 		return (a == b) ? 0 : ((a > b) ? 1 : -1);
 	}
 
