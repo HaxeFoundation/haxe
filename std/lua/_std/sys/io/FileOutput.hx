@@ -48,7 +48,7 @@ class FileOutput extends haxe.io.Output {
 	}
 
 	override inline public function writeByte(c:Int):Void {
-		f.write(String.fromCharCode(c));
+		f.write(lua.NativeStringTools.char(c));
 	}
 
 	override inline public function writeBytes(s:Bytes, pos:Int, len:Int):Int {
