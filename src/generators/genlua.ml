@@ -1512,6 +1512,9 @@ and gen_tbinop ctx op e1 e2 =
               gen_assign_wrapped ctx op e1 e2 "_hx_anonToField";
           | TField(e3, (FInstance(_, _, icf) as ci)), TField(e4, FDynamic _) when is_function_type icf.cf_type && (match icf.cf_kind with Var _ -> true | _ -> false) && is_dot_access e3 ci ->
               gen_assign_wrapped ctx op e1 e2 "_hx_anonToField";
+          (* Locals (including the temporaries of values like `c ? o.f : null`) and static vars are called with dot syntax *)
+          | (TLocal _ | TField(_, FStatic(_, { cf_kind = Var _ }))), TField(_, FAnon _) when is_function_type e2.etype ->
+              gen_assign_wrapped ctx op e1 e2 "_hx_anonToField";
           | TField(e3, (FInstance _ as ci)), TLocal t when ((is_function_type t.v_type) && (not (is_dot_access e3 ci))) ->
               gen_assign_wrapped ctx op e1 e2 "_hx_funcToField";
           | _, TCast ({ eexpr = TTypeExpr mt } as e1, None) when (match mt with TClassDecl {cl_path = ([],"Array")} -> false | _ -> true) ->
