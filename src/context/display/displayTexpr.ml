@@ -185,7 +185,17 @@ let check_display_file ctx cs =
 					m
 				end
 			in
-			check_display_module ctx cfile.c_decls m
+			let decls = match ctx.com.display.dms_kind,cfile.c_decls with
+				| DMSignature,(_,pdecl) :: _ ->
+					let rfile = ClassPaths.create_resolved_file pdecl.pfile ctx.com.empty_class_path in
+					begin match TypeloadParse.parse_file ctx.com rfile null_pos with
+						| ParseSuccess((_,decls),_) -> decls
+						| ParseError _ -> cfile.c_decls
+					end
+				| _ ->
+					cfile.c_decls
+			in
+			check_display_module ctx decls m
 		with Not_found ->
 			()
 		end
