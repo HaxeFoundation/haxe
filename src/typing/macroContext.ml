@@ -841,6 +841,7 @@ let do_call_macro com api cpath name args p =
 
 let load_macro ctx com mctx api display cpath f p =
 	let meth,mloaded = load_macro'' com mctx display cpath f p in
+	if display then add_dependency ctx.m.curmod mloaded MDepFromMacro;
 	let _,_,{cl_path = cpath},mfield = meth in
 	let call args =
 		add_dependency ctx.m.curmod mloaded MDepFromMacro;
