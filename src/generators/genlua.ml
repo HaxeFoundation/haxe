@@ -1477,7 +1477,7 @@ and gen_value ctx e =
 
 and gen_tbinop ctx op e1 e2 =
     (match op, e1.eexpr, e2.eexpr with
-     | Ast.OpAssign, TField(e3, (FInstance _ as ci)), TFunction f ->
+     | Ast.OpAssign, TField(e3, ((FInstance _ | FAnon _) as ci)), TFunction f ->
          with_function_scope ctx (fun () ->
              gen_expr ctx e1;
              spr ctx " = " ;
@@ -1502,7 +1502,8 @@ and gen_tbinop ctx op e1 e2 =
               gen_value ctx e1;
               spr ctx " = ";
               gen_value ctx e3;
-          | TField(e3, (FClosure _ | FAnon _)), TField(e4, (FClosure _ | FStatic _)) when is_function_type e2.etype ->
+          (* Anon fields hold functions in method form; a value read from an anon field already is, and a Dynamic one is unknown *)
+          | TField(_, (FClosure _ | FAnon _)), _ when is_function_type e2.etype && (match (Texpr.skip e2).eexpr with TField(_, (FAnon _ | FDynamic _)) | TConst TNull -> false | _ -> true) ->
               gen_assign_wrapped ctx op e1 e2 "_hx_funcToField";
           | TField(e3, (FInstance _ as lhs)), TField(e4, (FInstance _ as rhs)) when is_function_type e2.etype && not (is_dot_access e3 lhs) && (is_dot_access e4 rhs) ->
               gen_assign_wrapped ctx op e1 e2 "_hx_funcToField";
