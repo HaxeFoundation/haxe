@@ -164,11 +164,10 @@ let explore_uncached_modules tctx cs symbols =
 	DisplayToplevel.init_or_update_server cs tctx.com ["display";"references"];
 	let cc = CommonCache.get_cache tctx.com in
 	let files = cc#get_files in
-	let modules = cc#get_modules in
 	let acc = Timer.time tctx.com.timer_ctx ["display";"references";"candidates"] (fun () ->
 		Hashtbl.fold (fun file_key cfile acc ->
 			let module_name = get_module_name_of_cfile cfile.c_file_path.file cfile in
-			if Hashtbl.mem modules (cfile.c_package,module_name) then
+			if tctx.com.module_lut#mem (cfile.c_package,module_name) then
 				acc
 			else try
 				find_in_syntax symbols (cfile.c_package,cfile.c_decls);
