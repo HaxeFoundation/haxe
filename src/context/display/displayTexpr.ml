@@ -80,6 +80,15 @@ let actually_check_display_field ctx c cff p =
 		| _ ->
 			(fun () -> ())
 	in
+	let init = c.cl_init in
+	let init_expr = Option.map (fun cf -> cf.cf_expr) init in
+	let restore () =
+		restore ();
+		c.cl_init <- init;
+		match init,init_expr with
+		| Some cf,Some e -> cf.cf_expr <- e
+		| _ -> ()
+	in
 	Std.finally restore (actually_check_display_field ctx c cff) p
 
 let check_display_field ctx sc c cf =
@@ -113,7 +122,11 @@ let check_display_class ctx decls c =
 		let check_field = check_field sc in
 		List.iter check_field c.cl_ordered_statics;
 		List.iter check_field c.cl_ordered_fields;
-		Option.may check_field c.cl_constructor
+		Option.may check_field c.cl_constructor;
+		List.iter (fun cff ->
+			if fst cff.cff_name = "__init__" && display_position#enclosed_in cff.cff_pos then
+				actually_check_display_field ctx c cff cff.cff_pos
+		) sc.d_data
 
 let check_display_enum ctx decls en =
 	let se = find_enum_by_position decls en.e_name_pos in
