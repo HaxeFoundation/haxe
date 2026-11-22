@@ -476,6 +476,16 @@ class TestLua extends Test {
 			assert();
 		}
 	}
+
+	function testLength() {
+		eq(lua.Lua.length("abc"), 3);
+		eq(lua.Lua.length(lua.Table.create([1, 2, 3])), 3);
+		eq(lua.Lua.length("ab" + "cd"), 4);
+		var withLen = lua.Syntax.code("setmetatable({}, {__len = function() return 42 end})");
+		if (lua.Lua._VERSION != "Lua 5.1") {
+			eq(lua.Lua.length(withLen), 42);
+		}
+	}
 }
 
 @:multiReturn extern class Multi {

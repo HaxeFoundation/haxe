@@ -141,6 +141,15 @@ extern class Lua {
 	static function rawset<K, V>(t:Table<K, V>, k:K, v:V):Void;
 
 	/**
+		Returns the length of `v` as given by the Lua length operator `#`:
+		the number of bytes of a string, a border of a table, or the result of
+		the `__len` metamethod (on Lua 5.1, only for userdata).
+	**/
+	static inline function length(v:Any):Int {
+		return Syntax.code("#({0})", v);
+	}
+
+	/**
 		This function is a generic interface to the garbage collector.
 		It performs different functions according to its first argument.
 	**/
