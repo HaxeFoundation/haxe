@@ -1,0 +1,4 @@
+--main Main
+-dce full
+-js bin/main.js
+--cmd haxe --run Check
