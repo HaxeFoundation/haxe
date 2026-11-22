@@ -24,13 +24,19 @@ let parse_file sctx com (rfile : ClassPaths.resolved_file) p =
 		parse_string com file p stdin
 	| _ ->
 		let ftime = file_time ffile in
+		let parsed_file = ref file in
 		let data = Std.finally (Timer.start_timer com.timer_ctx ["server";"parser cache"]) (fun () ->
 			try
 				let cfile = cc#find_file fkey in
-				if cfile.c_time <> ftime || (is_display_file && com.display.dms_kind = DMSignature) then raise Not_found;
+				if cfile.c_time <> ftime then raise Not_found;
+				if is_display_file && (com.display.dms_kind = DMSignature || (com.display.dms_per_file && not cfile.c_pdi.pd_was_display_file)) then begin
+					(* Parsed again under the file name of the cached declarations, which the compilations reuse. *)
+					(match cfile.c_decls with (_,pdecl) :: _ -> parsed_file := pdecl.pfile | [] -> ());
+					raise Not_found
+				end;
 				Parser.ParseSuccess((cfile.c_package,cfile.c_decls),cfile.c_pdi)
 			with Not_found ->
-				let parse_result = parse_string com file p (TypeloadParse.read_file com rfile p) in
+				let parse_result = parse_string com !parsed_file p (TypeloadParse.read_file com rfile p) in
 				let info,is_unusual = match parse_result with
 					| ParseError(_,_,_) -> "not cached, has parse error",true
 					| ParseSuccess(data,pdi) ->
