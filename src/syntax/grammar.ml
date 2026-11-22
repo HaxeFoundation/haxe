@@ -93,8 +93,6 @@ let property_ident = function%parser
 let check_quoted_field_name ctx s name kind p =
 	if kind <> SDoubleQuotes then
 		syntax_error ctx (Custom "Quoted field names must use double quotes") ~pos:(Some p) s ()
-	else if not (Lexer.is_valid_identifier name || Hashtbl.mem Lexer.keywords name) then
-		syntax_error ctx (Custom "Quoted field names must be identifiers or keywords") ~pos:(Some p) s ()
 
 let field_decl_ident ctx owner s = match%parser s with
 	| [ (Const (String (name,kind)),p) ] when owner = FOStructure ->

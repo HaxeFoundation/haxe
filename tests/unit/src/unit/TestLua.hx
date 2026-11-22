@@ -477,6 +477,23 @@ class TestLua extends Test {
 		}
 	}
 
+	function testQuotedFieldNames() {
+		var o:QuotedNames = {"priority-list": 1, "default": "d"};
+		eq(o."priority-list", 1);
+		eq(o."default", "d");
+		eq(o."not set", null);
+		o."priority-list" = 2;
+		eq(o."priority-list", 2);
+		eq(Reflect.field(o, "priority-list"), 2);
+		o."not set" = true;
+		eq(o."not set", true);
+
+		var s:lua.TableStruct<QuotedNames> = lua.TableStruct.create({"priority-list": 3, "default": "s"});
+		eq(s."priority-list", 3);
+		eq(s."default", "s");
+		eq(lua.Syntax.code("{0}['priority-list']", s), 3);
+	}
+
 	function testLength() {
 		eq(lua.Lua.length("abc"), 3);
 		eq(lua.Lua.length(lua.Table.create([1, 2, 3])), 3);
@@ -486,6 +503,12 @@ class TestLua extends Test {
 			eq(lua.Lua.length(withLen), 42);
 		}
 	}
+}
+
+private typedef QuotedNames = {
+	var "priority-list":Int;
+	var "default":String;
+	var ?"not set":Bool;
 }
 
 @:multiReturn extern class Multi {
