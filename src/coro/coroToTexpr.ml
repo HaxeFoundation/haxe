@@ -252,6 +252,7 @@ let handle_locals ctx cls params states tf_args econtinuation =
 	fields
 	|> Hashtbl.to_seq
 	|> List.of_seq
+	|> List.sort (fun (id1,_) (id2,_) -> compare id1 id2)
 
 (* These fields only exist when BaseContinuation is compiled with coro.stack-traces, which may
    not be the case if it was loaded from a cache built with different defines. *)
