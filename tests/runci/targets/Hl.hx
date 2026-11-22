@@ -149,8 +149,19 @@ class Hl {
 
 		getHlDependencies();
 
+		final analyzerArgsList = [[], ["--undefine", "analyzer-optimize"]];
+
+		// compile for older hl versions and run on the current hl jit (the older vms themselves are not tested)
+		if (Hl.withJitTests) {
+			for (analyzerArgs in analyzerArgsList)
+				for (versionArgs in [["-D", "hl-ver=1.11.0"], ["-D", "hl-ver=1.12.0"]]) {
+					runCommand("haxe", ["compile-hl.hxml"].concat(analyzerArgs).concat(versionArgs).concat(haxeArgs));
+					runCommand(hlBinary, ['bin/unit.hl']);
+				}
+		}
+
 		final extraArgsList = [
-			for (analyzerArgs in [[], ["--undefine", "analyzer-optimize"]])
+			for (analyzerArgs in analyzerArgsList)
 				for (versionArgs in [["-D", "hl-ver=1.16.0"], ["-D", "hl-ver=1.16.0", "-D", "hl_legacy32"], ["-D", "hl-ver=2.0.0"]])
 					analyzerArgs.concat(versionArgs)
 		];

@@ -22,7 +22,7 @@ class Bar {
 	public var val:Int;
 }
 
-#if !hl_legacy32 // native hl.I64 and hl.GUID
+#if (!hl_legacy32 && hl_ver >= version("1.16.0")) // native hl.I64 and hl.GUID
 private class Numbers {
 	public var ui8 : hl.UI8;
 	public var ui16 : hl.UI16;
@@ -112,7 +112,7 @@ class TestHL extends Test {
 		//eq(i, 20);
 	}
 
-	#if !hl_legacy32
+	#if (!hl_legacy32 && hl_ver >= version("1.16.0"))
 	public function testNumberCompare() {
 		var num = new Numbers(); // prevent @:analyzer(ignore)
 		var v : hl.I64 = haxe.Int64.make(0xF, 1);
