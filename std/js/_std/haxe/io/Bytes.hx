@@ -57,8 +57,12 @@ class Bytes {
 	}
 
 	public function fill(pos:Int, len:Int, value:Int):Void {
+		#if (js_es >= 6)
+		b.fill(value, pos, pos + len);
+		#else
 		for (i in 0...len)
 			set(pos++, value);
+		#end
 	}
 
 	public function sub(pos:Int, len:Int):Bytes {
