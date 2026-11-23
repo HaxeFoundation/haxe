@@ -758,8 +758,10 @@ let generate_function gctx ctx f =
 			) opts
 	in
 
+	let trap_pops = ref 0 in
 	Array.iteri (fun i op ->
 		flush_options i;
+		(match op with OEndTrap _ | ONop _ -> () | _ -> trap_pops := 0);
 		let label delta =
 			let addr = delta + i + 1 in
 			let label = label addr in
@@ -1132,8 +1134,8 @@ let generate_function gctx ctx f =
 			sexpr "hl_trap(trap$%d,%s,%s)" !trap_depth (reg r) (label d);
 			incr trap_depth
 		| OEndTrap b ->
-			sexpr "hl_endtrap(trap$%d)" (!trap_depth - 1);
-			if b then decr trap_depth;
+			sexpr "hl_endtrap(trap$%d)" (!trap_depth - 1 - !trap_pops);
+			if b then decr trap_depth else incr trap_pops;
 		| OAssert _ ->
 			sexpr "hl_assert()"
 		| ORefData (r,d) ->
