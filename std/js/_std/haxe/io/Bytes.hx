@@ -68,6 +68,9 @@ class Bytes {
 	}
 
 	public function compare(other:Bytes):Int {
+		#if nodejs
+		return js.Syntax.code('Buffer.compare({0}, {1})', b, other.b);
+		#else
 		var b1 = b;
 		var b2 = other.b;
 		var len = (length < other.length) ? length : other.length;
@@ -75,6 +78,7 @@ class Bytes {
 			if (b1[i] != b2[i])
 				return b1[i] - b2[i];
 		return length - other.length;
+		#end
 	}
 
 	inline function initData():Void {
