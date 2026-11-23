@@ -115,17 +115,10 @@ class Browser {
 	}
 
 	/**
-	 * Creates an XMLHttpRequest, with a fallback to ActiveXObject for ancient versions of Internet
-	 * Explorer.
+	 * Creates an XMLHttpRequest.
 	 */
-	public static function createXMLHttpRequest():XMLHttpRequest {
-		if (js.Syntax.code("typeof XMLHttpRequest") != "undefined") {
-			return new XMLHttpRequest();
-		}
-		if (js.Syntax.code("typeof ActiveXObject") != "undefined") {
-			return js.Syntax.construct("ActiveXObject", "Microsoft.XMLHTTP");
-		}
-		throw "Unable to create XMLHttpRequest object.";
+	public static inline function createXMLHttpRequest():XMLHttpRequest {
+		return new XMLHttpRequest();
 	}
 
 	/**
