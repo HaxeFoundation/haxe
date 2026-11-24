@@ -1,0 +1,70 @@
+# A @:generic method inlines a method of its type parameter, whose body inlines
+# a constructor: the variables of the inlined object get the same names when the
+# server types the generic method again while the module of the inlined method
+# is kept.
+@targets js hl
+=== initial
+@expect-output 6
+--- Main.hx
+class Main {
+	static function main() {
+		trace(new Tree().make());
+	}
+}
+--- DebugVisitor.hx
+class DebugVisitor extends Visitor {
+	var k = 1;
+	public function new() {}
+	public inline function visitBody(n:Int) {
+		var color = new Vec(k, n, 3);
+		return color.sum();
+	}
+}
+--- Tree.hx
+class Tree {
+	public function new() {}
+	@:generic public function walk<T:Visitor>(v:T) {
+		return v.visitBody(2);
+	}
+	public function make() {
+		return walk(new DebugVisitor());
+	}
+}
+--- Visitor.hx
+abstract class Visitor {
+	public abstract function visitBody(n:Int):Int;
+}
+--- Vec.hx
+class VecImpl {
+	public var x:Int;
+	public var y:Int;
+	public var z:Int;
+	public inline function new(x, y, z) {
+		this.x = x;
+		this.y = y;
+		this.z = z;
+	}
+	public inline function sum() {
+		return x + y + z;
+	}
+}
+
+@:forward abstract Vec(VecImpl) from VecImpl to VecImpl {
+	public inline function new(x, y, z) {
+		this = new VecImpl(x, y, z);
+	}
+}
+
+=== tree typed again
+@expect-output 6
+--- Tree.hx
+class Tree {
+	public function new() {}
+	@:generic public function walk<T:Visitor>(v:T) {
+		return v.visitBody(2);
+	}
+	public function make() {
+		return walk(new DebugVisitor());
+	}
+	public function unused() {}
+}

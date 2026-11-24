@@ -68,7 +68,7 @@ let handle_type_path_exception com p c is_import pos =
 				let ctx = TyperEntry.create com None in
 				DisplayPath.TypePathHandler.complete_type_path_inner ctx p c cur_package is_import
 		end with Error.Fatal_error err ->
-			com.error_ext err;
+			(Common.error_ext com) err;
 			None
 	in
 	let rh = com.request_scope.result_handler in

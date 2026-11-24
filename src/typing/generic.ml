@@ -160,15 +160,19 @@ let generic_substitute_expr gctx e =
 		| _ ->
 			map_expr_type build_expr (generic_substitute_type gctx) build_var e
 		in
-		OverloadResolution.maybe_reapply_overload_call e
+		let e = OverloadResolution.maybe_reapply_overload_call e in
+		match e.eexpr with
+		| TCall({eexpr = TField(_,(FInstance(c,_,cf) | FStatic(c,cf)))} as ef,el) when needs_inline gctx.ctx (Some c) cf ->
+			make_call gctx.ctx ef el e.etype e.epos
+		| _ ->
+			e
 	in
 	build_expr e
 
 let get_short_name =
-	let i = ref (-1) in
+	let i = Atomic.make 0 in
 	(fun () ->
-		incr i;
-		Printf.sprintf "Hx___short___hx_type_%i" !i
+		Printf.sprintf "Hx___short___hx_type_%i" (Atomic.fetch_and_add i 1)
 	)
 
 let static_method_container gctx c cf p =
@@ -350,8 +354,8 @@ let build_generic_class ctx c p tl =
 						update_expr e
 					| None ->
 						(* There can be cases like #11152 where cf_expr isn't ready yet. It should be safe to delay this to the end
-						   of the PTypeField pass. *)
-						delay_late ctx.g PTypeField (fun () -> match cf_old.cf_expr with
+						   of the StageBodies pass. *)
+						schedule_late ctx.g StageBodies (fun () -> match cf_old.cf_expr with
 							| Some e ->
 								update_expr e
 							| None ->

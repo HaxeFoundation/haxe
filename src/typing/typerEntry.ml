@@ -245,12 +245,11 @@ let create com macros =
 			core_api = None;
 			macros = macros;
 			module_check_policies = [];
-			delayed = Array.init TyperPass.all_typer_passes_length (fun _ -> { tasks = []; tasks_late = []});
-			delayed_min_index = 0;
+			program = Array.init ProgramStage.stage_count (fun _ -> make_program_stage ());
+			program_min_stage = 0;
 			typer_shuffle = (match Sys.getenv_opt "HAXE_TYPER_SHUFFLE" with
 				| None | Some "" -> None
 				| Some seed -> Some (Random.State.make [|Hashtbl.hash seed|]));
-			debug_delayed = [];
 			retain_meta = Common.defined com Define.RetainUntypedMeta;
 			global_using = [];
 			complete = false;
@@ -268,7 +267,6 @@ let create com macros =
 			do_format_string = format_string;
 			do_load_core_class = Typeload.load_core_class;
 			delayed_display = None;
-			call_arg_context = None;
 			root_typer = ctx;
 		};
 		m = {
@@ -287,7 +285,7 @@ let create com macros =
 		};
 		f = TyperManager.create_ctx_f null_field;
 		e = TyperManager.create_ctx_e FunStatic FunFunction;
-		pass = PBuildModule;
+		stage = StageModules;
 		allow_inline = true;
 		allow_transform = true;
 		type_params = [];

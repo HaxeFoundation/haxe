@@ -132,9 +132,10 @@ end
 (* The symbols of the generation are the indexes of its tables (strings,
    ints, floats, bytes, functions by key, globals by name or constant value,
    debug files by name): a table only grows, and maps an index to the same key
-   for the lifetime of the context. The HL types are built once per context
-   and hold symbols as well; the linker numbers the symbols in a canonical
-   order. *)
+   for the lifetime of the context, which the compilation server keeps with
+   the generated classes while the declarations stay the same. The HL types
+   are built once per context and hold symbols as well; the linker numbers the
+   symbols in a canonical order. *)
 type context = {
 	com : Gctx.t;
 	cglobals : (string, ttype) lookup;
@@ -151,9 +152,15 @@ type context = {
 	w_null_compare : bool;
 	overrides : (string * path, bool) Hashtbl.t;
 	cached_types : (string list, ttype) Hashtbl.t;
+	(* the types whose declaration changed since the previous generation of
+	   the context: built again in the same records, which the objects kept
+	   refer to *)
+	stale_types : (string list, ttype) Hashtbl.t;
 	mutable m : method_context;
 	(* structures, by [anon_key], in the order of their creation *)
 	anons_cache : (int, (tanon * ttype) list) Hashtbl.t;
+	(* the virtuals of the structures, by id, in every compilation of the context *)
+	anon_virtuals : (int, unit) Hashtbl.t;
 	mutable rec_cache : (Type.t * ttype option ref) list;
 	cached_tuples : (ttype list, ttype) PMap.t ref;
 	mutable tstring : ttype;
@@ -295,6 +302,27 @@ let with_type_lock ctx f =
 			Mutex.unlock ctx.tlock;
 			raise e
 	end
+
+(* a type whose declaration changed cannot be built again in its record (a
+   class becomes an interface or a structure, or its virtual is shared) *)
+exception Memo_rebuild
+
+let take_stale ctx key =
+	match Hashtbl.find_opt ctx.stale_types key with
+	| Some t -> Hashtbl.remove ctx.stale_types key; Some t
+	| None -> None
+
+let reset_proto p =
+	p.psuper <- None;
+	p.pclassglobal <- None;
+	p.pproto <- [||];
+	p.pfields <- [||];
+	p.pindex <- PMap.empty;
+	p.pvirtuals <- [||];
+	p.pfunctions <- PMap.empty;
+	p.pnfields <- -1;
+	p.pinterfaces <- PMap.empty;
+	p.pbindings <- []
 
 let publish tbl k v =
 	if not (Saturn.Htbl.try_add tbl k v) then ignore (Saturn.Htbl.try_set tbl k v)
@@ -675,8 +703,7 @@ let get_rec_cache ctx t none_callback not_found_callback =
 	in
 	loop false ctx.rec_cache
 
-let begin_virtual ctx on_replace =
-	let vp = mk_virtual() in
+let begin_virtual ?(vp=mk_virtual()) ctx on_replace =
 	ctx.virtuals_pending <- (vp,on_replace) :: ctx.virtuals_pending;
 	ctx.virtuals_depth <- ctx.virtuals_depth + 1;
 	vp
@@ -701,6 +728,9 @@ let subst_proto subst p =
 	p.pindex <- PMap.map (fun (i,t) -> i, subst t) p.pindex;
 	p.pinterfaces <- PMap.foldi (fun t i acc -> PMap.add (subst t) i acc) p.pinterfaces PMap.empty
 
+let virtual_key v =
+	Array.fold_left (fun h (n,_,_) -> h * 31 + Hashtbl.hash n) 0 v.vfields
+
 (*
 	Structurally equal virtuals are merged into a single one, so they can be compared physically.
 	This is done once the outermost virtual is complete, since recursive ones are only known then.
@@ -714,7 +744,7 @@ let end_virtual ctx vp =
 		ctx.virtuals_pending <- [];
 		ctx.virtuals_holders <- [];
 		let repl = List.fold_left (fun repl (v,on_replace) ->
-			let key = Array.fold_left (fun h (n,_,_) -> h * 31 + Hashtbl.hash n) 0 v.vfields in
+			let key = virtual_key v in
 			let bucket = try Hashtbl.find ctx.virtuals key with Not_found -> [] in
 			match List.find_opt (fun c -> tsame (HVirtual v) (HVirtual c)) bucket with
 			| Some c ->
@@ -771,12 +801,14 @@ let rec to_type ?tref ctx t =
 		| Some t -> t
 		| None ->
 			let vp = begin_virtual ctx (fun t ->
+				(match t with HVirtual v -> Hashtbl.replace ctx.anon_virtuals v.vid () | _ -> ());
 				Hashtbl.replace ctx.anons_cache key (List.map (fun (a',t') -> a', if a' == a then t else t') (Hashtbl.find ctx.anons_cache key))
 			) in
 			let t = HVirtual vp in
 			(match tref with
 			| None -> ()
 			| Some r -> r := Some t);
+			Hashtbl.replace ctx.anon_virtuals vp.vid ();
 			Hashtbl.replace ctx.anons_cache key (l @ [a,t]);
 			ctx.tpending := (fun () -> publish ctx.panons key (Hashtbl.find ctx.anons_cache key)) :: !(ctx.tpending);
 			let fields = PMap.fold (fun cf acc -> cfield_type ctx cf :: acc) a.a_fields [] in
@@ -929,7 +961,15 @@ and class_type_locked tref ctx c statics key_path =
 	try
 		Hashtbl.find ctx.cached_types key_path
 	with Not_found when (has_class_flag c CInterface) && not statics ->
-		let vp = begin_virtual ctx (fun t -> Hashtbl.replace ctx.cached_types key_path t) in
+		let vp = match take_stale ctx key_path with
+			| Some (HVirtual vp) ->
+				vp.vfields <- [||];
+				vp.vindex <- PMap.empty;
+				(* the objects kept refer to this record *)
+				begin_virtual ~vp ctx (fun _ -> raise Memo_rebuild)
+			| Some _ -> raise Memo_rebuild
+			| None -> begin_virtual ctx (fun t -> Hashtbl.replace ctx.cached_types key_path t)
+		in
 		let t = HVirtual vp in
 		cache_type ctx key_path t;
 		let rec loop c =
@@ -949,21 +989,29 @@ and class_type_locked tref ctx c statics key_path =
 		end_virtual ctx vp
 	| Not_found ->
 		let pname = s_type_path (List.tl key_path, List.hd key_path) in
-		let p = {
-			pname = pname;
-			pid = alloc_string ctx pname;
-			psuper = None;
-			pclassglobal = None;
-			pproto = [||];
-			pfields = [||];
-			pindex = PMap.empty;
-			pvirtuals = [||];
-			pfunctions = PMap.empty;
-			pnfields = -1;
-			pinterfaces = PMap.empty;
-			pbindings = [];
-		} in
-		let t = (if Meta.has Meta.Struct c.cl_meta && not statics then HStruct p else HObj p) in
+		let is_struct_class = Meta.has Meta.Struct c.cl_meta && not statics in
+		let p, t = match take_stale ctx key_path with
+			| Some ((HObj p | HStruct p) as t) when is_struct t = is_struct_class ->
+				reset_proto p;
+				p, t
+			| Some _ -> raise Memo_rebuild
+			| None ->
+				let p = {
+					pname = pname;
+					pid = alloc_string ctx pname;
+					psuper = None;
+					pclassglobal = None;
+					pproto = [||];
+					pfields = [||];
+					pindex = PMap.empty;
+					pvirtuals = [||];
+					pfunctions = PMap.empty;
+					pnfields = -1;
+					pinterfaces = PMap.empty;
+					pbindings = [];
+				} in
+				p, (if is_struct_class then HStruct p else HObj p)
+		in
 		hold_virtuals ctx (fun subst -> subst_proto subst p);
 		(match tref with
 		| None -> ()
@@ -1095,14 +1143,23 @@ and enum_type_locked tref ctx e key_path =
 		Hashtbl.find ctx.cached_types key_path
 	with Not_found ->
 		let ename = s_type_path e.e_path in
-		let et = {
-			eglobal = None;
-			ename = ename;
-			eid = alloc_string ctx ename;
-			efields = [||];
-			eparams = [||];
-		} in
-		let t = HEnum et in
+		let et, t = match take_stale ctx key_path with
+			| Some (HEnum et as t) ->
+				et.eglobal <- None;
+				et.efields <- [||];
+				et.eparams <- [||];
+				et, t
+			| Some _ -> raise Memo_rebuild
+			| None ->
+				let et = {
+					eglobal = None;
+					ename = ename;
+					eid = alloc_string ctx ename;
+					efields = [||];
+					eparams = [||];
+				} in
+				et, HEnum et
+		in
 		hold_virtuals ctx (fun subst -> et.efields <- Array.map (fun (n,s,tl) -> n, s, Array.map subst tl) et.efields);
 		(match tref with
 		| None -> ()
@@ -1137,21 +1194,26 @@ and enum_class_locked ctx e key_path =
 		Hashtbl.find ctx.cached_types key_path
 	with Not_found ->
 		let pname = s_type_path (List.tl key_path, List.hd key_path) in
-		let p = {
-			pname = pname;
-			pid = alloc_string ctx pname;
-			psuper = None;
-			pclassglobal = None;
-			pproto = [||];
-			pfields = [||];
-			pindex = PMap.empty;
-			pvirtuals = [||];
-			pfunctions = PMap.empty;
-			pnfields = -1;
-			pinterfaces = PMap.empty;
-			pbindings = [];
-		} in
-		let t = HObj p in
+		let p, t = match take_stale ctx key_path with
+			| Some (HObj p as t) -> reset_proto p; p, t
+			| Some _ -> raise Memo_rebuild
+			| None ->
+				let p = {
+					pname = pname;
+					pid = alloc_string ctx pname;
+					psuper = None;
+					pclassglobal = None;
+					pproto = [||];
+					pfields = [||];
+					pindex = PMap.empty;
+					pvirtuals = [||];
+					pfunctions = PMap.empty;
+					pnfields = -1;
+					pinterfaces = PMap.empty;
+					pbindings = [];
+				} in
+				p, HObj p
+		in
 		hold_virtuals ctx (fun subst -> subst_proto subst p);
 		cache_type ctx key_path t;
 		let psuper = (match class_type ctx ctx.base_enum [] false with HObj o -> o | _ -> die "" __LOC__) in
@@ -4052,17 +4114,432 @@ type obj_syms = {
 let empty_syms = { s_strings = [||]; s_ints = [||]; s_floats = [||]; s_bytes = [||]; s_files = [||]; s_globals = [||]; s_funs = [||]; s_types = [||] }
 
 (* The generation of a class (or of the entry point, or of the function of an
-   enum constructor): its functions, whose operands are the symbols of the
-   context, the natives it declares and the warnings it emitted. It does not
-   depend on the other classes nor on the order of the generation; the linker
-   numbers the symbols of all the objects. *)
+   enum constructor): its functions, optimized, whose operands are the symbols
+   of the context, the natives it declares and the warnings it emitted. It does
+   not depend on the other classes nor on the order of the generation; the
+   compilation server keeps it, with the context, while the body of the class
+   and the declarations do not change, and the linker numbers the symbols of
+   all the objects. *)
 type hl_object = {
 	o_path : path;
 	mutable o_funs : fundecl array;
 	o_natives : int array;
 	o_warnings : (string * pos) list;
 	mutable o_syms : obj_syms;
+	(* the files of its debug information, as the lexer knew them *)
+	mutable o_files : (string * Lexer.lexer_file option) array;
+	(* the class and the expressions of its fields: physically the same, or
+	   with the same fingerprint (the filters build the expressions again in
+	   every compilation of the server) *)
+	o_body : Obj.t array;
+	mutable o_fps : TFingerprint.t option array;
+	(* the module of the class: when it was not typed again, the filters built
+	   the same expressions again (the declarations they read are compared) *)
+	o_module : module_def;
 }
+
+(* What the generation of any class reads of the declarations: the objects
+   and the context are kept only when they are the same as in the previous
+   compilation. A value is compared physically, structurally, or as metadata;
+   a fuzzy item is the same when its values are physically the same or have
+   the same fingerprint (the fingerprint only reads the values captured, not
+   the entities, which the server may update in place). *)
+type struct_item =
+	| SValue of Obj.t
+	| SMeta of metadata
+	| SFuzzy of Obj.t array * (unit -> TFingerprint.t)
+
+(* the items of a type: ranges of the array of the items (start, end) *)
+type struct_group = {
+	sg_path : path;
+	sg_decl : module_type;
+	sg_header : int * int;
+	sg_statics : (string * int * int) list;
+	sg_fields : (string * int * int) list;
+	sg_ctor : int * int;
+}
+
+(* the generation kept by the compilation server *)
+type memo_state = {
+	m_ctx : context;
+	m_sign : string;
+	m_resources : (string * string) list;
+	m_struct : struct_item array;
+	m_groups : struct_group list;
+	m_fps : TFingerprint.t option array;
+	m_objects : (string, hl_object) Hashtbl.t;
+}
+
+let memo_prev : memo_state option ref = ref None
+
+(* -D hl-memo-trace: why the objects are not kept *)
+let memo_trace = ref false
+
+let flags_mask l = lnot (List.fold_left (fun acc f -> acc lor (1 lsl (Obj.magic f : int))) 0 l)
+
+(* the flags that the generator does not read (markers of the filters and of DCE) *)
+let memo_field_flags_mask = flags_mask [CfPostProcessed;CfUsed;CfMaybeUsed;CfStructurallyUsed]
+let memo_class_flags_mask = flags_mask [CUsed]
+let memo_enum_flags_mask = flags_mask [EnUsed]
+
+(* the same entries, or entries equal but for their positions (an entry can
+   hold a big expression, such as the source of a shader) *)
+let memo_same_meta l1 l2 =
+	let rec entries a b = match a,b with
+		| [],[] -> true
+		| e1 :: a,e2 :: b -> (e1 == e2 || e1 = e2) && entries a b
+		| _ -> false
+	in
+	l1 == l2 || entries l1 l2 ||
+	(* the positions in the entries are not read by the generator, nor an entry
+	   repeated: a macro adding metadata to a class of another module (domkit
+	   adds `@:uiComp` to the class of a component declaration) adds it again
+	   when it runs again on the cached class; an entry without arguments only
+	   tells its presence (DCE adds its markers to the declarations kept in
+	   another order) *)
+	let entry_fp e = TFingerprint.with_state ~positions:false (fun h -> TFingerprint.add_meta h [e]) in
+	let distinct l = List.rev (List.fold_left (fun acc e -> let fp = entry_fp e in if List.mem fp acc then acc else fp :: acc) [] l) in
+	let key l =
+		(* the purity that the analyzer infers is not read *)
+		let l = List.filter (fun (m,_,_) -> m <> Meta.Pure) l in
+		let flags, args = List.partition (fun (_,el,_) -> el = []) l in
+		List.sort_uniq compare (List.map (fun (m,_,_) -> m) flags), distinct args
+	in
+	key l1 = key l2
+
+let fp_types tl = TFingerprint.with_state ~positions:false (fun h -> List.iter (TFingerprint.add_type h) tl)
+
+let struct_items types =
+	let items = DynArray.create () in
+	let add i = DynArray.add items i in
+	let value v = add (SValue (Obj.repr v)) in
+	let fuzzy_type t = add (SFuzzy ([|Obj.repr t|],(fun () -> fp_types [t]))) in
+	(* the constraints are captured: retyping updates the parameters in place *)
+	let params l =
+		let cl = List.map (fun ttp -> ttp.ttp_name, get_constraints ttp, ttp.ttp_default) l in
+		let captured = Obj.repr l :: List.concat_map (fun (_,c,d) -> [Obj.repr c; Obj.repr d]) cl in
+		add (SFuzzy (Array.of_list captured,(fun () -> TFingerprint.with_state ~positions:false (fun h ->
+			List.iter (fun (n,c,d) -> TFingerprint.add_string h n; TFingerprint.add_params h c; TFingerprint.add_option h TFingerprint.add_type d) cl
+		))))
+	in
+	let pos () = DynArray.length items in
+	let groups = ref [] in
+	let field cf =
+		value cf.cf_name;
+		value cf.cf_kind;
+		value (cf.cf_flags land memo_field_flags_mask);
+		add (SMeta cf.cf_meta);
+		fuzzy_type cf.cf_type;
+		(* the constraints of the type parameters give the HL types of the values *)
+		params cf.cf_params;
+		value (List.length cf.cf_overloads);
+		match cf.cf_expr with
+		| None -> value 0
+		| Some e -> value 1; fuzzy_type e.etype
+	in
+	let ranged f x = let s = pos () in f x; (s,pos ()) in
+	let fields l = List.map (fun cf -> let (s,e) = ranged field cf in (cf.cf_name,s,e)) l in
+	let fp_class_ref h (c,tl) = TFingerprint.add_path h c.cl_path; TFingerprint.add_params h tl in
+	let fp_field_ref h (t,cf) = TFingerprint.add_type h t; TFingerprint.add_string h cf.cf_name in
+	List.iter (fun mt ->
+		let start = pos () in
+		let group ?(statics=[]) ?(fields=[]) ?(ctor=(0,0)) header_end =
+			groups := { sg_path = (t_infos mt).mt_path; sg_decl = mt; sg_header = (start,header_end); sg_statics = statics; sg_fields = fields; sg_ctor = ctor } :: !groups
+		in
+		value (t_infos mt).mt_path;
+		match mt with
+		| TClassDecl c ->
+			value (c.cl_flags land memo_class_flags_mask);
+			add (SMeta c.cl_meta);
+			let kind = c.cl_kind and sup = c.cl_super and impl = c.cl_implements and dyn = c.cl_dynamic and acc = c.cl_array_access in
+			add (SFuzzy ([|Obj.repr kind;Obj.repr sup;Obj.repr impl;Obj.repr dyn;Obj.repr acc|],(fun () ->
+				TFingerprint.with_state ~positions:false (fun h ->
+					TFingerprint.add_class_kind h kind;
+					TFingerprint.add_option h fp_class_ref sup;
+					TFingerprint.add_list h fp_class_ref impl;
+					TFingerprint.add_option h TFingerprint.add_type dyn;
+					TFingerprint.add_option h TFingerprint.add_type acc
+				)
+			)));
+			params c.cl_params;
+			value (c.cl_init <> None);
+			let header_end = pos () in
+			let statics = fields c.cl_ordered_statics in
+			value "";
+			let members = fields c.cl_ordered_fields in
+			value "";
+			let ctor = ranged (fun () -> match c.cl_constructor with Some cf -> field cf | None -> value 0) () in
+			group ~statics ~fields:members ~ctor header_end
+		| TEnumDecl e ->
+			value (e.e_flags land memo_enum_flags_mask);
+			add (SMeta e.e_meta);
+			value e.e_names;
+			List.iter (fun name ->
+				let ef = PMap.find name e.e_constrs in
+				value ef.ef_index;
+				fuzzy_type ef.ef_type;
+				add (SMeta ef.ef_meta);
+				params ef.ef_params
+			) e.e_names;
+			group (pos ())
+		| TTypeDecl td ->
+			add (SMeta td.t_meta);
+			fuzzy_type td.t_type;
+			params td.t_params;
+			group (pos ())
+		| TAbstractDecl a ->
+			add (SMeta a.a_meta);
+			value (a.a_enum,a.a_extern);
+			params a.a_params;
+			let this = a.a_this and from = a.a_from and to_ = a.a_to and fromf = a.a_from_field and tof = a.a_to_field and impl = a.a_impl in
+			let names = (List.map (fun (_,cf) -> cf.cf_name) a.a_ops,List.map (fun (_,_,cf) -> cf.cf_name) a.a_unops,List.map (fun cf -> cf.cf_name) a.a_array,
+				List.map (Option.map (fun cf -> cf.cf_name)) [a.a_read;a.a_write;a.a_call;a.a_constructor]) in
+			value names;
+			add (SFuzzy ([|Obj.repr this;Obj.repr from;Obj.repr to_;Obj.repr fromf;Obj.repr tof;Obj.repr impl|],(fun () ->
+				TFingerprint.with_state ~positions:false (fun h ->
+					TFingerprint.add_type h this;
+					TFingerprint.add_params h from;
+					TFingerprint.add_params h to_;
+					TFingerprint.add_list h fp_field_ref fromf;
+					TFingerprint.add_list h fp_field_ref tof;
+					TFingerprint.add_option h (fun h c -> TFingerprint.add_path h c.cl_path) impl
+				)
+			)));
+			group (pos ())
+	) types;
+	DynArray.to_array items, List.rev !groups
+
+(* whether the item [i] of the previous declarations is the same as the item
+   [j] of [items]; the fingerprints computed are kept in [prev.m_fps] and
+   [fps] (those of [items], for the next compilation) *)
+let same_item prev i items fps j =
+	match prev.m_struct.(i), items.(j) with
+	| SValue a, SValue b -> a == b || a = b
+	| SMeta a, SMeta b -> memo_same_meta a b
+	| SFuzzy (ka,fa), SFuzzy (kb,fb) ->
+		if Array.length ka = Array.length kb && (try Array.iteri (fun k o -> if o != kb.(k) then raise Exit) ka; true with Exit -> false) then begin
+			fps.(j) <- prev.m_fps.(i);
+			true
+		end else begin
+			let old = match prev.m_fps.(i) with Some fp -> fp | None -> let fp = fa () in prev.m_fps.(i) <- Some fp; fp in
+			let fp = match fps.(j) with Some fp -> fp | None -> let fp = fb () in fps.(j) <- Some fp; fp in
+			old = fp
+		end
+	| _ -> false
+
+(* What changed in the declarations: the HL types to build again (the
+   instances and the statics of classes, the enums), the functions whose
+   declaration changed, by name and class; [None] when the generation starts
+   from scratch (a typedef or an abstract changed, or an extern class, or a
+   native). *)
+type memo_changes = {
+	mc_instances : (path, unit) Hashtbl.t;
+	mc_statics : (path, unit) Hashtbl.t;
+	mc_enums : (path, unit) Hashtbl.t;
+	mc_removed : (path, module_type) Hashtbl.t;
+	mutable mc_funs : (string * path) list;
+}
+
+(* The declarations of a type compared with the previous ones: whether its
+   header and its constructor are the same, the names of the statics and of
+   the fields that changed (or were added or removed) and whether their order
+   is the same. *)
+type group_diff = {
+	gd_header : bool;
+	gd_statics : string list * bool;
+	gd_fields : string list * bool;
+	gd_ctor : bool;
+}
+
+let group_diff prev items fps og g =
+	let same (a0,a1) (b0,b1) =
+		a1 - a0 = b1 - b0 &&
+		let rec loop k = k >= a1 - a0 || (same_item prev (a0 + k) items fps (b0 + k) && loop (k + 1)) in
+		loop 0
+	in
+	let fields ol nl =
+		let table l = let h = Hashtbl.create (List.length l) in List.iter (fun (n,s,e) -> Hashtbl.replace h n (s,e)) l; h in
+		let old = table ol and cur = table nl in
+		let changed = List.filter_map (fun (n,s,e) ->
+			match Hashtbl.find_opt old n with
+			| Some r when same r (s,e) -> None
+			| _ -> Some n
+		) nl in
+		let removed = List.filter_map (fun (n,_,_) -> if Hashtbl.mem cur n then None else Some n) ol in
+		changed @ removed, List.map (fun (n,_,_) -> n) ol = List.map (fun (n,_,_) -> n) nl
+	in
+	{
+		gd_header = same og.sg_header g.sg_header;
+		gd_statics = fields og.sg_statics g.sg_statics;
+		gd_fields = fields og.sg_fields g.sg_fields;
+		gd_ctor = same og.sg_ctor g.sg_ctor;
+	}
+
+(* [par n f] runs [f] for [0] to [n - 1], on the domains of the pool *)
+let memo_diff par prev items groups fps =
+	let ch = { mc_instances = Hashtbl.create 0; mc_statics = Hashtbl.create 0; mc_enums = Hashtbl.create 0; mc_removed = Hashtbl.create 0; mc_funs = [] } in
+	let old = Hashtbl.create 0 in
+	List.iter (fun g -> Hashtbl.replace old g.sg_path g) prev.m_groups;
+	let groups = Array.of_list groups in
+	let diffs = Array.make (Array.length groups) None in
+	par (Array.length groups) (fun i ->
+		let g = groups.(i) in
+		match Hashtbl.find_opt old g.sg_path with
+		| Some og -> diffs.(i) <- Some (og,group_diff prev items fps og g)
+		| None -> ()
+	);
+	let trace g what = if !memo_trace then prerr_endline (Printf.sprintf "hl memo: %s of %s changed" what (s_type_path g.sg_path)) in
+	(* the items of a range that differ *)
+	let trace_items what (s2,e2) (s,e) =
+		if !memo_trace && e2 - s2 = e - s then
+			for k = 0 to e - s - 1 do
+				if not (same_item prev (s2 + k) items fps (s + k)) then begin
+					prerr_endline (Printf.sprintf "hl memo: %s differs at item %d" what k);
+					match prev.m_struct.(s2 + k), items.(s + k) with
+					| SMeta a, SMeta b -> prerr_endline (Printf.sprintf "hl memo:   metadata %s / %s" (String.concat "," (List.map (fun (m,_,_) -> Meta.to_string m) a)) (String.concat "," (List.map (fun (m,_,_) -> Meta.to_string m) b)))
+					| _ -> ()
+				end
+			done
+	in
+	let trace_fields ol nl names =
+		if !memo_trace then List.iter (fun n ->
+			match List.find_opt (fun (n2,_,_) -> n2 = n) ol, List.find_opt (fun (n2,_,_) -> n2 = n) nl with
+			| Some (_,s2,e2), Some (_,s,e) -> trace_items ("field " ^ n) (s2,e2) (s,e)
+			| _ -> ()
+		) names
+	in
+	let header og g d =
+		if not d.gd_header then trace_items ("the declaration of " ^ s_type_path g.sg_path) og.sg_header g.sg_header;
+		d.gd_header
+	in
+	try
+		Array.iteri (fun i g ->
+			match diffs.(i) with
+			| None ->
+				(* a type added (its HL type may remain from an earlier compilation) *)
+				(match g.sg_decl with
+				| TClassDecl _ -> Hashtbl.replace ch.mc_instances g.sg_path (); Hashtbl.replace ch.mc_statics g.sg_path ()
+				| TEnumDecl _ -> Hashtbl.replace ch.mc_enums g.sg_path ()
+				| _ -> ())
+			| Some (og,d) ->
+				Hashtbl.remove old g.sg_path;
+				match og.sg_decl, g.sg_decl with
+				| TClassDecl _, TClassDecl c ->
+					let header = header og g d in
+					let schanged, sorder = d.gd_statics in
+					let fchanged, forder = d.gd_fields in
+					let ctor = d.gd_ctor in
+					if not (header && schanged = [] && sorder && fchanged = [] && forder && ctor) then begin
+						trace_fields og.sg_statics g.sg_statics schanged;
+						trace_fields og.sg_fields g.sg_fields fchanged;
+						if has_class_flag c CExtern || Meta.has Meta.HlNative c.cl_meta then begin
+							trace g "the extern or native class";
+							raise Exit
+						end;
+						let native n =
+							let has m = try Meta.has Meta.HlNative (PMap.find n m).cf_meta with Not_found -> false in
+							has c.cl_fields || has c.cl_statics
+						in
+						if List.exists native schanged || List.exists native fchanged then begin
+							trace g "a native";
+							raise Exit
+						end;
+						let funs path l = ch.mc_funs <- List.map (fun n -> (n,path)) l @ ch.mc_funs in
+						let names l = List.map (fun (n,_,_) -> n) l in
+						if not header then begin
+							trace g "the declaration";
+							Hashtbl.replace ch.mc_instances g.sg_path ();
+							Hashtbl.replace ch.mc_statics g.sg_path ();
+							funs g.sg_path ("new" :: names og.sg_statics @ names og.sg_fields @ names g.sg_statics @ names g.sg_fields)
+						end;
+						if schanged <> [] || not sorder then begin
+							trace g ("the statics (" ^ String.concat "," schanged ^ ")");
+							Hashtbl.replace ch.mc_statics g.sg_path ();
+							funs g.sg_path schanged
+						end;
+						if fchanged <> [] || not forder then begin
+							trace g ("the fields (" ^ String.concat "," fchanged ^ ")");
+							Hashtbl.replace ch.mc_instances g.sg_path ();
+							funs g.sg_path fchanged
+						end;
+						if not ctor then begin
+							trace g "the constructor";
+							Hashtbl.replace ch.mc_statics g.sg_path ();
+							funs g.sg_path ["new"]
+						end
+					end
+				| TEnumDecl _, TEnumDecl _ ->
+					if not (header og g d) then begin
+						trace g "the enum";
+						Hashtbl.replace ch.mc_enums g.sg_path ()
+					end
+				| (TTypeDecl _, TTypeDecl _) | (TAbstractDecl _, TAbstractDecl _) ->
+					if not (header og g d) then begin
+						trace g "the declaration";
+						raise Exit
+					end
+				| _ ->
+					trace g "the kind";
+					raise Exit
+		) groups;
+		Hashtbl.iter (fun path og -> Hashtbl.replace ch.mc_removed path og.sg_decl) old;
+		Some ch
+	with Exit ->
+		None
+
+(* the expressions the generation of a class reads *)
+let class_body c =
+	let l = ref [Obj.repr c] in
+	let expr cf = l := (match cf.cf_expr with Some e -> Obj.repr e | None -> Obj.repr 0) :: !l in
+	l := (match TClass.get_cl_init c with Some e -> Obj.repr e | None -> Obj.repr 0) :: !l;
+	List.iter expr c.cl_ordered_statics;
+	List.iter expr c.cl_ordered_fields;
+	Option.may expr c.cl_constructor;
+	Array.of_list !l
+
+(* the flags of the local variables that the generator reads (the analyzer
+   marks the variables, which are shared by the compilations of the server) *)
+let memo_var_flags = lnot (flags_mask [VCaptured;VCaught])
+
+(* the positions in the file of the class are hashed without their file *)
+let body_fp file o =
+	if Obj.is_int o then TFingerprint.with_state ~positions:false (fun h -> TFingerprint.add_int h 0)
+	else TFingerprint.with_state ~origin:{ pfile = file; pmin = 0; pmax = 0 } ~meta_positions:false ~var_flags:memo_var_flags ~positions:true (fun h -> TFingerprint.add_expr h (Obj.obj o : texpr))
+
+(* the fingerprints of [body] that were computed, or None when it changed (a
+   class typed again is another record: its declarations are compared, and
+   its expressions by their fingerprint) *)
+let same_body o c body =
+	let n = Array.length body in
+	if Array.length o.o_body <> n then None else
+	if o.o_module == c.cl_module && o.o_body.(n - 1) == body.(n - 1) then Some o.o_fps else
+	let file = c.cl_pos.pfile in
+	if (Obj.obj o.o_body.(n - 1) : tclass).cl_pos.pfile <> file then None else
+	let fps = Array.make n None in
+	try
+		for i = 0 to n - 2 do
+			let b = body.(i) in
+			if b != o.o_body.(i) then begin
+				let old = match o.o_fps.(i) with Some fp -> fp | None -> let fp = body_fp file o.o_body.(i) in o.o_fps.(i) <- Some fp; fp in
+				let fp = body_fp file b in
+				if fp <> old then raise Exit;
+				fps.(i) <- Some fp
+			end else
+				fps.(i) <- o.o_fps.(i)
+		done;
+		Some fps
+	with Exit ->
+		None
+
+(* whether the lexer knows the files of the debug information of [o] as when
+   it was generated (otherwise their lines may have moved) *)
+let same_files o =
+	Array.for_all (fun (file,lf) ->
+		match lf, (try Some (ThreadSafeHashtbl.find Lexer.all_files file) with Not_found -> None) with
+		| Some lf, Some lf2 -> lf == lf2
+		| None, None -> true
+		| _ -> false
+	) o.o_files
 
 module PhysProto = Hashtbl.Make(struct
 	type t = class_proto
@@ -4119,29 +4596,42 @@ let gen_enum_ctor ctx e ef eid =
 	ctx.m <- old;
 	hlf
 
-let make_object (g : gen_object) = {
+let make_object ?(body=[||]) ?(m=null_module) (g : gen_object) = {
 	o_path = g.g_path;
 	o_funs = LargeArray.of_dynarray g.g_funs;
 	o_natives = DynArray.to_array g.g_natives;
 	o_warnings = List.rev g.g_warnings;
 	o_syms = empty_syms;
+	o_files = [||];
+	o_body = body;
+	o_fps = Array.make (Array.length body) None;
+	o_module = m;
 }
 
 (* the generation of the class [c] *)
-let generate_object ctx t c =
+let generate_object ctx t c body =
 	ctx.cur <- new_gen_object c.cl_path;
 	generate_type ctx t;
-	let o = make_object ctx.cur in
+	let o = make_object ~body ~m:c.cl_module ctx.cur in
 	ctx.cur <- new_gen_object ([],"");
 	o
 
-(* the functions of the enum constructors used by the generation *)
-let generate_enum_ctors ctx =
+(* the functions of the enum constructors used by the generation, generated
+   again by every compilation (their positions are not part of the
+   declarations compared), from the enums of the compilation *)
+let generate_enum_ctors ctx types =
+	let enums = Hashtbl.create 0 in
+	List.iter (function TEnumDecl e -> Hashtbl.replace enums e.e_path e | _ -> ()) types;
 	let objects = Hashtbl.create 0 in
 	let rec loop () =
 		let todo = Hashtbl.fold (fun eid v acc -> if Hashtbl.mem objects eid then acc else (eid,v) :: acc) ctx.enum_ctors [] in
 		if todo <> [] then begin
 			List.iter (fun (eid,(e,ef)) ->
+				let e, ef = match Hashtbl.find_opt enums e.e_path with
+					| Some e2 -> (try e2, PMap.find ef.ef_name e2.e_constrs with Not_found -> e, ef)
+					| None -> e, ef
+				in
+				Hashtbl.replace ctx.enum_ctors eid (e,ef);
 				let g = new_gen_object e.e_path in
 				DynArray.add g.g_funs (gen_enum_ctor ctx e ef eid);
 				Hashtbl.replace objects eid (make_object g)
@@ -5185,7 +5675,9 @@ let write_code ?timer ?pool ch code debug =
 
 (* --------------------------------------------------------------------------------------------------------------------- *)
 
-let create_context com overrides =
+(* a new context, or the context [prev] (kept by the compilation server) for
+   a new compilation *)
+let create_context ?prev com overrides =
 	let get_type name =
 		try
 			List.find (fun t -> (t_infos t).mt_path = (["hl"],name)) com.types
@@ -5230,6 +5722,33 @@ let create_context com overrides =
 			else
 				Some (get_class "ArrayBytes_hl_GUID");
 	} in
+	match prev with
+	| Some prev ->
+		{ prev with
+			com = com;
+			overrides = overrides;
+			stale_types = Hashtbl.create 0;
+			m = method_context 0 HVoid null_capture false;
+			rec_cache = [];
+			array_impl = array_impl;
+			base_class = get_class "Class";
+			base_enum = get_class "Enum";
+			base_type = get_class "BaseType";
+			core_type = get_class "CoreType";
+			core_enum = get_class "CoreEnum";
+			ref_abstract = get_abstract "Ref";
+			ct_delayed = [];
+			ct_depth = 0;
+			(* the structures are found again by their virtual: the typed
+			   structures of the previous compilations are not kept *)
+			anons_cache = Hashtbl.create 0;
+			panons = Saturn.Htbl.create ();
+			virtuals_pending = [];
+			virtuals_depth = 0;
+			virtuals_holders = [];
+			cur = new_gen_object ([],"");
+		}
+	| None ->
 	let stamp = Atomic.fetch_and_add context_stamp 1 + 1 in
 	let ctx = {
 		com = com;
@@ -5247,6 +5766,7 @@ let create_context com overrides =
 		cconstants = new_lookup ~stamp ~slot:6 ();
 		overrides = overrides;
 		cached_types = Hashtbl.create 0;
+		stale_types = Hashtbl.create 0;
 		cached_tuples = ref PMap.empty;
 		cfids = new_lookup ~stamp ~slot:7 ();
 		tstring = HVoid;
@@ -5258,6 +5778,7 @@ let create_context com overrides =
 		core_enum = get_class "CoreEnum";
 		ref_abstract = get_abstract "Ref";
 		anons_cache = Hashtbl.create 0;
+		anon_virtuals = Hashtbl.create 0;
 		rec_cache = [];
 		cdebug_files = new_lookup ~stamp ~slot:8 ();
 		tlock = Mutex.create ();
@@ -5340,32 +5861,193 @@ let prepare_types types =
 	) types;
 	overrides
 
-(* the generation of the code: the objects of the classes, of the entry point
-   and of the enum constructors, then their link *)
+(* The HL types whose declaration changed are built again in their records (the
+   instances of the subclasses and the sub-interfaces as well, and the classes
+   whose methods are overridden by other methods than before); returns whether
+   an object kept depends on what changed: it calls a function whose
+   declaration changed, or uses a type whose layout changed. The layout of a
+   class is what the code using it reads: the index and the type of its fields
+   and virtual methods, its functions, its interfaces; a member added does not
+   change it (the code reading it changed), a member whose declaration changed
+   does. *)
+let memo_rebuild ctx pctx ch =
+	let com = ctx.com in
+	let funs = ref ch.mc_funs in
+	let overrides a b = Hashtbl.iter (fun ((n,path) as k) _ ->
+		if not (Hashtbl.mem b k) then begin
+			Hashtbl.replace ch.mc_instances path ();
+			funs := (n,path) :: !funs
+		end
+	) a in
+	overrides pctx.overrides ctx.overrides;
+	overrides ctx.overrides pctx.overrides;
+	let children = Hashtbl.create 0 in
+	List.iter (function
+		| TClassDecl c ->
+			Option.may (fun (csup,_) -> Hashtbl.add children csup.cl_path c) c.cl_super;
+			if has_class_flag c CInterface then List.iter (fun (i,_) -> Hashtbl.add children i.cl_path c) c.cl_implements
+		| _ -> ()
+	) com.types;
+	let rec mark path =
+		List.iter (fun c ->
+			if not (Hashtbl.mem ch.mc_instances c.cl_path) then begin
+				Hashtbl.replace ch.mc_instances c.cl_path ();
+				mark c.cl_path
+			end
+		) (Hashtbl.find_all children path)
+	in
+	List.iter mark (Hashtbl.fold (fun path () acc -> path :: acc) ch.mc_instances []);
+	let stale = ref [] in
+	(* a virtual is built again in its record when nothing else shares it *)
+	let check_virtual key v =
+		let same t = match t with HVirtual v2 -> v2 == v | _ -> false in
+		Hashtbl.iter (fun k t -> if k <> key && same t then raise Memo_rebuild) ctx.cached_types;
+		if Hashtbl.mem ctx.anon_virtuals v.vid then raise Memo_rebuild;
+		let vkey = virtual_key v in
+		match Hashtbl.find_opt ctx.virtuals vkey with
+		| Some l -> Hashtbl.replace ctx.virtuals vkey (List.filter (fun v2 -> v2 != v) l)
+		| None -> ()
+	in
+	let take ?(c=None) key =
+		match Hashtbl.find_opt ctx.cached_types key with
+		| Some t ->
+			(match t with HVirtual v -> check_virtual key v | _ -> ());
+			Hashtbl.remove ctx.cached_types key;
+			ignore (Saturn.Htbl.try_remove ctx.ptypes key);
+			Hashtbl.replace ctx.stale_types key t;
+			(* what the layout was *)
+			let layout = match t with
+				| HObj p | HStruct p -> Some (p.psuper,p.pindex,p.pfunctions,p.pinterfaces,p.pclassglobal)
+				| _ -> None
+			in
+			let vfields = match t with HVirtual v -> v.vfields | _ -> [||] in
+			stale := (t,c,layout,vfields) :: !stale;
+			true
+		| None ->
+			false
+	in
+	let key path statics = (if statics then "$" ^ snd path else snd path) :: fst path in
+	let todo = ref [] in
+	List.iter (function
+		| TClassDecl c ->
+			if Hashtbl.mem ch.mc_instances c.cl_path && take ~c:(Some (c,false)) (key c.cl_path false) then todo := (fun () -> ignore (class_type ctx c [] false)) :: !todo;
+			if Hashtbl.mem ch.mc_statics c.cl_path && take ~c:(Some (c,true)) (key c.cl_path true) then todo := (fun () -> ignore (class_type ctx c [] true)) :: !todo
+		| TEnumDecl e when Hashtbl.mem ch.mc_enums e.e_path ->
+			let a = take (key e.e_path false) in
+			let b = take (key e.e_path true) in
+			if a || b then todo := (fun () -> ignore (enum_type ctx e); ignore (enum_class ctx e)) :: !todo
+		| _ -> ()
+	) com.types;
+	Hashtbl.iter (fun path _ -> ignore (take (key path false)); ignore (take (key path true))) ch.mc_removed;
+	List.iter (fun f -> f ()) (List.rev !todo);
+	(* the members whose declaration changed, by class *)
+	let changed_names = Hashtbl.create 0 in
+	List.iter (fun (n,path) -> Hashtbl.replace changed_names path (n :: (try Hashtbl.find changed_names path with Not_found -> []))) !funs;
+	(* the members of the class (and of its superclasses for the instances)
+	   whose declaration changed *)
+	let rec names (c,statics) =
+		(try Hashtbl.find changed_names c.cl_path with Not_found -> []) @
+		(match c.cl_super with Some (csup,_) when not statics -> names (csup,false) | _ -> [])
+	in
+	let same_layout p (psup,pindex,pfunctions,pinterfaces,pglobal) c =
+		let rebuilt = Hashtbl.mem ctx.cached_types (match c with Some (c,statics) -> key c.cl_path statics | None -> []) in
+		rebuilt &&
+		(match psup, p.psuper with None, None -> true | Some a, Some b -> a == b | _ -> false) &&
+		pglobal = p.pclassglobal &&
+		(try
+			(* a member removed is only read by code typed again *)
+			PMap.iter (fun n (i,t) -> match (try Some (PMap.find n p.pindex) with Not_found -> None) with Some (i2,t2) -> if i <> i2 || not (same_shape t t2) then raise Exit | None -> ()) pindex;
+			PMap.iter (fun n g -> match (try Some (PMap.find n p.pfunctions) with Not_found -> None) with Some g2 -> if g <> g2 then raise Exit | None -> ()) pfunctions;
+			let l1 = PMap.foldi (fun t i acc -> (t,i) :: acc) pinterfaces [] and l2 = PMap.foldi (fun t i acc -> (t,i) :: acc) p.pinterfaces [] in
+			if List.length l1 <> List.length l2 || not (List.for_all2 (fun (t1,i1) (t2,i2) -> i1 = i2 && same_shape t1 t2) l1 l2) then raise Exit;
+			true
+		with Exit | Not_found | Invalid_argument _ ->
+			false) &&
+		(match c with
+		| Some c -> List.for_all (fun n -> not ((PMap.mem n pindex && PMap.mem n p.pindex) || (PMap.mem n pfunctions && PMap.mem n p.pfunctions))) (names c)
+		| None -> true)
+	in
+	(* after the construction: the records are hashed by their content *)
+	let protos = PhysProto.create 0 and virtuals = PhysVirtual.create 0 and enums = PhysEnum.create 0 in
+	List.iter (fun (t,c,layout,vfields) ->
+		match t, layout with
+		| (HObj p | HStruct p), Some l -> if not (same_layout p l c) then PhysProto.replace protos p ()
+		| HVirtual v, _ ->
+			let same = Array.length vfields = Array.length v.vfields && (try Array.for_all2 (fun (n,_,t) (n2,_,t2) -> n = n2 && same_shape t t2) vfields v.vfields with Invalid_argument _ -> false) in
+			if not same then PhysVirtual.replace virtuals v ()
+		| HEnum e, _ -> PhysEnum.replace enums e ()
+		| _ -> ()
+	) !stale;
+	let fids = Hashtbl.create 0 in
+	List.iter (fun k -> match Hashtbl.find_opt ctx.cfids.map k with Some i -> Hashtbl.replace fids i () | None -> ()) !funs;
+	if !memo_trace then prerr_endline (Printf.sprintf "hl memo: %d types built again, %d layouts changed, %d functions changed" (List.length !stale) (PhysProto.length protos + PhysVirtual.length virtuals + PhysEnum.length enums) (Hashtbl.length fids));
+	let rec dep t =
+		match t with
+		| HObj p | HStruct p -> PhysProto.mem protos p
+		| HVirtual v -> PhysVirtual.mem virtuals v
+		| HEnum e -> PhysEnum.mem enums e
+		| HFun (args,ret) | HMethod (args,ret) -> List.exists dep args || dep ret
+		| HArray t | HRef t | HNull t | HPacked t -> dep t
+		| _ -> false
+	in
+	if PhysProto.length protos + PhysVirtual.length virtuals + PhysEnum.length enums + Hashtbl.length fids = 0 then (fun _ -> false) else
+	(fun o -> Array.exists (fun f -> Hashtbl.mem fids f) o.o_syms.s_funs || Array.exists (fun t -> not (is_immediate t) && dep t) o.o_syms.s_types)
+
+(* the generation of the code: the objects of the classes (kept from [prev],
+   the previous generation, when their body did not change), of the entry
+   point and of the enum constructors, then their link *)
 exception Generation_failed of exn * Printexc.raw_backtrace
 
-let generate_code ?(sequential=false) com =
+let generate_code ?(quiet=false) ?(sequential=false) com prev =
 	let timer = Timer.start_timer com.timer_ctx in
 	let overrides = prepare_types com.types in
-	let ctx = create_context com overrides in
+	let ctx, prev_objects, depends = match prev with
+		| Some (pctx,objects,ch) ->
+			let ctx = create_context ~prev:pctx com overrides in
+			ctx, objects, memo_rebuild ctx pctx ch
+		| None -> create_context com overrides, Hashtbl.create 0, (fun _ -> false)
+	in
 	let dump = Gctx.defined com Define.Dump in
-	(* the classes, generated on the domains of the pool (each with a context
-	   of its own sharing the tables), the largest first *)
+	(* the classes: kept, or generated again on the domains of the pool (each
+	   with a context of its own sharing the tables), the largest first *)
 	let t = timer ["generate";"hl";"functions"] in
 	let classes = Array.of_list (List.filter_map (fun t ->
 		match t with
-		| TClassDecl c -> Some (t,c)
+		| TClassDecl c -> Some (s_type_path c.cl_path,t,c,class_body c)
 		| _ -> None
 	) com.types) in
+	(* the objects kept: the fingerprints of the bodies of the modules typed
+	   again are computed on the domains of the pool *)
+	let kept = Array.make (Array.length classes) None in
+	if Hashtbl.length prev_objects > 0 then begin
+		let t = timer ["generate";"hl";"functions";"memo check"] in
+		let check i =
+			let (key,_,c,body) = classes.(i) in
+			match Hashtbl.find_opt prev_objects key with
+			| Some o ->
+				if same_files o && not (depends o) then
+					(match same_body o c body with
+					| Some fps -> kept.(i) <- Some { o with o_body = body; o_fps = fps; o_module = c.cl_module }
+					| None -> ())
+			| None -> ()
+		in
+		Parallel.run_with_pool com.pool (fun pool ->
+			match pool with
+			| Some pool when not sequential -> Domainslib.Task.parallel_for pool ~chunk_size:4 ~start:0 ~finish:(Array.length classes - 1) ~body:check
+			| _ -> for i = 0 to Array.length classes - 1 do check i done
+		);
+		if !memo_trace then Array.iteri (fun i (key,_,_,_) -> if kept.(i) = None then prerr_endline ("hl memo: generating " ^ key)) classes;
+		t()
+	end;
 	let generated = Array.make (Array.length classes) None in
-	let emit_warnings l = List.iter (fun (msg,p) -> com.warning WGenerator [] msg p) l in
+	let emit_warnings l = if not quiet then List.iter (fun (msg,p) -> com.warning WGenerator [] msg p) l in
 	(* on one domain, the warnings of a class are emitted as soon as it is
 	   generated, or fails *)
 	let emitted = ref false in
 	let generate i =
-		let (t,c) = classes.(i) in
+		let (_,t,c,body) = classes.(i) in
 		let ctx = { ctx with m = method_context 0 HVoid null_capture false; cur = new_gen_object ([],""); rec_cache = []; ct_delayed = []; ct_depth = 0; virtuals_pending = []; virtuals_holders = []; virtuals_depth = 0 } in
-		match generate_object ctx t c with
+		match generate_object ctx t c body with
 		| o ->
 			if !emitted then emit_warnings o.o_warnings;
 			generated.(i) <- Some o
@@ -5375,34 +6057,46 @@ let generate_code ?(sequential=false) com =
 	in
 	let generate_sequential () =
 		emitted := true;
-		for i = 0 to Array.length classes - 1 do generate i done
+		Array.iteri (fun i o -> match o with Some o -> emit_warnings o.o_warnings | None -> generate i) kept
 	in
+	let todo = DynArray.create () in
+	Array.iteri (fun i o -> if o = None then DynArray.add todo i) kept;
+	let todo = DynArray.to_array todo in
 	Atomic.incr generation_stamp;
-	(if sequential || Array.length classes < 16 then
+	(if sequential || Array.length todo < 16 then
 		generate_sequential ()
 	else begin
 		(* a failure is reported by a sequential generation, in the order of the types *)
 		let failed = Atomic.make None in
-		let weights = Array.map (fun (_,c) -> List.length c.cl_ordered_fields + List.length c.cl_ordered_statics) classes in
-		let order = Array.init (Array.length classes) (fun k -> k) in
+		let weights = Array.map (fun i -> let (_,_,c,_) = classes.(i) in List.length c.cl_ordered_fields + List.length c.cl_ordered_statics) todo in
+		let order = Array.init (Array.length todo) (fun k -> k) in
 		Array.stable_sort (fun a b -> compare weights.(b) weights.(a)) order;
 		Parallel.run_with_pool com.pool (fun pool ->
 			match pool with
 			| None -> generate_sequential ()
 			| Some pool ->
 				Domainslib.Task.parallel_for pool ~chunk_size:1 ~start:0 ~finish:(Array.length order - 1) ~body:(fun k ->
-					if Option.is_none (Atomic.get failed) then try generate order.(k) with e -> ignore (Atomic.compare_and_set failed None (Some (e,Printexc.get_raw_backtrace ())))
+					if Option.is_none (Atomic.get failed) then try generate todo.(order.(k)) with e -> ignore (Atomic.compare_and_set failed None (Some (e,Printexc.get_raw_backtrace ())))
 				)
 		);
 		Option.may (fun (e,bt) -> raise (Generation_failed (e,bt))) (Atomic.get failed)
 	end);
-	let fresh = DynArray.create () in
-	let class_objects = Array.to_list (Array.map (fun o ->
-		let o = match o with Some o -> o | None -> die "" __LOC__ in
-		if not !emitted then emit_warnings o.o_warnings;
-		DynArray.add fresh o;
+	let fresh = DynArray.create () and objects = Hashtbl.create (Array.length classes) and hits = ref 0 in
+	let class_objects = Array.to_list (Array.mapi (fun i (key,_,_,_) ->
+		let o = match kept.(i), generated.(i) with
+			| Some o, _ ->
+				incr hits;
+				if not !emitted then emit_warnings o.o_warnings;
+				o
+			| None, Some o ->
+				if not !emitted then emit_warnings o.o_warnings;
+				DynArray.add fresh o;
+				o
+			| None, None -> die "" __LOC__
+		in
+		Hashtbl.replace objects key o;
 		o
-	) generated) in
+	) classes) in
 	t();
 	(* the entry point and the enum constructors *)
 	let t = timer ["generate";"hl";"init"] in
@@ -5416,7 +6110,7 @@ let generate_code ?(sequential=false) com =
 	let entry_object = make_object ctx.cur in
 	emit_warnings entry_object.o_warnings;
 	DynArray.add fresh entry_object;
-	let enum_objects = generate_enum_ctors ctx in
+	let enum_objects = generate_enum_ctors ctx com.types in
 	t();
 	(* the optimization of the functions generated *)
 	if ctx.optimize then begin
@@ -5457,11 +6151,17 @@ let generate_code ?(sequential=false) com =
 		| Some pool when Array.length scan > 16 -> Domainslib.Task.parallel_for pool ~chunk_size:4 ~start:0 ~finish:(Array.length scan - 1) ~body
 		| _ -> for i = 0 to Array.length scan - 1 do body i done
 	);
+	DynArray.iter (fun o ->
+		o.o_files <- Array.map (fun f ->
+			let file = DynArray.get ctx.cdebug_files.arr f in
+			file, (try Some (ThreadSafeHashtbl.find Lexer.all_files file) with Not_found -> None)
+		) o.o_syms.s_files
+	) fresh;
 	t2();
 	let all = Array.of_list (class_objects @ [entry_object]) in
 	let code, gnames = link ctx all enum_objects entry in
 	t();
-	code, gnames
+	ctx, objects, code, gnames, !hits
 
 let make_context_sign com =
 	let mhash = Hashtbl.create 0 in
@@ -5486,6 +6186,11 @@ let add_header code data =
 		String.sub data 0 4 ^ Bytes.unsafe_to_string header ^ String.sub data 4 (String.length data - 4)
 	end
 
+let write_bytecode com code =
+	let ch = IO.output_string() in
+	Parallel.run_with_pool com.pool (fun pool -> write_code ~timer:(Timer.start_timer com.timer_ctx) ?pool ch code (not (Gctx.raw_defined com "hl_no_debug")));
+	add_header code (IO.close_out ch)
+
 let generate com =
 	let dump = Gctx.defined com Define.Dump in
 	let hl_check = Gctx.raw_defined com "hl_check" in
@@ -5500,19 +6205,77 @@ let generate com =
 	if Gctx.raw_defined com "hl_legacy32" && hl_ver <> "" && compare_version hl_ver "2.0.0" >= 0 then
 		com.warning WGenerator [] "-D hl_legacy32 is for 32-bit compatibility, but 32-bit builds are no longer supported since HashLink 2.0 (hl_ver >= 2.0.0)" (fake_pos "-D hl_legacy32");
 
+	(* in the server, the objects of the classes and their context are kept for
+	   the next compilations *)
+	let memo = com.is_server && not dump in
+	memo_trace := Gctx.raw_defined com "hl_memo_trace";
+	let memo_sign = Define.get_signature com.defines and memo_resources = List.sort compare (Hashtbl.fold (fun k v acc -> (k,v) :: acc) com.resources []) in
+	(* the declarations, compared with those of the previous generation *)
+	let t = Timer.start_timer com.timer_ctx ["generate";"hl";"functions";"memo declarations"] in
+	let decls = if not memo then None else begin
+		ignore (prepare_types com.types);
+		let items, groups = struct_items com.types in
+		Some (items, groups, Array.make (Array.length items) None)
+	end in
+	let prev = match !memo_prev, decls with
+		| Some prev, Some (items,groups,fps) ->
+			let par n f =
+				Parallel.run_with_pool com.pool (fun pool ->
+					match pool with
+					| Some pool -> Domainslib.Task.parallel_for pool ~chunk_size:16 ~start:0 ~finish:(n - 1) ~body:f
+					| None -> for i = 0 to n - 1 do f i done
+				)
+			in
+			let changes = if prev.m_sign = memo_sign && prev.m_resources = memo_resources then memo_diff par prev items groups fps else None in
+			if Option.is_none changes && !memo_trace then prerr_endline "hl memo: the declarations changed";
+			Option.map (fun ch -> prev, ch) changes
+		| _ ->
+			None
+	in
+	t();
+	(* a generation that fails does not leave a context to keep *)
+	memo_prev := None;
 	(* -D hl-gen-sequential: the classes are generated on one domain *)
 	let sequential = Gctx.raw_defined com "hl_gen_sequential" in
-	let code, gnames =
+	let rec run prev =
 		try
-			generate_code ~sequential com
+			generate_code ~sequential com prev
 		with
+		| Memo_rebuild | Generation_failed (Memo_rebuild,_) when prev <> None ->
+			if !memo_trace then prerr_endline "hl memo: a type cannot be built again in its record";
+			run None
 		| Generation_failed ((Out_of_memory | Stack_overflow | Sys.Break) as e,bt) ->
 			Printexc.raise_with_backtrace e bt
 		| Generation_failed (e,bt) ->
 			(* the error of the first class, in the order of the types *)
-			ignore (generate_code ~sequential:true com);
+			ignore (generate_code ~sequential:true com None);
 			(* the failure only happens in parallel: it is not hidden *)
 			Printexc.raise_with_backtrace e bt
+	in
+	let ctx, objects, code, gnames, hits = run (Option.map (fun (prev,ch) -> prev.m_ctx, prev.m_objects, ch) prev) in
+	Option.may (fun (items,groups,fps) ->
+		memo_prev := Some { m_ctx = ctx; m_sign = memo_sign; m_resources = memo_resources; m_struct = items; m_groups = groups; m_fps = fps; m_objects = objects };
+	) decls;
+	if !memo_trace then prerr_endline (Printf.sprintf "hl memo: %d classes kept" hits);
+	(* -D hl-memo-check: the output is the same as a generation from scratch *)
+	let code, gnames, data = if hits > 0 && Gctx.raw_defined com "hl_memo_check" then begin
+		let _, _, code2, gnames2, _ = generate_code ~quiet:true ~sequential com None in
+		let d1 = write_bytecode com code and d2 = write_bytecode com code2 in
+		if d1 <> d2 then begin
+			let dump code =
+				let b = Buffer.create 0 in
+				Hlcode.dump (fun s -> Buffer.add_string b s; Buffer.add_char b '\n') code;
+				Buffer.contents b
+			in
+			let write f s = let ch = open_out_bin f in output_string ch s; close_out ch in
+			write (com.file ^ ".memo.txt") (dump code);
+			write (com.file ^ ".cold.txt") (dump code2);
+			prerr_endline ("hl memo check: the output differs from a generation from scratch, see " ^ com.file ^ ".memo.txt and .cold.txt");
+			code2, gnames2, Some d2
+		end else
+			code, gnames, Some d1
+	end else
+		code, gnames, None
 	in
 
 	if dump then begin
@@ -5541,9 +6304,7 @@ let generate com =
 		if not (Gctx.defined com Define.NoCompilation) && com.run_command_args "haxelib" ["run";"hashlink";"build";escape_command com.file] <> 0 then failwith "Build failed";
 		t();
 	end else begin
-		let ch = IO.output_string() in
-		Parallel.run_with_pool com.pool (fun pool -> write_code ~timer:(Timer.start_timer com.timer_ctx) ?pool ch code (not (Gctx.raw_defined com "hl_no_debug")));
-		let str = add_header code (IO.close_out ch) in
+		let str = match data with Some d -> d | None -> write_bytecode com code in
 		Common.write_file_if_changed com.file str;
 		prev_sign := sign;
 		prev_data := str;

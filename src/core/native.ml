@@ -20,8 +20,14 @@ let get_native_name meta =
 	| _ ->
 		Error.raise_typing_error "String expected" mp
 
-(* Rewrites class or enum paths if @:native metadata is set *)
+(* Rewrites class or enum paths if @:native metadata is set; a declaration
+   that has its @:realPath already was rewritten by a previous compilation of
+   the server *)
 let apply_native_paths t =
+	let get_native_name meta =
+		if Meta.has Meta.RealPath meta then raise Not_found;
+		get_native_name meta
+	in
 	let get_real_name meta name =
 		let name',p = get_native_name meta in
 		(Meta.RealPath,[Ast.EConst (Ast.String (name,SDoubleQuotes)), p], p), name'

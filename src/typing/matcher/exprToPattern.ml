@@ -155,19 +155,19 @@ let rec make pctx toplevel t e =
 		if pctx.is_postfix_match then DKMarked else DKPattern toplevel
 	in
 	let catch_errors p =
-		let old = ctx.com.error_ext in
+		let old = (Common.error_ext ctx.com) in
 		let restore_report_mode = disable_report_mode ctx.com in
-		ctx.com.error_ext <- (fun err ->
+		let restore_error_ext = Common.push_error_ext ctx.com (fun err ->
 			let ep = err.err_pos in
 			(* The error might not actually come from here, let's check the position (issue #12098). *)
 			if ep.pfile <> p.pfile || ep.pmax < p.pmin || ep.pmin > p.pmax then
 				old err
 			else
 				raise Exit
-		);
+		) in
 		(fun () ->
 			restore_report_mode();
-			ctx.com.error_ext <- old
+			restore_error_ext ()
 		)
 	in
 	let try_typing e =

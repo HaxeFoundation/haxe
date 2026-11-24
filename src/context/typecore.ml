@@ -21,7 +21,7 @@ open Globals
 open Ast
 open Common
 open Type
-open TyperPass
+open ProgramStage
 open Error
 open Resolution
 open FieldCallCandidate
@@ -86,11 +86,6 @@ type macro_result =
 	| MError
 	| MMacroInMacro
 
-type typer_pass_tasks = {
-	mutable tasks : (unit -> unit) list;
-	mutable tasks_late : (unit -> unit) list;
-}
-
 type function_mode =
 	| FunFunction
 	| FunCoroutine
@@ -101,12 +96,20 @@ type call_arg_context = {
 	mutable cac_body_capture : Message.t list ref;
 }
 
+(* A stage of [program]: its units, the last added first, then its late units
+   (those that must run once the others are done), the first added first. *)
+type program_stage = {
+	mutable ps_units : (unit -> unit) list;
+	mutable ps_late : (unit -> unit) list;
+}
+
 type typer_globals = {
-	mutable delayed : typer_pass_tasks Array.t;
-	mutable delayed_min_index : int;
+	(* the stages of [program], in [ProgramStage] order *)
+	program : program_stage array;
+	(* stages before this one have no unit left *)
+	mutable program_min_stage : int;
 	(* HAXE_TYPER_SHUFFLE=<seed> *)
 	typer_shuffle : Random.State.t option;
-	mutable debug_delayed : (typer_pass * ((unit -> unit) * (string * string list) * typer) list) list;
 	retain_meta : bool;
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;
@@ -120,7 +123,6 @@ type typer_globals = {
 	mutable build_count : int;
 	mutable t_dynamic_def : Type.t;
 	mutable delayed_display : DisplayTypes.display_exception_kind option;
-	mutable call_arg_context : call_arg_context option;
 	root_typer : typer;
 	(* api *)
 	mutable continuation_api : ContTypes.continuation_api option;
@@ -167,7 +169,7 @@ and typer = {
 	c : typer_class;
 	f : typer_field;
 	e : typer_expr;
-	pass : typer_pass;
+	stage : stage;
 	mutable type_params : type_params;
 	mutable allow_inline : bool;
 	mutable allow_transform : bool;
@@ -175,18 +177,18 @@ and typer = {
 	memory_marker : float array;
 }
 
-let pass_name = function
-	| PBuildModule -> "build-module"
-	| PBuildClass -> "build-class"
-	| PConnectField -> "connect-field"
-	| PTypeField -> "type-field"
-	| PCheckConstraint -> "check-constraint"
-	| PForce -> "force"
-	| PFinal -> "final"
+let stage_name = function
+	| StageModules -> "modules"
+	| StageTypes -> "types"
+	| StageMembers -> "members"
+	| StageBodies -> "bodies"
+	| StageConstraints -> "constraints"
+	| StageChecks -> "checks"
+	| StageFinal -> "final"
 
 module TyperManager = struct
-	let create ctx m c f e pass params =
-		if pass < ctx.pass then die (Printf.sprintf "Bad context clone from %s(%s) to %s(%s)" (s_type_path ctx.m.curmod.m_path) (pass_name ctx.pass) (s_type_path m.curmod.m_path) (pass_name pass)) __LOC__;
+	let create ctx m c f e stage params =
+		if stage < ctx.stage then die (Printf.sprintf "Bad context clone from %s(%s) to %s(%s)" (s_type_path ctx.m.curmod.m_path) (stage_name ctx.stage) (s_type_path m.curmod.m_path) (stage_name stage)) __LOC__;
 		let new_ctx = {
 			com = ctx.com;
 			g = ctx.g;
@@ -195,7 +197,7 @@ module TyperManager = struct
 			c = c;
 			f = f;
 			e = e;
-			pass = pass;
+			stage = stage;
 			allow_inline = ctx.allow_inline;
 			allow_transform = ctx.allow_transform;
 			type_params = params;
@@ -243,7 +245,7 @@ module TyperManager = struct
 		}
 
 	let clone_for_module ctx m =
-		let ctx = create ctx m ctx.c ctx.f ctx.e PBuildModule [] in
+		let ctx = create ctx m ctx.c ctx.f ctx.e StageModules [] in
 		ctx.allow_transform <- true;
 		ctx.allow_inline <- true;
 		ctx
@@ -251,27 +253,27 @@ module TyperManager = struct
 	let clone_for_class ctx c =
 		let c = create_ctx_c c in
 		let params = match c.curclass.cl_kind with KAbstractImpl a -> a.a_params | _ -> c.curclass.cl_params in
-		create ctx ctx.m c ctx.f ctx.e PBuildClass params
+		create ctx ctx.m c ctx.f ctx.e StageTypes params
 
 	let clone_for_enum ctx en =
 		let c = create_ctx_c null_class in
-		create ctx ctx.m c ctx.f ctx.e PBuildClass en.e_params
+		create ctx ctx.m c ctx.f ctx.e StageTypes en.e_params
 
 	let clone_for_typedef ctx td =
 		let c = create_ctx_c null_class in
-		create ctx ctx.m c ctx.f ctx.e PBuildClass td.t_params
+		create ctx ctx.m c ctx.f ctx.e StageTypes td.t_params
 
 	let clone_for_abstract ctx a =
 		let c = create_ctx_c null_class in
-		create ctx ctx.m c ctx.f ctx.e PBuildClass a.a_params
+		create ctx ctx.m c ctx.f ctx.e StageTypes a.a_params
 
 	let clone_for_field ctx cf params =
 		let f = create_ctx_f cf in
-		create ctx ctx.m ctx.c f ctx.e PBuildClass params
+		create ctx ctx.m ctx.c f ctx.e StageTypes params
 
 	let clone_for_enum_field ctx params =
 		let f = create_ctx_f null_field in
-		create ctx ctx.m ctx.c f ctx.e PBuildClass params
+		create ctx ctx.m ctx.c f ctx.e StageTypes params
 
 	let clone_for_expr ctx curfun in_function =
 		let e = create_ctx_e curfun in_function in
@@ -287,15 +289,15 @@ module TyperManager = struct
 			   earlier there. *)
 			()
 		end;
-		create ctx ctx.m ctx.c ctx.f e PTypeField ctx.type_params
+		create ctx ctx.m ctx.c ctx.f e StageBodies ctx.type_params
 
 	let clone_for_type_params ctx params =
-		create ctx ctx.m ctx.c ctx.f ctx.e ctx.pass params
+		create ctx ctx.m ctx.c ctx.f ctx.e ctx.stage params
 
 	let clone_for_type_parameter_expression ctx =
 		let f = create_ctx_f ctx.f.curfield in
 		let e = create_ctx_e ctx.e.curfun FunNotFunction in
-		create ctx ctx.m ctx.c f e PTypeField ctx.type_params
+		create ctx ctx.m ctx.c f e StageBodies ctx.type_params
 
 	let is_coroutine_context ctx =
 		ctx.e.function_mode = FunCoroutine
@@ -412,25 +414,30 @@ let make_static_field_access c cf t p =
 	let ethis = Texpr.Builder.make_static_this c p in
 	mk (TField (ethis,(FStatic (c,cf)))) t p
 
+(* The call arguments being typed, for the dynamic extent of their typing in the
+   current domain. *)
+let call_arg_contexts : (typer_globals,call_arg_context) DomainLocal.Scoped.t = DomainLocal.Scoped.create ()
+
+let call_arg_context ctx = DomainLocal.Scoped.find call_arg_contexts ctx.g
+
 let enter_call_args ctx ~in_overload =
 	let old_in_call_args = ctx.f.in_call_args in
-	let old_context = ctx.g.call_arg_context in
 	ctx.f.in_call_args <- true;
-	ctx.g.call_arg_context <- Some { cac_in_overload = in_overload; cac_body_capture = ref [] };
+	let restore = DomainLocal.Scoped.push call_arg_contexts ctx.g { cac_in_overload = in_overload; cac_body_capture = ref [] } in
 	(fun () ->
 		ctx.f.in_call_args <- old_in_call_args;
-		ctx.g.call_arg_context <- old_context;
+		restore ()
 	)
 
-let in_overload_call_args ctx = match ctx.g.call_arg_context with
+let in_overload_call_args ctx = match call_arg_context ctx with
 	| Some cac -> cac.cac_in_overload
 	| None -> false
 
-let reset_call_arg_body_capture ctx = match ctx.g.call_arg_context with
+let reset_call_arg_body_capture ctx = match call_arg_context ctx with
 	| Some cac -> let buf = ref [] in cac.cac_body_capture <- buf; buf
 	| None -> ref []
 
-let call_arg_body_capture ctx = match ctx.g.call_arg_context with
+let call_arg_body_capture ctx = match call_arg_context ctx with
 	| Some cac -> Some cac.cac_body_capture
 	| None -> None
 
@@ -506,79 +513,100 @@ let is_gen_local v = match v.v_kind with
 	| _ ->
 		false
 
-let delay g (p : typer_pass) f =
-	let p = Obj.magic p in
-	let tasks = g.delayed.(p) in
-	tasks.tasks <- f :: tasks.tasks;
-	if p < g.delayed_min_index then
-		g.delayed_min_index <- p
+let make_program_stage () = {
+	ps_units = [];
+	ps_late = [];
+}
 
-let delay_late g (p : typer_pass) f =
-	let p = Obj.magic p in
-	let tasks = g.delayed.(p) in
-	tasks.tasks_late <- f :: tasks.tasks_late;
-	if p < g.delayed_min_index then
-		g.delayed_min_index <- p
+(* [program] types the program by stages: the structure of modules and types
+   ([StageModules], [StageTypes], [StageMembers]), the bodies of fields
+   ([StageBodies]), the type parameter constraint checks ([StageConstraints]),
+   then the per-type checks and the forcing of lazy types ([StageChecks]). A
+   unit can add units to any stage, including earlier ones, which then run
+   first: [run_stages] always runs the earliest stage with units left. *)
 
-let delay_if_mono g p t f = match follow t with
-	| TMono _ ->
-		delay g p f
-	| _ ->
-		f()
+(* Adds a unit to stage [p]. *)
+let schedule g (p : stage) f =
+	let i = Obj.magic p in
+	let s = g.program.(i) in
+	s.ps_units <- f :: s.ps_units;
+	if i < g.program_min_stage then
+		g.program_min_stage <- i
 
-let rec flush_pass g (p : typer_pass) where =
+(* Adds a late unit to stage [p]: it runs once the stage has no other unit
+   left. *)
+let schedule_late g (p : stage) f =
+	let i = Obj.magic p in
+	let s = g.program.(i) in
+	s.ps_late <- f :: s.ps_late;
+	if i < g.program_min_stage then
+		g.program_min_stage <- i
+
+(* Runs the stages of [program] up to [p], until none of them has a unit
+   left. *)
+let run_stages g (p : stage) where =
+	let last = Obj.magic p in
 	let rec loop i =
-		if i > (Obj.magic p) then
-			()
-		else begin
-			let tasks = g.delayed.(i) in
-			begin match tasks.tasks with
-			| _ :: _ :: _ as l when g.typer_shuffle <> None ->
-				let n = Random.State.int (Option.get g.typer_shuffle) (List.length l) in
+		if i <= last then begin
+			let s = g.program.(i) in
+			match s.ps_units,g.typer_shuffle with
+			| (_ :: _ :: _ as l),Some st ->
+				(* HAXE_TYPER_SHUFFLE=<seed>: the units of a stage run in a random
+				   order, to check that typing does not depend on it *)
+				let n = Random.State.int st (List.length l) in
 				let f = List.nth l n in
-				tasks.tasks <- List.filteri (fun i _ -> i <> n) l;
+				s.ps_units <- List.filteri (fun i _ -> i <> n) l;
 				f();
-				flush_pass g p where
-			| [] when g.typer_shuffle <> None && tasks.tasks_late <> [] ->
-				(* the late tasks run one at a time, oldest first, so that the normal
-				   tasks they delay still run before the next one *)
-				begin match List.rev tasks.tasks_late with
+				loop g.program_min_stage
+			| [],Some _ when s.ps_late <> [] ->
+				(* the late units run one at a time, oldest first, so that the units
+				   they add still run before the next one *)
+				begin match List.rev s.ps_late with
 				| f :: l ->
-					tasks.tasks_late <- List.rev l;
+					s.ps_late <- List.rev l;
 					f();
-					flush_pass g p where
+					loop g.program_min_stage
 				| [] ->
 					assert false
 				end
-			| f :: l ->
-				tasks.tasks <- l;
+			| f :: l,_ ->
+				s.ps_units <- l;
 				f();
-				flush_pass g p where
-			| [] ->
-				begin match tasks.tasks_late with
+				loop g.program_min_stage
+			| [],_ ->
+				begin match s.ps_late with
 				| _ :: _ ->
-					tasks.tasks <- List.rev tasks.tasks_late;
-					tasks.tasks_late <- [];
-					flush_pass g p where
+					s.ps_units <- List.rev s.ps_late;
+					s.ps_late <- [];
+					loop g.program_min_stage
 				| [] ->
-					(* Done with this pass (for now), update min index to next one *)
-					let i = i + 1 in
-					g.delayed_min_index <- i;
-					loop i
+					(* Done with this stage (for now) *)
+					g.program_min_stage <- i + 1;
+					loop (i + 1)
 				end
-			end
 		end
 	in
-	loop g.delayed_min_index
+	loop g.program_min_stage
 
-let make_pass ctx f = f
+(* Adds the typing of the bodies of a class, or another field typing unit, to
+   [program]. *)
+let add_program_unit g f =
+	schedule g StageBodies f
+
+(* Adds a type parameter constraint check to [program]. *)
+let add_program_constraint g f =
+	schedule g StageConstraints f
+
+(* Adds a check to [program]. *)
+let add_program_check g f =
+	schedule g StageChecks f
 
 let enter_field_typing_pass g info =
-	flush_pass g PConnectField info
+	run_stages g StageMembers info
 
 let make_lazy ctx t_proc f where =
 	let r = make_unforced_lazy t_proc f where in
-	delay ctx PForce (fun () -> ignore(lazy_type r));
+	add_program_check ctx (fun () -> ignore(lazy_type r));
 	r
 
 let is_forced_inline c cf =
@@ -814,8 +842,8 @@ let is_empty_or_pos_infos args =
 	| _ -> false
 
 let get_next_stored_typed_expr_id =
-	let uid = ref 0 in
-	(fun() -> incr uid; !uid)
+	let uid = Atomic.make 0 in
+	(fun() -> Atomic.fetch_and_add uid 1 + 1)
 
 let make_stored_id_expr id p =
 	(EConst (Int (string_of_int id, None))), p
@@ -848,165 +876,5 @@ let get_overloads (com : Common.context) c i =
 		com.overload_cache#add (c.cl_path,i) l;
 		l
 
-(* -------------- debug functions to activate when debugging typer passes ------------------------------- *)
-
-(*
-let delay_tabs = ref ""
-
-let context_ident com =
-	if Common.defined com Common.Define.CoreApi then
-		" core "
-	else if Common.defined com Common.Define.Macro then
-		"macro "
-	else
-		"  out "
-
-let debug_paths = [
-	(* ["Main"] *)
-]
-
-let debug com (path : string list) str =
-	if Common.raw_defined com "cdebug" then begin
-		let emit () =
-			let s = (context_ident com ^ string_of_int (String.length !delay_tabs) ^ " " ^ !delay_tabs ^ str) in
-			if com.sctx.is_server then
-				DynArray.add com.part_scope.pass_debug_messages s
-			else
-				print_endline s
-		in
-		match debug_paths,path with
-		| [],_
-		| _,[] ->
-			emit()
-		| l ->
-			if List.exists (Ast.match_path false path) debug_paths then emit();
-	end
-
-let ctx_pos ctx =
-	let inf = fst ctx.m.curmod.m_path @ [snd ctx.m.curmod.m_path]in
-	let inf = (match snd ctx.c.curclass.cl_path with "" -> inf | n when n = snd ctx.m.curmod.m_path -> inf | n -> inf @ [n]) in
-	let inf = (match ctx.f.curfield.cf_name with "" -> inf | n -> inf @ [n]) in
-	inf
-
-let pass_infos ctx p =
-	let path = ctx_pos ctx in
-	let inf = pass_name p ^ " ("  ^ String.concat "." path ^ ")" in
-	let inf = if ctx.pass > p then inf ^ " ??CURPASS=" ^ pass_name ctx.pass else inf in
-	inf,path
-
-let delay ctx p f =
-	let inf = pass_infos ctx p in
-	let rec loop = function
-		| [] -> [p,[f,inf,ctx]]
-		| (p2,l) :: rest ->
-			if p2 = p then
-				(p, (f,inf,ctx) :: l) :: rest
-			else if p2 < p then
-				(p2,l) :: loop rest
-			else
-				(p,[f,inf,ctx]) :: (p2,l) :: rest
-	in
-	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
-	debug ctx.com (snd inf) ("add " ^ (fst inf))
-
-let delay_late ctx p f =
-	let inf = pass_infos ctx p in
-	let rec loop = function
-		| [] -> [p,[f,inf,ctx]]
-		| (p2,l) :: rest ->
-			if p2 <= p then
-				(p2,l) :: loop rest
-			else
-				(p,[f,inf,ctx]) :: (p2,l) :: rest
-	in
-	ctx.g.debug_delayed <- loop ctx.g.debug_delayed;
-	debug ctx.com (snd inf) ("add late " ^ (fst inf))
-
-let pending_passes ctx =
-	let rec loop acc = function
-		| (p,l) :: pl when p < ctx.pass -> loop (acc @ l) pl
-		| _ -> acc
-	in
-	match loop [] ctx.g.debug_delayed with
-	| [] -> ""
-	| l -> " ??PENDING[" ^ String.concat ";" (List.map (fun (_,(i,_),_) -> i) l) ^ "]"
-
-let display_error com ?(depth=0) msg p =
-	debug com [] ("ERROR " ^ msg);
-	display_error com ~depth msg p
-
-let display_error_ext com err =
-	debug com [] ("ERROR " ^ (error_msg err.err_message));
-	display_error_ext com err
-
-let make_pass ?inf ctx f =
-	let inf,path = (match inf with None -> pass_infos ctx ctx.pass | Some inf -> inf) in
-	(fun v ->
-		debug ctx.com path ("run " ^ inf ^ pending_passes ctx);
-		let old = !delay_tabs in
-		delay_tabs := !delay_tabs ^ "\t";
-		let t = (try
-			f v
-		with
-			| Fatal_error _ as exc ->
-				delay_tabs := old;
-				raise exc
-			| exc when not (Common.raw_defined ctx.com "stack") ->
-				debug ctx.com path ("FATAL " ^ Printexc.to_string exc);
-				delay_tabs := old;
-				raise exc
-		) in
-		delay_tabs := old;
-		t
-	)
-
-let rec flush_pass ctx p where =
-	let rec loop() =
-		match ctx.g.debug_delayed with
-		| (p2,l) :: rest when p2 <= p ->
-			(match l with
-			| [] ->
-				ctx.g.debug_delayed <- rest
-			| (f,inf,ctx2) :: l ->
-				ctx.g.debug_delayed <- (p2,l) :: rest;
-				match p2 with
-				| PTypeField | PBuildClass -> f()
-				| _ -> (make_pass ~inf ctx f)());
-			loop()
-		| _ ->
-			()
-	in
-	match ctx.g.debug_delayed with
-	| (p2,_) :: _ when p2 <= p ->
-		let old = !delay_tabs in
-		debug ctx.com (snd where) ("flush " ^ pass_name p ^ "(" ^ (fst where) ^ ")");
-		delay_tabs := !delay_tabs ^ "\t";
-		loop();
-		delay_tabs := old;
-		debug ctx.com (snd where) "flush-done";
-	| _ ->
-		()
-
-let make_where ctx where =
-	let inf = ctx_pos ctx in
-	where ^ " (" ^ String.concat "." inf ^ ")",inf
-
-let make_lazy ctx t f (where:string) =
-	let r = ref (lazy_available t_dynamic) in
-	r := lazy_wait (make_pass ~inf:(make_where ctx where) ctx (fun() ->
-		try
-			r := lazy_processing t;
-			let t = f () in
-			r := lazy_available t;
-			t
-		with
-			| Error e ->
-				raise (Fatal_error e)
-	));
-	delay ctx PForce (fun () -> ignore(lazy_type r));
-	r
-
-*)
-(* --------------------------------------------------- *)
 
 

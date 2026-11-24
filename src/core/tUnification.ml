@@ -109,7 +109,8 @@ let default_unification_context () = {
 }
 
 (* Unify like targets (e.g. Java) probably would. *)
-let native_unification_context = {
+(* Its stacks are local to the domain using it. *)
+let native_unification_context_key = Domain.DLS.new_key (fun () -> {
 	allow_transitive_cast   = false;
 	allow_abstract_cast     = false;
 	allow_dynamic_to_cast   = false;
@@ -128,7 +129,9 @@ let native_unification_context = {
 	abstract_cast_stack     = new_rec_stack();
 	unify_new_monos         = new_rec_stack();
 	apply_params_stack      = ref [];
-}
+})
+
+let native_unification_context () = Domain.DLS.get native_unification_context_key
 
 module Monomorph = struct
 	let create () = {

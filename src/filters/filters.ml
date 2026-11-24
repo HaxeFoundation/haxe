@@ -272,7 +272,7 @@ let destruction (com : Common.context) scom ectx detail_times rename_locals_conf
 		)
 	);
 
-	com.callbacks#run com.error_ext com.callbacks#get_after_filters;
+	com.callbacks#run (Common.error_ext com) com.callbacks#get_after_filters;
 	Common.enter_stage com CFilteringDone
 
 let update_cache_dependencies ~close_monomorphs scom t =
@@ -523,7 +523,7 @@ let run com ectx before_destruction =
 		run_safe_filters ectx com scom all_types_array new_types_array rename_locals_config
 	);
 	with_timer com.timer_ctx detail_times "callbacks" None (fun () ->
-		com.callbacks#run com.error_ext com.callbacks#get_before_save;
+		com.callbacks#run (Common.error_ext com) com.callbacks#get_before_save;
 	);
 	Common.enter_stage com CSaveStart;
 	with_timer com.timer_ctx detail_times "save state" None (fun () ->
@@ -536,7 +536,7 @@ let run com ectx before_destruction =
 	);
 	Common.enter_stage com CSaveDone;
 	with_timer com.timer_ctx detail_times "callbacks" None (fun () ->
-		com.callbacks#run com.error_ext com.callbacks#get_after_save;
+		com.callbacks#run (Common.error_ext com) com.callbacks#get_after_save;
 	);
 	before_destruction();
 	(* Sort again: cached types hold the expressions saved above, new types held unfiltered ones during the first sort. *)

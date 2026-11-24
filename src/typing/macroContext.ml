@@ -63,21 +63,20 @@ let macro_timer timer_ctx level s identifier f arg =
 
 let typing_timer ctx need_type f =
 	let t = Timer.start_timer ctx.com.timer_ctx ["typing"] in
-	let ctx = if need_type && ctx.pass < PTypeField then begin
+	let ctx = if need_type && ctx.stage < StageBodies then begin
 		enter_field_typing_pass ctx.g ("typing_timer",[]);
 		TyperManager.clone_for_expr ctx ctx.e.curfun FunFunction
 	end else
 		ctx
 	in
 
-	let old = ctx.com.error_ext in
 	let restore_report_mode = disable_report_mode ctx.com in
 	let restore_field_state = TypeloadFunction.save_field_state ctx in
-	ctx.com.error_ext <- (fun err -> raise_error err);
+	let restore_error_ext = Common.push_error_ext ctx.com (fun err -> raise_error err) in
 
 	let exit() =
 		t();
-		ctx.com.error_ext <- old;
+		restore_error_ext ();
 		restore_field_state ();
 		restore_report_mode ();
 	in
@@ -170,9 +169,7 @@ let make_macro_com_api com mcom p =
 			];
 		);
 		parse_string = (fun s p inl ->
-			let old = com.error_ext in
-			com.error_ext <- (fun err -> raise_error err);
-			let exit() = com.error_ext <- old in
+			let exit = Common.push_error_ext com (fun err -> raise_error err) in
 
 			try
 				let r = match ParserEntry.parse_expr_string (ParserConfig.file_parser_config com p.pfile) s p raise_typing_error inl with
@@ -585,7 +582,7 @@ let make_macro_api ctx mctx p =
 				List.iter (fun path ->
 					ImportHandling.init_using ctx path null_pos
 				) usings;
-				flush_pass ctx.g PConnectField ("with_imports",[] (* TODO: ? *));
+				run_stages ctx.g StageMembers ("with_imports",[] (* TODO: ? *));
 				f()
 			in
 			let restore () =

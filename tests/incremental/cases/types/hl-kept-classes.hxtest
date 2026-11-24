@@ -1,0 +1,121 @@
+# The server keeps the generated classes of HL: the classes whose body or
+# declarations changed, and those using a type whose layout changed, are
+# generated again.
+@targets hl
+
+=== initial
+@expect-output 1 2 Red 3
+--- Main.hx
+class Main {
+	static function main() {
+		var c = new Child();
+		var s:Shape = c;
+		Sys.println(([Util.one(), s.area(), Color.Red, c.total()] : Array<Dynamic>).join(" "));
+	}
+}
+--- Util.hx
+class Util {
+	public static function one() return 1;
+}
+--- Shape.hx
+interface Shape {
+	function area():Int;
+}
+--- Base.hx
+class Base {
+	public var a = 1;
+	public function new() {}
+	public function total() return a;
+}
+--- Child.hx
+class Child extends Base implements Shape {
+	public var b = 2;
+	public function area() return b;
+	override public function total() return a + b;
+}
+--- Color.hx
+enum Color {
+	Red;
+	Green;
+}
+
+=== a body changes
+@expect-output 1 4 Red 5
+--- Child.hx
+class Child extends Base implements Shape {
+	public var b = 4;
+	public function area() return b;
+	override public function total() return a + b;
+}
+
+=== a field is added to the superclass
+@expect-output 1 4 Red 15
+--- Base.hx
+class Base {
+	public var z = 10;
+	public var a = 1;
+	public function new() {}
+	public function total() return a;
+}
+--- Child.hx
+class Child extends Base implements Shape {
+	public var b = 4;
+	public function area() return b;
+	override public function total() return z + a + b;
+}
+
+=== a method is added to the interface
+@expect-output 1 4 Red 15 8
+--- Shape.hx
+interface Shape {
+	function area():Int;
+	function perimeter():Int;
+}
+--- Child.hx
+class Child extends Base implements Shape {
+	public var b = 4;
+	public function area() return b;
+	public function perimeter() return b * 2;
+	override public function total() return z + a + b;
+}
+--- Main.hx
+class Main {
+	static function main() {
+		var c = new Child();
+		var s:Shape = c;
+		Sys.println(([Util.one(), s.area(), Color.Red, c.total(), s.perimeter()] : Array<Dynamic>).join(" "));
+	}
+}
+
+=== a constructor is added to the enum
+@expect-output 1 4 Blue 15 8
+--- Color.hx
+enum Color {
+	Blue;
+	Red;
+	Green;
+}
+--- Main.hx
+class Main {
+	static function main() {
+		var c = new Child();
+		var s:Shape = c;
+		Sys.println(([Util.one(), s.area(), Color.Blue, c.total(), s.perimeter()] : Array<Dynamic>).join(" "));
+	}
+}
+
+=== the field of the superclass is removed
+@expect-output 1 4 Blue 5 8
+--- Base.hx
+class Base {
+	public var a = 1;
+	public function new() {}
+	public function total() return a;
+}
+--- Child.hx
+class Child extends Base implements Shape {
+	public var b = 4;
+	public function area() return b;
+	public function perimeter() return b * 2;
+	override public function total() return a + b;
+}
