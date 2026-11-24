@@ -164,7 +164,7 @@ let check_display_metadata ctx meta =
 		List.iter (fun e ->
 			if display_position#enclosed_in (pos e) then begin
 				let e = preprocess_expr ctx.com e in
-				delay ctx.g PTypeField (fun _ -> ignore(type_expr ctx e WithType.value));
+				schedule ctx.g StageBodies (fun _ -> ignore(type_expr ctx e WithType.value));
 			end
 		) args
 	) meta
