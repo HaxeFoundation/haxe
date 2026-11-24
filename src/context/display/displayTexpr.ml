@@ -67,6 +67,30 @@ let actually_check_display_field ctx c cff p =
 	flush_pass ctx.g PTypeField ("check_display_field",(fst c.cl_path @ [snd c.cl_path;fst cff.cff_name]));
 	ignore(follow cf.cf_type)
 
+let actually_check_display_field ctx c cff p =
+	let restore = match c.cl_kind with
+		| KAbstractImpl a ->
+			let from_field = a.a_from_field and to_field = a.a_to_field and array = a.a_array in
+			let read = a.a_read and write = a.a_write and call = a.a_call in
+			let ops = a.a_ops and unops = a.a_unops in
+			(fun () ->
+				a.a_from_field <- from_field; a.a_to_field <- to_field; a.a_array <- array;
+				a.a_read <- read; a.a_write <- write; a.a_call <- call;
+				a.a_ops <- ops; a.a_unops <- unops)
+		| _ ->
+			(fun () -> ())
+	in
+	let init = c.cl_init in
+	let init_expr = Option.map (fun cf -> cf.cf_expr) init in
+	let restore () =
+		restore ();
+		c.cl_init <- init;
+		match init,init_expr with
+		| Some cf,Some e -> cf.cf_expr <- e
+		| _ -> ()
+	in
+	Std.finally restore (actually_check_display_field ctx c cff) p
+
 let check_display_field ctx sc c cf =
 	let cff = find_field_by_position sc cf.cf_name_pos in
 	actually_check_display_field ctx c cff cf.cf_pos
@@ -98,7 +122,11 @@ let check_display_class ctx decls c =
 		let check_field = check_field sc in
 		List.iter check_field c.cl_ordered_statics;
 		List.iter check_field c.cl_ordered_fields;
-		Option.may check_field c.cl_constructor
+		Option.may check_field c.cl_constructor;
+		List.iter (fun cff ->
+			if fst cff.cff_name = "__init__" && display_position#enclosed_in cff.cff_pos then
+				actually_check_display_field ctx c cff cff.cff_pos
+		) sc.d_data
 
 let check_display_enum ctx decls en =
 	let se = find_enum_by_position decls en.e_name_pos in
@@ -185,7 +213,17 @@ let check_display_file ctx cs =
 					m
 				end
 			in
-			check_display_module ctx cfile.c_decls m
+			let decls = match ctx.com.display.dms_kind,cfile.c_decls with
+				| DMSignature,(_,pdecl) :: _ ->
+					let rfile = ClassPaths.create_resolved_file pdecl.pfile ctx.com.empty_class_path in
+					begin match TypeloadParse.parse_file ctx.com rfile null_pos with
+						| ParseSuccess((_,decls),_) -> decls
+						| ParseError _ -> cfile.c_decls
+					end
+				| _ ->
+					cfile.c_decls
+			in
+			check_display_module ctx decls m
 		with Not_found ->
 			()
 		end
