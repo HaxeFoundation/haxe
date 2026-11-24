@@ -305,6 +305,24 @@ let make_macro_com_api com mcom p =
 		);
 	}
 
+(* The module of the outermost macro function being run, for a macro run outside of the typing of
+   a module (such as a callback registered by an initialization macro). *)
+let running_macro_module mctx =
+	match List.rev (Interp.call_stack (Interp.get_eval (Interp.get_ctx ()))) with
+	| env :: _ ->
+		let key = mctx.com.part_scope.file_keys#get (EvalHash.rev_hash env.env_info.pfile) in
+		mctx.com.module_lut#fold (fun _ m acc ->
+			if Path.UniqueKey.lazy_key m.m_extra.m_file = key then m else acc
+		) null_module
+	| [] ->
+		null_module
+
+(* A module defined by a macro depends on the module it is defined for, or else on the module of
+   the macro defining it. *)
+let add_defining_dependency mctx mnew mdep =
+	let mdep = if mdep == null_module then running_macro_module mctx else mdep in
+	add_dependency mnew mdep MDepFromMacro
+
 let make_macro_api ctx mctx p =
 	let parse_metadata s p =
 		try
@@ -476,7 +494,7 @@ let make_macro_api ctx mctx p =
 					let mdep = Option.map_default (fun s -> TypeloadModule.load_module ~origin:MDepFromMacro ctx (parse_path s) pos) ctx.m.curmod mdep in
 					let mnew = TypeloadModule.type_module ctx.com ctx.g ~dont_check_path:(has_native_meta) mpath (ctx.com.part_scope.file_keys#generate_virtual mpath ctx.com.part_scope.compilation_step) [tdef,pos] pos in
 					mnew.m_extra.m_kind <- if is_macro then MMacro else MFake;
-					add_dependency mnew mdep MDepFromMacro;
+					add_defining_dependency mctx mnew mdep;
 					add_dependency mdep mnew MDepFromMacroDefine;
 					ctx.com.module_nonexistent_lut#clear;
 				in
@@ -514,7 +532,7 @@ let make_macro_api ctx mctx p =
 				ctx.com.cs#taint_module mpath DefineModule;
 				let mnew = TypeloadModule.type_module ctx.com ctx.g mpath (ctx.com.part_scope.file_keys#generate_virtual mpath ctx.com.part_scope.compilation_step) types pos in
 				mnew.m_extra.m_kind <- MFake;
-				add_dependency mnew ctx.m.curmod MDepFromMacro;
+				add_defining_dependency mctx mnew ctx.m.curmod;
 				add_dependency ctx.m.curmod mnew MDepFromMacroDefine;
 				ctx.com.module_nonexistent_lut#clear;
 			end
@@ -678,8 +696,22 @@ and flush_macro_context mint mctx =
 	let timer_level = Timer.level_from_define mctx.com.defines Define.MacroTimes in
 	macro_timer mctx.com.timer_ctx timer_level ["flush"] None f ()
 
+(* The positions of the errors reported in the macro context by the current
+   compilation. *)
+let macro_errors : pos list ref = ref []
+let macro_errors_mutex = Mutex.create ()
+
+(* Whether an error was reported in the macro function [cf]: it is typed before
+   it is called, whatever the order of typing. *)
+let macro_field_failed cf =
+	let p = cf.cf_pos in
+	Mutex.protect macro_errors_mutex (fun () ->
+		List.exists (fun ep -> ep.pfile = p.pfile && ep.pmin >= p.pmin && ep.pmax <= p.pmax) !macro_errors
+	)
+
 let create_macro_interp api mctx =
 	let com2 = mctx.com in
+	Mutex.protect macro_errors_mutex (fun () -> macro_errors := []);
 	let mint, init = (match !macro_interp_cache with
 		| None ->
 			let mint = Interp.create com2 api true (Args.to_raw_args com2.parsed_args) in
@@ -691,7 +723,9 @@ let create_macro_interp api mctx =
 	) in
 	let on_error = CompilerMessage.default_error_handler com2 in
 	com2.error_ext <- (fun err ->
-		Interp.set_error (Interp.get_ctx()) true;
+		(* The macros called after an error still run: which ones come after it
+		   depends on the order of typing. *)
+		Mutex.protect macro_errors_mutex (fun () -> macro_errors := err.err_pos :: !macro_errors);
 		macro_interp_cache := None;
 		on_error err
 	);
@@ -825,10 +859,12 @@ let do_call_macro com api cpath name args p =
 
 let load_macro ctx com mctx api display cpath f p =
 	let meth,mloaded = load_macro'' com mctx display cpath f p in
-	let _,_,{cl_path = cpath},_ = meth in
+	if display then add_dependency ctx.m.curmod mloaded MDepFromMacro;
+	let _,_,{cl_path = cpath},mfield = meth in
 	let call args =
 		add_dependency ctx.m.curmod mloaded MDepFromMacro;
-		do_call_macro ctx.com api cpath f args p
+		if macro_field_failed mfield then None
+		else do_call_macro ctx.com api cpath f args p
 	in
 	mctx, meth, call
 
@@ -1084,9 +1120,8 @@ let call_init_macro com mctx e =
 
 let finalize_macro_api tctx mctx =
 	let api = make_macro_api tctx mctx null_pos in
-	match !macro_interp_cache with
-		| None -> ignore(create_macro_interp api mctx)
-		| Some mint -> mint.curapi <- api
+	Option.may (fun (select,_) -> select ()) mctx.g.macros;
+	(Interp.get_ctx ()).curapi <- api
 
 let interpret ctx args =
 	Parallel.ManagedPool.release ctx.com.sctx.pool;
@@ -1098,4 +1133,5 @@ let interpret ctx args =
 		| Some e -> ignore(Interp.eval_expr mctx e)
 
 let setup() =
+	MacroApi.current_macro_module := (fun () -> (Interp.get_ctx()).EvalContext.curapi.MacroApi.current_module ());
 	Interp.setup Interp.macro_api

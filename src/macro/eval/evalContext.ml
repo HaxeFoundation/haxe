@@ -277,7 +277,6 @@ and context = {
 	detail_times : bool;
 	builtins : builtins;
 	debug : debug;
-	mutable had_error : bool;
 	mutable curapi : value MacroApi.compiler_api;
 	mutable type_cache : Type.module_type IntMap.t;
 	overrides : (Globals.path * string,bool) Hashtbl.t;

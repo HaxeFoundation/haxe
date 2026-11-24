@@ -1,0 +1,39 @@
+# A build macro adds metadata to a type of another module, then stops doing so.
+@targets js
+=== initial
+@expect-output renamed
+@expect-file out/main.js Renamed
+--- Main.hx
+class Main {
+	static var trigger:Trigger;
+	static function main() {
+		trace(Target.name());
+	}
+}
+--- Target.hx
+class Target {
+	public static function name() return "renamed";
+}
+--- Trigger.hx
+@:build(Macro.build())
+class Trigger {}
+--- Macro.hx
+import haxe.macro.Context;
+class Macro {
+	public static function build() {
+		switch (Context.getType("Target")) {
+			case TInst(c, _): c.get().meta.add(":native", [macro "Renamed"], Context.currentPos());
+			case _:
+		}
+		return null;
+	}
+}
+=== macro no longer adds the metadata
+@expect-output renamed
+@expect-no-file-content out/main.js Renamed
+--- Macro.hx
+class Macro {
+	public static function build() {
+		return null;
+	}
+}
