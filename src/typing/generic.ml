@@ -160,7 +160,12 @@ let generic_substitute_expr gctx e =
 		| _ ->
 			map_expr_type build_expr (generic_substitute_type gctx) build_var e
 		in
-		OverloadResolution.maybe_reapply_overload_call e
+		let e = OverloadResolution.maybe_reapply_overload_call e in
+		match e.eexpr with
+		| TCall({eexpr = TField(_,(FInstance(c,_,cf) | FStatic(c,cf)))} as ef,el) when needs_inline gctx.ctx (Some c) cf ->
+			make_call gctx.ctx ef el e.etype e.epos
+		| _ ->
+			e
 	in
 	build_expr e
 
