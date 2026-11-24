@@ -380,6 +380,52 @@ let gen_constant ctx p = function
     | TThis -> spr ctx (this ctx)
     | TSuper -> Globals.die "" __LOC__
 
+(* Whether gen_value wraps e in a function made and called on the spot: Lua has no
+   conditional expression and no block expression. *)
+let rec needs_value_closure e = match e.eexpr with
+    | TIf (_,_,Some _) | TSwitch _ | TTry _ | TBlock (_ :: _ :: _) -> true
+    | TBlock [e1] | TMeta (_,e1) | TParenthesis e1 | TCast (e1,None) -> needs_value_closure e1
+    | _ -> false
+
+(* e as a statement whose branches end in f applied to their value, for a statement
+   that only does something with that value (return it, assign it to a local). *)
+let rec push_into_branches f e = match e.eexpr with
+    | TIf (cond,e1,Some e2) ->
+        { e with eexpr = TIf (cond, push_into_branches f e1, Some (push_into_branches f e2)) }
+    | TSwitch switch ->
+        let push_case case = { case with case_expr = push_into_branches f case.case_expr } in
+        { e with eexpr = TSwitch { switch with
+            switch_cases = List.map push_case switch.switch_cases;
+            switch_default = Option.map (push_into_branches f) switch.switch_default
+        } }
+    | TTry (e1,catches) ->
+        { e with eexpr = TTry (push_into_branches f e1, List.map (fun (v,e) -> v, push_into_branches f e) catches) }
+    | TBlock (_ :: _ as el) ->
+        (match List.rev el with
+         | last :: rest -> { e with eexpr = TBlock (List.rev (push_into_branches f last :: rest)) }
+         | [] -> Globals.die "" __LOC__)
+    | TMeta (_,e1) | TParenthesis e1 | TCast (e1,None) ->
+        push_into_branches f e1
+    | TReturn _ | TThrow _ | TBreak | TContinue ->
+        e
+    | _ ->
+        f e
+
+(* Whether e declares a local that is called name in Lua (or reads one, with ~reads):
+   then name, declared or assigned in e's branches, isn't the same variable everywhere in e. *)
+let mentions_name ~reads name e =
+    let check v = if ident v.v_name = name then raise Exit in
+    let rec loop e =
+        (match e.eexpr with
+         | TLocal v when reads -> check v
+         | TVar (v,_) -> check v
+         | TTry (_,catches) -> List.iter (fun (v,_) -> check v) catches
+         | TFunction f -> List.iter (fun (v,_) -> check v) f.tf_args
+         | _ -> ());
+        Type.iter loop e
+    in
+    try loop e; false with Exit -> true
+
 
 
 let rec is_function_type t =
@@ -996,6 +1042,23 @@ and gen_expr ?(local=true) ctx e = begin
                     spr ctx " = ";
                     gen_value ctx e1;
 
+                | _ when needs_value_closure e && not (Meta.has Meta.MultiReturn v.v_meta) ->
+                    (* Declared first and assigned in each branch. If e mentions the name
+                       (an outer variable it shadows), a temporary is assigned instead. *)
+                    let shadows = mentions_name ~reads:true var_name e in
+                    let target =
+                        if shadows then alloc_var VGenerated (temp ctx) v.v_type e.epos
+                        else v
+                    in
+                    if shadows || use_local then
+                        print ctx "local %s" (ident target.v_name);
+                    gen_block_element ctx (push_into_branches (fun e -> mk (TBinop (OpAssign, mk (TLocal target) target.v_type e.epos, e)) e.etype e.epos) e);
+                    if shadows then begin
+                        newline ctx;
+                        if use_local then spr ctx "local ";
+                        print ctx "%s = %s" var_name target.v_name
+                    end
+
                 | _ when Meta.has Meta.MultiReturn v.v_meta ->
                     (* multi-return var is generated as several vars for unpacking *)
                     let id = temp ctx in
@@ -1274,6 +1337,10 @@ and gen_block_element ctx e  =
             gen_block_element ctx e
         | TObjectDecl fl ->
             List.iter (fun (_,e) -> gen_block_element ctx e) fl
+        | TBinop (OpAssign, ({ eexpr = TLocal v } as e1), e2)
+            when needs_value_closure e2 && not (Meta.has Meta.MultiReturn v.v_meta) && not (mentions_name ~reads:false (ident v.v_name) e2) ->
+            (* assigned in each branch *)
+            gen_block_element ctx (push_into_branches (fun e -> { e1 with eexpr = TBinop (OpAssign, e1, e); etype = e.etype }) e2)
         | TBinop (op,e1,e2) when op <> Ast.OpAssign ->
             newline ctx;
             let f () = gen_tbinop ctx op e1 e2 in
@@ -1665,6 +1732,9 @@ and gen_return ctx e eo wrap =
               if wrap then spr ctx " do return " else spr ctx " return ";
               gen_value ctx e1;
               close_ret ();
+          | _ when needs_value_closure e ->
+              (* return from each branch *)
+              gen_block_element ctx (push_into_branches (fun e -> mk (TReturn (Some e)) t_dynamic e.epos) e)
           | _ ->
               open_ret ();
               gen_value ctx e;
