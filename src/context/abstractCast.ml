@@ -5,7 +5,8 @@ open Type
 open Typecore
 open Error
 
-let cast_stack = new_rec_stack()
+(* the implicit casts being typed by the current domain *)
+let cast_stack_key = Domain.DLS.new_key new_rec_stack
 
 
 let rec make_static_call ctx c cf a pl args t p =
@@ -27,6 +28,7 @@ let rec make_static_call ctx c cf a pl args t p =
 		CallUnification.make_static_call_better ctx c cf pl args t p
 
 and do_check_cast ctx uctx tleft eright p =
+	let cast_stack = Domain.DLS.get cast_stack_key in
 	let recurse cf f =
 		(*
 			Without this special check for macro @:from methods we will always get "Recursive implicit cast" error
@@ -94,7 +96,7 @@ and do_check_cast ctx uctx tleft eright p =
 					in
 					let map = apply_params c.cl_params tl in
 					let monos = Monomorph.spawn_constrained_monos map cf.cf_params in
-					unify_raise_custom native_unification_context eright.etype (map (apply_params cf.cf_params monos cf.cf_type)) p;
+					unify_raise_custom (native_unification_context ()) eright.etype (map (apply_params cf.cf_params monos cf.cf_type)) p;
 					if has_mono tright then raise_typing_error ("Cannot use this function as a functional interface because it has unknown types: " ^ (s_type (print_context()) tright)) p;
 					(* Wrap the function expression in a TCast to the SAM type so
 					   the SAM TInst lives in the typed AST. Without this the

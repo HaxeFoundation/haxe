@@ -356,12 +356,14 @@ let rec type_usings mt =
 let add_descendant c descendant =
 	c.cl_descendants <- descendant :: c.cl_descendants
 
-let lazy_force_hook : ((unit -> t) -> t) ref = ref (fun f -> f())
+(* Wraps the forcing of a lazy type, for the dynamic extent of a computation
+   of the current domain (see [Common.activate_message_capture]). *)
+let lazy_force_hook : ((unit -> t) -> t) DomainLocal.t = DomainLocal.make (fun () -> (fun f -> f()))
 
 let lazy_type f =
 	match !f with
 	| LAvailable t | LProcessing t -> t
-	| LWait f -> !lazy_force_hook f
+	| LWait f -> (DomainLocal.get lazy_force_hook) f
 
 let lazy_available t = LAvailable t
 let lazy_processing t = LProcessing t

@@ -1703,7 +1703,7 @@ let init_class ctx_c cctx c p herits fields =
 			try init_core_api ctx_c c
 			with
 			| Error { err_message = Module_not_found _ | Type_not_found _ } -> ()
-			| Error err -> com.error_ext err
+			| Error err -> (Common.error_ext com) err
 		)
 	| CoreApiConfig.Off -> ()
 	end;

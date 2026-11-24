@@ -165,10 +165,9 @@ let generic_substitute_expr gctx e =
 	build_expr e
 
 let get_short_name =
-	let i = ref (-1) in
+	let i = Atomic.make 0 in
 	(fun () ->
-		incr i;
-		Printf.sprintf "Hx___short___hx_type_%i" !i
+		Printf.sprintf "Hx___short___hx_type_%i" (Atomic.fetch_and_add i 1)
 	)
 
 let static_method_container gctx c cf p =
