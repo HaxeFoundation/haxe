@@ -8,7 +8,7 @@ class TestTreGeneration {
 				var tmp = a;
 				a = b + a;
 				b = tmp;
-				s += "?";
+				s = js_Boot.normalizeNull(s) + "?";
 				continue;
 			}
 			if(s == null) {
@@ -36,7 +36,7 @@ class TestTreGeneration {
 					var tmp = a;
 					a = b + a;
 					b = tmp;
-					s += "?";
+					s = js_Boot.normalizeNull(s) + "?";
 					continue;
 				}
 				if(s == null) {
