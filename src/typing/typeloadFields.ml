@@ -941,6 +941,13 @@ let create_variable (ctx,cctx,fctx) c f cf t eo p =
 	if missing_initialization && fctx.is_static && fctx.is_final then
 		missing_expression ctx.com fctx "Static final variable must be initialized" p;
 	let t = load_variable_type_hint ctx fctx eo (pos f.cff_name) t in
+	(* @:optional fields of @:structInit classes without a default value are initialized to null (#13240) *)
+	let t =
+		if not fctx.is_static && eo = None && Meta.has Meta.Optional cf.cf_meta && Meta.has Meta.StructInit c.cl_meta then
+			ctx.t.tnull t
+		else
+			t
+	in
 	let kind = if fctx.is_inline then
 		{ v_read = AccInline ; v_write = AccNever }
 	else if fctx.is_final then
