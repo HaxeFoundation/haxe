@@ -111,6 +111,8 @@ enum ValueType {
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
+		if (String == cast cl)
+			return cast "";
 		var o = __dollar__new(null);
 		__dollar__objsetproto(o,cl.prototype);
 		return o;
