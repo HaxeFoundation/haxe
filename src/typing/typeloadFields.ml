@@ -919,6 +919,13 @@ module TypeBinding = struct
 		bind_type ctx cctx fctx cf r p
 end
 
+(* @:optional fields of @:structInit classes without a default value are initialized to null (#13240) *)
+let struct_init_field_type ctx fctx c cf eo t =
+	if not fctx.is_static && eo = None && Meta.has Meta.Optional cf.cf_meta && Meta.has Meta.StructInit c.cl_meta then
+		ctx.t.tnull t
+	else
+		t
+
 let load_variable_type_hint ctx fctx eo p = function
 	| None when eo = None ->
 		missing_expression ctx.com fctx "Variable requires type-hint or initialization" p;
@@ -940,14 +947,7 @@ let create_variable (ctx,cctx,fctx) c f cf t eo p =
 	in
 	if missing_initialization && fctx.is_static && fctx.is_final then
 		missing_expression ctx.com fctx "Static final variable must be initialized" p;
-	let t = load_variable_type_hint ctx fctx eo (pos f.cff_name) t in
-	(* @:optional fields of @:structInit classes without a default value are initialized to null (#13240) *)
-	let t =
-		if not fctx.is_static && eo = None && Meta.has Meta.Optional cf.cf_meta && Meta.has Meta.StructInit c.cl_meta then
-			ctx.t.tnull t
-		else
-			t
-	in
+	let t = struct_init_field_type ctx fctx c cf eo (load_variable_type_hint ctx fctx eo (pos f.cff_name) t) in
 	let kind = if fctx.is_inline then
 		{ v_read = AccInline ; v_write = AccNever }
 	else if fctx.is_final then
@@ -1421,7 +1421,7 @@ let create_property (ctx,cctx,fctx) c f cf (get,set,t,eo) p =
 	let ret = (match t, eo with
 		| None, None -> raise_typing_error "Property requires type-hint or initialization" p;
 		| None, _ -> mk_mono()
-		| Some t, _ -> load_type_hint ctx p LoadNormal (Some t)
+		| Some t, _ -> struct_init_field_type ctx fctx c cf eo (load_type_hint ctx p LoadNormal (Some t))
 	) in
 	cf.cf_type <- ret;
 	let t_get,t_set = match cctx.abstract with
