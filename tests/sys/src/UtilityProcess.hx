@@ -48,7 +48,7 @@ class UtilityProcess {
 		#end
 #elseif hl
 	#if hlc
-		"UtilityProcess.exe";
+		"UtilityProcess";
 	#else
 		"UtilityProcess.hl";
 	#end
