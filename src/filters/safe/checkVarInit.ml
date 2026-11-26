@@ -84,7 +84,8 @@ let check_local_vars_init scom e =
 			| _ ->
 				loop vars e;
 				loop vars cond)
-		| TTry (e,catches) ->
+		| TTry (e,catches,efinally) ->
+			let before = !vars in
 			let cvars = List.map (fun (v,e) ->
 				let old = !vars in
 				loop vars e;
@@ -94,6 +95,15 @@ let check_local_vars_init scom e =
 			) catches in
 			loop vars e;
 			join vars cvars;
+			Option.may (fun ef ->
+				(* `finally` can be entered from any point of the try and catch blocks, so it
+				   only sees what was initialized before them. *)
+				let after = !vars in
+				vars := before;
+				loop vars ef;
+				let fin = !vars in
+				vars := PMap.mapi (fun id t -> t || (try PMap.find id fin with Not_found -> false)) after
+			) efinally;
 		| TSwitch ({switch_subject = e;switch_cases = cases;switch_default = def} as switch) ->
 			loop vars e;
 			let cvars = List.map (fun {case_patterns = ec;case_expr = e} ->

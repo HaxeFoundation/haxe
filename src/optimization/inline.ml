@@ -751,13 +751,16 @@ let rec type_inline (ictx : inline_context) cf f ethis params tret config p ?(se
 				switch_default = def;
 			} in
 			{ e with eexpr = TSwitch switch; etype = t }
-		| TTry (e1,catches) ->
+		| TTry (e1,catches,efinally) ->
 			let t = if not term then e.etype else return_type e.etype (e1::List.map snd catches) in
-			{ e with eexpr = TTry (map term false e1,List.map (fun (v,e) ->
+			let e1 = map term false e1 in
+			let catches = List.map (fun (v,e) ->
 				let lv = (state#declare v).i_subst in
 				let e = map term false e in
 				lv,e
-			) catches); etype = t }
+			) catches in
+			let efinally = Option.map (map false false) efinally in
+			{ e with eexpr = TTry (e1,catches,efinally); etype = t }
 		| TBlock l ->
 			let old = save_locals () in
 			let t = ref e.etype in
@@ -767,7 +770,7 @@ let rec type_inline (ictx : inline_context) cf f ethis params tret config p ?(se
 					| TReturn _ -> true
 					| TFunction _ -> false
 					| TIf (_,_,None) | TSwitch {switch_default = None} | TWhile (_,_,NormalWhile) -> false (* we might not enter this code at all *)
-					| TTry (a, catches) -> List.for_all has_term_return (a :: List.map snd catches)
+					| TTry (a, catches, _) -> List.for_all has_term_return (a :: List.map snd catches)
 					| TIf (cond,a,Some b) -> has_term_return cond || (has_term_return a && has_term_return b)
 					| TSwitch ({switch_default = Some def} as switch) -> has_term_return switch.switch_subject || List.for_all has_term_return (def :: List.map (fun case -> case.case_expr) switch.switch_cases)
 					| TBinop (OpBoolAnd,a,b) -> has_term_return a && has_term_return b

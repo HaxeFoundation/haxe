@@ -51,7 +51,7 @@ let rec local_usage f e =
 		f (Loop (fun f ->
 			iter (local_usage f) e
 		))
-	| TTry (e,catchs) ->
+	| TTry (e,catchs,efinally) ->
 		local_usage f e;
 		List.iter (fun (v,e) ->
 			f (Block (fun f ->
@@ -59,5 +59,8 @@ let rec local_usage f e =
 				local_usage f e;
 			))
 		) catchs;
+		Option.may (fun e ->
+			f (Block (fun f -> local_usage f e))
+		) efinally;
 	| _ ->
 		iter (local_usage f) e

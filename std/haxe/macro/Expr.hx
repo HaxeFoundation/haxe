@@ -528,9 +528,10 @@ enum ExprDef {
 	ESwitch(e:Expr, cases:Array<Case>, edef:Null<Expr>);
 
 	/**
-		Represents a `try`-expression with related catches.
+		Represents a `try`-expression with related catches and an optional
+		`finally` block.
 	**/
-	ETry(e:Expr, catches:Array<Catch>);
+	ETry(e:Expr, catches:Array<Catch>, ?efinally:Expr);
 
 	/**
 		A `return` or `return e` expression.

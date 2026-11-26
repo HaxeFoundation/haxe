@@ -58,7 +58,7 @@ let captured_vars scom impl for_coro e =
 			{ e with eexpr = TVar (v,ve) }
 		| TLocal v when PMap.mem v.v_id used ->
 			impl#mk_ref_access e v
-		| TTry (expr,catchs) ->
+		| TTry (expr,catchs,efinally) ->
 			let catchs = List.map (fun (v,e) ->
 				let e = wrap used e in
 				try
@@ -67,7 +67,7 @@ let captured_vars scom impl for_coro e =
 				with Not_found ->
 					v, e
 			) catchs in
-			mk (TTry (wrap used expr,catchs)) e.etype e.epos
+			mk (TTry (wrap used expr,catchs,Option.map (wrap used) efinally)) e.etype e.epos
 		| TFunction f ->
 			(*
 				list variables that are marked as used, but also used in that

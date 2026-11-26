@@ -832,9 +832,10 @@ module Debug = struct
 			List.iter (fun (el,bb) -> edge bb ("case " ^ (String.concat " | " (List.map s_expr_pretty el)))) ss.ss_cases;
 			(match ss.ss_default with None -> () | Some bb -> edge bb "default");
 			edge ss.ss_next "next";
-		| SETry(bb_try,_,bbl,bb_next,_) ->
+		| SETry(bb_try,_,bbl,bb_finally,bb_next,_) ->
 			edge bb_try "try";
 			List.iter (fun (_,bb_catch) -> edge bb_catch "catch") bbl;
+			Option.may (fun bb -> edge bb "finally") bb_finally;
 			edge bb_next "next";
 		| SENone ->
 			()
@@ -1070,10 +1071,10 @@ module Run = struct
 							switch_default = edef;
 						} in
 						{e with eexpr = TSwitch switch; etype = get_t e.etype}
-					| TTry(e1,catches) ->
+					| TTry(e1,catches,efinally) ->
 						let e1 = loop e1 in
 						let catches = List.map (fun (v,e) -> v,loop e) catches in
-						{e with eexpr = TTry(e1,catches); etype = get_t e.etype}
+						{e with eexpr = TTry(e1,catches,efinally); etype = get_t e.etype}
 					| TMeta(m,e1) ->
 						{e with eexpr = TMeta(m,loop e1)}
 					| TParenthesis e1 ->

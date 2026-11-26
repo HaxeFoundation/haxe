@@ -72,12 +72,13 @@ let find_in_syntax symbols (pack,decls) =
 			List.iter expr el;
 		| EFunction(_,f) ->
 			func f
-		| ETry(e1,catches) ->
+		| ETry(e1,catches,efinally) ->
 			expr e1;
 			List.iter (fun (_,th,e,_) ->
 				Option.may type_hint th;
 				expr e
 			) catches;
+			Option.may expr efinally;
 		| ECheckType(e1,th) ->
 			expr e1;
 			type_hint th;

@@ -344,7 +344,8 @@ let rec return_flow ctx e =
 		return_flow e
 	| TSwitch ({switch_exhaustive = true} as switch) ->
 		List.iter (fun case -> return_flow case.case_expr) switch.switch_cases;
-	| TTry (e,cases) ->
+	| TTry (e,cases,_) ->
+		(* `finally` cannot return *)
 		return_flow e;
 		List.iter (fun (_,e) -> return_flow e) cases;
 	| TWhile({eexpr = (TConst (TBool true))},e,_) ->

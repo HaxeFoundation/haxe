@@ -44,9 +44,10 @@ let check_captures ctx args expr =
 		| TVar(v, eo) ->
 			declare v;
 			Option.may browse eo
-		| TTry(e1, catches) ->
+		| TTry(e1, catches, efinally) ->
 			browse e1;
-			List.iter (fun (v, e) -> declare v; browse e) catches
+			List.iter (fun (v, e) -> declare v; browse e) catches;
+			Option.may browse efinally
 		| TFunction tf ->
 			List.iter (fun (v,_) -> declare v) tf.tf_args;
 			browse tf.tf_expr
@@ -234,13 +235,16 @@ let expr_to_coro ctx etmp_result etmp_error etmp_error_unwrapped cb_root scope d
 				) switch.switch_cases in
 				let switch_default = Option.map (remap can_tco loop_depth) switch.switch_default in
 				{e with eexpr = TSwitch {switch with switch_subject; switch_cases; switch_default}}
-			| TTry(e1, catches) ->
+			| TTry(e1, catches, efinally) ->
 				(* The try body has a catch handler (this TTry's), so no TCO there.
 				   The catch bodies don't have a catch handler from this TTry node,
 				   so they inherit can_tco from the outer context. *)
 				let e1 = remap false loop_depth e1 in
-				let catches = List.map (fun (v, e) -> (v, remap can_tco loop_depth e)) catches in
-				{e with eexpr = TTry(e1, catches)}
+				(* A tail call in a catch block would skip the `finally` block. *)
+				let can_tco_catches = can_tco && efinally = None in
+				let catches = List.map (fun (v, e) -> (v, remap can_tco_catches loop_depth e)) catches in
+				let efinally = Option.map (remap false loop_depth) efinally in
+				{e with eexpr = TTry(e1, catches, efinally)}
 			| TWhile(e1,e2,flag) ->
 				let e1 = remap false loop_depth e1 in
 				let e2 = remap false (loop_depth + 1) e2 in
@@ -551,7 +555,7 @@ let expr_to_coro ctx etmp_result etmp_error etmp_error_unwrapped cb_root scope d
 			| HasSuspension ->
 				split_while cb e1 e2 e.etype e.epos
 			end
-		| TTry(e1,catches) ->
+		| TTry(e1,catches,efinally) ->
 			let map_catches () =
 				let rec aux acc catches = match catches with
 					| [] -> Some (List.rev acc)
@@ -562,9 +566,20 @@ let expr_to_coro ctx etmp_result etmp_error etmp_error_unwrapped cb_root scope d
 				in
 				aux [] catches
 			in
-			begin match map_suspension cb RBlock e1, map_catches () with
-			| HasNoSuspension e1', Some catches' ->
-				Some (cb,{e with eexpr = TTry(e1',catches')})
+			let map_finally () = match efinally with
+				| None ->
+					Some None
+				| Some ef ->
+					match map_suspension cb RBlock ef with
+					| HasNoSuspension ef' -> Some (Some ef')
+					| HasSuspension -> None
+			in
+			begin match map_suspension cb RBlock e1, map_catches (), map_finally () with
+			| HasNoSuspension e1', Some catches', Some efinally' ->
+				Some (cb,{e with eexpr = TTry(e1',catches',efinally')})
+			| _ when efinally <> None ->
+				(* TODO: The state machine would have to remember how the try or catch block was left. *)
+				Error.raise_typing_error "finally is not supported yet in coroutines if the try, catch or finally blocks can suspend" e.epos
 			| _ ->
 				split_try cb ret e1 catches e.etype e.epos
 			end

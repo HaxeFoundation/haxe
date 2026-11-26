@@ -795,7 +795,7 @@ module HxbWriter = struct
 				write_pos writer p
 			in
 			Chunk.write_option writer.chunk def write_default;
-		| ETry(e1,catches) ->
+		| ETry(e1,catches,efinally) ->
 			Chunk.write_u8 writer.chunk 23;
 			write_expr writer e1;
 			let write_catch (pn,th,e,p) =
@@ -805,6 +805,7 @@ module HxbWriter = struct
 				write_pos writer p;
 			in
 			Chunk.write_list writer.chunk catches write_catch;
+			Chunk.write_option writer.chunk efinally (write_expr writer);
 		| EReturn None ->
 			Chunk.write_u8 writer.chunk 24;
 		| EReturn (Some e1) ->
@@ -1501,13 +1502,14 @@ module HxbWriter = struct
 				);
 				Chunk.write_option writer.chunk s.switch_default loop;
 				true;
-			| TTry(e1,catches) ->
+			| TTry(e1,catches,efinally) ->
 				Chunk.write_u8 writer.chunk 83;
 				loop e1;
 				Chunk.write_list writer.chunk catches  (fun (v,e) ->
 					declare_var v;
 					loop e
 				);
+				Chunk.write_option writer.chunk efinally loop;
 				true;
 			| TWhile(e1,e2,flag) ->
 				Chunk.write_u8 writer.chunk (if flag = NormalWhile then 84 else 85);

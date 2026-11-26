@@ -921,7 +921,7 @@ class local_safety (mode:safety_mode) =
 		(**
 			This method should be called upon passing `try`.
 		*)
-		method process_try (try_block:texpr) (catches:(tvar * texpr) list) (check_expr:texpr->unit) =
+		method process_try (try_block:texpr) (catches:(tvar * texpr) list) (efinally:texpr option) (check_expr:texpr->unit) =
 			let original_safe_locals = self#get_safe_locals_copy in
 			check_expr try_block;
 			(* Remove locals which became safe inside of a try block from safety *)
@@ -940,7 +940,14 @@ class local_safety (mode:safety_mode) =
 						(Hashtbl.copy safe_after_catches)
 				)
 				catches;
-			self#get_current_scope#reset_to safe_after_catches
+			self#get_current_scope#reset_to safe_after_catches;
+			Option.may (fun efinally ->
+				(* `finally` can be entered from any point of the try and catch blocks, so only what
+				   was safe both before and after them is safe in it. This is conservative for the code
+				   after the `finally` too, which only sees what is still safe at its end. *)
+				self#filter_safety original_safe_locals;
+				check_expr efinally
+			) efinally
 		(**
 			This method should be called upon passing `if`.
 			It collects locals which are checked against `null` and executes callbacks for expressions with proper statuses of locals.
@@ -1297,7 +1304,7 @@ class expr_checker m mode immediate_execution report options =
 				| TIf _ -> self#check_if e
 				| TWhile _ -> self#check_while e
 				| TSwitch switch -> self#check_switch switch e.epos
-				| TTry (try_block, catches) -> self#check_try try_block catches
+				| TTry (try_block, catches, efinally) -> self#check_try try_block catches efinally
 				| TReturn (Some expr) -> self#check_return expr e.epos
 				| TReturn None -> ()
 				| TBreak -> ()
@@ -1349,8 +1356,8 @@ class expr_checker m mode immediate_execution report options =
 		(**
 			Check try...catch
 		*)
-		method private check_try try_block catches =
-			local_safety#process_try try_block catches self#check_expr
+		method private check_try try_block catches efinally =
+			local_safety#process_try try_block catches efinally self#check_expr
 		(**
 			Don't use nullable value as a condition in `while`
 		*)
