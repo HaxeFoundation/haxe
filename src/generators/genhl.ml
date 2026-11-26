@@ -2134,7 +2134,7 @@ and eval_expr ctx e =
 	| TVar (v,e) ->
 		(match e with
 		| None ->
-			if captured_index ctx v = None then decl_var ctx v
+			if captured_index ctx v = None then ignore (alloc_var ctx v true)
 		| Some e ->
 			let ri = eval_to ctx e (to_type ctx v.v_type) in
 			match captured_index ctx v with
