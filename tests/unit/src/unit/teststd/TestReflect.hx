@@ -1,6 +1,23 @@
 package unit.teststd;
 
 class TestReflect extends unit.Test {
+	// Fields named like keywords of the target language (Python stores `from` as `_hx_from`).
+	public function testKeywordFieldNames() {
+		var x:Dynamic = {"from": 1, "class": null, "pass": 2};
+		t(Reflect.hasField(x, "from"));
+		t(Reflect.hasField(x, "class"));
+		t(Reflect.hasField(x, "pass"));
+		f(Reflect.hasField(x, "import"));
+		Reflect.setField(x, "import", 3);
+		t(Reflect.hasField(x, "import"));
+		eq(Reflect.field(x, "import"), 3);
+		Reflect.deleteField(x, "from");
+		f(Reflect.hasField(x, "from"));
+		var parsed:Dynamic = haxe.Json.parse('{"from": 1, "to": 2}');
+		t(Reflect.hasField(parsed, "from"));
+		t(Reflect.hasField(parsed, "to"));
+	}
+
 	public function test() {
 		// hasField
 		var x = { a: 1, b: null };
