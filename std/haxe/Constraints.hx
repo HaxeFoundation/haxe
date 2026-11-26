@@ -49,6 +49,32 @@ abstract FlatEnum(Dynamic) {}
 abstract NotVoid(Dynamic) { }
 
 /**
+	This type unifies with types whose values are objects: references to a
+	value with an identity, which can therefore be compared by reference, as
+	`haxe.atomic.AtomicObject` does. It unifies with:
+
+	  * class instances, including `String`
+	  * enum values
+	  * anonymous structures
+	  * `Class<T>`, `Enum<T>` and `EnumValue`
+	  * `Dynamic`
+	  * `Null<T>` if `T` unifies with this type
+	  * abstracts whose underlying type unifies with this type
+	  * type parameters that have a constraint which unifies with this type,
+	    which includes `{}`
+
+	Basic types such as `Int`, `Float` and `Bool`, abstracts over them and
+	functions do not unify with it.
+
+	A type with explicit `@:semantics` metadata unifies with it if, and only
+	if, its semantics are `object`.
+
+	It is intended to be used as a type parameter constraint. If used as a real
+	type, the underlying type will be `Dynamic`.
+**/
+abstract Object(Dynamic) {}
+
+/**
 	This type unifies with any instance of classes that have a constructor
 	which
 
