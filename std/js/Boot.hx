@@ -38,6 +38,20 @@ class Boot {
 		return untyped __define_feature__("js.Boot.isEnum", e.__ename__);
 	}
 
+	/**
+		Turns `undefined` into `null` and returns any other value unchanged.
+		Used when nullable primitives are concatenated with strings.
+	**/
+	#if (js_es >= 2020)
+	@:pure static inline function normalizeNull(v:Dynamic):Dynamic {
+		return Syntax.code("({0} ?? null)", v);
+	}
+	#else
+	@:pure static function normalizeNull(v:Dynamic):Dynamic {
+		return Syntax.code("{0} === undefined ? null : {0}", v);
+	}
+	#end
+
 	@:pure static function getClass(o:Null<Dynamic>):Null<Dynamic> {
 		if (o == null) {
 			return null;

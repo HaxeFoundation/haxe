@@ -199,6 +199,15 @@ let make_binop ctx op e1 e2 is_assign_op p =
 		let rec loop t = match classify t with
 			| KAbstract ({a_impl = Some c; a_this},_) when PMap.mem "toString" c.cl_statics ->
 				call_to_string ~no_null_check:(is_explicit_null a_this) ctx e
+			| KInt | KFloat | KString when ctx.com.platform = Js && is_explicit_null t ->
+				(* a nullable primitive might be undefined, which would be concatenated as "undefined" (#13241) *)
+				let c = match Typeload.load_instance ctx (make_ptp (mk_type_path (["js"],"Boot")) null_pos) ParamNormal LoadNormal with
+					| TInst(c,_) -> c
+					| _ -> die "" __LOC__
+				in
+				ignore(c.cl_build());
+				let ef = Texpr.Builder.make_static_field c (PMap.find "normalizeNull" c.cl_statics) e.epos in
+				make_call ctx ef [e] e.etype e.epos
 			| KInt | KFloat | KString -> e
 			| KUnk | KDyn | KNumParam _ | KStrParam _ | KOther ->
 				Texpr.Builder.resolve_and_make_static_call ctx.com.std "string" [e] e.epos
