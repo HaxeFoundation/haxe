@@ -1152,12 +1152,26 @@ module Run = struct
 	let run_on_class com exc_out pool config c =
 		let config = update_config_from_meta com config c.cl_meta in
 		let fields = DynArray.create () in
+		(* An overload can also be a field of the class (an abstract's @:op(a()) functions are statics
+		   of the impl class too). Analyze it only once: two runs on the same field in parallel share
+		   its variables' v_extra. *)
+		let overloads = ref [] in
+		let add_field cf =
+			if not (List.memq cf !overloads) then DynArray.add fields cf
+		in
+		let add_overload cf =
+			let listed = try ignore (DynArray.index_of (fun cf' -> cf' == cf) fields); true with Not_found -> false in
+			if not listed then begin
+				overloads := cf :: !overloads;
+				DynArray.add fields cf
+			end
+		in
 		let process_field stat cf = match cf.cf_kind with
 			| Var _ when not stat ->
 				()
 			| _ ->
-				DynArray.add fields cf;
-				List.iter (DynArray.add fields) cf.cf_overloads
+				add_field cf;
+				List.iter add_overload cf.cf_overloads
 		in
 		List.iter (process_field false) c.cl_ordered_fields;
 		List.iter (process_field true) c.cl_ordered_statics;
