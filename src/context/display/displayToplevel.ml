@@ -153,12 +153,17 @@ let init_or_update_server cs com timer_name =
 		re-parse them and remove them from c_removed_files. *)
 	let removed_files = cc#get_removed_files in
 	let removed_removed_files = DynArray.create () in
-	Hashtbl.iter (fun file_key file_path ->
+	Hashtbl.iter (fun file_key (file_path,path) ->
 		DynArray.add removed_removed_files file_key;
 		try
 			ignore(cc#find_file file_key);
 		with Not_found ->
-			try ignore(TypeloadParse.parse_module_file com file_path null_pos) with _ -> ()
+			(* A file whose module is known is parsed through its module path, as typing does, so that
+			   the positions of the declarations cached are the ones typing gets. *)
+			try match path with
+				| Some path -> ignore(Display.parse_module' com path null_pos)
+				| None -> ignore(TypeloadParse.parse_module_file com file_path null_pos)
+			with _ -> ()
 	) removed_files;
 	DynArray.iter (Hashtbl.remove removed_files) removed_removed_files
 
@@ -489,7 +494,10 @@ let collect ctx tk with_type sort =
 			if (List.exists (fun e -> ExtString.String.starts_with dot_path (e ^ ".")) !exclude) then
 				()
 			else begin
-				ctx.com.module_to_file#add (cfile.c_package,module_name) cfile.c_file_path;
+				begin match cfile.c_decls with
+					| (_,p) :: _ -> ctx.com.module_to_file#add (cfile.c_package,module_name) (ClassPaths.create_resolved_file p.pfile cfile.c_file_path.class_path)
+					| [] -> ()
+				end;
 				if process_decls cfile.c_package module_name cfile.c_decls then check_package cfile.c_package;
 			end
 		) files;

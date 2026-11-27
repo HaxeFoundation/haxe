@@ -6,7 +6,6 @@ class Issue13051 extends TestCase {
 	function getBaseArgs(define:String) {
 		return [
 			"--js", "no.js", "--no-output",
-			"-D", "disable-hxb-optimizations",
 			"-D", define
 		];
 	}

@@ -7,8 +7,6 @@ open TFunctions
 type find_module_result =
 	| GoodModule of module_def
 	| BadModule of module_skip_reason
-	| BadBinaryModule of (HxbData.module_cache * module_skip_reason)
-	| BinaryModule of HxbData.module_cache
 	| NoModule
 
 let type_module_hook : (Common.context -> (typer_pass -> (unit -> unit) -> unit) -> path -> pos -> find_module_result) ref = ref (fun _ _ _ _ -> NoModule)

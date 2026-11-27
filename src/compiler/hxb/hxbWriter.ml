@@ -2366,11 +2366,6 @@ let write_module writer m =
 		)
 	}
 
-let get_chunks writer =
-	List.map (fun chunk ->
-		(chunk.Chunk.kind,Chunk.get_bytes chunk)
-	) (HxbWriter.get_sorted_chunks writer)
-
 let export : 'a . hxb_writer -> 'a IO.output -> unit = fun writer ch ->
 	write_header ch;
 	let l = HxbWriter.get_sorted_chunks writer in

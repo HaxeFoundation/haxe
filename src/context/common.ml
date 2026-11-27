@@ -35,7 +35,6 @@ module Stats = struct
 	type t = {
 		s_files_parsed : int ref;
 		s_modules_typed : int ref;
-		s_modules_restored : int ref;
 		s_classes_built : int ref;
 		s_methods_typed : int ref;
 		s_macros_called : int ref;
@@ -45,7 +44,6 @@ module Stats = struct
 		{
 			s_files_parsed = ref 0;
 			s_modules_typed = ref 0;
-			s_modules_restored = ref 0;
 			s_classes_built = ref 0;
 			s_methods_typed = ref 0;
 			s_macros_called = ref 0;
@@ -355,7 +353,6 @@ and context = {
 	(* misc *)
 	mutable basic : basic_types;
 	memory_marker : float array;
-	mutable hxb_reader_api : HxbReaderApi.hxb_reader_api option;
 	hxb_reader_stats : HxbReader.hxb_reader_stats;
 	mutable hxb_writer_config : HxbWriterConfig.t option;
 }
@@ -825,7 +822,6 @@ let create sctx request_scope part_scope display_mode =
 		parser_cache = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup;
 		is_macro_context = false;
-		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 		hxb_writer_config = None;
 	} in
@@ -970,7 +966,6 @@ let clone com is_macro_context =
 		parser_cache = new hashtbl_lookup;
 		overload_cache = new hashtbl_lookup; (* ! *)
 		is_macro_context = is_macro_context;
-		hxb_reader_api = None;
 		hxb_reader_stats = HxbReader.create_hxb_reader_stats ();
 	}
 

@@ -53,20 +53,6 @@ type chunk_kind =
 	| EXD (* class field expressions *)
 	| EOM (* end of module *)
 
-type cached_chunk = chunk_kind * bytes
-type cached_chunks = cached_chunk list
-
-type module_cache = {
-	mc_path : path;
-	mc_id : int;
-	mc_chunks : cached_chunks;
-	mc_extra : module_def_extra;
-}
-
-type typing_mode =
-	| FullTyping
-	| AllowPartialTyping
-
 let string_of_chunk_kind = function
 	| STR -> "STR"
 	| DOC -> "DOC"

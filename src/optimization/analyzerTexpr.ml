@@ -1279,7 +1279,7 @@ module Purity = struct
 		Hashtbl.iter (fun _ node ->
 			match node.pn_purity with
 			| Pure | MaybePure when not (List.exists (fun (m,_,_) -> m = Meta.Pure) node.pn_field.cf_meta) ->
-				node.pn_field.cf_meta <- (Meta.Pure,[EConst(Ident "inferredPure"),mk_zero_range_pos node.pn_field.cf_pos],mk_zero_range_pos node.pn_field.cf_pos) :: node.pn_field.cf_meta
+				node.pn_field.cf_meta <- (Meta.Pure,[EConst(Ident "inferredPure"),null_pos],null_pos) :: node.pn_field.cf_meta
 			| _ -> ()
 		) node_lut;
 end

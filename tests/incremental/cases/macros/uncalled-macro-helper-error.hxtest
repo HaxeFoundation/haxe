@@ -1,0 +1,40 @@
+# A class used at run time has a macro function that is never called. The
+# macro function is still typed in the macro context, so an error in a module
+# it uses is reported, also when only that module changes.
+@targets interp js
+
+=== initial
+@expect-output 1
+--- Main.hx
+class Main {
+	static function main() {
+		trace(new Fs().v);
+	}
+}
+--- Fs.hx
+class Fs {
+	public var v = 1;
+	public function new() {}
+	public static macro function create() {
+		return macro $v{Tree.value()};
+	}
+}
+--- Tree.hx
+class Tree {
+	public static function value() return 42;
+}
+
+=== error in the module used by the macro function
+@expect-error String should be Int
+--- Tree.hx
+class Tree {
+	public static var error : Int = "error";
+	public static function value() return 42;
+}
+
+=== error fixed
+@expect-output 1
+--- Tree.hx
+class Tree {
+	public static function value() return 43;
+}

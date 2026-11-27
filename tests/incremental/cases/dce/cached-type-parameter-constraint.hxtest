@@ -3,7 +3,7 @@
 # same object as in the previous compilation: it must not count as already
 # visited, or its constraint is not marked and the class is removed.
 @targets js
-@args -dce full -D disable-hxb-cache
+@args -dce full
 
 === initial
 @expect-output 1

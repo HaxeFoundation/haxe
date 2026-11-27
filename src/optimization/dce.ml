@@ -178,9 +178,12 @@ let rec check_feature dce s =
 
 and check_and_add_feature dce s =
 	check_feature dce s;
-	let c = dce.curclass in
-	assert (c != null_class);
-	NowOrLater.try_now dce.add_feature_manager (fun () -> Hashtbl.replace c.cl_module.m_extra.m_features s true)
+	assert (dce.curclass != null_class);
+	add_module_feature dce s
+
+and add_module_feature dce s =
+	let m = dce.curclass.cl_module in
+	NowOrLater.try_now dce.add_feature_manager (fun () -> Hashtbl.replace m.m_extra.m_features s true)
 
 (* mark a field as kept *)
 and mark_field dce c cf kind =
@@ -636,7 +639,7 @@ and expr dce e =
 		List.iter (fun (_,e) -> expr dce e) v;
 		expr dce p;
 	| TCall ({eexpr = TIdent "__define_feature__"},[{eexpr = TConst (TString ft)};e]) ->
-		Hashtbl.replace dce.curclass.cl_module.m_extra.m_features ft true;
+		add_module_feature dce ft;
 		check_feature dce ft;
 		expr dce e;
 
@@ -912,7 +915,8 @@ let mark pool dce =
 			loop ()
 		end
 	in
-	loop ()
+	loop ();
+	NowOrLater.handle_later dce.add_feature_manager
 
 let sweep dce types =
 	let rec loop acc types =

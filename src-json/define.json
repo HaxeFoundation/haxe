@@ -75,18 +75,6 @@
 		"doc": "Activated when compiling with -debug."
 	},
 	{
-		"name": "DisableHxbCache",
-		"define": "disable-hxb-cache",
-		"signatureNeutral": true,
-		"doc": "Use in-memory cache instead of hxb powered cache."
-	},
-	{
-		"name": "DisableHxbOptimizations",
-		"define": "disable-hxb-optimizations",
-		"signatureNeutral": true,
-		"doc": "Disable shortcuts used by hxb cache to speed up display requests."
-	},
-	{
 		"name": "DisableParallelism",
 		"define": "disable-parallelism",
 		"signatureNeutral": true,

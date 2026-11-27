@@ -1,7 +1,6 @@
 # Two structures share a field whose type is a monomorph bound by a previous
 # compilation; one of them is in a module typed again.
 @targets hl
-@args -D disable-hxb-cache
 
 === initial
 @expect-success

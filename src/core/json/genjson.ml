@@ -172,9 +172,12 @@ and generate_metadata_entry ctx (m,el,p) =
 	]
 
 and generate_metadata ctx ml =
-	let ml = List.filter (fun (m,_,_) ->
-		let (_,data) = Meta.get_info m in
-		not data.m_internal
+	let ml = List.filter (fun meta -> match meta with
+		| Meta.Pure,_,p when p = null_pos ->
+			false
+		| (m,_,_) ->
+			let (_,data) = Meta.get_info m in
+			not data.m_internal
 	) ml in
 	jlist (generate_metadata_entry ctx) ml
 

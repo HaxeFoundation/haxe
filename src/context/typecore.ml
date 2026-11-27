@@ -714,18 +714,35 @@ let prepare_using_field cf = match follow cf.cf_type with
 		{cf with cf_overloads = loop [] cf.cf_overloads; cf_type = TFun(args,ret)}
 	| _ -> cf
 
+(* The documentation merged into core classes by [merge_core_doc] is removed by [restore_core_docs],
+   so that the classes kept by the server between requests keep their own. *)
+let core_doc_restores = ref []
+
+let restore_core_docs () =
+	List.iter (fun f -> f ()) !core_doc_restores;
+	core_doc_restores := []
+
 let merge_core_doc ctx mt =
 	(match mt with
 	| TClassDecl c | TAbstractDecl { a_impl = Some c } when Meta.has Meta.CoreApi c.cl_meta ->
 		let c_core = ctx.g.do_load_core_class ctx c in
-		if c.cl_doc = None then c.cl_doc <- c_core.cl_doc;
+		if c.cl_doc = None && c_core.cl_doc <> None then begin
+			c.cl_doc <- c_core.cl_doc;
+			core_doc_restores := (fun () -> c.cl_doc <- None) :: !core_doc_restores
+		end;
+		let merge cf cf2 =
+			if cf.cf_doc = None && cf2.cf_doc <> None then begin
+				cf.cf_doc <- cf2.cf_doc;
+				core_doc_restores := (fun () -> cf.cf_doc <- None) :: !core_doc_restores
+			end
+		in
 		let maybe_merge cf_map cf =
-			if cf.cf_doc = None then try cf.cf_doc <- (PMap.find cf.cf_name cf_map).cf_doc with Not_found -> ()
+			try merge cf (PMap.find cf.cf_name cf_map) with Not_found -> ()
 		in
 		List.iter (maybe_merge c_core.cl_fields) c.cl_ordered_fields;
 		List.iter (maybe_merge c_core.cl_statics) c.cl_ordered_statics;
 		begin match c.cl_constructor,c_core.cl_constructor with
-			| Some ({cf_doc = None} as cf),Some cf2 -> cf.cf_doc <- cf2.cf_doc
+			| Some cf,Some cf2 -> merge cf cf2
 			| _ -> ()
 		end
 	| _ -> ())
