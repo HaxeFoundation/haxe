@@ -39,8 +39,6 @@ private class Struct4 {
 
 class Issue4526 extends Test {
 	function test() {
-		var fieldNull = #if (cpp || flash || jvm || hl) 0 #else null #end;
-
 		var s1:Struct1 = { x: 12, y: 13 };
 		eq("12 13", s1.get());
 		t(unit.HelperMacros.typeError(({x:12} : Struct1)));
@@ -49,15 +47,15 @@ class Issue4526 extends Test {
 		var s2:Struct2 = { x: 12, y: 13 };
 		eq("12 13", s2.get());
 		var s2:Struct2 = { y: 13 };
-		eq(fieldNull + " 13", s2.get());
+		eq("null 13", s2.get());
 		t(unit.HelperMacros.typeError(({x:12} : Struct2)));
 
 		var s3:Struct3 = { x: 12, y: 13 };
 		eq("12 13", s3.get());
 		var s3:Struct3 = { y: 13 };
-		eq(fieldNull + " 13", s3.get());
+		eq("null 13", s3.get());
 		var s3:Struct3 = { };
-		eq(fieldNull + " " + fieldNull, s3.get());
+		eq("null null", s3.get());
 	}
 
 	function testOrder() {
