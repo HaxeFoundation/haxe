@@ -356,6 +356,8 @@ let reify in_macro =
 			expr "ECast" [loop e; to_opt to_type_hint ct p]
 		| EIs (e,ct) ->
 			expr "EIs" [loop e; to_type_hint ct p]
+		| ETypeArgs (e,tl) ->
+			expr "ETypeArgs" [loop e; to_array to_type_hint tl p]
 		| EDisplay (e,dk) ->
 			expr "EDisplay" [loop e; to_display_kind dk p]
 		| ETernary (e1,e2,e3) ->

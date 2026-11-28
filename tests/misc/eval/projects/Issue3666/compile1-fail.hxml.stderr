@@ -1,0 +1,2 @@
+Main1.hx:5: characters 3-12 : Cannot compare (x : Unknown<0>) -> Unknown<0> and Class<String>
+Main1.hx:5: characters 3-12 : Explicit type arguments need a dot: id.<...>(...)

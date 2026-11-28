@@ -29,6 +29,7 @@ let create e cf fh inline ?field_pos p = {
 	fa_inline = inline;
 	fa_pos    = p;
 	fa_field_pos = field_pos;
+	fa_type_args = None;
 }
 
 (* Creates the `tfield_access` corresponding to this field access, using the provided field. *)

@@ -695,6 +695,8 @@ and encode_expr e =
 				27, [encode_meta_entry m;loop e]
 			| EIs (e,t) ->
 				28, [loop e;encode_ctype t]
+			| ETypeArgs (e,tl) ->
+				29, [loop e;encode_array (List.map encode_ctype tl)]
 		in
 		encode_obj [
 			"pos", encode_pos p;
@@ -1061,6 +1063,8 @@ and decode_expr v =
 			EMeta (decode_meta_entry m,loop e)
 		| 28, [e;t] ->
 			EIs (loop e,decode_ctype t)
+		| 29, [e;tl] ->
+			ETypeArgs (loop e,List.map decode_ctype (decode_array tl))
 		| _ ->
 			raise Invalid_expr
 	in
