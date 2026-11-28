@@ -57,8 +57,9 @@ class StringBuf {
 
 	public inline function addChar(c:Int):Void {
 		final i = this.bufferLength += 1;
-		Lua.rawset(this.b, i, String.fromCharCode(c));
-		this.length += 1;
+		final str = String.fromCharCode(c);
+		Lua.rawset(this.b, i, str);
+		this.length += #if lua_vanilla str.length #else 1 #end;
 	}
 
 	public inline function addSub(s:String, pos:Int, ?len:Int):Void {

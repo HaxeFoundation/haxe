@@ -748,16 +748,13 @@ and type_object_decl ctx fl with_type p =
 	in
 	let type_plain_fields () =
 		let loop (l,acc) ((f,pf,qs),e) =
-			let is_valid = Lexer.is_valid_identifier f in
 			if PMap.mem f acc then raise_typing_error ("Duplicate field in object declaration : " ^ f) pf;
 			let e = type_expr ctx e (WithType.named_structure_field f) in
 			(match follow e.etype with TAbstract({a_path=[],"Void"},_) -> raise_typing_error "Fields of type Void are not allowed in structures" e.epos | _ -> ());
 			let cf = mk_field f e.etype (punion pf e.epos) pf in
 			if ctx.f.in_display && DisplayPosition.display_position#enclosed_in pf then DisplayEmitter.display_field ctx Unknown CFSMember cf pf;
-			(((f,pf,qs),e) :: l, if is_valid then begin
-				if starts_with f '$' then raise_typing_error "Field names starting with a dollar are not allowed" p;
-				PMap.add f cf acc
-			end else acc)
+			(* quoted names can be any string, but names starting with a dollar stay out of the type *)
+			(((f,pf,qs),e) :: l, if starts_with f '$' then acc else PMap.add f cf acc)
 		in
 		let fields , types = List.fold_left loop ([],PMap.empty) fl in
 		let x = ref Const in

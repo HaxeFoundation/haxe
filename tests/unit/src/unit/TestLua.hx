@@ -403,6 +403,112 @@ class TestLua extends Test {
 		var anyTable:lua.Table.AnyTable = opts;
 		t(anyTable != null);
 	}
+
+	function testTableStructSideEffects() {
+		var log = [];
+		function record(s:String) {
+			log.push(s);
+			return log.length;
+		}
+		// a call as a field value, next to a constant
+		var call = lua.TableStruct.create({a: 1, b: record("b")});
+		eq(call.a, 1);
+		eq(call.b, 1);
+		// nested create
+		var nested = lua.TableStruct.create({inner: lua.TableStruct.create({c: 2}), d: record("d")});
+		eq(nested.inner.c, 2);
+		eq(nested.d, 2);
+		// the field values are evaluated in order
+		var order = lua.TableStruct.create({first: record("first"), second: record("second")});
+		eq(order.first, 3);
+		eq(order.second, 4);
+		eq(log.join(","), "b,d,first,second");
+		// the type parameter is inferred from the expected type
+		var expected:lua.TableStruct<{x:Int, ?y:Int}> = lua.TableStruct.create({x: record("x")});
+		eq(expected.x, 5);
+		eq(expected.y, null);
+	}
+
+	function testTablePairsMetamethod() {
+		// an empty table whose __pairs metamethod (Lua 5.2+) returns a stateful iterator over a=1, b=2
+		var t:lua.Table<String, Int> = lua.Syntax.code("setmetatable({}, {__pairs = function(t)
+			local keys, i = {'a', 'b'}, 0
+			return function() i = i + 1; local k = keys[i]; if k then return k, i end end, t, nil
+		end})");
+		var expected = [];
+		lua.PairTools.pairsEach(t, (k, v) -> expected.push('$k=$v'));
+		if (lua.Lua._VERSION != "Lua 5.1") {
+			eq(expected.join(","), "a=1,b=2");
+		}
+		var keyValues = [];
+		for (k => v in t) {
+			keyValues.push('$k=$v');
+		}
+		eq(keyValues.join(","), expected.join(","));
+		var values = [];
+		for (v in t) {
+			values.push('$v');
+		}
+		eq(values.join(","), [for (e in expected) e.split("=")[1]].join(","));
+		var pairs = [];
+		var it = lua.PairTools.pairsIterator(t);
+		while (it.hasNext()) {
+			var e = it.next();
+			pairs.push('${e.index}=${e.value}');
+		}
+		eq(pairs.join(","), expected.join(","));
+	}
+
+	function testTableIteration() {
+		var t:lua.Table<String, Int> = lua.Table.create(null, {a: 1});
+		var keyValues = [];
+		for (k => v in t) {
+			keyValues.push('$k=$v');
+		}
+		eq(keyValues.join(","), "a=1");
+		var values = [];
+		for (v in t) {
+			values.push(v);
+		}
+		eq(values.join(","), "1");
+		var empty:lua.Table<String, Int> = lua.Table.create();
+		for (v in empty) {
+			assert();
+		}
+	}
+
+	function testQuotedFieldNames() {
+		var o:QuotedNames = {"priority-list": 1, "default": "d"};
+		eq(o."priority-list", 1);
+		eq(o."default", "d");
+		eq(o."not set", null);
+		o."priority-list" = 2;
+		eq(o."priority-list", 2);
+		eq(Reflect.field(o, "priority-list"), 2);
+		o."not set" = true;
+		eq(o."not set", true);
+
+		var s:lua.TableStruct<QuotedNames> = lua.TableStruct.create({"priority-list": 3, "default": "s"});
+		eq(s."priority-list", 3);
+		eq(s."default", "s");
+		eq(lua.Syntax.code("{0}['priority-list']", s), 3);
+	}
+
+	function testLength() {
+		eq(lua.Lua.length("abc"), 3);
+		eq(lua.Lua.length(lua.Table.create([1, 2, 3])), 3);
+		eq(lua.Lua.length("ab" + "cd"), 4);
+		var withLen = lua.Syntax.code("setmetatable({}, {__len = function() return 42 end})");
+		if (lua.Lua._VERSION != "Lua 5.1") {
+			eq(lua.Lua.length(withLen), 42);
+		}
+	}
+}
+
+private typedef QuotedNames = {
+	var "priority-list":Int;
+	var "default":String;
+	var ?"not set":Bool;
 }
 
 @:multiReturn extern class Multi {

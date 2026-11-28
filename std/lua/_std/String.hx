@@ -170,7 +170,22 @@ class String {
 		return BaseString.sub(this, pos + 1, pos + len);
 	}
 
+	#if lua_vanilla
+	public static function fromCharCode(code:Int):String {
+		// string.char writes bytes: encode the code point as UTF-8 like lua-utf8 does
+		return if (code < 0x80) {
+			BaseString.char(code);
+		} else if (code < 0x800) {
+			BaseString.char(0xC0 | (code >> 6), 0x80 | (code & 0x3F));
+		} else if (code < 0x10000) {
+			BaseString.char(0xE0 | (code >> 12), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F));
+		} else {
+			BaseString.char(0xF0 | (code >> 18), 0x80 | ((code >> 12) & 0x3F), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F));
+		}
+	}
+	#else
 	public inline static function fromCharCode(code:Int):String {
 		return BaseString.char(code);
 	}
+	#end
 }

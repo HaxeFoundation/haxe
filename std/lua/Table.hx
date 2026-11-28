@@ -104,37 +104,47 @@ extern class Table<A, B> implements ArrayAccess<B> implements Dynamic<B> {
     }
 
 	/**
-		Returns an iterator over the values in the table.
+		Returns an iterator over the values in the table, in the order of `pairs`.
 		Enables `for (v in table)` syntax.
 	**/
 	inline function iterator():Iterator<B> {
-		var tbl:Table<A, B> = this;
-		var cur:A = Lua.next(tbl, null).index;
+		var p = Lua.pairs(this);
+		var iter = p.next;
+		var state = p.table;
+		var first = iter(state, p.index);
+		var key = first.index;
+		var value = first.value;
 		return {
-			hasNext: function() return cur != null,
+			hasNext: function() return key != null,
 			next: function() {
-				var key = cur;
-				var val = tbl[untyped key];
-				cur = Lua.next(tbl, key).index;
-				return val;
+				var cur = value;
+				var res = iter(state, key);
+				key = res.index;
+				value = res.value;
+				return cur;
 			}
 		};
 	}
 
 	/**
-		Returns an iterator over the key-value pairs in the table.
+		Returns an iterator over the key-value pairs in the table, in the order of `pairs`.
 		Enables `for (k => v in table)` syntax.
 	**/
 	inline function keyValueIterator():KeyValueIterator<A, B> {
-		var tbl:Table<A, B> = this;
-		var cur:A = Lua.next(tbl, null).index;
+		var p = Lua.pairs(this);
+		var iter = p.next;
+		var state = p.table;
+		var first = iter(state, p.index);
+		var key = first.index;
+		var value = first.value;
 		return {
-			hasNext: function() return cur != null,
+			hasNext: function() return key != null,
 			next: function() {
-				var key = cur;
-				var val = tbl[untyped key];
-				cur = Lua.next(tbl, key).index;
-				return {key: key, value: val};
+				var cur = {key: key, value: value};
+				var res = iter(state, key);
+				key = res.index;
+				value = res.value;
+				return cur;
 			}
 		};
 	}
