@@ -1,0 +1,4 @@
+--main Main
+--no-output
+--interp
+-w +WTypingOrder

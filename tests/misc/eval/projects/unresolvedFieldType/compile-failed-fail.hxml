@@ -1,0 +1,4 @@
+--main Failed
+--no-output
+--interp
+-w +WUnresolvedFieldType

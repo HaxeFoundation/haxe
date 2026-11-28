@@ -656,6 +656,185 @@ let check_field_display ctx fctx c cf =
 
 module TypeBinding = struct
 
+	(* Fields whose type is being inferred, innermost first, with whether their type
+	   comes from their body. A field reading the placeholder type of another field
+	   of this stack is part of an inference cycle between fields (WTypingOrder). *)
+	let fields_being_inferred : (tlazy ref * typer * tclass_field * bool) list ref = ref []
+
+	let rec is_fully_determined t =
+		match t with
+		| TFun (args,ret) -> is_fully_determined ret && List.for_all (fun (_,_,t) -> is_fully_determined t) args
+		| TMono r -> (match r.tm_type with None -> false | Some t -> is_fully_determined t)
+		| TAbstract(_,tl) | TInst(_,tl) | TEnum(_,tl) | TType(_,tl) -> List.for_all is_fully_determined tl
+		| TLazy _ | TDynamic _ | TAnon _ -> true
+
+	(* Cycles already reported in the current compilation. *)
+	let reported_cycles : (int * pos * string) list ref = ref []
+
+	let () = TFunctions.lazy_processing_read_hook := (fun r ->
+		match !fields_being_inferred with
+		| (r_top,ctx,cf_reader,true) :: rest when r_top != r ->
+			let complete = match !r with LProcessing t -> is_fully_determined t | _ -> false in
+			(* A field with a declared type between the reader and the field read is only typed
+			   there because reading its type types its body: the read is not a cycle, unless
+			   that field is inline, whose body is needed to inline it. *)
+			let rec find l = match l with
+				| (r',_,cf,inferred) :: l ->
+					if r' == r then Some (cf,inferred)
+					else if inferred || cf.cf_kind = Method MethInline then find l
+					else None
+				| [] -> None
+			in
+			begin match find rest with
+			| Some (cf_read,true) when not complete ->
+				let step = ctx.com.part_scope.compilation_step in
+				let key = (step,cf_reader.cf_name_pos,cf_read.cf_name) in
+				if not (List.mem key !reported_cycles) then begin
+					reported_cycles := key :: List.filter (fun (step',_,_) -> step' = step) !reported_cycles;
+					warning ctx WTypingOrder (Printf.sprintf "%s reads the type of %s while it is being inferred (inference cycle between fields)" cf_reader.cf_name cf_read.cf_name) cf_reader.cf_name_pos
+				end
+			| _ ->
+				()
+			end
+		| _ ->
+			()
+	)
+
+	(* Whether a function body has a `return <expr>` outside its nested functions:
+	   without one, its return type is Void without typing the body (Haxe 6 rule). *)
+	let returns_value e =
+		let rec loop e = match fst e with
+			| EReturn (Some _) -> raise Exit
+			| EFunction _ -> ()
+			| _ -> Ast.iter_expr loop e
+		in
+		try loop e; false with Exit -> true
+
+	(* An argument without type hint whose default value is a literal that determines its
+	   whole type (`""`, `0`, `1.5`, `true`, `-1`): Haxe 6 types it by that literal. *)
+	let rec is_typing_literal e = match fst e with
+		| EConst (Int (_,None) | Float (_,None) | String _ | Ident ("true" | "false")) -> true
+		| EUnop (Neg,Prefix,e) | EParenthesis e -> is_typing_literal e
+		| _ -> false
+
+	(* Number of reported errors when the typing of each field of [fields_being_inferred] started. *)
+	let errors_at_start : int list ref = ref []
+
+	let while_inferring r ctx cf ~inferred f =
+		fields_being_inferred := (r,ctx,cf,inferred) :: !fields_being_inferred;
+		errors_at_start := !Common.reported_errors :: !errors_at_start;
+		Std.finally (fun () ->
+			fields_being_inferred := List.tl !fields_being_inferred;
+			errors_at_start := List.tl !errors_at_start
+		) f ()
+
+	(* The unbound return types of the callbacks of a method that appear nowhere else in its
+	   type: Haxe 6 types them as Void. *)
+	let void_callback_returns cf =
+		let rec count r visited t = match t with
+			| TMono r' ->
+				if r' == r then 1 else (match r'.tm_type with Some t -> count r visited t | None -> 0)
+			| TInst(_,tl) | TEnum(_,tl) | TType(_,tl) | TAbstract(_,tl) ->
+				List.fold_left (fun acc t -> acc + count r visited t) 0 tl
+			| TFun(args,ret) ->
+				List.fold_left (fun acc (_,_,t) -> acc + count r visited t) (count r visited ret) args
+			| TAnon an ->
+				if List.memq an !visited then 0 else begin
+					visited := an :: !visited;
+					PMap.fold (fun cf acc -> acc + count r visited cf.cf_type) an.a_fields 0
+				end
+			| TDynamic (Some t) ->
+				count r visited t
+			| TDynamic None | TLazy _ ->
+				0
+		in
+		let rec unbound t = match t with
+			| TMono ({ tm_type = None } as r) -> Some r
+			| TMono { tm_type = Some t } -> unbound t
+			| _ -> None
+		in
+		let rec callback_ret t = match t with
+			| TMono { tm_type = Some t } -> callback_ret t
+			| TAbstract ({ a_path = [],"Null" },[t]) -> callback_ret t
+			| TFun (_,ret) -> unbound ret
+			| _ -> None
+		in
+		match cf.cf_kind,cf.cf_type with
+		| Method _,TFun (args,_) ->
+			List.filter_map (fun (_,_,t) -> match callback_ret t with
+				| Some r when count r (ref []) cf.cf_type = 1 -> Some r
+				| _ -> None
+			) args
+		| _ ->
+			[]
+
+	(* The indexes of the arguments of a method that Haxe 6 types from the field it overrides or
+	   implements: the same argument there has a declared type. Only for a field of the same
+	   arity without type parameters, whose type is known without typing its body. *)
+	let inherited_args c cf =
+		let is_abstract_impl = match c.cl_kind with KAbstractImpl _ -> true | _ -> false in
+		if has_class_field_flag cf CfStatic || cf.cf_name = "new" || cf.cf_params <> [] || is_abstract_impl then
+			[]
+		else match cf.cf_type with
+		| TFun (args,_) ->
+			let nargs = List.length args in
+			let parents c = (match c.cl_super with Some (cs,_) -> [cs] | None -> []) @ List.map fst c.cl_implements in
+			let rec find = function
+				| [] -> []
+				| c2 :: l ->
+					match (try Some (PMap.find cf.cf_name c2.cl_fields) with Not_found -> None) with
+					| Some cf2 when cf2.cf_params = [] ->
+						begin match cf2.cf_type with
+						| TFun (args2,_) when List.length args2 = nargs ->
+							List.concat (List.mapi (fun i (_,_,t) -> if is_fully_determined t then [i] else []) args2)
+						| _ ->
+							find l
+						end
+					| _ ->
+						find (parents c2 @ l)
+			in
+			find (parents c)
+		| _ ->
+			[]
+
+	let check_resolved_field_type ctx cf =
+		let void_returns = void_callback_returns cf in
+		let inherited = inherited_args ctx.c.curclass cf in
+		let rec has_mono visited t = match t with
+			| TMono r ->
+				begin match r.tm_type with
+				| None -> not (List.memq r void_returns)
+				| Some t -> has_mono visited t
+				end
+			| TInst(_,tl) | TEnum(_,tl) | TType(_,tl) | TAbstract(_,tl) ->
+				List.exists (has_mono visited) tl
+			| TFun(args,ret) ->
+				has_mono visited ret || List.exists (fun (_,_,t) -> has_mono visited t) args
+			| TAnon an ->
+				if List.memq an !visited then
+					false
+				else begin
+					visited := an :: !visited;
+					PMap.fold (fun cf acc -> acc || has_mono visited cf.cf_type) an.a_fields false
+				end
+			| TDynamic (Some t) ->
+				has_mono visited t
+			| TDynamic None | TLazy _ ->
+				false
+		in
+		let failed = match !errors_at_start with
+			| n :: _ -> !Common.reported_errors > n
+			| [] -> false
+		in
+		let unresolved = match cf.cf_type with
+			| TFun (args,ret) when inherited <> [] ->
+				has_mono (ref []) ret || List.exists Fun.id (List.mapi (fun i (_,_,t) -> not (List.mem i inherited) && has_mono (ref []) t) args)
+			| t ->
+				has_mono (ref []) t
+		in
+		if not failed && unresolved then
+			warning ctx WUnresolvedFieldType (Printf.sprintf "The type of %s is not fully inferred (%s), add a type annotation" cf.cf_name (s_type (print_context()) cf.cf_type)) cf.cf_name_pos
+
 	let bind_type ctx cctx fctx cf r p =
 		let c = cctx.tclass in
 		let rec is_full_type t =
@@ -782,7 +961,9 @@ module TypeBinding = struct
 					mk_cast e cf.cf_type e.epos
 			end
 		in
-		let r = make_unforced_lazy t (fun () ->
+		let self = ref None in
+		let inferred = not (is_fully_determined t) in
+		let r = make_unforced_lazy t (fun () -> while_inferring (Option.get !self) ctx cf ~inferred (fun () ->
 			(* type constant init fields (issue #1956) *)
 			if not ctx.g.return_partial_type || (match fst e with EConst _ -> true | _ -> false) then begin
 				enter_field_typing_pass ctx.g ("bind_var_expression",fst ctx.c.curclass.cl_path @ [snd ctx.c.curclass.cl_path;ctx.f.curfield.cf_name]);
@@ -842,10 +1023,12 @@ module TypeBinding = struct
 				let e = check_cast e in
 				cf.cf_expr <- Some e;
 				cf.cf_type <- t;
+				check_resolved_field_type ctx cf;
 				check_field_display ctx fctx c cf;
 			end;
 			t
-		) "bind_var" in
+		)) "bind_var" in
+		self := Some r;
 		if not fctx.is_static then cctx.force_constructor <- true;
 		bind_type ctx cctx fctx cf r (snd e)
 
@@ -908,14 +1091,29 @@ module TypeBinding = struct
 					in
 					cf.cf_expr <- Some e;
 					cf.cf_type <- t;
+					check_resolved_field_type ctx cf;
 					check_field_display ctx fctx c cf;
 			end;
 		in
+		let self = ref None in
+		let literal_typed = List.filter_map (fun ((name,_),_,_,th,eo) -> match th,eo with
+			| None,Some e when is_typing_literal e -> Some name
+			| _ -> None
+		) args#syntax in
+		let is_declared (n,_,t) = is_fully_determined t || List.mem n literal_typed in
+		let inferred = not (is_fully_determined t) && match t, e with
+			| TFun(args,_), Some e when not (returns_value e) -> not (List.for_all is_declared args)
+			| TFun(args,ret), _ -> not (is_fully_determined ret && List.for_all is_declared args)
+			| _ -> true
+		in
 		let maybe_bind () =
-			if not ctx.g.return_partial_type then bind ();
-			t
+			while_inferring (Option.get !self) ctx cf ~inferred (fun () ->
+				if not ctx.g.return_partial_type then bind ();
+				t
+			)
 		in
 		let r = make_unforced_lazy t maybe_bind "type_fun" in
+		self := Some r;
 		bind_type ctx cctx fctx cf r p
 end
 
@@ -1156,7 +1354,7 @@ let type_opt (ctx,cctx,fctx) p mode t =
 	| _ ->
 		Typeload.load_type_hint ctx p mode t
 
-let setup_args_ret ctx cctx fctx name fd p =
+let setup_args_ret ?(from_cast=false) ctx cctx fctx name fd p =
 	let c = cctx.tclass in
 	let mk = AtomicLazy.from_fun (fun () ->
 		if String.length name < 4 then
@@ -1195,8 +1393,11 @@ let setup_args_ret ctx cctx fctx name fd p =
 	let ret = if fctx.field_kind = CfrConstructor then
 		ctx.t.tvoid
 	else begin
-		let def () =
-			type_opt (ctx,cctx,fctx) p LoadReturn fd.f_type
+		let def () = match fd.f_type, fd.f_expr, cctx.abstract with
+			| None, Some _, Some a when from_cast && not fctx.is_macro && a.a_params = [] ->
+				TAbstract(a,[])
+			| _ ->
+				type_opt (ctx,cctx,fctx) p LoadReturn fd.f_type
 		in
 		maybe_use_property_type fd.f_type (fun () -> match AtomicLazy.force mk with MKGetter | MKSetter -> true | _ -> false) def
 	end in
@@ -1294,7 +1495,7 @@ let create_method (ctx,cctx,fctx) c f cf fd p =
 	end;
 
 	ctx.type_params <- params @ ctx.type_params;
-	let args,ret = setup_args_ret ctx cctx fctx (fst f.cff_name) fd p in
+	let args,ret = setup_args_ret ~from_cast:(Meta.has Meta.From f.cff_meta) ctx cctx fctx (fst f.cff_name) fd p in
 	let is_coroutine = Meta.has Meta.Coroutine f.cff_meta in
 	let function_mode = if is_coroutine then FunCoroutine else FunFunction in
 	let targs = args#for_type in

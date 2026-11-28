@@ -402,7 +402,7 @@ let gen_method ctx p c acc =
 	| None ->
 		((c.cf_name, null p) :: acc)
 	| Some e ->
-		match e.eexpr with
+		match (Texpr.skip e).eexpr with
 		| TCall ({ eexpr = TField (_,FStatic ({cl_path=["neko"],"Lib"},{cf_name="load" | "loadLazy" as load})) },[{ eexpr = TConst (TString m) };{ eexpr = TConst (TString f) };{ eexpr = TConst (TInt n) }]) ->
 			let p = pos ctx e.epos in
 			let e = call p (EField (builtin p "loader","loadprim"),p) [(EBinop ("+",(EBinop ("+",str p m,str p "@"),p),str p f),p); (EConst (Int (Int32.to_int n)),p)] in

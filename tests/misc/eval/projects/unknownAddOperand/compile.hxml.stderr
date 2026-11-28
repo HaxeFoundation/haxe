@@ -1,0 +1,3 @@
+Main.hx:4: characters 42-43 : Warning : (WHaxe6Compat) The type of this operand is not known: Haxe 6 infers it as Int, add a type annotation if another type is meant
+Main.hx:6: characters 32-33 : Warning : (WHaxe6Compat) The type of this operand is not known: Haxe 6 infers it as Int, add a type annotation if another type is meant
+Main.hx:8: characters 28-29 : Warning : (WHaxe6Compat) The type of this operand is not known: Haxe 6 infers it as Int, add a type annotation if another type is meant

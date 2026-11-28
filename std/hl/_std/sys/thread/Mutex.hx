@@ -47,7 +47,7 @@ abstract Mutex(hl.Abstract<"hl_mutex">) {
 
 	@:hlNative("std", "mutex_release") public function release() {}
 
-	@:hlNative("std", "mutex_alloc") public static function alloc(b:Bool) {
+	@:hlNative("std", "mutex_alloc") public static function alloc(b:Bool):hl.Abstract<"hl_mutex"> {
 		return null;
 	}
 }

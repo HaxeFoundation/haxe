@@ -164,5 +164,23 @@
 		"name": "WPointlessCode",
 		"doc": "Expression or code block has no effect",
 		"parent": "WTyper"
+	},
+	{
+		"name": "WHaxe6Compat",
+		"doc": "Code that Haxe 6 rejects (enable to prepare a migration)",
+		"parent": "WTyper",
+		"enabled": false
+	},
+	{
+		"name": "WTypingOrder",
+		"doc": "Typing depends on the order in which types and fields are processed (build retries, classes read while being built, inference cycles between fields); these are errors in Haxe 6",
+		"parent": "WHaxe6Compat",
+		"enabled": false
+	},
+	{
+		"name": "WUnresolvedFieldType",
+		"doc": "The type of a field is not fully known at the end of its own typing (an error in Haxe 6)",
+		"parent": "WHaxe6Compat",
+		"enabled": false
 	}
 ]
